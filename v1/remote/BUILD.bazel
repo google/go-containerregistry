@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "doc.go",
+        "image.go",
+        "write.go",
+    ],
+    importpath = "github.com/google/go-containerregistry/v1/remote",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//authn:go_default_library",
+        "//name:go_default_library",
+        "//v1:go_default_library",
+    ],
+)
