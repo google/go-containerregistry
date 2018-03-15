@@ -54,10 +54,7 @@ func (t Tag) TagStr() string {
 
 // Name returns the name from which the Tag was derived.
 func (t Tag) Name() string {
-	if t.TagStr() != "" {
-		return t.Repository.Name() + tagDelim + t.TagStr()
-	}
-	return t.Repository.Name()
+	return t.Repository.Name() + tagDelim + t.TagStr()
 }
 
 func (t Tag) String() string {
