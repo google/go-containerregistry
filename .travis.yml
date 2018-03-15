@@ -1,0 +1,24 @@
+sudo: required
+
+dist: trusty
+
+language:
+  - java
+
+jdk:
+  - oraclejdk8  # Building Bazel requires JDK8.
+
+services:
+  - docker
+
+addons:
+  apt:
+    sources:
+      - sourceline: 'deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8'
+        key_url: 'https://storage.googleapis.com/bazel-apt/doc/apt-key.pub.gpg'
+    packages:
+      - bazel
+
+script:
+  - bazel clean && bazel build //...
+  - bazel clean && bazel test //...
