@@ -35,10 +35,10 @@ type Image interface {
 	BlobSet() (map[Hash]struct{}, error)
 
 	// Digest returns the sha256 of this image's manifest.
-	Digest() Hash
+	Digest() (Hash, error)
 
 	// MediaType of this image's manifest.
-	MediaType() types.MediaType
+	MediaType() (types.MediaType, error)
 
 	// Manifest returns this image's Manifest object.
 	Manifest() (*Manifest, error)
