@@ -20,6 +20,7 @@ import (
 )
 
 const (
+	defaultNamespace = "library"
 	repositoryChars  = "abcdefghijklmnopqrstuvwxyz0123456789_-./"
 	regRepoDelimiter = "/"
 )
@@ -30,8 +31,16 @@ type Repository struct {
 	repository string
 }
 
+// See https://docs.docker.com/docker-hub/official_repos
+func hasImplicitNamespace(repo string, reg Registry) bool {
+	return !strings.ContainsRune(repo, '/') && reg.RegistryStr() == defaultRegistry
+}
+
 // RepositoryStr returns the repository component of the Repository.
 func (r Repository) RepositoryStr() string {
+	if hasImplicitNamespace(r.repository, r.Registry) {
+		return fmt.Sprintf("%s/%s", defaultNamespace, r.repository)
+	}
 	return r.repository
 }
 
@@ -82,6 +91,9 @@ func NewRepository(name string, strict Strictness) (Repository, error) {
 	reg, err := NewRegistry(registry, strict)
 	if err != nil {
 		return Repository{}, err
+	}
+	if hasImplicitNamespace(repo, reg) && strict == StrictValidation {
+    		return Repository{}, NewErrBadName("strict validation requires the full repository path (missing 'library')")
 	}
 	return Repository{reg, repo}, nil
 }

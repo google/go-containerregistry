@@ -31,7 +31,7 @@ var goodStrictValidationTagNames = []string{
 var goodWeakValidationTagNames = []string{
 	"namespace/pathcomponent/image",
 	"library/ubuntu",
-	"gcr.io/project-id/implcit-latest",
+	"gcr.io/project-id/implicit-latest",
 }
 
 var badTagNames = []string{
@@ -52,8 +52,8 @@ func TestNewTagStrictValidation(t *testing.T) {
 	}
 
 	for _, name := range append(goodWeakValidationTagNames, badTagNames...) {
-		if repo, err := NewTag(name, StrictValidation); err == nil {
-			t.Errorf("`%s` should be an invalid Tag name, got Tag: %#v", name, repo)
+		if tag, err := NewTag(name, StrictValidation); err == nil {
+			t.Errorf("`%s` should be an invalid Tag name, got Tag: %#v", name, tag)
 		}
 	}
 }
@@ -68,8 +68,8 @@ func TestNewTag(t *testing.T) {
 	}
 
 	for _, name := range badTagNames {
-		if repo, err := NewTag(name, WeakValidation); err == nil {
-			t.Errorf("`%s` should be an invalid Tag name, got Tag: %#v", name, repo)
+		if tag, err := NewTag(name, WeakValidation); err == nil {
+			t.Errorf("`%s` should be an invalid Tag name, got Tag: %#v", name, tag)
 		}
 	}
 }
@@ -118,5 +118,19 @@ func TestTagScopes(t *testing.T) {
 	actualScope := tag.Scope(testAction)
 	if actualScope != expectedScope {
 		t.Errorf("scope was incorrect for %v. Wanted: `%s` Got: `%s`", tag, expectedScope, actualScope)
+	}
+}
+
+func TestAllDefaults(t *testing.T) {
+	tagNameStr := "ubuntu"
+	tag, err := NewTag(tagNameStr, WeakValidation)
+	if err != nil {
+		t.Fatalf("`%s` should be a valid Tag name, got error: %v", tagNameStr, err)
+	}
+
+	expectedName := "index.docker.io/library/ubuntu:latest"
+	actualName := tag.Name()
+	if actualName != expectedName {
+		t.Errorf("Name() was incorrect for %v. Wanted: `%s` Got: `%s`", tag, expectedName, actualName)
 	}
 }

@@ -24,11 +24,14 @@ var goodStrictValidationRepositoryNames = []string{
 	"gcr.io/google.com/project-id/hello-world",
 	"us.gcr.io/project-id/sub-repo",
 	"example.text/foo/bar",
+	"mirror.gcr.io/ubuntu",
+	"index.docker.io/library/ubuntu",
 }
 
 var goodWeakValidationRepositoryNames = []string{
 	"namespace/pathcomponent/image",
 	"library/ubuntu",
+	"ubuntu",
 }
 
 var badRepositoryNames = []string{
