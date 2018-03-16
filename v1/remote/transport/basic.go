@@ -21,8 +21,9 @@ import (
 )
 
 type basicTransport struct {
-	inner http.RoundTripper
-	auth  authn.Authenticator
+	inner  http.RoundTripper
+	auth   authn.Authenticator
+	target string
 }
 
 var _ http.RoundTripper = (*basicTransport)(nil)
@@ -33,7 +34,14 @@ func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	in.Header.Set("Authorization", hdr)
+
+	// http.Client handles redirects at a layer above the http.RoundTripper
+	// abstraction, so to avoid forwarding Authorization headers to places
+	// we are redirected, only set it when the authorization header matches
+	// the host with which we are interacting.
+	if in.Host == bt.target {
+		in.Header.Set("Authorization", hdr)
+	}
 	in.Header.Set("User-Agent", transportName)
 	return bt.inner.RoundTrip(in)
 }

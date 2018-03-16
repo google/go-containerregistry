@@ -53,7 +53,7 @@ func New(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, a Sc
 	case anonymous:
 		return t, nil
 	case basic:
-		return &basicTransport{inner: t, auth: auth}, nil
+		return &basicTransport{inner: t, auth: auth, target: ref.Context().RegistryStr()}, nil
 	case bearer:
 		// We require the realm, which tells us where to send our Basic auth to turn it into Bearer auth.
 		realm, ok := pr.parameters["realm"]
@@ -67,11 +67,12 @@ func New(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, a Sc
 			service = ref.Context().Registry.String()
 		}
 		bt := &bearerTransport{
-			inner:   t,
-			basic:   auth,
-			realm:   realm,
-			service: service,
-			scope:   ref.Scope(string(a)),
+			inner:    t,
+			basic:    auth,
+			realm:    realm,
+			registry: ref.Context().Registry,
+			service:  service,
+			scope:    ref.Scope(string(a)),
 		}
 		if err := bt.refresh(); err != nil {
 			return nil, err

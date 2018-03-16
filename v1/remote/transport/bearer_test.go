@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/authn"
+	"github.com/google/go-containerregistry/name"
 )
 
 func TestBearerRefresh(t *testing.T) {
@@ -46,13 +47,18 @@ func TestBearerRefresh(t *testing.T) {
 	defer server.Close()
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
+	registry, err := name.NewRegistry(expectedService, name.WeakValidation)
+	if err != nil {
+		t.Errorf("Unexpected error during NewRegistry: %v", err)
+	}
 
 	bt := &bearerTransport{
-		inner:   http.DefaultTransport,
-		basic:   basic,
-		realm:   server.URL,
-		scope:   expectedScope,
-		service: expectedService,
+		inner:    http.DefaultTransport,
+		basic:    basic,
+		registry: registry,
+		realm:    server.URL,
+		scope:    expectedScope,
+		service:  expectedService,
 	}
 
 	if err := bt.refresh(); err != nil {
@@ -62,28 +68,53 @@ func TestBearerRefresh(t *testing.T) {
 
 func TestBearerTransport(t *testing.T) {
 	expectedToken := "sdkjhfskjdhfkjshdf"
+
+	blob_server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// We don't expect the blob_server to receive bearer tokens.
+			if got := r.Header.Get("Authorization"); got != "" {
+				t.Errorf("Header.Get(Authorization); got %v, want empty string", got)
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+	defer blob_server.Close()
+
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if got, want := r.Header.Get("Authorization"), "Bearer "+expectedToken; got != want {
 				t.Errorf("Header.Get(Authorization); got %v, want %v", got, want)
 			}
+
+			if strings.Contains(r.URL.Path, "blobs") {
+				http.Redirect(w, r, blob_server.URL, http.StatusFound)
+				return
+			}
 			w.WriteHeader(http.StatusOK)
 		}))
 	defer server.Close()
 
-	inner := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Errorf("Unexpected error during url.Parse: %v", err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Errorf("Unexpected error during NewRegistry: %v", err)
 	}
 
 	bearer := &authn.Bearer{Token: expectedToken}
 	client := http.Client{Transport: &bearerTransport{
-		inner:  inner,
-		bearer: bearer,
+		inner:    &http.Transport{},
+		bearer:   bearer,
+		registry: registry,
 	}}
 
-	_, err := client.Get("http://gcr.io/v2/auth")
+	_, err = client.Get(fmt.Sprintf("http://%s/v2/auth", u.Host))
+	if err != nil {
+		t.Errorf("Unexpected error during Get: %v", err)
+	}
+
+	_, err = client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
 	if err != nil {
 		t.Errorf("Unexpected error during Get: %v", err)
 	}
