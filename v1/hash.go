@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
@@ -92,13 +93,16 @@ func (h *Hash) parse(unquoted string) error {
 	return nil
 }
 
-// SHA256 computes the Hash of the provided content.
-// TODO(mattmoor): Expose a version that takes a Reader.
-func SHA256(content string) Hash {
+// SHA256 computes the Hash of the provided io.ReadCloser's content.
+func SHA256(r io.ReadCloser) (Hash, error) {
+	defer r.Close()
 	hasher := sha256.New()
-	hasher.Write([]byte(content))
+	_, err := io.Copy(hasher, r)
+	if err != nil {
+		return Hash{}, err
+	}
 	return Hash{
 		algorithm: "sha256",
-		hex:       hex.EncodeToString(hasher.Sum(nil)),
-	}
+		hex:       hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
+	}, nil
 }

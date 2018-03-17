@@ -14,7 +14,10 @@
 
 package v1
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"io"
+)
 
 // ConfigFile is the configuration file that holds the metadata describing
 // how to launch a container.  The names of the fields are chosen to reflect
@@ -82,10 +85,11 @@ type Config struct {
 	Shell           []string
 }
 
-// ParseConfigFile parses the provided string into a ConfigFile.
-func ParseConfigFile(data []byte) (*ConfigFile, error) {
+// ParseConfigFile parses the io.ReadCloser's contents into a ConfigFile.
+func ParseConfigFile(r io.ReadCloser) (*ConfigFile, error) {
+	defer r.Close()
 	cf := ConfigFile{}
-	if err := json.Unmarshal(data, &cf); err != nil {
+	if err := json.NewDecoder(r).Decode(&cf); err != nil {
 		return nil, err
 	}
 	return &cf, nil
