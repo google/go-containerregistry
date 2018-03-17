@@ -19,9 +19,10 @@ import (
 	"io"
 )
 
-// NewGzipReader is a variant of gzip.NewReader that return an io.ReadCloser
+// GunzipReadCloser is a variant of gzip.NewReader that return an io.ReadCloser
 // that calls the inputs Close() method.
-func NewGzipReader(r io.ReadCloser) (io.ReadCloser, error) {
+//    compressed ==> uncompressed
+func GunzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err
@@ -32,11 +33,18 @@ func NewGzipReader(r io.ReadCloser) (io.ReadCloser, error) {
 	}, nil
 }
 
-// NewGzipWriter is a variant of gzip.NewWriter that return an io.WriteCloser
+// TODO(mattmoor): GzipReadCloser
+//    uncompressed ==> compressed
+
+// GzipWriteClose is a variant of gzip.NewWriter that return an io.WriteCloser
 // that calls the inputs Close() method.
-func NewGzipWriter(w io.WriteCloser) io.WriteCloser {
+//    uncompressed ==> ucompressed
+func GzipWriteClose(w io.WriteCloser) io.WriteCloser {
 	return &WriteAndCloser{
 		Writer: gzip.NewWriter(w),
 		Closer: w.Close,
 	}
 }
+
+// TODO(mattmoor): GunzipWriteCloser
+//    compressed ==> uncompressed
