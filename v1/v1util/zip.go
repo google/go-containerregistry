@@ -72,19 +72,14 @@ func GzipWriteCloser(w io.WriteCloser) io.WriteCloser {
 // gunzipWriteCloser implements io.WriteCloser
 // It is used to implement GunzipWriteClose.
 type gunzipWriteCloser struct {
-	buffer *bytes.Buffer
+	*bytes.Buffer
 	writer io.WriteCloser
-}
-
-// Write implements io.WriteCloser
-func (gwc *gunzipWriteCloser) Write(p []byte) (n int, err error) {
-	return gwc.buffer.Write(p)
 }
 
 // Close implements io.WriteCloser
 func (gwc *gunzipWriteCloser) Close() error {
 	// TODO(mattmoor): How to avoid buffering this whole thing into memory?
-	gr, err := gzip.NewReader(gwc.buffer)
+	gr, err := gzip.NewReader(gwc.Buffer)
 	if err != nil {
 		return err
 	}
@@ -99,7 +94,7 @@ func (gwc *gunzipWriteCloser) Close() error {
 // io.WriteCloser.
 func GunzipWriteCloser(w io.WriteCloser) (io.WriteCloser, error) {
 	return &gunzipWriteCloser{
-		buffer: bytes.NewBuffer(nil),
+		Buffer: bytes.NewBuffer(nil),
 		writer: w,
 	}, nil
 }
