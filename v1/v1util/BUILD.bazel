@@ -3,7 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "also.go",
+        "and_closer.go",
         "nop.go",
         "zip.go",
     ],
@@ -14,7 +14,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
-        "also_test.go",
+        "and_closer_test.go",
         "zip_test.go",
     ],
     embed = [":go_default_library"],

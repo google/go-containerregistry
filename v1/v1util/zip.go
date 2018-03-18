@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"io/ioutil"
 )
 
 // GzipReadCloser reads uncompressed input data from the io.ReadCloser and
