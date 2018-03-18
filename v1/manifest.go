@@ -16,6 +16,7 @@ package v1
 
 import (
 	"encoding/json"
+	"io"
 
 	"github.com/google/go-containerregistry/v1/types"
 )
@@ -38,10 +39,11 @@ type Descriptor struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
-// ParseManifest parses the provided string into a Manifest.
-func ParseManifest(data []byte) (*Manifest, error) {
+// ParseManifest parses the io.ReadCloser's contents into a Manifest.
+func ParseManifest(r io.ReadCloser) (*Manifest, error) {
+	defer r.Close()
 	m := Manifest{}
-	if err := json.Unmarshal(data, &m); err != nil {
+	if err := json.NewDecoder(r).Decode(&m); err != nil {
 		return nil, err
 	}
 	return &m, nil

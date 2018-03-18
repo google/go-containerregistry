@@ -15,12 +15,14 @@
 package v1
 
 import (
+	"bytes"
+	"io/ioutil"
 	"reflect"
 	"testing"
 )
 
 func TestGoodManifestSimple(t *testing.T) {
-	got, err := ParseManifest([]byte(`{}`))
+	got, err := ParseManifest(ioutil.NopCloser(bytes.NewBufferString((`{}`))))
 	if err != nil {
 		t.Errorf("Unexpected error parsing manifest: %v", err)
 	}
@@ -32,11 +34,11 @@ func TestGoodManifestSimple(t *testing.T) {
 }
 
 func TestGoodManifestWithHash(t *testing.T) {
-	good, err := ParseManifest([]byte(`{
+	good, err := ParseManifest(ioutil.NopCloser(bytes.NewBufferString((`{
   "config": {
     "digest": "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
   }
-}`))
+}`))))
 	if err != nil {
 		t.Errorf("Unexpected error parsing manifest: %v", err)
 	}
@@ -47,11 +49,11 @@ func TestGoodManifestWithHash(t *testing.T) {
 }
 
 func TestManifestWithBadHash(t *testing.T) {
-	bad, err := ParseManifest([]byte(`{
+	bad, err := ParseManifest(ioutil.NopCloser(bytes.NewBufferString((`{
   "config": {
     "digest": "sha256:deadbeed"
   }
-}`))
+}`))))
 	if err == nil {
 		t.Errorf("Expected error parsing manifest, but got: %v", bad)
 	}
