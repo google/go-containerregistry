@@ -17,36 +17,46 @@ package tarball
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
+	"sync"
+
+	"github.com/google/go-containerregistry/compress"
+	"github.com/google/go-containerregistry/name"
 
 	"github.com/google/go-containerregistry/v1/types"
 
 	"github.com/google/go-containerregistry/v1"
 )
 
-type tarBlob struct {
-	name string
-}
-
 type image struct {
 	path     string
 	manifest *v1.Manifest
 	config   *v1.ConfigFile
+	lock     sync.Mutex
+	tag      *name.Tag
 }
 
 var _ v1.Image = (*image)(nil)
 
 // Image exposes an image from the tarball at the provided path.
-func Image(p string) (v1.Image, error) {
+func Image(path string, tag *name.Tag) (v1.Image, error) {
 	img := image{
-		path: p,
+		path: path,
+		tag:  tag,
 	}
 	return &img, nil
+}
+
+func (i *image) maybeLoadManifest() error {
+	if i.manifest != nil {
+		return nil
+	}
+	return i.loadManifest()
 }
 
 func (i *image) FSLayers() ([]v1.Hash, error) {
@@ -70,16 +80,17 @@ func (i *image) Digest() (v1.Hash, error) {
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
-	panic("not implemented")
+	if err := i.maybeLoadManifest(); err != nil {
+		return types.MediaType(""), err
+	}
+	return i.manifest.MediaType, nil
 }
 
 // Manifest returns the v1.Manifest for the specified image.
 // This method memoizes the result, avoiding repeated reads from the tarball.
 func (i *image) Manifest() (*v1.Manifest, error) {
-	if i.manifest == nil {
-		if err := i.loadManifest(); err != nil {
-			return nil, err
-		}
+	if err := i.maybeLoadManifest(); err != nil {
+		return nil, err
 	}
 	return i.manifest, nil
 }
@@ -94,7 +105,33 @@ type singleManifest struct {
 // tarManifest is the struct used to represent a single image inside a `docker save` tarball.
 type tarManifest []singleManifest
 
+func findSpecifiedManifest(tag *name.Tag, tarMfst tarManifest) (*singleManifest, error) {
+	if tag == nil {
+		if len(tarMfst) != 1 {
+			return nil, errors.New("tarball must contain only a single image to be used with tarball.Image")
+		}
+		return &tarMfst[0], nil
+	}
+	for _, mfst := range tarMfst {
+		for _, tagStr := range mfst.RepoTags {
+			repoTag, err := name.NewTag(tagStr, name.WeakValidation)
+			if err != nil {
+				return nil, err
+			}
+
+			// Compare the resolved names, since there are several ways to specify the same tag.
+			if repoTag.Name() == tag.Name() {
+				return &mfst, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("tag %s not found in tarball", tag)
+}
+
 func (i *image) loadManifest() error {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
 	mfstBytes, err := extractFileFromTar(i.path, "manifest.json")
 	if err != nil {
 		return err
@@ -104,11 +141,13 @@ func (i *image) loadManifest() error {
 	if err := json.Unmarshal(mfstBytes, &tarMfst); err != nil {
 		return err
 	}
-	if len(tarMfst) != 1 {
-		return errors.New("tarball must contain only a single image to be used with tarball.Image")
+
+	mfst, err := findSpecifiedManifest(i.tag, tarMfst)
+	if err != nil {
+		return err
 	}
 
-	cfgBytes, err := extractFileFromTar(i.path, tarMfst[0].Config)
+	cfgBytes, err := extractFileFromTar(i.path, mfst.Config)
 	if err != nil {
 		return err
 	}
@@ -135,7 +174,11 @@ func (i *image) loadManifest() error {
 		if err != nil {
 			return err
 		}
-		layer, err := compress(uncompressed)
+		r, err := compress.Compress(bytes.NewReader(uncompressed))
+		if err != nil {
+			return err
+		}
+		layer, err := ioutil.ReadAll(r)
 		if err != nil {
 			return err
 		}
@@ -148,16 +191,6 @@ func (i *image) loadManifest() error {
 	}
 	i.manifest = &manifest
 	return nil
-}
-
-func compress(l []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	gz := gzip.NewWriter(&buf)
-	defer gz.Close()
-	if _, err := gz.Write(l); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
 
 func extractFileFromTar(tarPath string, filePath string) ([]byte, error) {

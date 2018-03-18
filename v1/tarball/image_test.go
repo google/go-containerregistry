@@ -15,14 +15,13 @@
 package tarball
 
 import (
-	"path/filepath"
 	"testing"
+
+	"github.com/google/go-containerregistry/name"
 )
 
-var testdata = "testdata"
-
 func TestManifestAndConfig(t *testing.T) {
-	img, err := Image(filepath.Join(testdata, "test_image.tar"))
+	img, err := Image("test_image_1.tar", nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}
@@ -44,7 +43,7 @@ func TestManifestAndConfig(t *testing.T) {
 }
 
 func TestNoManifest(t *testing.T) {
-	img, err := Image(filepath.Join(testdata, "no_manifest.tar"))
+	img, err := Image("no_manifest.tar", nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}
@@ -53,12 +52,36 @@ func TestNoManifest(t *testing.T) {
 	}
 }
 
-func TestBundle(t *testing.T) {
-	img, err := Image(filepath.Join(testdata, "no_manifest.tar"))
+func TestBundleSingle(t *testing.T) {
+	img, err := Image("test_bundle.tar", nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}
 	if _, err := img.Manifest(); err == nil {
 		t.Fatalf("Error expected loading manifest.")
+	}
+}
+
+func TestBundleMultiple(t *testing.T) {
+	for _, imgName := range []string{
+		"test_image_1",
+		"test_image_2",
+		"test_image_1:latest",
+		"test_image_2:latest",
+		"index.docker.io/library/test_image_1:latest",
+	} {
+		t.Run(imgName, func(t *testing.T) {
+			tag, err := name.NewTag(imgName, name.WeakValidation)
+			if err != nil {
+				t.Fatalf("Error creating tag: %v", err)
+			}
+			img, err := Image("test_bundle.tar", &tag)
+			if err != nil {
+				t.Fatalf("Error loading image: %v", err)
+			}
+			if _, err := img.Manifest(); err != nil {
+				t.Fatalf("Unexpected error loading manifest: %v", err)
+			}
+		})
 	}
 }
