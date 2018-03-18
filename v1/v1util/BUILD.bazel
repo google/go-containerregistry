@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "also.go",
+        "nop.go",
         "zip.go",
     ],
     importpath = "github.com/google/go-containerregistry/v1/v1util",
@@ -12,6 +13,9 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["also_test.go"],
+    srcs = [
+        "also_test.go",
+        "zip_test.go",
+    ],
     embed = [":go_default_library"],
 )

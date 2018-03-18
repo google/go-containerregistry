@@ -15,36 +15,92 @@
 package v1util
 
 import (
+	"bytes"
 	"compress/gzip"
 	"io"
+	"io/ioutil"
 )
 
-// GunzipReadCloser is a variant of gzip.NewReader that return an io.ReadCloser
-// that calls the inputs Close() method.
-//    compressed ==> uncompressed
+// GzipReadCloser reads uncompressed input data from the io.ReadCloser and
+// returns an io.ReadCloser from which compressed data may be read.
+func GzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
+	defer r.Close()
+
+	// TODO(mattmoor): How to avoid buffering this whole thing into memory?
+	data := bytes.NewBuffer(nil)
+	gw := gzip.NewWriter(data)
+	defer gw.Close()
+	if _, err := io.Copy(gw, r); err != nil {
+		return nil, err
+	}
+	return NopReadCloser(data), nil
+}
+
+// GunzipReadCloser reads compressed input data from the io.ReadCloser and
+// returns an io.ReadCloser from which uncompessed data may be read.
 func GunzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err
 	}
-	return &ReadAndCloser{
+	return &readAndCloser{
 		Reader: gr,
-		Closer: r.Close,
+		CloseFunc: func() error {
+			if err := gr.Close(); err != nil {
+				return err
+			}
+			return r.Close()
+		},
 	}, nil
 }
 
-// TODO(mattmoor): GzipReadCloser
-//    uncompressed ==> compressed
-
-// GzipWriteClose is a variant of gzip.NewWriter that return an io.WriteCloser
-// that calls the inputs Close() method.
-//    uncompressed ==> ucompressed
-func GzipWriteClose(w io.WriteCloser) io.WriteCloser {
-	return &WriteAndCloser{
-		Writer: gzip.NewWriter(w),
-		Closer: w.Close,
+// GzipWriteClose returns an io.WriteCloser to which uncompressed data may be
+// written, and the compressed data is then written to the provided
+// io.WriteCloser.
+func GzipWriteCloser(w io.WriteCloser) io.WriteCloser {
+	gw := gzip.NewWriter(w)
+	return &writeAndCloser{
+		Writer: gw,
+		CloseFunc: func() error {
+			if err := gw.Close(); err != nil {
+				return err
+			}
+			return w.Close()
+		},
 	}
 }
 
-// TODO(mattmoor): GunzipWriteCloser
-//    compressed ==> uncompressed
+// gunzipWriteCloser implements io.WriteCloser
+// It is used to implement GunzipWriteClose.
+type gunzipWriteCloser struct {
+	buffer *bytes.Buffer
+	writer io.WriteCloser
+}
+
+// Write implements io.WriteCloser
+func (gwc *gunzipWriteCloser) Write(p []byte) (n int, err error) {
+	return gwc.buffer.Write(p)
+}
+
+// Close implements io.WriteCloser
+func (gwc *gunzipWriteCloser) Close() error {
+	// TODO(mattmoor): How to avoid buffering this whole thing into memory?
+	gr, err := gzip.NewReader(gwc.buffer)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(gwc.writer, gr); err != nil {
+		return err
+	}
+	return gwc.writer.Close()
+}
+
+// GunzipWriteCloser returns an io.WriteCloser to which compressed data may be
+// written, and the uncompressed data is then written to the provided
+// io.WriteCloser.
+func GunzipWriteCloser(w io.WriteCloser) (io.WriteCloser, error) {
+	return &gunzipWriteCloser{
+		buffer: bytes.NewBuffer(nil),
+		writer: w,
+	}, nil
+}

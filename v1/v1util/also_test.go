@@ -25,9 +25,9 @@ func TestRead(t *testing.T) {
 	r := bytes.NewBufferString(want)
 	called := false
 
-	rac := &ReadAndCloser{
+	rac := &readAndCloser{
 		Reader: r,
-		Closer: func() error {
+		CloseFunc: func() error {
 			called = true
 			return nil
 		},
@@ -56,9 +56,9 @@ func TestWrite(t *testing.T) {
 	w := bytes.NewBuffer([]byte{})
 	called := false
 
-	wac := &WriteAndCloser{
+	wac := &writeAndCloser{
 		Writer: w,
-		Closer: func() error {
+		CloseFunc: func() error {
 			called = true
 			return nil
 		},

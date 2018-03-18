@@ -18,40 +18,30 @@ import (
 	"io"
 )
 
-// ReadAndCloser implements io.ReadCloser by reading from a particular io.Reader
+// readAndCloser implements io.ReadCloser by reading from a particular io.Reader
 // and then calling the provided "Close()" method.
-type ReadAndCloser struct {
-	Reader io.Reader
-	Closer func() error
+type readAndCloser struct {
+	io.Reader
+	CloseFunc func() error
 }
 
-var _ io.ReadCloser = (*ReadAndCloser)(nil)
-
-// Read implements io.ReadCloser
-func (rac *ReadAndCloser) Read(p []byte) (n int, err error) {
-	return rac.Reader.Read(p)
-}
+var _ io.ReadCloser = (*readAndCloser)(nil)
 
 // Close implements io.ReadCloser
-func (rac *ReadAndCloser) Close() error {
-	return rac.Closer()
+func (rac *readAndCloser) Close() error {
+	return rac.CloseFunc()
 }
 
-// WriteAndCloser implements io.WriteCloser by reading from a particular io.Writer
+// writeAndCloser implements io.WriteCloser by reading from a particular io.Writer
 // and then calling the provided "Close()" method.
-type WriteAndCloser struct {
-	Writer io.Writer
-	Closer func() error
+type writeAndCloser struct {
+	io.Writer
+	CloseFunc func() error
 }
 
-var _ io.WriteCloser = (*WriteAndCloser)(nil)
-
-// Write implements io.WriteCloser
-func (wac *WriteAndCloser) Write(p []byte) (n int, err error) {
-	return wac.Writer.Write(p)
-}
+var _ io.WriteCloser = (*writeAndCloser)(nil)
 
 // Close implements io.WriteCloser
-func (wac *WriteAndCloser) Close() error {
-	return wac.Closer()
+func (wac *writeAndCloser) Close() error {
+	return wac.CloseFunc()
 }
