@@ -59,13 +59,6 @@ func Image(path string, tag *name.Tag) (v1.Image, error) {
 	return &img, nil
 }
 
-func (i *image) maybeLoadManifest() error {
-	if i.manifest != nil {
-		return nil
-	}
-	return i.loadManifestAndBlobs()
-}
-
 func (i *image) FSLayers() ([]v1.Hash, error) {
 	panic("not implemented")
 }
@@ -87,17 +80,20 @@ func (i *image) Digest() (v1.Hash, error) {
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
-	if err := i.maybeLoadManifest(); err != nil {
+	manifest, err := i.Manifest()
+	if err != nil {
 		return types.MediaType(""), err
 	}
-	return i.manifest.MediaType, nil
+	return manifest.MediaType, nil
 }
 
 // Manifest returns the v1.Manifest for the specified image.
 // This method memoizes the result, avoiding repeated reads from the tarball.
 func (i *image) Manifest() (*v1.Manifest, error) {
-	if err := i.maybeLoadManifest(); err != nil {
-		return nil, err
+	if i.manifest == nil {
+		if err := i.loadManifestAndBlobs(); err != nil {
+			return nil, err
+		}
 	}
 	return i.manifest, nil
 }
