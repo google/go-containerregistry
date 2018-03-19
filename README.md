@@ -6,4 +6,4 @@
 
 ## Introduction
 
-This is a golang library for working with container registries.
+This is a golang library for working with container registries. It's largely based on the [Python library of the same name](https://github.com/google/containerregistry), but more hip and uses GitHub as the source of truth.
