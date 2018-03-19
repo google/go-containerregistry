@@ -57,8 +57,9 @@ func TestBundleSingle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}
-	if _, err := img.Manifest(); err == nil {
-		t.Fatalf("Error expected loading manifest: %v", err)
+	manifest, err := img.Manifest()
+	if err == nil {
+		t.Fatalf("Error expected loading manifest: %v", manifest)
 	}
 }
 

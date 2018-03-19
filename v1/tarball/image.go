@@ -140,6 +140,7 @@ func (i *image) loadTarDescriptorAndConfig() error {
 	if err != nil {
 		return err
 	}
+	defer td.Close()
 
 	if err := json.NewDecoder(td).Decode(&i.td); err != nil {
 		return err
@@ -193,13 +194,21 @@ func (i *image) loadManifestAndBlobs() error {
 
 	for _, l := range i.imgDescriptor.Layers {
 		// TODO(dlorenc): support compressed layers.
-		uncompressed, err := extractFileFromTar(i.path, l)
-		defer uncompressed.Close()
-		if err != nil {
-			return err
+		var r io.Reader
+		// Run this in a sub-function to close promptly.
+		compressLayer := func() error {
+			uncompressed, err := extractFileFromTar(i.path, l)
+			defer uncompressed.Close()
+			if err != nil {
+				return err
+			}
+			r, err = compress.Compress(uncompressed)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
-		r, err := compress.Compress(uncompressed)
-		if err != nil {
+		if err := compressLayer(); err != nil {
 			return err
 		}
 
