@@ -34,11 +34,10 @@ import (
 )
 
 type image struct {
-	path           string
-	descriptorLock sync.Mutex // Protects td, config and imgDescriptor
-	td             *tarDescriptor
-	config         *v1.ConfigFile
-	imgDescriptor  *singleImageTarDescriptor
+	path          string
+	td            *tarDescriptor
+	config        *v1.ConfigFile
+	imgDescriptor *singleImageTarDescriptor
 
 	manifestLock sync.Mutex // Protects manifest
 	manifest     *v1.Manifest
@@ -53,6 +52,9 @@ func Image(path string, tag *name.Tag) (v1.Image, error) {
 	img := image{
 		path: path,
 		tag:  tag,
+	}
+	if err := img.loadTarDescriptorAndConfig(); err != nil {
+		return nil, err
 	}
 	return &img, nil
 }
@@ -134,8 +136,6 @@ func (td tarDescriptor) findSpecifiedImageDescriptor(tag *name.Tag) (*singleImag
 }
 
 func (i *image) loadTarDescriptorAndConfig() error {
-	i.descriptorLock.Lock()
-	defer i.descriptorLock.Unlock()
 	td, err := extractFileFromTar(i.path, "manifest.json")
 	if err != nil {
 		return err
@@ -166,13 +166,6 @@ func (i *image) loadTarDescriptorAndConfig() error {
 func (i *image) loadManifestAndBlobs() error {
 	i.manifestLock.Lock()
 	defer i.manifestLock.Unlock()
-
-	// Generating the manifest requires the config file to be parsed.
-	if i.config == nil {
-		if err := i.loadTarDescriptorAndConfig(); err != nil {
-			return err
-		}
-	}
 
 	cfgBytes, err := json.Marshal(i.config)
 	if err != nil {
@@ -265,11 +258,6 @@ func extractFileFromTar(tarPath string, filePath string) (io.ReadCloser, error) 
 }
 
 func (i *image) ConfigFile() (*v1.ConfigFile, error) {
-	if i.config == nil {
-		if err := i.loadTarDescriptorAndConfig(); err != nil {
-			return nil, err
-		}
-	}
 	return i.config, nil
 }
 
