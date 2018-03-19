@@ -136,12 +136,12 @@ func (td tarDescriptor) findSpecifiedImageDescriptor(tag *name.Tag) (*singleImag
 func (i *image) loadTarDescriptorAndConfig() error {
 	i.descriptorLock.Lock()
 	defer i.descriptorLock.Unlock()
-	tdBytes, err := extractFileFromTar(i.path, "manifest.json")
+	td, err := extractFileFromTar(i.path, "manifest.json")
 	if err != nil {
 		return err
 	}
 
-	if err := json.Unmarshal(tdBytes, &i.td); err != nil {
+	if err := json.NewDecoder(td).Decode(&i.td); err != nil {
 		return err
 	}
 
@@ -150,12 +150,12 @@ func (i *image) loadTarDescriptorAndConfig() error {
 		return err
 	}
 
-	cfgBytes, err := extractFileFromTar(i.path, i.imgDescriptor.Config)
+	cfg, err := extractFileFromTar(i.path, i.imgDescriptor.Config)
 	if err != nil {
 		return err
 	}
 
-	i.config, err = v1.ParseConfigFile(cfgBytes)
+	i.config, err = v1.ParseConfigFile(cfg)
 	if err != nil {
 		return err
 	}
@@ -177,27 +177,40 @@ func (i *image) loadManifestAndBlobs() error {
 	if err != nil {
 		return err
 	}
+	sha, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(cfgBytes)))
+	if err != nil {
+		return err
+	}
 	manifest := v1.Manifest{
 		SchemaVersion: 2,
 		MediaType:     types.DockerManifestSchema2,
 		Config: v1.Descriptor{
 			MediaType: types.DockerConfigJSON,
 			Size:      int64(len(cfgBytes)),
-			Digest:    v1.SHA256(string(cfgBytes)),
+			Digest:    sha,
 		},
 	}
 
 	for _, l := range i.imgDescriptor.Layers {
 		// TODO(dlorenc): support compressed layers.
 		uncompressed, err := extractFileFromTar(i.path, l)
+		defer uncompressed.Close()
 		if err != nil {
 			return err
 		}
-		r, err := compress.Compress(bytes.NewReader(uncompressed))
+		r, err := compress.Compress(uncompressed)
 		if err != nil {
 			return err
 		}
+
+		// TODO: figure out how to get the length of the compressed layer and compress it
+		// in one pass without reading it into memory.
 		layer, err := ioutil.ReadAll(r)
+		if err != nil {
+			return err
+		}
+
+		sha, err := v1.SHA256(ioutil.NopCloser(bytes.NewBuffer(layer)))
 		if err != nil {
 			return err
 		}
@@ -205,16 +218,21 @@ func (i *image) loadManifestAndBlobs() error {
 		manifest.Layers = append(manifest.Layers, v1.Descriptor{
 			MediaType: types.DockerLayer,
 			Size:      int64(len(layer)),
-			Digest:    v1.SHA256(string(layer)),
+			Digest:    sha,
 		})
 	}
 	i.manifest = &manifest
 	return nil
 }
 
-func extractFileFromTar(tarPath string, filePath string) ([]byte, error) {
+// tarFile represents a single file inside a tar. Closing it closes the tar itself.
+type tarFile struct {
+	io.Reader
+	io.Closer
+}
+
+func extractFileFromTar(tarPath string, filePath string) (io.ReadCloser, error) {
 	f, err := os.Open(tarPath)
-	defer f.Close()
 	if err != nil {
 		return nil, err
 	}
@@ -228,12 +246,10 @@ func extractFileFromTar(tarPath string, filePath string) ([]byte, error) {
 			return nil, err
 		}
 		if hdr.Name == filePath {
-			var buf bytes.Buffer
-			_, err := io.Copy(&buf, tf)
-			if err != nil {
-				return nil, err
-			}
-			return buf.Bytes(), nil
+			return tarFile{
+				Reader: tf,
+				Closer: f,
+			}, nil
 		}
 	}
 	return nil, fmt.Errorf("file %s not found in tar", filePath)
