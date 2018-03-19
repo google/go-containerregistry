@@ -43,23 +43,16 @@ func TestManifestAndConfig(t *testing.T) {
 }
 
 func TestNoManifest(t *testing.T) {
-	img, err := Image("no_manifest.tar", nil)
-	if err != nil {
-		t.Fatalf("Error loading image: %v", err)
-	}
-	if _, err := img.Manifest(); err == nil {
-		t.Fatalf("Error expected loading manifest.")
+	img, err := Image("testdata/no_manifest.tar", nil)
+	if err == nil {
+		t.Fatalf("Error expected loading image: %v", img)
 	}
 }
 
 func TestBundleSingle(t *testing.T) {
 	img, err := Image("test_bundle.tar", nil)
-	if err != nil {
-		t.Fatalf("Error loading image: %v", err)
-	}
-	manifest, err := img.Manifest()
 	if err == nil {
-		t.Fatalf("Error expected loading manifest: %v", manifest)
+		t.Fatalf("Error expected loading image: %v", img)
 	}
 }
 

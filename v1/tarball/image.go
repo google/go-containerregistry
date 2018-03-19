@@ -167,7 +167,7 @@ func (i *image) loadManifestAndBlobs() error {
 	if err != nil {
 		return err
 	}
-	sha, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(cfgBytes)))
+	sha, _, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(cfgBytes)))
 	if err != nil {
 		return err
 	}
@@ -201,21 +201,14 @@ func (i *image) loadManifestAndBlobs() error {
 			return err
 		}
 
-		// TODO: figure out how to get the length of the compressed layer and compress it
-		// in one pass without reading it into memory.
-		layer, err := ioutil.ReadAll(r)
-		if err != nil {
-			return err
-		}
-
-		sha, err := v1.SHA256(ioutil.NopCloser(bytes.NewBuffer(layer)))
+		sha, n, err := v1.SHA256(ioutil.NopCloser(r))
 		if err != nil {
 			return err
 		}
 
 		manifest.Layers = append(manifest.Layers, v1.Descriptor{
 			MediaType: types.DockerLayer,
-			Size:      int64(len(layer)),
+			Size:      n,
 			Digest:    sha,
 		})
 	}
