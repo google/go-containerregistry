@@ -34,11 +34,16 @@ import (
 )
 
 type image struct {
-	path     string
-	manifest *v1.Manifest
-	config   *v1.ConfigFile
-	lock     sync.Mutex
-	tag      *name.Tag
+	path           string
+	descriptorLock sync.Mutex // Protects td, config and imgDescriptor
+	td             *tarDescriptor
+	config         *v1.ConfigFile
+	imgDescriptor  *singleImageTarDescriptor
+
+	manifestLock sync.Mutex // Protects manifest
+	manifest     *v1.Manifest
+
+	tag *name.Tag
 }
 
 var _ v1.Image = (*image)(nil)
@@ -56,7 +61,7 @@ func (i *image) maybeLoadManifest() error {
 	if i.manifest != nil {
 		return nil
 	}
-	return i.loadManifest()
+	return i.loadManifestAndBlobs()
 }
 
 func (i *image) FSLayers() ([]v1.Hash, error) {
@@ -95,25 +100,25 @@ func (i *image) Manifest() (*v1.Manifest, error) {
 	return i.manifest, nil
 }
 
-// singleManifest is the struct used inside the `manifest.json` file of a `docker save` tarball.
-type singleManifest struct {
+// singleImageTarDescriptor is the struct used to represent a single image inside a `docker save` tarball.
+type singleImageTarDescriptor struct {
 	Config   string
 	RepoTags []string
 	Layers   []string
 }
 
-// tarManifest is the struct used to represent a single image inside a `docker save` tarball.
-type tarManifest []singleManifest
+// tarDescriptor is the struct used inside the `manifest.json` file of a `docker save` tarball.
+type tarDescriptor []singleImageTarDescriptor
 
-func findSpecifiedManifest(tag *name.Tag, tarMfst tarManifest) (*singleManifest, error) {
+func (td tarDescriptor) findSpecifiedImageDescriptor(tag *name.Tag) (*singleImageTarDescriptor, error) {
 	if tag == nil {
-		if len(tarMfst) != 1 {
+		if len(td) != 1 {
 			return nil, errors.New("tarball must contain only a single image to be used with tarball.Image")
 		}
-		return &tarMfst[0], nil
+		return &(td)[0], nil
 	}
-	for _, mfst := range tarMfst {
-		for _, tagStr := range mfst.RepoTags {
+	for _, img := range td {
+		for _, tagStr := range img.RepoTags {
 			repoTag, err := name.NewTag(tagStr, name.WeakValidation)
 			if err != nil {
 				return nil, err
@@ -121,43 +126,57 @@ func findSpecifiedManifest(tag *name.Tag, tarMfst tarManifest) (*singleManifest,
 
 			// Compare the resolved names, since there are several ways to specify the same tag.
 			if repoTag.Name() == tag.Name() {
-				return &mfst, nil
+				return &img, nil
 			}
 		}
 	}
 	return nil, fmt.Errorf("tag %s not found in tarball", tag)
 }
 
-func (i *image) loadManifest() error {
-	i.lock.Lock()
-	defer i.lock.Unlock()
-
-	mfstBytes, err := extractFileFromTar(i.path, "manifest.json")
+func (i *image) loadTarDescriptorAndConfig() error {
+	i.descriptorLock.Lock()
+	defer i.descriptorLock.Unlock()
+	tdBytes, err := extractFileFromTar(i.path, "manifest.json")
 	if err != nil {
 		return err
 	}
 
-	tarMfst := tarManifest{}
-	if err := json.Unmarshal(mfstBytes, &tarMfst); err != nil {
+	if err := json.Unmarshal(tdBytes, &i.td); err != nil {
 		return err
 	}
 
-	mfst, err := findSpecifiedManifest(i.tag, tarMfst)
+	i.imgDescriptor, err = i.td.findSpecifiedImageDescriptor(i.tag)
 	if err != nil {
 		return err
 	}
 
-	cfgBytes, err := extractFileFromTar(i.path, mfst.Config)
+	cfgBytes, err := extractFileFromTar(i.path, i.imgDescriptor.Config)
 	if err != nil {
 		return err
 	}
 
-	cfg, err := v1.ParseConfigFile(cfgBytes)
+	i.config, err = v1.ParseConfigFile(cfgBytes)
 	if err != nil {
 		return err
 	}
-	i.config = cfg
+	return nil
+}
 
+func (i *image) loadManifestAndBlobs() error {
+	i.manifestLock.Lock()
+	defer i.manifestLock.Unlock()
+
+	// Generating the manifest requires the config file to be parsed.
+	if i.config == nil {
+		if err := i.loadTarDescriptorAndConfig(); err != nil {
+			return err
+		}
+	}
+
+	cfgBytes, err := json.Marshal(i.config)
+	if err != nil {
+		return err
+	}
 	manifest := v1.Manifest{
 		SchemaVersion: 2,
 		MediaType:     types.DockerManifestSchema2,
@@ -168,7 +187,7 @@ func (i *image) loadManifest() error {
 		},
 	}
 
-	for _, l := range tarMfst[0].Layers {
+	for _, l := range i.imgDescriptor.Layers {
 		// TODO(dlorenc): support compressed layers.
 		uncompressed, err := extractFileFromTar(i.path, l)
 		if err != nil {
@@ -222,7 +241,7 @@ func extractFileFromTar(tarPath string, filePath string) ([]byte, error) {
 
 func (i *image) ConfigFile() (*v1.ConfigFile, error) {
 	if i.config == nil {
-		if err := i.loadManifest(); err != nil {
+		if err := i.loadTarDescriptorAndConfig(); err != nil {
 			return nil, err
 		}
 	}
