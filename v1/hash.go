@@ -94,15 +94,15 @@ func (h *Hash) parse(unquoted string) error {
 }
 
 // SHA256 computes the Hash of the provided io.ReadCloser's content.
-func SHA256(r io.ReadCloser) (Hash, error) {
+func SHA256(r io.ReadCloser) (Hash, int64, error) {
 	defer r.Close()
 	hasher := sha256.New()
-	_, err := io.Copy(hasher, r)
+	n, err := io.Copy(hasher, r)
 	if err != nil {
-		return Hash{}, err
+		return Hash{}, 0, err
 	}
 	return Hash{
 		algorithm: "sha256",
 		hex:       hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
-	}, nil
+	}, n, nil
 }
