@@ -15,10 +15,11 @@
 package partial
 
 import (
-	"errors"
 	"io"
+	"sync"
 
 	"github.com/google/go-containerregistry/v1"
+	"github.com/google/go-containerregistry/v1/v1util"
 )
 
 // CompressedImageCore represents the base minimum interface a natively
@@ -39,7 +40,58 @@ type CompressedImageCore interface {
 // Assert that Image is a superset of this partial interface.
 var _ CompressedImageCore = (v1.Image)(nil)
 
+// uncompressedImageExtender implements v1.Image by extending UncompressedImageCore with the
+// appropriate methods computed from the minimal core.
+type compressedImageExtender struct {
+	CompressedImageCore
+
+	lock     sync.Mutex
+	manifest *v1.Manifest
+}
+
+// Assert that our extender type completes the v1.Image interface
+var _ v1.Image = (*compressedImageExtender)(nil)
+
+func (i *compressedImageExtender) BlobSet() (map[v1.Hash]struct{}, error) {
+	return BlobSet(i)
+}
+
+func (i *compressedImageExtender) BlobSize(h v1.Hash) (int64, error) {
+	return BlobSize(i, h)
+}
+
+func (i *compressedImageExtender) ConfigName() (v1.Hash, error) {
+	return ConfigName(i)
+}
+
+func (i *compressedImageExtender) DiffIDs() ([]v1.Hash, error) {
+	return DiffIDs(i)
+}
+
+func (i *compressedImageExtender) FSLayers() ([]v1.Hash, error) {
+	return FSLayers(i)
+}
+
+func (i *compressedImageExtender) Layer(h v1.Hash) (io.ReadCloser, error) {
+	return i.Blob(h)
+}
+
+func (i *compressedImageExtender) UncompressedBlob(h v1.Hash) (io.ReadCloser, error) {
+	return UncompressedBlob(i, h)
+}
+
+func (i *compressedImageExtender) UncompressedLayer(h v1.Hash) (io.ReadCloser, error) {
+	h, err := DiffIDToBlob(i, h)
+	if err != nil {
+		return nil, err
+	}
+	rc, err := i.Blob(h)
+	return v1util.GunzipReadCloser(rc)
+}
+
 // CompressedToImage fills in the missing methods from a CompressedImageCore so that it implements v1.Image
 func CompressedToImage(cic CompressedImageCore) (v1.Image, error) {
-	return nil, errors.New("NYI: CompressedToImage")
+	return &compressedImageExtender{
+		CompressedImageCore: cic,
+	}, nil
 }
