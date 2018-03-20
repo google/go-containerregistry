@@ -16,19 +16,26 @@ package transport
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 
 	"github.com/google/go-containerregistry/authn"
+	"github.com/google/go-containerregistry/name"
 )
 
 type bearerTransport struct {
-	inner   http.RoundTripper
-	basic   authn.Authenticator
-	bearer  *authn.Bearer
-	realm   string
+	// Wrapped by bearerTransport.
+	inner http.RoundTripper
+	// Basic credentials that we exchange for bearer tokens.
+	basic authn.Authenticator
+	// Holds the bearer response from the token service.
+	bearer *authn.Bearer
+	// Registry to which we send bearer tokens.
+	registry name.Registry
+	// See https://tools.ietf.org/html/rfc6750#section-3
+	realm string
+	// See https://docs.docker.com/registry/spec/auth/token/
 	service string
 	scope   string
 }
@@ -41,7 +48,14 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	in.Header.Set("Authorization", hdr)
+
+	// http.Client handles redirects at a layer above the http.RoundTripper
+	// abstraction, so to avoid forwarding Authorization headers to places
+	// we are redirected, only set it when the authorization header matches
+	// the registry with which we are interacting.
+	if in.Host == bt.registry.RegistryStr() {
+		in.Header.Set("Authorization", hdr)
+	}
 	in.Header.Set("User-Agent", transportName)
 
 	// TODO(mattmoor): On 401s perform a single refresh() and retry.
@@ -49,14 +63,23 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 }
 
 func (bt *bearerTransport) refresh() error {
-	b := &basicTransport{inner: bt.inner, auth: bt.basic}
+	u, err := url.Parse(bt.realm)
+	if err != nil {
+		return err
+	}
+	b := &basicTransport{
+		inner:  bt.inner,
+		auth:   bt.basic,
+		target: u.Host,
+	}
 	client := http.Client{Transport: b}
 
-	resp, err := client.Get(fmt.Sprintf("%s?%s",
-		bt.realm, url.Values{
-			"scope":   []string{bt.scope},
-			"service": []string{bt.service},
-		}.Encode()))
+	u.RawQuery = url.Values{
+		"scope":   []string{bt.scope},
+		"service": []string{bt.service},
+	}.Encode()
+
+	resp, err := client.Get(u.String())
 	if err != nil {
 		return err
 	}

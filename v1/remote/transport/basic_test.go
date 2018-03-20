@@ -42,7 +42,7 @@ func TestBasicTransport(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	client := http.Client{Transport: &basicTransport{inner: inner, auth: basic}}
+	client := http.Client{Transport: &basicTransport{inner: inner, auth: basic, target: "gcr.io"}}
 
 	_, err := client.Get("http://gcr.io/v2/auth")
 	if err != nil {
