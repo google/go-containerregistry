@@ -17,7 +17,6 @@ package random
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -67,16 +66,6 @@ var _ partial.UncompressedImageCore = (*image)(nil)
 // ConfigFile implements v1.Image
 func (i *image) ConfigFile() (*v1.ConfigFile, error) {
 	return i.config, nil
-}
-
-// ConfigName implements v1.Image
-func (i *image) ConfigName() (v1.Hash, error) {
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(buf).Encode(i.config); err != nil {
-		return v1.Hash{}, err
-	}
-	h, _, err := v1.SHA256(v1util.NopReadCloser(buf))
-	return h, err
 }
 
 // MediaType implements v1.Image

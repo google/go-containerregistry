@@ -15,7 +15,11 @@
 package partial
 
 import (
+	"bytes"
+	"encoding/json"
+
 	"github.com/google/go-containerregistry/v1"
+	"github.com/google/go-containerregistry/v1/v1util"
 )
 
 // withConfigFile defines the subset of v1.Image used by these helper methods
@@ -35,4 +39,18 @@ func DiffIDs(i withConfigFile) ([]v1.Hash, error) {
 		dids[len(dids)-i-1] = did
 	}
 	return dids, nil
+}
+
+// ConfigName is a helper for implementing v1.Image
+func ConfigName(i withConfigFile) (v1.Hash, error) {
+	config, err := i.ConfigFile()
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	buf := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(buf).Encode(config); err != nil {
+		return v1.Hash{}, err
+	}
+	h, _, err := v1.SHA256(v1util.NopReadCloser(buf))
+	return h, err
 }

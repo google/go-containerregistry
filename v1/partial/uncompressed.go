@@ -127,6 +127,10 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 	return i.manifest, nil
 }
 
+func (i *uncompressedImageExtender) ConfigName() (v1.Hash, error) {
+	return ConfigName(i)
+}
+
 func (i *uncompressedImageExtender) BlobSize(h v1.Hash) (int64, error) {
 	return BlobSize(i, h)
 }

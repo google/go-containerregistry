@@ -24,9 +24,6 @@ type imageCore interface {
 	// ConfigFile returns this image's config file.
 	ConfigFile() (*v1.ConfigFile, error)
 
-	// ConfigName returns the hash of the image's config file.
-	ConfigName() (v1.Hash, error)
-
 	// MediaType of this image's manifest.
 	MediaType() (types.MediaType, error)
 }

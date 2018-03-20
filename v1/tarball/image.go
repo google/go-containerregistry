@@ -16,7 +16,6 @@ package tarball
 
 import (
 	"archive/tar"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,7 +27,6 @@ import (
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/partial"
 	"github.com/google/go-containerregistry/v1/types"
-	"github.com/google/go-containerregistry/v1/v1util"
 )
 
 type image struct {
@@ -55,15 +53,6 @@ func Image(path string, tag *name.Tag) (v1.Image, error) {
 		return nil, err
 	}
 	return partial.UncompressedToImage(&img)
-}
-
-func (i *image) ConfigName() (v1.Hash, error) {
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(buf).Encode(i.config); err != nil {
-		return v1.Hash{}, err
-	}
-	h, _, err := v1.SHA256(v1util.NopReadCloser(buf))
-	return h, err
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
