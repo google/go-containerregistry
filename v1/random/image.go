@@ -15,18 +15,80 @@
 package random
 
 import (
+	"bytes"
+	"crypto/rand"
+	"encoding/json"
 	"fmt"
+	"io"
 
-	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
+	"github.com/google/go-containerregistry/v1/partial"
+	"github.com/google/go-containerregistry/v1/types"
+	"github.com/google/go-containerregistry/v1/v1util"
 )
 
-// TODO(mattmoor): This.
-// // image is pseudo-randomly generated.
-// type image struct{}
-// var _ v1.Image = (*image)(nil)
-
 // Image returns a pseudo-randomly generated Image.
-func Image(byteSize, layers uint) (v1.Image, error) {
-	return nil, fmt.Errorf("NYI: random.Image(%v)", ref)
+func Image(byteSize, layers int64) (v1.Image, error) {
+	layerz := make(map[v1.Hash][]byte)
+	for i := int64(0); i < layers; i = i + 1 {
+		b := bytes.NewBuffer(nil)
+		if _, err := io.CopyN(b, rand.Reader, byteSize); err != nil {
+			return nil, err
+		}
+		bts := b.Bytes()
+		h, _, err := v1.SHA256(v1util.NopReadCloser(bytes.NewBuffer(bts)))
+		if err != nil {
+			return nil, err
+		}
+		layerz[h] = bts
+	}
+
+	cfg := &v1.ConfigFile{}
+
+	// It is ok that iteration order is random in Go, because this is the random image anyways.
+	for k := range layerz {
+		cfg.RootFS.DiffIDs = append(cfg.RootFS.DiffIDs, k)
+	}
+
+	return partial.UncompressedToImage(&image{
+		config: cfg,
+		layers: layerz,
+	})
+}
+
+// image is pseudo-randomly generated.
+type image struct {
+	config *v1.ConfigFile
+	layers map[v1.Hash][]byte
+}
+
+var _ partial.UncompressedImageCore = (*image)(nil)
+
+// ConfigFile implements v1.Image
+func (i *image) ConfigFile() (*v1.ConfigFile, error) {
+	return i.config, nil
+}
+
+// ConfigName implements v1.Image
+func (i *image) ConfigName() (v1.Hash, error) {
+	buf := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(buf).Encode(i.config); err != nil {
+		return v1.Hash{}, err
+	}
+	h, _, err := v1.SHA256(v1util.NopReadCloser(buf))
+	return h, err
+}
+
+// MediaType implements v1.Image
+func (i *image) MediaType() (types.MediaType, error) {
+	return types.DockerManifestSchema2, nil
+}
+
+// UncompressedLayer implements v1.Image
+func (i *image) UncompressedLayer(diffID v1.Hash) (io.ReadCloser, error) {
+	b, ok := i.layers[diffID]
+	if !ok {
+		return nil, fmt.Errorf("unknown diff_id: %v", diffID)
+	}
+	return v1util.NopReadCloser(bytes.NewBuffer(b)), nil
 }

@@ -21,16 +21,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sync"
 
-	"github.com/google/go-containerregistry/compress"
 	"github.com/google/go-containerregistry/name"
-
-	"github.com/google/go-containerregistry/v1/types"
-
 	"github.com/google/go-containerregistry/v1"
+	"github.com/google/go-containerregistry/v1/partial"
+	"github.com/google/go-containerregistry/v1/types"
+	"github.com/google/go-containerregistry/v1/v1util"
 )
 
 type image struct {
@@ -45,7 +43,7 @@ type image struct {
 	tag *name.Tag
 }
 
-var _ v1.Image = (*image)(nil)
+var _ partial.UncompressedImageCore = (*image)(nil)
 
 // Image exposes an image from the tarball at the provided path.
 func Image(path string, tag *name.Tag) (v1.Image, error) {
@@ -56,46 +54,20 @@ func Image(path string, tag *name.Tag) (v1.Image, error) {
 	if err := img.loadTarDescriptorAndConfig(); err != nil {
 		return nil, err
 	}
-	return &img, nil
-}
-
-func (i *image) FSLayers() ([]v1.Hash, error) {
-	panic("not implemented")
-}
-
-func (i *image) DiffIDs() ([]v1.Hash, error) {
-	panic("not implemented")
+	return partial.UncompressedToImage(&img)
 }
 
 func (i *image) ConfigName() (v1.Hash, error) {
-	panic("not implemented")
-}
-
-func (i *image) BlobSet() (map[v1.Hash]struct{}, error) {
-	panic("not implemented")
-}
-
-func (i *image) Digest() (v1.Hash, error) {
-	panic("not implemented")
+	buf := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(buf).Encode(i.config); err != nil {
+		return v1.Hash{}, err
+	}
+	h, _, err := v1.SHA256(v1util.NopReadCloser(buf))
+	return h, err
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
-	manifest, err := i.Manifest()
-	if err != nil {
-		return types.MediaType(""), err
-	}
-	return manifest.MediaType, nil
-}
-
-// Manifest returns the v1.Manifest for the specified image.
-// This method memoizes the result, avoiding repeated reads from the tarball.
-func (i *image) Manifest() (*v1.Manifest, error) {
-	if i.manifest == nil {
-		if err := i.loadManifestAndBlobs(); err != nil {
-			return nil, err
-		}
-	}
-	return i.manifest, nil
+	return types.DockerManifestSchema2, nil
 }
 
 // singleImageTarDescriptor is the struct used to represent a single image inside a `docker save` tarball.
@@ -159,63 +131,6 @@ func (i *image) loadTarDescriptorAndConfig() error {
 	return nil
 }
 
-func (i *image) loadManifestAndBlobs() error {
-	i.manifestLock.Lock()
-	defer i.manifestLock.Unlock()
-
-	cfgBytes, err := json.Marshal(i.config)
-	if err != nil {
-		return err
-	}
-	sha, cfgSize, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(cfgBytes)))
-	if err != nil {
-		return err
-	}
-	manifest := v1.Manifest{
-		SchemaVersion: 2,
-		MediaType:     types.DockerManifestSchema2,
-		Config: v1.Descriptor{
-			MediaType: types.DockerConfigJSON,
-			Size:      cfgSize,
-			Digest:    sha,
-		},
-	}
-
-	for _, l := range i.imgDescriptor.Layers {
-		// TODO(dlorenc): support compressed layers.
-		var r io.Reader
-		// Run this in a sub-function to close promptly.
-		compressLayer := func() error {
-			uncompressed, err := extractFileFromTar(i.path, l)
-			defer uncompressed.Close()
-			if err != nil {
-				return err
-			}
-			r, err = compress.Compress(uncompressed)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-		if err := compressLayer(); err != nil {
-			return err
-		}
-
-		sha, n, err := v1.SHA256(ioutil.NopCloser(r))
-		if err != nil {
-			return err
-		}
-
-		manifest.Layers = append(manifest.Layers, v1.Descriptor{
-			MediaType: types.DockerLayer,
-			Size:      n,
-			Digest:    sha,
-		})
-	}
-	i.manifest = &manifest
-	return nil
-}
-
 // tarFile represents a single file inside a tar. Closing it closes the tar itself.
 type tarFile struct {
 	io.Reader
@@ -250,22 +165,11 @@ func (i *image) ConfigFile() (*v1.ConfigFile, error) {
 	return i.config, nil
 }
 
-func (i *image) BlobSize(v1.Hash) (int64, error) {
-	panic("not implemented")
-}
-
-func (i *image) Blob(v1.Hash) (io.ReadCloser, error) {
-	panic("not implemented")
-}
-
-func (i *image) Layer(v1.Hash) (io.ReadCloser, error) {
-	panic("not implemented")
-}
-
-func (i *image) UncompressedBlob(v1.Hash) (io.ReadCloser, error) {
-	panic("not implemented")
-}
-
-func (i *image) UncompressedLayer(v1.Hash) (io.ReadCloser, error) {
-	panic("not implemented")
+func (i *image) UncompressedLayer(h v1.Hash) (io.ReadCloser, error) {
+	for idx, diffID := range i.config.RootFS.DiffIDs {
+		if diffID == h {
+			return extractFileFromTar(i.path, i.imgDescriptor.Layers[idx])
+		}
+	}
+	return nil, fmt.Errorf("diff id %q not found", h)
 }
