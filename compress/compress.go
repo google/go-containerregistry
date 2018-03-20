@@ -15,11 +15,33 @@
 package compress
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"io"
 )
 
+const (
+	magicHeaderLength = 2
+)
+
+var (
+	gzipMagicHeader = []byte{'\x1f', '\x8b'}
+)
+
+// EnsureCompressed checks if the input reader is compressed, and either passes it through or compresses it.
+func EnsureCompressed(r io.Reader) (io.Reader, error) {
+	r, compressed, err := IsCompressed(r)
+	if err != nil {
+		return nil, err
+	}
+	if !compressed {
+		return Compress(r)
+	}
+	return r, nil
+}
+
+// Compress compresses the input stream.
 func Compress(r io.Reader) (io.Reader, error) {
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
@@ -28,4 +50,17 @@ func Compress(r io.Reader) (io.Reader, error) {
 		return nil, err
 	}
 	return &buf, nil
+}
+
+// IsCompressed detects whether or not the input stream is comprssed.
+func IsCompressed(r io.Reader) (io.Reader, bool, error) {
+	buffered := bufio.NewReaderSize(r, magicHeaderLength)
+	magic, err := buffered.Peek(magicHeaderLength)
+	if err != nil {
+		return nil, false, nil
+	}
+	if bytes.Equal(magic, gzipMagicHeader) {
+		return buffered, true, nil
+	}
+	return buffered, false, nil
 }

@@ -185,19 +185,20 @@ func (i *image) loadManifestAndBlobs() error {
 		// TODO(dlorenc): support compressed layers.
 		var r io.Reader
 		// Run this in a sub-function to close promptly.
-		compressLayer := func() error {
-			uncompressed, err := extractFileFromTar(i.path, l)
-			defer uncompressed.Close()
+		maybeCompressLayer := func() error {
+			raw, err := extractFileFromTar(i.path, l)
+			defer raw.Close()
 			if err != nil {
 				return err
 			}
-			r, err = compress.Compress(uncompressed)
+			// This compresses if the layer is uncompressed, otherwise passes the compressed layer through.
+			r, err = compress.EnsureCompressed(raw)
 			if err != nil {
 				return err
 			}
 			return nil
 		}
-		if err := compressLayer(); err != nil {
+		if err := maybeCompressLayer(); err != nil {
 			return err
 		}
 
