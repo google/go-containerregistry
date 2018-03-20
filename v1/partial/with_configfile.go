@@ -18,14 +18,14 @@ import (
 	"github.com/google/go-containerregistry/v1"
 )
 
-// WithConfigFile defines the subset of v1.Image used by these helper methods
-// TODO(mattmoor): Consider renaming this to WithCore?
-type WithConfigFile interface {
+// withConfigFile defines the subset of v1.Image used by these helper methods
+// TODO(mattmoor): Consider renaming this to withCore?
+type withConfigFile interface {
 	imageCore
 }
 
 // DiffIDs is a helper for implementing v1.Image
-func DiffIDs(i WithConfigFile) ([]v1.Hash, error) {
+func DiffIDs(i withConfigFile) ([]v1.Hash, error) {
 	cfg, err := i.ConfigFile()
 	if err != nil {
 		return nil, err

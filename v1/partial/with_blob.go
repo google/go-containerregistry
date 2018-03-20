@@ -21,8 +21,8 @@ import (
 	"github.com/google/go-containerregistry/v1/v1util"
 )
 
-// WithBlob defines the subset of v1.Image used by these helper methods
-type WithBlob interface {
+// withBlob defines the subset of v1.Image used by these helper methods
+type withBlob interface {
 	imageCore
 
 	// Blob returns a ReadCloser for streaming the blob's content.
@@ -30,7 +30,7 @@ type WithBlob interface {
 }
 
 // UncompressedBlob returns a ReadCloser for streaming the blob's content uncompressed.
-func UncompressedBlob(b WithBlob, h v1.Hash) (io.ReadCloser, error) {
+func UncompressedBlob(b withBlob, h v1.Hash) (io.ReadCloser, error) {
 	rc, err := b.Blob(h)
 	if err != nil {
 		return nil, err
