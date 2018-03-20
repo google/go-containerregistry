@@ -17,27 +17,31 @@ package compress
 import (
 	"bytes"
 	"compress/gzip"
-	"io"
+	"testing"
 )
 
-var gzipMagicHeader = []byte{'\x1f', '\x8b'}
+func TestIsCompressed(t *testing.T) {
+	data := []byte("some data")
+	compressed, err := IsCompressed(bytes.NewReader(data))
+	if err != nil {
+		t.Errorf("Error detecting compression: %v", err)
+	}
+	if compressed {
+		t.Errorf("Expected IsCompressed() = false, got %v", compressed)
+	}
 
-// Compress compresses the input stream.
-func Compress(r io.Reader) (io.Reader, error) {
-	var buf bytes.Buffer
+	buf := bytes.Buffer{}
 	gz := gzip.NewWriter(&buf)
-	defer gz.Close()
-	if _, err := io.Copy(gz, r); err != nil {
-		return nil, err
+	if _, err := gz.Write(data); err != nil {
+		t.Fatalf("Error zipping data: %v", err)
 	}
-	return &buf, nil
-}
+	gz.Close()
 
-// IsCompressed detects whether the input stream is compressed.
-func IsCompressed(r io.Reader) (bool, error) {
-	magicHeader := make([]byte, 2)
-	if _, err := r.Read(magicHeader); err != nil {
-		return false, err
+	compressed, err = IsCompressed(&buf)
+	if err != nil {
+		t.Errorf("Error detecting compression: %v", err)
 	}
-	return bytes.Equal(magicHeader, gzipMagicHeader), nil
+	if !compressed {
+		t.Errorf("Expected IsCompressed() = true, got %v", compressed)
+	}
 }
