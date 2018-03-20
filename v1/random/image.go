@@ -29,7 +29,7 @@ import (
 // Image returns a pseudo-randomly generated Image.
 func Image(byteSize, layers int64) (v1.Image, error) {
 	layerz := make(map[v1.Hash][]byte)
-	for i := int64(0); i < layers; i = i + 1 {
+	for i := int64(0); i < layers; i++ {
 		b := bytes.NewBuffer(nil)
 		if _, err := io.CopyN(b, rand.Reader, byteSize); err != nil {
 			return nil, err

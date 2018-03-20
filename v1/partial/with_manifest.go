@@ -23,8 +23,8 @@ import (
 	"github.com/google/go-containerregistry/v1/v1util"
 )
 
-// withManifest defines the subset of v1.Image used by these helper methods
-type withManifest interface {
+// WithManifest defines the subset of v1.Image used by these helper methods
+type WithManifest interface {
 	imageCore
 
 	// Manifest returns this image's Manifest object.
@@ -32,7 +32,7 @@ type withManifest interface {
 }
 
 // FSLayers is a helper for implementing v1.Image
-func FSLayers(i withManifest) ([]v1.Hash, error) {
+func FSLayers(i WithManifest) ([]v1.Hash, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func FSLayers(i withManifest) ([]v1.Hash, error) {
 }
 
 // BlobSet is a helper for implementing v1.Image
-func BlobSet(i withManifest) (map[v1.Hash]struct{}, error) {
+func BlobSet(i WithManifest) (map[v1.Hash]struct{}, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func BlobSet(i withManifest) (map[v1.Hash]struct{}, error) {
 }
 
 // BlobSize is a helper for implementing v1.Image
-func BlobSize(i withManifest, h v1.Hash) (int64, error) {
+func BlobSize(i WithManifest, h v1.Hash) (int64, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return -1, err
@@ -73,7 +73,7 @@ func BlobSize(i withManifest, h v1.Hash) (int64, error) {
 }
 
 // Digest is a helper for implementing v1.Image
-func Digest(i withManifest) (v1.Hash, error) {
+func Digest(i WithManifest) (v1.Hash, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return v1.Hash{}, err
@@ -88,7 +88,7 @@ func Digest(i withManifest) (v1.Hash, error) {
 
 // BlobToDiffID is a helper for mapping between compressed
 // and uncompressed blob hashes.
-func BlobToDiffID(i withManifest, h v1.Hash) (v1.Hash, error) {
+func BlobToDiffID(i WithManifest, h v1.Hash) (v1.Hash, error) {
 	blobs, err := FSLayers(i)
 	if err != nil {
 		return v1.Hash{}, err

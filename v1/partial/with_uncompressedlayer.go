@@ -21,8 +21,8 @@ import (
 	"github.com/google/go-containerregistry/v1/v1util"
 )
 
-// withUncompressedLayer defines the subset of v1.Image used by these helper methods
-type withUncompressedLayer interface {
+// WithUncompressedLayer defines the subset of v1.Image used by these helper methods
+type WithUncompressedLayer interface {
 	imageCore
 
 	// UncompressedLayer is like UncompressedBlob, but takes the "diff id".
@@ -30,7 +30,7 @@ type withUncompressedLayer interface {
 }
 
 // Layer is the same as Blob, but takes the "diff id".
-func Layer(wul withUncompressedLayer, h v1.Hash) (io.ReadCloser, error) {
+func Layer(wul WithUncompressedLayer, h v1.Hash) (io.ReadCloser, error) {
 	rc, err := wul.UncompressedLayer(h)
 	if err != nil {
 		return nil, err
