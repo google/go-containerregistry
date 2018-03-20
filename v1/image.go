@@ -23,9 +23,11 @@ import (
 // Image defines the interface for interacting with an OCI v1 image.
 type Image interface {
 	// FSLayers returns the ordered collection of filesystem layers that comprise this image.
+	// The order of the list is most-recent first, and oldest base layer last.
 	FSLayers() ([]Hash, error)
 
 	// DiffIDs returns the ordered list of uncompressed layer hashes (matches FSLayers).
+	// The order of the list is most-recent first, and oldest base layer last.
 	DiffIDs() ([]Hash, error)
 
 	// ConfigName returns the hash of the image's config file.
