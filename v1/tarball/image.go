@@ -167,7 +167,7 @@ func (i *image) loadManifestAndBlobs() error {
 	if err != nil {
 		return err
 	}
-	sha, _, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(cfgBytes)))
+	sha, cfgSize, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(cfgBytes)))
 	if err != nil {
 		return err
 	}
@@ -176,7 +176,7 @@ func (i *image) loadManifestAndBlobs() error {
 		MediaType:     types.DockerManifestSchema2,
 		Config: v1.Descriptor{
 			MediaType: types.DockerConfigJSON,
-			Size:      int64(len(cfgBytes)),
+			Size:      cfgSize,
 			Digest:    sha,
 		},
 	}
