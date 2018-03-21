@@ -17,6 +17,7 @@ package v1
 import (
 	"encoding/json"
 	"io"
+	"time"
 )
 
 // ConfigFile is the configuration file that holds the metadata describing
@@ -25,7 +26,7 @@ import (
 type ConfigFile struct {
 	Architecture    string    `json:"architecture"`
 	Container       string    `json:"container"`
-	Created         string    `json:"created"`
+	Created         time.Time `json:"created"`
 	DockerVersion   string    `json:"docker_version"`
 	History         []History `json:"history"`
 	OS              string    `json:"os"`
@@ -37,11 +38,11 @@ type ConfigFile struct {
 
 // History is one entry of a list recording how this container image was built.
 type History struct {
-	Author     string `json:"author"`
-	Created    string `json:"created"`
-	CreatedBy  string `json:"created_by"`
-	Comment    string `json:"comment"`
-	EmptyLayer bool   `json:"empty_layer,omitempty"`
+	Author     string    `json:"author"`
+	Created    time.Time `json:"created"`
+	CreatedBy  string    `json:"created_by"`
+	Comment    string    `json:"comment"`
+	EmptyLayer bool      `json:"empty_layer,omitempty"`
 }
 
 // RootFS holds the ordered list of file system deltas that comprise the
