@@ -37,7 +37,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	// This is a tarball, on-disk, with:
 	// One manifest.json file at the top level containing information about several images.
 	// One file for each layer, named after the layer's SHA.
-	// One file for the config blob, named after its sha.
+	// One file for the config blob, named after its SHA.
 
 	w, err := os.OpenFile(p, os.O_WRONLY, 0644)
 	if err != nil {
@@ -65,15 +65,29 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 		return err
 	}
 
-	// Generate the tar descriptor and write it.
-	layerPaths := []string{}
+	// Write the layers.
 	layers, err := img.FSLayers()
 	if err != nil {
 		return err
 	}
+	layerPaths := []string{}
 	for _, l := range layers {
 		layerPaths = append(layerPaths, l.String())
+		r, err := img.Blob(l)
+		if err != nil {
+			return err
+		}
+		blobSize, err := img.BlobSize(l)
+		if err != nil {
+			return err
+		}
+
+		if err := writeFile(tf, l.String(), r, blobSize); err != nil {
+			return err
+		}
 	}
+
+	// Generate the tar descriptor and write it.
 	td := tarDescriptor{
 		singleImageTarDescriptor{
 			Config:   cfgName.String(),
@@ -85,26 +99,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := writeFile(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes))); err != nil {
-		return err
-	}
-
-	// Write the layers.
-	for _, layer := range layers {
-		r, err := img.Blob(layer)
-		if err != nil {
-			return err
-		}
-		blobSize, err := img.BlobSize(layer)
-		if err != nil {
-			return err
-		}
-
-		if err := writeFile(tf, layer.String(), r, blobSize); err != nil {
-			return err
-		}
-	}
-	return nil
+	return writeFile(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
 }
 
 func writeFile(tf *tar.Writer, path string, r io.Reader, size int64) error {
