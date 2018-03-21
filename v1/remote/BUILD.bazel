@@ -14,7 +14,9 @@ go_library(
         "//authn:go_default_library",
         "//name:go_default_library",
         "//v1:go_default_library",
+        "//v1/partial:go_default_library",
         "//v1/remote/transport:go_default_library",
+        "//v1/types:go_default_library",
     ],
 )
 
@@ -22,6 +24,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "delete_test.go",
+        "image_test.go",
         "write_test.go",
     ],
     embed = [":go_default_library"],
@@ -31,5 +34,6 @@ go_test(
         "//v1:go_default_library",
         "//v1/random:go_default_library",
         "//v1/remote/transport:go_default_library",
+        "//v1/v1util:go_default_library",
     ],
 )
