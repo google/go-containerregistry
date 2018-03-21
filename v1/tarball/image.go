@@ -16,10 +16,12 @@ package tarball
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"sync"
 
@@ -27,6 +29,7 @@ import (
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/partial"
 	"github.com/google/go-containerregistry/v1/types"
+	"github.com/google/go-containerregistry/v1/v1util"
 )
 
 type image struct {
@@ -35,24 +38,48 @@ type image struct {
 	config        *v1.ConfigFile
 	imgDescriptor *singleImageTarDescriptor
 
-	manifestLock sync.Mutex // Protects manifest
-	manifest     *v1.Manifest
-
 	tag *name.Tag
 }
 
-var _ partial.UncompressedImageCore = (*image)(nil)
+type uncompressedImage struct {
+	*image
+}
+
+type compressedImage struct {
+	*image
+	manifestLock sync.Mutex // Protects manifest
+	manifest     *v1.Manifest
+}
+
+var _ partial.UncompressedImageCore = (*uncompressedImage)(nil)
+var _ partial.CompressedImageCore = (*compressedImage)(nil)
 
 // Image exposes an image from the tarball at the provided path.
 func Image(path string, tag *name.Tag) (v1.Image, error) {
-	img := image{
+	img := &image{
 		path: path,
 		tag:  tag,
 	}
 	if err := img.loadTarDescriptorAndConfig(); err != nil {
 		return nil, err
 	}
-	return partial.UncompressedToImage(&img)
+
+	// Peek at the first layer and see if it's compressed.
+	compressed, err := img.areLayersCompressed()
+	if err != nil {
+		return nil, err
+	}
+	if compressed {
+		c := compressedImage{
+			image: img,
+		}
+		return partial.CompressedToImage(&c)
+	}
+
+	uc := uncompressedImage{
+		image: img,
+	}
+	return partial.UncompressedToImage(&uc)
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
@@ -92,6 +119,19 @@ func (td tarDescriptor) findSpecifiedImageDescriptor(tag *name.Tag) (*singleImag
 	return nil, fmt.Errorf("tag %s not found in tarball", tag)
 }
 
+func (i *image) areLayersCompressed() (bool, error) {
+	if len(i.imgDescriptor.Layers) == 0 {
+		return false, errors.New("0 layers found in image")
+	}
+	layer := i.imgDescriptor.Layers[0]
+	blob, err := extractFileFromTar(i.path, layer)
+	if err != nil {
+		return false, err
+	}
+	defer blob.Close()
+	return v1util.IsGzipped(blob)
+}
+
 func (i *image) loadTarDescriptorAndConfig() error {
 	td, err := extractFileFromTar(i.path, "manifest.json")
 	if err != nil {
@@ -118,6 +158,10 @@ func (i *image) loadTarDescriptorAndConfig() error {
 		return err
 	}
 	return nil
+}
+
+func (i *image) ConfigFile() (*v1.ConfigFile, error) {
+	return i.config, nil
 }
 
 // tarFile represents a single file inside a tar. Closing it closes the tar itself.
@@ -150,15 +194,87 @@ func extractFileFromTar(tarPath string, filePath string) (io.ReadCloser, error) 
 	return nil, fmt.Errorf("file %s not found in tar", filePath)
 }
 
-func (i *image) ConfigFile() (*v1.ConfigFile, error) {
-	return i.config, nil
-}
-
-func (i *image) UncompressedLayer(h v1.Hash) (io.ReadCloser, error) {
+func (i *uncompressedImage) UncompressedLayer(h v1.Hash) (io.ReadCloser, error) {
 	for idx, diffID := range i.config.RootFS.DiffIDs {
 		if diffID == h {
 			return extractFileFromTar(i.path, i.imgDescriptor.Layers[idx])
 		}
 	}
 	return nil, fmt.Errorf("diff id %q not found", h)
+}
+
+func (c *compressedImage) Manifest() (*v1.Manifest, error) {
+	c.manifestLock.Lock()
+	defer c.manifestLock.Unlock()
+	if c.manifest != nil {
+		return c.manifest, nil
+	}
+
+	cfg, err := c.ConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	b, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	cfgHash, cfgSize, err := v1.SHA256(v1util.NopReadCloser(bytes.NewBuffer(b)))
+	if err != nil {
+		return nil, err
+	}
+
+	c.manifest = &v1.Manifest{
+		SchemaVersion: 2,
+		MediaType:     types.DockerManifestSchema2,
+		Config: v1.Descriptor{
+			MediaType: types.DockerConfigJSON,
+			Size:      cfgSize,
+			Digest:    cfgHash,
+		},
+	}
+
+	for _, p := range c.imgDescriptor.Layers {
+		l, err := extractFileFromTar(c.path, p)
+		if err != nil {
+			return nil, err
+		}
+		sha, size, err := v1.SHA256(l)
+		if err != nil {
+			return nil, err
+		}
+		c.manifest.Layers = append(c.manifest.Layers, v1.Descriptor{
+			MediaType: types.DockerLayer,
+			Size:      size,
+			Digest:    sha,
+		})
+	}
+	return c.manifest, nil
+}
+
+func (c *compressedImage) Digest() (v1.Hash, error) {
+	manifest, err := c.Manifest()
+	if err != nil {
+		return v1.Hash{}, nil
+	}
+	mb, err := json.Marshal(manifest)
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	digest, _, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(mb)))
+	return digest, err
+}
+
+func (c *compressedImage) Blob(h v1.Hash) (io.ReadCloser, error) {
+	m, err := c.Manifest()
+	if err != nil {
+		return nil, err
+	}
+	for i, l := range m.Layers {
+		if l.Digest == h {
+			fp := c.imgDescriptor.Layers[i]
+			return extractFileFromTar(c.path, fp)
+		}
+	}
+	return nil, fmt.Errorf("blob %v not found", h)
 }
