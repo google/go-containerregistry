@@ -129,7 +129,7 @@ func (i *image) areLayersCompressed() (bool, error) {
 		return false, err
 	}
 	defer blob.Close()
-	return v1util.IsCompressed(blob)
+	return v1util.IsGzipped(blob)
 }
 
 func (i *image) loadTarDescriptorAndConfig() error {

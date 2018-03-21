@@ -101,8 +101,8 @@ func GunzipWriteCloser(w io.WriteCloser) (io.WriteCloser, error) {
 	}, nil
 }
 
-// IsCompressed detects whether the input stream is compressed.
-func IsCompressed(r io.Reader) (bool, error) {
+// IsGzipped detects whether the input stream is compressed.
+func IsGzipped(r io.Reader) (bool, error) {
 	magicHeader := make([]byte, 2)
 	if _, err := r.Read(magicHeader); err != nil {
 		return false, err
