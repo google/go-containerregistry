@@ -25,8 +25,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/google/go-containerregistry/compress"
-
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/partial"
@@ -131,7 +129,7 @@ func (i *image) areLayersCompressed() (bool, error) {
 		return false, err
 	}
 	defer blob.Close()
-	return compress.IsCompressed(blob)
+	return v1util.IsCompressed(blob)
 }
 
 func (i *image) loadTarDescriptorAndConfig() error {
@@ -205,10 +203,6 @@ func (i *uncompressedImage) UncompressedLayer(h v1.Hash) (io.ReadCloser, error) 
 	return nil, fmt.Errorf("diff id %q not found", h)
 }
 
-func (c *compressedImage) Blob(h v1.Hash) (io.ReadCloser, error) {
-	return nil, nil
-}
-
 func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 	c.manifestLock.Lock()
 	defer c.manifestLock.Unlock()
@@ -242,6 +236,9 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 
 	for _, p := range c.imgDescriptor.Layers {
 		l, err := extractFileFromTar(c.path, p)
+		if err != nil {
+			return nil, err
+		}
 		sha, size, err := v1.SHA256(l)
 		if err != nil {
 			return nil, err
@@ -252,7 +249,7 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 			Digest:    sha,
 		})
 	}
-	return nil, nil
+	return c.manifest, nil
 }
 
 func (c *compressedImage) Digest() (v1.Hash, error) {
@@ -266,4 +263,18 @@ func (c *compressedImage) Digest() (v1.Hash, error) {
 	}
 	digest, _, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(mb)))
 	return digest, err
+}
+
+func (c *compressedImage) Blob(h v1.Hash) (io.ReadCloser, error) {
+	m, err := c.Manifest()
+	if err != nil {
+		return nil, err
+	}
+	for i, l := range m.Layers {
+		if l.Digest == h {
+			fp := c.imgDescriptor.Layers[i]
+			return extractFileFromTar(c.path, fp)
+		}
+	}
+	return nil, fmt.Errorf("blob %v not found", h)
 }

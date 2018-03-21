@@ -110,20 +110,20 @@ func BlobToDiffID(i WithManifest, h v1.Hash) (v1.Hash, error) {
 
 // DiffIDtoBlob is a helper for mapping between uncompressed
 // and compressed blob hashes.
-func DiffIDToBlob(i WithManifest, h v1.Hash) (v1.Hash, error) {
-	blobs, err := FSLayers(i)
+func DiffIDToBlob(wm WithManifest, h v1.Hash) (v1.Hash, error) {
+	blobs, err := FSLayers(wm)
 	if err != nil {
 		return v1.Hash{}, err
 	}
-	diffIDs, err := DiffIDs(i)
+	diffIDs, err := DiffIDs(wm)
 	if err != nil {
 		return v1.Hash{}, err
 	}
 	if len(blobs) != len(diffIDs) {
 		return v1.Hash{}, fmt.Errorf("mismatched fs layers (%d) and diff ids (%d)", len(blobs), len(diffIDs))
 	}
-	for i, diffId := range diffIDs {
-		if diffId == h {
+	for i, diffID := range diffIDs {
+		if diffID == h {
 			return blobs[i], nil
 		}
 	}

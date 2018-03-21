@@ -20,6 +20,8 @@ import (
 	"io"
 )
 
+var gzipMagicHeader = []byte{'\x1f', '\x8b'}
+
 // GzipReadCloser reads uncompressed input data from the io.ReadCloser and
 // returns an io.ReadCloser from which compressed data may be read.
 func GzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
@@ -97,4 +99,13 @@ func GunzipWriteCloser(w io.WriteCloser) (io.WriteCloser, error) {
 		Buffer: bytes.NewBuffer(nil),
 		writer: w,
 	}, nil
+}
+
+// IsCompressed detects whether the input stream is compressed.
+func IsCompressed(r io.Reader) (bool, error) {
+	magicHeader := make([]byte, 2)
+	if _, err := r.Read(magicHeader); err != nil {
+		return false, err
+	}
+	return bytes.Equal(magicHeader, gzipMagicHeader), nil
 }

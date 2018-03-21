@@ -16,7 +16,6 @@ package partial
 
 import (
 	"io"
-	"sync"
 
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/v1util"
@@ -44,9 +43,6 @@ var _ CompressedImageCore = (v1.Image)(nil)
 // appropriate methods computed from the minimal core.
 type compressedImageExtender struct {
 	CompressedImageCore
-
-	lock     sync.Mutex
-	manifest *v1.Manifest
 }
 
 // Assert that our extender type completes the v1.Image interface
@@ -86,6 +82,9 @@ func (i *compressedImageExtender) UncompressedLayer(h v1.Hash) (io.ReadCloser, e
 		return nil, err
 	}
 	rc, err := i.Blob(h)
+	if err != nil {
+		return nil, err
+	}
 	return v1util.GunzipReadCloser(rc)
 }
 
