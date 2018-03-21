@@ -16,8 +16,9 @@ package tarball
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/google/go-containerregistry/name"
@@ -31,7 +32,7 @@ type WriteOptions struct {
 }
 
 // Write saves the image as the given tag in a tarball at the given path.
-func Write(p string, tag name.Tag, img v1.Image, wo WriteOptions) error {
+func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	// Write in the compressed format.
 	// This is a tarball, on-disk, with:
 	// One manifest.json file at the top level containing information about several images.
@@ -60,7 +61,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo WriteOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := writeFile(tf, cfgName.String(), cfgBlob); err != nil {
+	if err := writeFile(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 		return err
 	}
 
@@ -84,7 +85,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo WriteOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := writeFile(tf, "manifest.json", tdBytes); err != nil {
+	if err := writeFile(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes))); err != nil {
 		return err
 	}
 
@@ -94,27 +95,28 @@ func Write(p string, tag name.Tag, img v1.Image, wo WriteOptions) error {
 		if err != nil {
 			return err
 		}
-		blob, err := ioutil.ReadAll(r)
+		blobSize, err := img.BlobSize(layer)
 		if err != nil {
 			return err
 		}
-		if err := writeFile(tf, layer.String(), blob); err != nil {
+
+		if err := writeFile(tf, layer.String(), r, blobSize); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func writeFile(tf *tar.Writer, path string, contents []byte) error {
+func writeFile(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	hdr := &tar.Header{
 		Mode:     0644,
 		Typeflag: tar.TypeReg,
-		Size:     int64(len(contents)),
+		Size:     size,
 		Name:     path,
 	}
 	if err := tf.WriteHeader(hdr); err != nil {
 		return err
 	}
-	_, err := tf.Write(contents)
+	_, err := io.Copy(tf, r)
 	return err
 }
