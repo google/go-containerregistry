@@ -15,7 +15,11 @@
 package tarball
 
 import (
-	"fmt"
+	"archive/tar"
+	"bytes"
+	"encoding/json"
+	"io"
+	"os"
 
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
@@ -28,6 +32,86 @@ type WriteOptions struct {
 }
 
 // Write saves the image as the given tag in a tarball at the given path.
-func Write(p string, tag name.Tag, img v1.Image, wo WriteOptions) error {
-	return fmt.Errorf("NYI: tarball.Write(%v)", p)
+func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
+	// Write in the compressed format.
+	// This is a tarball, on-disk, with:
+	// One manifest.json file at the top level containing information about several images.
+	// One file for each layer, named after the layer's SHA.
+	// One file for the config blob, named after its SHA.
+
+	w, err := os.OpenFile(p, os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	tf := tar.NewWriter(w)
+	defer tf.Close()
+
+	// Write the config.
+	cfgName, err := img.ConfigName()
+	if err != nil {
+		return err
+	}
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		return err
+	}
+	cfgBlob, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	if err := writeFile(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		return err
+	}
+
+	// Write the layers.
+	layers, err := img.FSLayers()
+	if err != nil {
+		return err
+	}
+	layerPaths := []string{}
+	for _, l := range layers {
+		layerPaths = append(layerPaths, l.String())
+		r, err := img.Blob(l)
+		if err != nil {
+			return err
+		}
+		blobSize, err := img.BlobSize(l)
+		if err != nil {
+			return err
+		}
+
+		if err := writeFile(tf, l.String(), r, blobSize); err != nil {
+			return err
+		}
+	}
+
+	// Generate the tar descriptor and write it.
+	td := tarDescriptor{
+		singleImageTarDescriptor{
+			Config:   cfgName.String(),
+			RepoTags: []string{tag.String()},
+			Layers:   layerPaths,
+		},
+	}
+	tdBytes, err := json.Marshal(td)
+	if err != nil {
+		return err
+	}
+	return writeFile(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
+}
+
+func writeFile(tf *tar.Writer, path string, r io.Reader, size int64) error {
+	hdr := &tar.Header{
+		Mode:     0644,
+		Typeflag: tar.TypeReg,
+		Size:     size,
+		Name:     path,
+	}
+	if err := tf.WriteHeader(hdr); err != nil {
+		return err
+	}
+	_, err := io.Copy(tf, r)
+	return err
 }

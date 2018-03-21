@@ -20,14 +20,20 @@ go_library(
 
 go_test(
     name = "go_default_test",
-    srcs = ["image_test.go"],
+    srcs = [
+        "image_test.go",
+        "write_test.go",
+    ],
     data = glob(["testdata/**"]) + [
         ":test_image_1.tar",  # keep
         ":test_image_2.tar",  # keep
         ":test_bundle.tar",  # keep
     ],
     embed = [":go_default_library"],
-    deps = ["//name:go_default_library"],
+    deps = [
+        "//name:go_default_library",
+        "//v1/random:go_default_library",
+    ],
 )
 
 load(
