@@ -49,7 +49,7 @@ func TestWrite(t *testing.T) {
 	}
 
 	// Make sure the image is valid and can be loaded.
-	// Load it both by nil and by it's name.
+	// Load it both by nil and by its name.
 	for _, it := range []*name.Tag{nil, &tag} {
 		tarImage, err := Image(fp.Name(), it)
 		if err != nil {

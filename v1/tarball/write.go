@@ -37,7 +37,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	// This is a tarball, on-disk, with:
 	// One manifest.json file at the top level containing information about several images.
 	// One file for each layer, named after the layer's SHA.
-	// One file for the config blob, named after it's sha.
+	// One file for the config blob, named after its sha.
 
 	w, err := os.OpenFile(p, os.O_WRONLY, 0644)
 	if err != nil {
