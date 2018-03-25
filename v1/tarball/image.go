@@ -35,7 +35,7 @@ import (
 type image struct {
 	path          string
 	td            *tarDescriptor
-	config        *v1.ConfigFile
+	config        []byte
 	imgDescriptor *singleImageTarDescriptor
 
 	tag *name.Tag
@@ -152,15 +152,16 @@ func (i *image) loadTarDescriptorAndConfig() error {
 	if err != nil {
 		return err
 	}
+	defer cfg.Close()
 
-	i.config, err = v1.ParseConfigFile(cfg)
+	i.config, err = ioutil.ReadAll(cfg)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (i *image) ConfigFile() (*v1.ConfigFile, error) {
+func (i *image) RawConfigFile() ([]byte, error) {
 	return i.config, nil
 }
 
@@ -195,7 +196,11 @@ func extractFileFromTar(tarPath string, filePath string) (io.ReadCloser, error) 
 }
 
 func (i *uncompressedImage) UncompressedLayer(h v1.Hash) (io.ReadCloser, error) {
-	for idx, diffID := range i.config.RootFS.DiffIDs {
+	cfg, err := partial.ConfigFile(i)
+	if err != nil {
+		return nil, err
+	}
+	for idx, diffID := range cfg.RootFS.DiffIDs {
 		if diffID == h {
 			return extractFileFromTar(i.path, i.imgDescriptor.Layers[idx])
 		}
@@ -210,11 +215,7 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		return c.manifest, nil
 	}
 
-	cfg, err := c.ConfigFile()
-	if err != nil {
-		return nil, err
-	}
-	b, err := json.Marshal(cfg)
+	b, err := c.RawConfigFile()
 	if err != nil {
 		return nil, err
 	}
@@ -252,17 +253,8 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 	return c.manifest, nil
 }
 
-func (c *compressedImage) Digest() (v1.Hash, error) {
-	manifest, err := c.Manifest()
-	if err != nil {
-		return v1.Hash{}, nil
-	}
-	mb, err := json.Marshal(manifest)
-	if err != nil {
-		return v1.Hash{}, err
-	}
-	digest, _, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(mb)))
-	return digest, err
+func (c *compressedImage) RawManifest() ([]byte, error) {
+	return partial.RawManifest(c)
 }
 
 func (c *compressedImage) Blob(h v1.Hash) (io.ReadCloser, error) {

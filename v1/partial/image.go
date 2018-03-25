@@ -15,14 +15,13 @@
 package partial
 
 import (
-	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/types"
 )
 
 // imageCore is the core set of properties without which we cannot build a v1.Image
 type imageCore interface {
-	// ConfigFile returns this image's config file.
-	ConfigFile() (*v1.ConfigFile, error)
+	// RawConfigFile returns the serialized bytes of this image's config file.
+	RawConfigFile() ([]byte, error)
 
 	// MediaType of this image's manifest.
 	MediaType() (types.MediaType, error)

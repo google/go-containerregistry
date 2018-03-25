@@ -19,10 +19,36 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/v1util"
 )
+
+// WithRawConfigFile defines the subset of v1.Image used by these helper methods
+type WithRawConfigFile interface {
+	// RawConfigFile returns the serialized bytes of this image's config file.
+	RawConfigFile() ([]byte, error)
+}
+
+// ConfigFile is a helper for implementing v1.Image
+func ConfigFile(i WithRawConfigFile) (*v1.ConfigFile, error) {
+	b, err := i.RawConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	return v1.ParseConfigFile(v1util.NopReadCloser(bytes.NewBuffer(b)))
+}
+
+// ConfigName is a helper for implementing v1.Image
+func ConfigName(i WithRawConfigFile) (v1.Hash, error) {
+	b, err := i.RawConfigFile()
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	h, _, err := v1.SHA256(v1util.NopReadCloser(bytes.NewBuffer(b)))
+	return h, err
+}
 
 // WithConfigFile defines the subset of v1.Image used by these helper methods
 type WithConfigFile interface {
@@ -43,18 +69,13 @@ func DiffIDs(i WithConfigFile) ([]v1.Hash, error) {
 	return dids, nil
 }
 
-// ConfigName is a helper for implementing v1.Image
-func ConfigName(i WithConfigFile) (v1.Hash, error) {
-	config, err := i.ConfigFile()
+// RawConfigFile is a helper for implementing v1.Image
+func RawConfigFile(i WithConfigFile) ([]byte, error) {
+	cfg, err := i.ConfigFile()
 	if err != nil {
-		return v1.Hash{}, err
+		return nil, err
 	}
-	buf := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(buf).Encode(config); err != nil {
-		return v1.Hash{}, err
-	}
-	h, _, err := v1.SHA256(v1util.NopReadCloser(buf))
-	return h, err
+	return json.Marshal(cfg)
 }
 
 // WithUncompressedLayer defines the subset of v1.Image used by these helper methods
@@ -72,16 +93,48 @@ func Layer(wul WithUncompressedLayer, h v1.Hash) (io.ReadCloser, error) {
 	return v1util.GzipReadCloser(rc)
 }
 
-// WithManifest defines the subset of v1.Image used by these helper methods
-type WithManifestAndConfigFile interface {
-	WithConfigFile
+// WithRawManifest defines the subset of v1.Image used by these helper methods
+type WithRawManifest interface {
+	// RawManifest returns the serialized bytes of this image's config file.
+	RawManifest() ([]byte, error)
+}
 
+// Digest is a helper for implementing v1.Image
+func Digest(i WithRawManifest) (v1.Hash, error) {
+	mb, err := i.RawManifest()
+	if err != nil {
+		return v1.Hash{}, nil
+	}
+	digest, _, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(mb)))
+	return digest, err
+}
+
+// Manifest is a helper for implementing v1.Image
+func Manifest(i WithRawManifest) (*v1.Manifest, error) {
+	b, err := i.RawManifest()
+	if err != nil {
+		return nil, err
+	}
+	return v1.ParseManifest(v1util.NopReadCloser(bytes.NewBuffer(b)))
+}
+
+// WithManifest defines the subset of v1.Image used by these helper methods
+type WithManifest interface {
 	// Manifest returns this image's Manifest object.
 	Manifest() (*v1.Manifest, error)
 }
 
+// RawManifest is a helper for implementing v1.Image
+func RawManifest(i WithManifest) ([]byte, error) {
+	m, err := i.Manifest()
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(m)
+}
+
 // FSLayers is a helper for implementing v1.Image
-func FSLayers(i WithManifestAndConfigFile) ([]v1.Hash, error) {
+func FSLayers(i WithManifest) ([]v1.Hash, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return nil, err
@@ -94,7 +147,7 @@ func FSLayers(i WithManifestAndConfigFile) ([]v1.Hash, error) {
 }
 
 // BlobSet is a helper for implementing v1.Image
-func BlobSet(i WithManifestAndConfigFile) (map[v1.Hash]struct{}, error) {
+func BlobSet(i WithManifest) (map[v1.Hash]struct{}, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return nil, err
@@ -108,7 +161,7 @@ func BlobSet(i WithManifestAndConfigFile) (map[v1.Hash]struct{}, error) {
 }
 
 // BlobSize is a helper for implementing v1.Image
-func BlobSize(i WithManifestAndConfigFile, h v1.Hash) (int64, error) {
+func BlobSize(i WithManifest, h v1.Hash) (int64, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return -1, err
@@ -121,18 +174,12 @@ func BlobSize(i WithManifestAndConfigFile, h v1.Hash) (int64, error) {
 	return -1, fmt.Errorf("blob %v not found", h)
 }
 
-// Digest is a helper for implementing v1.Image
-func Digest(i WithManifestAndConfigFile) (v1.Hash, error) {
-	m, err := i.Manifest()
-	if err != nil {
-		return v1.Hash{}, err
-	}
-	b := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(b).Encode(m); err != nil {
-		return v1.Hash{}, err
-	}
-	h, _, err := v1.SHA256(v1util.NopReadCloser(b))
-	return h, err
+// WithManifestAndConfigFile defines the subset of v1.Image used by these helper methods
+type WithManifestAndConfigFile interface {
+	WithConfigFile
+
+	// Manifest returns this image's Manifest object.
+	Manifest() (*v1.Manifest, error)
 }
 
 // BlobToDiffID is a helper for mapping between compressed
