@@ -108,7 +108,7 @@ func BlobToDiffID(i WithManifest, h v1.Hash) (v1.Hash, error) {
 	return v1.Hash{}, fmt.Errorf("unknown blob %v", h)
 }
 
-// DiffIDtoBlob is a helper for mapping between uncompressed
+// DiffIDToBlob is a helper for mapping between uncompressed
 // and compressed blob hashes.
 func DiffIDToBlob(wm WithManifest, h v1.Hash) (v1.Hash, error) {
 	blobs, err := FSLayers(wm)

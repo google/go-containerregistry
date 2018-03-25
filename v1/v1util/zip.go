@@ -55,7 +55,7 @@ func GunzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	}, nil
 }
 
-// GzipWriteClose returns an io.WriteCloser to which uncompressed data may be
+// GzipWriteCloser returns an io.WriteCloser to which uncompressed data may be
 // written, and the compressed data is then written to the provided
 // io.WriteCloser.
 func GzipWriteCloser(w io.WriteCloser) io.WriteCloser {
