@@ -15,12 +15,16 @@
 package remote
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"net/http"
+	"net/url"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
+	"github.com/google/go-containerregistry/v1/remote/transport"
 )
 
 // WriteOptions are used to expose optional information to guide or
@@ -34,5 +38,227 @@ type WriteOptions struct {
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.RoundTripper,
 	wo WriteOptions) error {
-	return fmt.Errorf("NYI: remote.Write(%v)", ref)
+	tr, err := transport.New(ref, auth, t, transport.PushScope)
+	if err != nil {
+		return err
+	}
+	w := writer{
+		ref:     ref,
+		client:  &http.Client{Transport: tr},
+		img:     img,
+		options: wo,
+	}
+
+	bs, err := img.BlobSet()
+	if err != nil {
+		return err
+	}
+
+	// Spin up go routines to publish each of the members of BlobSet(),
+	// and use an error channel to collect there results.
+	errCh := make(chan error)
+	defer close(errCh)
+	for h := range bs {
+		go func(h v1.Hash) {
+			errCh <- w.uploadOne(h)
+		}(h)
+	}
+
+	// Now wait for all of the blob uploads to complete.
+	var errors []error
+	for _ = range bs {
+		if err := <-errCh; err != nil {
+			errors = append(errors, err)
+		}
+	}
+	if len(errors) > 0 {
+		// Return the first error we encountered.
+		return errors[0]
+	}
+
+	// With all of the constituent elements uploaded, upload the manifest
+	// to commit the image.
+	return w.commitImage()
 }
+
+// writer writes the elements of an image to a remote image reference.
+type writer struct {
+	ref     name.Reference
+	client  *http.Client
+	img     v1.Image
+	options WriteOptions
+}
+
+// url returns a url.Url for the specified path in the context of this remote image reference.
+func (w *writer) url(path string) url.URL {
+	return url.URL{
+		Scheme: transport.Scheme(w.ref.Context().Registry),
+		Host:   w.ref.Context().RegistryStr(),
+		Path:   path,
+	}
+}
+
+// nextLocation extracts the fully-qualified URL to which we should send the next request in an upload sequence.
+func (w *writer) nextLocation(resp *http.Response) string {
+	loc := resp.Header.Get("Location")
+	if len(loc) > 0 && loc[0] == '/' {
+		// If the location header returned is just a url path, then fully qualify it.
+		// We cannot simply call w.url, since there might be an embedded query string.
+		return fmt.Sprintf("%s://%s%s", transport.Scheme(w.ref.Context().Registry),
+			w.ref.Context().RegistryStr(), loc)
+	}
+	// If it is fully-qualified already then return it as-is.
+	return loc
+}
+
+// initiateUpload initiates the blob upload, which starts with a POST that can
+// optionally include the hash of the layer and a list of repositories from
+// which that layer might be read. On failure, an error is returned.
+// On success, the layer was either mounted (nothing more to do) or a blob
+// upload was initiated and the body of that blob should be sent to the returned
+// location.
+func (w *writer) initiateUpload(h v1.Hash) (location string, mounted bool, err error) {
+	u := w.url(fmt.Sprintf("/v2/%s/blobs/uploads/", w.ref.Context().RepositoryStr()))
+	uv := url.Values{
+		"mount": []string{h.String()},
+	}
+	var from []string
+	for _, m := range w.options.MountPaths {
+		from = append(from, m.RepositoryStr())
+	}
+	// We currently avoid HEAD because it's semi-redundant with the mount that is part
+	// of initiating the blob upload.  GCR will perform an existence check on the initiation
+	// if "mount" is specified, even if no "from" sources are specified.  If this turns out
+	// to not be broadly applicable then we should replace mounts without "from"s with a HEAD.
+	if len(from) > 0 {
+		uv["from"] = from
+	}
+	u.RawQuery = uv.Encode()
+
+	// Make the request to initiate the blob upload.
+	resp, err := w.client.Post(u.String(), "application/json", nil)
+	if err != nil {
+		return "", false, err
+	}
+	defer resp.Body.Close()
+
+	// Check the response code to determine the result.
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		// We're done, we were able to fast-path.
+		return "", true, nil
+	case http.StatusAccepted:
+		// Proceed to PATCH, upload has begun.
+		return w.nextLocation(resp), false, nil
+	default:
+		return "", false, fmt.Errorf("unrecognized status code during POST: %v", resp.Status)
+	}
+}
+
+// streamBlob streams the contents of the blob to the specified location.
+// On failure, this will return an error.  On success, this will return the location
+// header indicating how to commit the streamed blob.
+func (w *writer) streamBlob(h v1.Hash, streamLocation string) (commitLocation string, err error) {
+	blob, err := w.img.Blob(h)
+	if err != nil {
+		return "", err
+	}
+	defer blob.Close()
+
+	req, err := http.NewRequest(http.MethodPatch, streamLocation, blob)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := w.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusNoContent, http.StatusAccepted, http.StatusCreated:
+		// The blob has been uploaded, return the location header indicating
+		// how to commit this layer.
+		return w.nextLocation(resp), nil
+	default:
+		return "", fmt.Errorf("unrecognized status code during PATCH: %v", resp.Status)
+	}
+}
+
+// commitBlob commits this blob by sending a PUT to the location returned from streaming the blob.
+func (w *writer) commitBlob(h v1.Hash, location string) (err error) {
+	req, err := http.NewRequest(http.MethodPut, location, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := w.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusCreated:
+		return nil
+	default:
+		return fmt.Errorf("unrecognized status code during PUT: %v", resp.Status)
+	}
+}
+
+// uploadOne performs a complete upload of a single layer.
+func (w *writer) uploadOne(h v1.Hash) error {
+	location, mounted, err := w.initiateUpload(h)
+	if err != nil {
+		return err
+	} else if mounted {
+		log.Printf("mounted %v", h)
+		return nil
+	}
+
+	location, err = w.streamBlob(h, location)
+	if err != nil {
+		return err
+	}
+
+	if err := w.commitBlob(h, location); err != nil {
+		return err
+	}
+	log.Printf("pushed %v", h)
+	return nil
+
+}
+
+// commitImage does a PUT of the image's manifest.
+func (w *writer) commitImage() error {
+	raw, err := w.img.RawManifest()
+	if err != nil {
+		return err
+	}
+
+	u := w.url(fmt.Sprintf("/v2/%s/manifests/%s", w.ref.Context().RepositoryStr(), w.ref.Identifier()))
+
+	// Make the request to PUT the serialized manifest
+	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(raw))
+	if err != nil {
+		return err
+	}
+
+	resp, err := w.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Check the response code to determine the result.
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusCreated, http.StatusAccepted:
+		// The image was successfully pushed!
+		log.Printf("pushed %v", w.ref)
+		return nil
+	default:
+		return fmt.Errorf("Unrecognized status code during PUT: %v", resp.Status)
+	}
+}
+
+// TODO(mattmoor): WriteIndex
