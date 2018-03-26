@@ -16,6 +16,7 @@ package remote
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -55,7 +56,7 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 	}
 
 	// Spin up go routines to publish each of the members of BlobSet(),
-	// and use an error channel to collect there results.
+	// and use an error channel to collect their results.
 	errCh := make(chan error)
 	defer close(errCh)
 	for h := range bs {
@@ -99,16 +100,19 @@ func (w *writer) url(path string) url.URL {
 }
 
 // nextLocation extracts the fully-qualified URL to which we should send the next request in an upload sequence.
-func (w *writer) nextLocation(resp *http.Response) string {
+func (w *writer) nextLocation(resp *http.Response) (string, error) {
 	loc := resp.Header.Get("Location")
-	if len(loc) > 0 && loc[0] == '/' {
-		// If the location header returned is just a url path, then fully qualify it.
-		// We cannot simply call w.url, since there might be an embedded query string.
-		return fmt.Sprintf("%s://%s%s", transport.Scheme(w.ref.Context().Registry),
-			w.ref.Context().RegistryStr(), loc)
+	if len(loc) == 0 {
+		return "", errors.New("missing Location header")
 	}
-	// If it is fully-qualified already then return it as-is.
-	return loc
+	u, err := url.Parse(loc)
+	if err != nil {
+		return "", err
+	}
+
+	// If the location header returned is just a url path, then fully qualify it.
+	// We cannot simply call w.url, since there might be an embedded query string.
+	return resp.Request.URL.ResolveReference(u).String(), nil
 }
 
 // initiateUpload initiates the blob upload, which starts with a POST that can
@@ -149,7 +153,8 @@ func (w *writer) initiateUpload(h v1.Hash) (location string, mounted bool, err e
 		return "", true, nil
 	case http.StatusAccepted:
 		// Proceed to PATCH, upload has begun.
-		return w.nextLocation(resp), false, nil
+		loc, err := w.nextLocation(resp)
+		return loc, false, err
 	default:
 		return "", false, fmt.Errorf("unrecognized status code during POST: %v", resp.Status)
 	}
@@ -180,7 +185,7 @@ func (w *writer) streamBlob(h v1.Hash, streamLocation string) (commitLocation st
 	case http.StatusNoContent, http.StatusAccepted, http.StatusCreated:
 		// The blob has been uploaded, return the location header indicating
 		// how to commit this layer.
-		return w.nextLocation(resp), nil
+		return w.nextLocation(resp)
 	default:
 		return "", fmt.Errorf("unrecognized status code during PATCH: %v", resp.Status)
 	}
@@ -188,7 +193,15 @@ func (w *writer) streamBlob(h v1.Hash, streamLocation string) (commitLocation st
 
 // commitBlob commits this blob by sending a PUT to the location returned from streaming the blob.
 func (w *writer) commitBlob(h v1.Hash, location string) (err error) {
-	req, err := http.NewRequest(http.MethodPut, location, nil)
+	u, err := url.Parse(location)
+	if err != nil {
+		return err
+	}
+	v := u.Query()
+	v.Set("digest", h.String())
+	u.RawQuery = v.Encode()
+
+	req, err := http.NewRequest(http.MethodPut, u.String(), nil)
 	if err != nil {
 		return err
 	}
@@ -226,7 +239,6 @@ func (w *writer) uploadOne(h v1.Hash) error {
 	}
 	log.Printf("pushed %v", h)
 	return nil
-
 }
 
 // commitImage does a PUT of the image's manifest.

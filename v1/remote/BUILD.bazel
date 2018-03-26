@@ -26,5 +26,6 @@ go_test(
         "//name:go_default_library",
         "//v1:go_default_library",
         "//v1/random:go_default_library",
+        "//v1/remote/transport:go_default_library",
     ],
 )

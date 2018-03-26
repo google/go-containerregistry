@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/random"
+	"github.com/google/go-containerregistry/v1/remote/transport"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -74,8 +75,9 @@ func TestNextLocation(t *testing.T) {
 		url:      "https://gcr.io/v2/foo/bar/blobs/uploads/1234567?baz=blah",
 	}}
 
+	ref := mustNewTag(t, "gcr.io/foo/bar:latest")
 	w := &writer{
-		ref: mustNewTag(t, "gcr.io/foo/bar:latest"),
+		ref: ref,
 	}
 
 	for _, test := range tests {
@@ -83,9 +85,20 @@ func TestNextLocation(t *testing.T) {
 			Header: map[string][]string{
 				"Location": []string{test.location},
 			},
+			Request: &http.Request{
+				URL: &url.URL{
+					Scheme: transport.Scheme(ref.Registry),
+					Host:   ref.RegistryStr(),
+				},
+			},
 		}
 
-		if got, want := w.nextLocation(resp), test.url; got != want {
+		got, err := w.nextLocation(resp)
+		if err != nil {
+			t.Errorf("nextLocation(%v) = %v", resp, err)
+		}
+		want := test.url
+		if got != want {
 			t.Errorf("nextLocation(%v) = %v, want %v", resp, got, want)
 		}
 	}
@@ -324,6 +337,9 @@ func TestCommitBlob(t *testing.T) {
 	img := setupImage(t)
 	h := mustConfigName(t, img)
 	expectedPath := "/no/commitment/issues"
+	expectedQuery := url.Values{
+		"digest": []string{h.String()},
+	}.Encode()
 
 	w, closer, err := setupWriter("what/ever", img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
@@ -331,6 +347,9 @@ func TestCommitBlob(t *testing.T) {
 		}
 		if r.URL.Path != expectedPath {
 			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+		}
+		if r.URL.RawQuery != expectedQuery {
+			t.Errorf("RawQuery; got %v, want %v", r.URL.RawQuery, expectedQuery)
 		}
 		http.Error(w, "Created", http.StatusCreated)
 	}))
