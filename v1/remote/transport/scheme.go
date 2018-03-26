@@ -24,12 +24,18 @@ import (
 // Detect more complex forms of local references.
 var reLocal = regexp.MustCompile(`.*\.local(?:host)?(?::\d{1,5})?$`)
 
-// scheme returns https scheme for all the endpoints except localhost.
-func scheme(reg name.Registry) string {
+// Detect the loopback IP (127.0.0.1)
+var reLoopback = regexp.MustCompile(regexp.QuoteMeta("127.0.0.1"))
+
+// Scheme returns https scheme for all the endpoints except localhost.
+func Scheme(reg name.Registry) string {
 	if strings.HasPrefix(reg.Name(), "localhost:") {
 		return "http"
 	}
 	if reLocal.MatchString(reg.Name()) {
+		return "http"
+	}
+	if reLoopback.MatchString(reg.Name()) {
 		return "http"
 	}
 	return "https"

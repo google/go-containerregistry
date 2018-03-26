@@ -28,6 +28,12 @@ func TestSheme(t *testing.T) {
 		domain: "foo.svc.local:1234",
 		scheme: "http",
 	}, {
+		domain: "127.0.0.1:1234",
+		scheme: "http",
+	}, {
+		domain: "127.0.0.1",
+		scheme: "http",
+	}, {
 		domain: "localhost:8080",
 		scheme: "http",
 	}, {
@@ -43,7 +49,7 @@ func TestSheme(t *testing.T) {
 		if err != nil {
 			t.Errorf("NewRegistry(%s) = %v", test.domain, err)
 		}
-		if got, want := scheme(reg), test.scheme; got != want {
+		if got, want := Scheme(reg), test.scheme; got != want {
 			t.Errorf("scheme(%v); got %v, want %v", reg, got, want)
 		}
 	}

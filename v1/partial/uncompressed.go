@@ -139,6 +139,17 @@ func (i *uncompressedImageExtender) BlobSize(h v1.Hash) (int64, error) {
 }
 
 func (i *uncompressedImageExtender) Blob(h v1.Hash) (io.ReadCloser, error) {
+	// Support returning the ConfigFile when asked for its hash.
+	if cfgName, err := i.ConfigName(); err != nil {
+		return nil, err
+	} else if cfgName == h {
+		b, err := i.RawConfigFile()
+		if err != nil {
+			return nil, err
+		}
+		return v1util.NopReadCloser(bytes.NewBuffer(b)), nil
+	}
+
 	diffID, err := BlobToDiffID(i, h)
 	if err != nil {
 		return nil, err
