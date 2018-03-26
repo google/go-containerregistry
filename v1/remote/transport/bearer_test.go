@@ -69,15 +69,15 @@ func TestBearerRefresh(t *testing.T) {
 func TestBearerTransport(t *testing.T) {
 	expectedToken := "sdkjhfskjdhfkjshdf"
 
-	blob_server := httptest.NewServer(
+	blobServer := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// We don't expect the blob_server to receive bearer tokens.
+			// We don't expect the blobServer to receive bearer tokens.
 			if got := r.Header.Get("Authorization"); got != "" {
 				t.Errorf("Header.Get(Authorization); got %v, want empty string", got)
 			}
 			w.WriteHeader(http.StatusOK)
 		}))
-	defer blob_server.Close()
+	defer blobServer.Close()
 
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +86,7 @@ func TestBearerTransport(t *testing.T) {
 			}
 
 			if strings.Contains(r.URL.Path, "blobs") {
-				http.Redirect(w, r, blob_server.URL, http.StatusFound)
+				http.Redirect(w, r, blobServer.URL, http.StatusFound)
 				return
 			}
 			w.WriteHeader(http.StatusOK)
