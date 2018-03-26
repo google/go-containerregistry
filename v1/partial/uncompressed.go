@@ -16,7 +16,6 @@ package partial
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"sync"
 
@@ -79,11 +78,7 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 		return i.manifest, nil
 	}
 
-	cfg, err := i.ConfigFile()
-	if err != nil {
-		return nil, err
-	}
-	b, err := json.Marshal(cfg)
+	b, err := i.RawConfigFile()
 	if err != nil {
 		return nil, err
 	}
@@ -127,8 +122,16 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 	return i.manifest, nil
 }
 
+func (i *uncompressedImageExtender) RawManifest() ([]byte, error) {
+	return RawManifest(i)
+}
+
 func (i *uncompressedImageExtender) ConfigName() (v1.Hash, error) {
 	return ConfigName(i)
+}
+
+func (i *uncompressedImageExtender) ConfigFile() (*v1.ConfigFile, error) {
+	return ConfigFile(i)
 }
 
 func (i *uncompressedImageExtender) BlobSize(h v1.Hash) (int64, error) {

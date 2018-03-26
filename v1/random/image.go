@@ -63,17 +63,22 @@ type image struct {
 
 var _ partial.UncompressedImageCore = (*image)(nil)
 
+// RawConfigFile implements partial.UncompressedImageCore
+func (i *image) RawConfigFile() ([]byte, error) {
+	return partial.RawConfigFile(i)
+}
+
 // ConfigFile implements v1.Image
 func (i *image) ConfigFile() (*v1.ConfigFile, error) {
 	return i.config, nil
 }
 
-// MediaType implements v1.Image
+// MediaType implements partial.UncompressedImageCore
 func (i *image) MediaType() (types.MediaType, error) {
 	return types.DockerManifestSchema2, nil
 }
 
-// UncompressedLayer implements v1.Image
+// UncompressedLayer implements partial.UncompressedImageCore
 func (i *image) UncompressedLayer(diffID v1.Hash) (io.ReadCloser, error) {
 	b, ok := i.layers[diffID]
 	if !ok {

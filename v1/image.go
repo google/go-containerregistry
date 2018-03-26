@@ -45,8 +45,14 @@ type Image interface {
 	// Manifest returns this image's Manifest object.
 	Manifest() (*Manifest, error)
 
+	// RawManifest returns the serialized bytes of Manifest()
+	RawManifest() ([]byte, error)
+
 	// ConfigFile returns this image's config file.
 	ConfigFile() (*ConfigFile, error)
+
+	// RawConfigFile returns the serialized bytes of ConfigFile()
+	RawConfigFile() ([]byte, error)
 
 	// BlobSize returns the size of the compressed blob, given its hash.
 	BlobSize(Hash) (int64, error)

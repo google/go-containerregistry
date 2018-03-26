@@ -26,11 +26,8 @@ import (
 type CompressedImageCore interface {
 	imageCore
 
-	// Manifest returns this image's Manifest object.
-	Manifest() (*v1.Manifest, error)
-
-	// Digest returns the sha256 of this image's manifest.
-	Digest() (v1.Hash, error)
+	// RawManifest returns the serialized bytes of the manifest.
+	RawManifest() ([]byte, error)
 
 	// Blob returns a ReadCloser for streaming the blob's content.
 	Blob(v1.Hash) (io.ReadCloser, error)
@@ -54,6 +51,10 @@ func (i *compressedImageExtender) BlobSet() (map[v1.Hash]struct{}, error) {
 
 func (i *compressedImageExtender) BlobSize(h v1.Hash) (int64, error) {
 	return BlobSize(i, h)
+}
+
+func (i *compressedImageExtender) Digest() (v1.Hash, error) {
+	return Digest(i)
 }
 
 func (i *compressedImageExtender) ConfigName() (v1.Hash, error) {
@@ -86,6 +87,14 @@ func (i *compressedImageExtender) UncompressedLayer(h v1.Hash) (io.ReadCloser, e
 		return nil, err
 	}
 	return v1util.GunzipReadCloser(rc)
+}
+
+func (i *compressedImageExtender) ConfigFile() (*v1.ConfigFile, error) {
+	return ConfigFile(i)
+}
+
+func (i *compressedImageExtender) Manifest() (*v1.Manifest, error) {
+	return Manifest(i)
 }
 
 // CompressedToImage fills in the missing methods from a CompressedImageCore so that it implements v1.Image
