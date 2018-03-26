@@ -16,6 +16,7 @@ package remote
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -31,7 +32,7 @@ type DeleteOptions struct {
 	// TODO(mattmoor): Delete tag and manifest?
 }
 
-// Delete pushes the provided img to the specified image reference.
+// Delete removes the specified image reference from the remote registry.
 func Delete(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, do DeleteOptions) error {
 	tr, err := transport.New(ref, auth, t, transport.DeleteScope)
 	if err != nil {
@@ -60,6 +61,10 @@ func Delete(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, d
 	case http.StatusOK, http.StatusAccepted:
 		return nil
 	default:
-		return fmt.Errorf("unrecognized status code during DELETE: %v", resp.Status)
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		return fmt.Errorf("unrecognized status code during DELETE: %v; %v", resp.Status, string(b))
 	}
 }
