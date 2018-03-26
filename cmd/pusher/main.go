@@ -43,6 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	log.Printf("Pushing %v", t)
 
 	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
 	if err != nil {
