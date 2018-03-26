@@ -18,21 +18,70 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/v1util"
 )
 
+// WithConfigFile defines the subset of v1.Image used by these helper methods
+type WithConfigFile interface {
+	// ConfigFile returns this image's config file.
+	ConfigFile() (*v1.ConfigFile, error)
+}
+
+// DiffIDs is a helper for implementing v1.Image
+func DiffIDs(i WithConfigFile) ([]v1.Hash, error) {
+	cfg, err := i.ConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	dids := make([]v1.Hash, len(cfg.RootFS.DiffIDs))
+	for i, did := range cfg.RootFS.DiffIDs {
+		dids[len(dids)-i-1] = did
+	}
+	return dids, nil
+}
+
+// ConfigName is a helper for implementing v1.Image
+func ConfigName(i WithConfigFile) (v1.Hash, error) {
+	config, err := i.ConfigFile()
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	buf := bytes.NewBuffer(nil)
+	if err := json.NewEncoder(buf).Encode(config); err != nil {
+		return v1.Hash{}, err
+	}
+	h, _, err := v1.SHA256(v1util.NopReadCloser(buf))
+	return h, err
+}
+
+// WithUncompressedLayer defines the subset of v1.Image used by these helper methods
+type WithUncompressedLayer interface {
+	// UncompressedLayer is like UncompressedBlob, but takes the "diff id".
+	UncompressedLayer(v1.Hash) (io.ReadCloser, error)
+}
+
+// Layer is the same as Blob, but takes the "diff id".
+func Layer(wul WithUncompressedLayer, h v1.Hash) (io.ReadCloser, error) {
+	rc, err := wul.UncompressedLayer(h)
+	if err != nil {
+		return nil, err
+	}
+	return v1util.GzipReadCloser(rc)
+}
+
 // WithManifest defines the subset of v1.Image used by these helper methods
-type WithManifest interface {
-	imageCore
+type WithManifestAndConfigFile interface {
+	WithConfigFile
 
 	// Manifest returns this image's Manifest object.
 	Manifest() (*v1.Manifest, error)
 }
 
 // FSLayers is a helper for implementing v1.Image
-func FSLayers(i WithManifest) ([]v1.Hash, error) {
+func FSLayers(i WithManifestAndConfigFile) ([]v1.Hash, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return nil, err
@@ -45,7 +94,7 @@ func FSLayers(i WithManifest) ([]v1.Hash, error) {
 }
 
 // BlobSet is a helper for implementing v1.Image
-func BlobSet(i WithManifest) (map[v1.Hash]struct{}, error) {
+func BlobSet(i WithManifestAndConfigFile) (map[v1.Hash]struct{}, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return nil, err
@@ -59,7 +108,7 @@ func BlobSet(i WithManifest) (map[v1.Hash]struct{}, error) {
 }
 
 // BlobSize is a helper for implementing v1.Image
-func BlobSize(i WithManifest, h v1.Hash) (int64, error) {
+func BlobSize(i WithManifestAndConfigFile, h v1.Hash) (int64, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return -1, err
@@ -73,7 +122,7 @@ func BlobSize(i WithManifest, h v1.Hash) (int64, error) {
 }
 
 // Digest is a helper for implementing v1.Image
-func Digest(i WithManifest) (v1.Hash, error) {
+func Digest(i WithManifestAndConfigFile) (v1.Hash, error) {
 	m, err := i.Manifest()
 	if err != nil {
 		return v1.Hash{}, err
@@ -88,7 +137,7 @@ func Digest(i WithManifest) (v1.Hash, error) {
 
 // BlobToDiffID is a helper for mapping between compressed
 // and uncompressed blob hashes.
-func BlobToDiffID(i WithManifest, h v1.Hash) (v1.Hash, error) {
+func BlobToDiffID(i WithManifestAndConfigFile, h v1.Hash) (v1.Hash, error) {
 	blobs, err := FSLayers(i)
 	if err != nil {
 		return v1.Hash{}, err
@@ -110,7 +159,7 @@ func BlobToDiffID(i WithManifest, h v1.Hash) (v1.Hash, error) {
 
 // DiffIDToBlob is a helper for mapping between uncompressed
 // and compressed blob hashes.
-func DiffIDToBlob(wm WithManifest, h v1.Hash) (v1.Hash, error) {
+func DiffIDToBlob(wm WithManifestAndConfigFile, h v1.Hash) (v1.Hash, error) {
 	blobs, err := FSLayers(wm)
 	if err != nil {
 		return v1.Hash{}, err
@@ -129,4 +178,19 @@ func DiffIDToBlob(wm WithManifest, h v1.Hash) (v1.Hash, error) {
 	}
 	return v1.Hash{}, fmt.Errorf("unknown diffID %v", h)
 
+}
+
+// WithBlob defines the subset of v1.Image used by these helper methods
+type WithBlob interface {
+	// Blob returns a ReadCloser for streaming the blob's content.
+	Blob(v1.Hash) (io.ReadCloser, error)
+}
+
+// UncompressedBlob returns a ReadCloser for streaming the blob's content uncompressed.
+func UncompressedBlob(b WithBlob, h v1.Hash) (io.ReadCloser, error) {
+	rc, err := b.Blob(h)
+	if err != nil {
+		return nil, err
+	}
+	return v1util.GunzipReadCloser(rc)
 }
