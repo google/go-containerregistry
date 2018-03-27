@@ -103,7 +103,7 @@ type WithRawManifest interface {
 func Digest(i WithRawManifest) (v1.Hash, error) {
 	mb, err := i.RawManifest()
 	if err != nil {
-		return v1.Hash{}, nil
+		return v1.Hash{}, err
 	}
 	digest, _, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(mb)))
 	return digest, err
