@@ -36,7 +36,7 @@ type CompressedImageCore interface {
 // Assert that Image is a superset of this partial interface.
 var _ CompressedImageCore = (v1.Image)(nil)
 
-// uncompressedImageExtender implements v1.Image by extending UncompressedImageCore with the
+// compressedImageExtender implements v1.Image by extending CompressedImageCore with the
 // appropriate methods computed from the minimal core.
 type compressedImageExtender struct {
 	CompressedImageCore
