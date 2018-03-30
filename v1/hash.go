@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"strconv"
 	"strings"
@@ -68,6 +69,16 @@ func (h *Hash) UnmarshalJSON(data []byte) error {
 	return h.parse(s)
 }
 
+// Hasher returns a hash.Hash for the named algorithm (e.g. "sha256")
+func Hasher(name string) (hash.Hash, error) {
+	switch name {
+	case "sha256":
+		return sha256.New(), nil
+	default:
+		return nil, fmt.Errorf("unsupported hash: %q", name)
+	}
+}
+
 func (h *Hash) parse(unquoted string) error {
 	parts := strings.Split(unquoted, ":")
 	if len(parts) != 2 {
@@ -79,13 +90,13 @@ func (h *Hash) parse(unquoted string) error {
 		return fmt.Errorf("found non-hex character in hash: %c", rest[0])
 	}
 
-	switch parts[0] {
-	case "sha256":
-		if len(parts[1]) != 64 {
-			return fmt.Errorf("wrong number of hex digits for sha256: %s", parts[1])
-		}
-	default:
-		return fmt.Errorf("unsupported hash type: %s", parts[0])
+	hasher, err := Hasher(parts[0])
+	if err != nil {
+		return err
+	}
+	// Compare the hex to the expected size (2 hex characters per byte)
+	if len(parts[1]) != hasher.Size()*2 {
+		return fmt.Errorf("wrong number of hex digits for %s: %s", parts[0], parts[1])
 	}
 
 	h.algorithm = parts[0]

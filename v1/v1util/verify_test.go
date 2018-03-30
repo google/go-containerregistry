@@ -34,7 +34,10 @@ func TestVerificationFailure(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
 
-	verified := VerifyReadCloser(NopReadCloser(buf), mustHash("not the same", t))
+	verified, err := VerifyReadCloser(NopReadCloser(buf), mustHash("not the same", t))
+	if err != nil {
+		t.Fatalf("VerifyReadCloser() = %v", err)
+	}
 	if b, err := ioutil.ReadAll(verified); err == nil {
 		t.Errorf("ReadAll() = %q; want verification error", string(b))
 	}
@@ -44,7 +47,10 @@ func TestVerification(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
 
-	verified := VerifyReadCloser(NopReadCloser(buf), mustHash(want, t))
+	verified, err := VerifyReadCloser(NopReadCloser(buf), mustHash(want, t))
+	if err != nil {
+		t.Fatalf("VerifyReadCloser() = %v", err)
+	}
 	if _, err := ioutil.ReadAll(verified); err != nil {
 		t.Errorf("ReadAll() = %v", err)
 	}

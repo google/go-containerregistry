@@ -15,7 +15,6 @@
 package v1util
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"hash"
@@ -45,8 +44,11 @@ func (vc *verifyReader) Read(b []byte) (int, error) {
 
 // VerifyReadCloser wraps the given io.ReadCloser to verify that its contents match
 // the provided v1.Hash before io.EOF is returned.
-func VerifyReadCloser(r io.ReadCloser, h v1.Hash) io.ReadCloser {
-	w := sha256.New()
+func VerifyReadCloser(r io.ReadCloser, h v1.Hash) (io.ReadCloser, error) {
+	w, err := v1.Hasher(h.Algorithm())
+	if err != nil {
+		return nil, err
+	}
 	r2 := io.TeeReader(r, w)
 	return &readAndCloser{
 		Reader: &verifyReader{
@@ -55,5 +57,5 @@ func VerifyReadCloser(r io.ReadCloser, h v1.Hash) io.ReadCloser {
 			expected: h,
 		},
 		CloseFunc: r.Close,
-	}
+	}, nil
 }

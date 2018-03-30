@@ -156,5 +156,5 @@ func (r *remoteImage) Blob(h v1.Hash) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	return v1util.VerifyReadCloser(resp.Body, h), nil
+	return v1util.VerifyReadCloser(resp.Body, h)
 }
