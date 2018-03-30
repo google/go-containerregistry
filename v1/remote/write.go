@@ -146,6 +146,10 @@ func (w *writer) initiateUpload(h v1.Hash) (location string, mounted bool, err e
 	}
 	defer resp.Body.Close()
 
+	if err := checkError(resp); err != nil {
+		return "", false, err
+	}
+
 	// Check the response code to determine the result.
 	switch resp.StatusCode {
 	case http.StatusCreated:
@@ -181,6 +185,10 @@ func (w *writer) streamBlob(h v1.Hash, streamLocation string) (commitLocation st
 	}
 	defer resp.Body.Close()
 
+	if err := checkError(resp); err != nil {
+		return "", err
+	}
+
 	switch resp.StatusCode {
 	case http.StatusNoContent, http.StatusAccepted, http.StatusCreated:
 		// The blob has been uploaded, return the location header indicating
@@ -211,6 +219,11 @@ func (w *writer) commitBlob(h v1.Hash, location string) (err error) {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if err := checkError(resp); err != nil {
+		return err
+	}
+
 	switch resp.StatusCode {
 	case http.StatusCreated:
 		return nil
@@ -261,6 +274,10 @@ func (w *writer) commitImage() error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if err := checkError(resp); err != nil {
+		return err
+	}
 
 	// Check the response code to determine the result.
 	switch resp.StatusCode {

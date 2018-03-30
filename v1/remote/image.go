@@ -90,6 +90,10 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
+	if err := checkError(resp); err != nil {
+		return nil, err
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		// TODO(jonjohnsonjr): Parse this into a structured error.
 		return nil, fmt.Errorf("unrecognized status code during manifest GET: %v", resp.Status)
@@ -151,8 +155,12 @@ func (r *remoteImage) Blob(h v1.Hash) (io.ReadCloser, error) {
 		return nil, err
 	}
 
+	if err := checkError(resp); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+
 	if resp.StatusCode != http.StatusOK {
-		// TODO(jonjohnsonjr): Parse this into a structured error.
 		resp.Body.Close()
 		return nil, fmt.Errorf("unrecognized status code during blob (%s) GET: %v", h, resp.Status)
 	}

@@ -16,11 +16,13 @@ package remote
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-containerregistry/authn"
@@ -497,6 +499,13 @@ func TestWriteWithErrors(t *testing.T) {
 	expectedRepo := "write/time"
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 
+	expectedError := &Error{
+		Errors: []Diagnostic{{
+			Code:    NameInvalidErrorCode,
+			Message: "some explanation of how things were messed up.",
+		}},
+	}
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v2/":
@@ -505,7 +514,12 @@ func TestWriteWithErrors(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
 			}
-			http.Error(w, "Unknown", http.StatusInternalServerError)
+			b, err := json.Marshal(expectedError)
+			if err != nil {
+				t.Fatalf("json.Marshal() = %v", err)
+			}
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write(b)
 		default:
 			t.Fatalf("Unexpected path: %v", r.URL.Path)
 		}
@@ -522,5 +536,9 @@ func TestWriteWithErrors(t *testing.T) {
 
 	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport, WriteOptions{}); err == nil {
 		t.Error("Write() = nil; wanted error")
+	} else if se, ok := err.(*Error); !ok {
+		t.Errorf("Write() = %T; wanted *remote.Error", se)
+	} else if !reflect.DeepEqual(se, expectedError) {
+		t.Errorf("Write() = %v, wanted: %v", se, expectedError)
 	}
 }
