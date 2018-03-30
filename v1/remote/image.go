@@ -29,6 +29,7 @@ import (
 	"github.com/google/go-containerregistry/v1/partial"
 	"github.com/google/go-containerregistry/v1/remote/transport"
 	"github.com/google/go-containerregistry/v1/types"
+	"github.com/google/go-containerregistry/v1/v1util"
 )
 
 // remoteImage accesses an image from a remote registry
@@ -155,6 +156,5 @@ func (r *remoteImage) Blob(h v1.Hash) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	// TODO(jonjohnsonjr): Wrap the Body in an io.ReadCloser that verifies the digest before returning io.EOF.
-	return resp.Body, nil
+	return v1util.VerifyReadCloser(resp.Body, h), nil
 }
