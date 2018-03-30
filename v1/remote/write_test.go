@@ -441,6 +441,13 @@ func TestCommitImage(t *testing.T) {
 		if bytes.Compare(got, want) != 0 {
 			t.Errorf("bytes.Compare(); got %v, want %v", got, want)
 		}
+		mt, err := img.MediaType()
+		if err != nil {
+			t.Errorf("MediaType() = %v", err)
+		}
+		if got, want := r.Header.Get("Content-Type"), string(mt); got != want {
+			t.Errorf("Header; got %v, want %v", got, want)
+		}
 		http.Error(w, "Created", http.StatusCreated)
 	}))
 	if err != nil {

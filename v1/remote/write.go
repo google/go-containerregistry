@@ -247,6 +247,10 @@ func (w *writer) commitImage() error {
 	if err != nil {
 		return err
 	}
+	mt, err := w.img.MediaType()
+	if err != nil {
+		return err
+	}
 
 	u := w.url(fmt.Sprintf("/v2/%s/manifests/%s", w.ref.Context().RepositoryStr(), w.ref.Identifier()))
 
@@ -255,6 +259,7 @@ func (w *writer) commitImage() error {
 	if err != nil {
 		return err
 	}
+	req.Header.Set("Content-Type", string(mt))
 
 	resp, err := w.client.Do(req)
 	if err != nil {
