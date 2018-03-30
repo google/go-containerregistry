@@ -146,7 +146,7 @@ func (w *writer) initiateUpload(h v1.Hash) (location string, mounted bool, err e
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp); err != nil {
+	if err := checkError(resp, http.StatusCreated, http.StatusAccepted); err != nil {
 		return "", false, err
 	}
 
@@ -160,7 +160,7 @@ func (w *writer) initiateUpload(h v1.Hash) (location string, mounted bool, err e
 		loc, err := w.nextLocation(resp)
 		return loc, false, err
 	default:
-		return "", false, fmt.Errorf("unrecognized status code during POST: %v", resp.Status)
+		panic("Unreachable: initiateUpload")
 	}
 }
 
@@ -185,18 +185,13 @@ func (w *writer) streamBlob(h v1.Hash, streamLocation string) (commitLocation st
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp); err != nil {
+	if err := checkError(resp, http.StatusNoContent, http.StatusAccepted, http.StatusCreated); err != nil {
 		return "", err
 	}
 
-	switch resp.StatusCode {
-	case http.StatusNoContent, http.StatusAccepted, http.StatusCreated:
-		// The blob has been uploaded, return the location header indicating
-		// how to commit this layer.
-		return w.nextLocation(resp)
-	default:
-		return "", fmt.Errorf("unrecognized status code during PATCH: %v", resp.Status)
-	}
+	// The blob has been uploaded, return the location header indicating
+	// how to commit this layer.
+	return w.nextLocation(resp)
 }
 
 // commitBlob commits this blob by sending a PUT to the location returned from streaming the blob.
@@ -220,16 +215,7 @@ func (w *writer) commitBlob(h v1.Hash, location string) (err error) {
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp); err != nil {
-		return err
-	}
-
-	switch resp.StatusCode {
-	case http.StatusCreated:
-		return nil
-	default:
-		return fmt.Errorf("unrecognized status code during PUT: %v", resp.Status)
-	}
+	return checkError(resp, http.StatusCreated)
 }
 
 // uploadOne performs a complete upload of a single layer.
@@ -275,19 +261,12 @@ func (w *writer) commitImage() error {
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp); err != nil {
+	if err := checkError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
 		return err
 	}
-
-	// Check the response code to determine the result.
-	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated, http.StatusAccepted:
-		// The image was successfully pushed!
-		log.Printf("pushed %v", w.ref)
-		return nil
-	default:
-		return fmt.Errorf("Unrecognized status code during PUT: %v", resp.Status)
-	}
+	// The image was successfully pushed!
+	log.Printf("pushed %v", w.ref)
+	return nil
 }
 
 // TODO(mattmoor): WriteIndex

@@ -83,25 +83,24 @@ const (
 	UnsupportedErrorCode         ErrorCode = "UNSUPPORTED"
 )
 
-func checkError(resp *http.Response) error {
-	// According to the documentation, a structured error type is only return for 4XX errors,
-	// so check the StatusCode before reading the body.
-	// https://github.com/docker/distribution/blob/master/docs/spec/api.md#errors
-	if resp.StatusCode < http.StatusBadRequest {
-		return nil
+func checkError(resp *http.Response, codes ...int) error {
+	for _, code := range codes {
+		if resp.StatusCode == code {
+			// This is one of the supported status codes.
+			return nil
+		}
 	}
-	if resp.StatusCode >= http.StatusInternalServerError {
-		return nil
-	}
-
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 
+	// https://github.com/docker/distribution/blob/master/docs/spec/api.md#errors
 	var structuredError Error
 	if err := json.Unmarshal(b, &structuredError); err != nil {
-		return err
+		// If the response isn't an unstructured error, then return some
+		// reasonable error response containing the response body.
+		return fmt.Errorf("unsupported status code %d; body: %s", resp.StatusCode, string(b))
 	}
 	return &structuredError
 }

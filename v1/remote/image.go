@@ -90,13 +90,8 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp); err != nil {
+	if err := checkError(resp, http.StatusOK); err != nil {
 		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		// TODO(jonjohnsonjr): Parse this into a structured error.
-		return nil, fmt.Errorf("unrecognized status code during manifest GET: %v", resp.Status)
 	}
 
 	manifest, err := ioutil.ReadAll(resp.Body)
@@ -155,14 +150,9 @@ func (r *remoteImage) Blob(h v1.Hash) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	if err := checkError(resp); err != nil {
+	if err := checkError(resp, http.StatusOK); err != nil {
 		resp.Body.Close()
 		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("unrecognized status code during blob (%s) GET: %v", h, resp.Status)
 	}
 
 	// TODO(jonjohnsonjr): Wrap the Body in an io.ReadCloser that verifies the digest before returning io.EOF.

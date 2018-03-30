@@ -36,7 +36,7 @@ func TestCheckErrorNil(t *testing.T) {
 	for _, code := range tests {
 		resp := &http.Response{StatusCode: code}
 
-		if err := checkError(resp); err != nil {
+		if err := checkError(resp, code); err != nil {
 			t.Errorf("checkError(%d) = %v", code, err)
 		}
 	}
@@ -60,7 +60,7 @@ func TestCheckErrorNotError(t *testing.T) {
 			Body:       v1util.NopReadCloser(bytes.NewBufferString(test.body)),
 		}
 
-		if err := checkError(resp); err == nil {
+		if err := checkError(resp, http.StatusOK); err == nil {
 			t.Errorf("checkError(%d, %s) = nil, wanted error", test.code, test.body)
 		} else if se, ok := err.(*Error); ok {
 			t.Errorf("checkError(%d, %s) = %v, wanted another type", test.code, test.body, se)
@@ -80,7 +80,20 @@ func TestCheckErrorWithError(t *testing.T) {
 				Message: "a message for you",
 			}},
 		},
-		// TODO(mattmoor): nothing, multiple
+	}, {
+		code:  http.StatusBadRequest,
+		error: &Error{},
+	}, {
+		code: http.StatusBadRequest,
+		error: &Error{
+			Errors: []Diagnostic{{
+				Code:    NameInvalidErrorCode,
+				Message: "a message for you",
+			}, {
+				Code:    SizeInvalidErrorCode,
+				Message: "another message for you",
+			}},
+		},
 	}}
 
 	for _, test := range tests {
@@ -93,7 +106,7 @@ func TestCheckErrorWithError(t *testing.T) {
 			Body:       v1util.NopReadCloser(bytes.NewBuffer(b)),
 		}
 
-		if err := checkError(resp); err == nil {
+		if err := checkError(resp, http.StatusOK); err == nil {
 			t.Errorf("checkError(%d, %s) = nil, wanted error", test.code, string(b))
 		} else if se, ok := err.(*Error); !ok {
 			t.Errorf("checkError(%d, %s) = %T, wanted *remote.Error", test.code, string(b), se)
