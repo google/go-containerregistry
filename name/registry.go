@@ -16,7 +16,7 @@ package name
 
 import "net/url"
 
-const defaultRegistry = "index.docker.io"
+const DefaultRegistry = "index.docker.io"
 
 // Registry stores a docker registry name in a structured form.
 type Registry struct {
@@ -28,7 +28,7 @@ func (r Registry) RegistryStr() string {
 	if r.registry != "" {
 		return r.registry
 	}
-	return defaultRegistry
+	return DefaultRegistry
 }
 
 // Name returns the name from which the Registry was derived.

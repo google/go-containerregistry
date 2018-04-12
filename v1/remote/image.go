@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -70,7 +71,6 @@ func (r *remoteImage) MediaType() (types.MediaType, error) {
 }
 
 // TODO(jonjohnsonjr): Handle manifest lists.
-// TODO(jonjohnsonjr): DockerHub returns the manifest list's digest when it falls back to schema 2??
 func (r *remoteImage) RawManifest() ([]byte, error) {
 	r.manifestLock.Lock()
 	defer r.manifestLock.Unlock()
@@ -108,11 +108,17 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 	// Validate the digest matches what we asked for, if pulling by digest.
 	if dgst, ok := r.ref.(name.Digest); ok {
 		if digest.String() != dgst.DigestStr() {
-			return nil, fmt.Errorf("manifest digest: %s does not match requested digest: %s", digest, dgst.DigestStr())
+			return nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), r.ref)
 		}
 	} else if checksum := resp.Header.Get("Docker-Content-Digest"); checksum != "" && checksum != digest.String() {
-		// When pulling by tag, we can only validate that the digest matches what the registry told us it should be.
-		return nil, fmt.Errorf("manifest digest: %s does not match Docker-Content-Digest: %s", digest, checksum)
+		err := fmt.Errorf("manifest digest: %q does not match Docker-Content-Digest: %q for %q", digest, checksum, r.ref)
+		if r.ref.Context().RegistryStr() == name.DefaultRegistry {
+			// TODO(docker/distribution#2395): Remove this check.
+			log.Println(err)
+		} else {
+			// When pulling by tag, we can only validate that the digest matches what the registry told us it should be.
+			return nil, err
+		}
 	}
 
 	r.manifest = manifest
