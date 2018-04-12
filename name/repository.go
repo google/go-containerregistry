@@ -33,7 +33,7 @@ type Repository struct {
 
 // See https://docs.docker.com/docker-hub/official_repos
 func hasImplicitNamespace(repo string, reg Registry) bool {
-	return !strings.ContainsRune(repo, '/') && reg.RegistryStr() == defaultRegistry
+	return !strings.ContainsRune(repo, '/') && reg.RegistryStr() == DefaultRegistry
 }
 
 // RepositoryStr returns the repository component of the Repository.
