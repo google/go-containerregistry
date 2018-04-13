@@ -60,7 +60,7 @@ type authEntry struct {
 // This is not meant for direct consumption.
 type cfg struct {
 	CredHelper map[string]string    `json:"credHelpers,omitempty"`
-	CredStore  string               `json:"credStore,omitempty"`
+	CredStore  string               `json:"credsStore,omitempty"`
 	Auths      map[string]authEntry `json:"auths,omitempty"`
 }
 
