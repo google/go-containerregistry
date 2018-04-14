@@ -18,8 +18,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/google/go-containerregistry/name"
 )
@@ -65,8 +66,8 @@ func TestChallengeParsing(t *testing.T) {
 
 	for _, test := range tests {
 		params := parseChallenge(test.input)
-		if !reflect.DeepEqual(params, test.output) {
-			t.Errorf("parseChallenge(%s); got %v, want %v", test.input, params, test.output)
+		if diff := cmp.Diff(test.output, params); diff != "" {
+			t.Errorf("parseChallenge(%s); (-want +got) %s", test.input, diff)
 		}
 	}
 }

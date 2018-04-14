@@ -32,5 +32,6 @@ go_test(
     deps = [
         "//authn:go_default_library",
         "//name:go_default_library",
+        "//vendor/github.com/google/go-cmp/cmp:go_default_library",
     ],
 )

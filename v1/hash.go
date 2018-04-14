@@ -27,18 +27,18 @@ import (
 
 // Hash is an unqualified digest of some content, e.g. sha256:deadbeef
 type Hash struct {
-	algorithm string
-	hex       string
+	A string
+	H string
 }
 
 // Algorithm returns the algorithm used to compute the hash.
 func (h Hash) Algorithm() string {
-	return h.algorithm
+	return h.A
 }
 
 // Hex returns the hex portion of the content hash.
 func (h Hash) Hex() string {
-	return h.hex
+	return h.H
 }
 
 // String reverses NewHash returning the string-form of the hash.
@@ -99,8 +99,8 @@ func (h *Hash) parse(unquoted string) error {
 		return fmt.Errorf("wrong number of hex digits for %s: %s", parts[0], parts[1])
 	}
 
-	h.algorithm = parts[0]
-	h.hex = parts[1]
+	h.A = parts[0]
+	h.H = parts[1]
 	return nil
 }
 
@@ -113,7 +113,7 @@ func SHA256(r io.ReadCloser) (Hash, int64, error) {
 		return Hash{}, 0, err
 	}
 	return Hash{
-		algorithm: "sha256",
-		hex:       hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
+		A: "sha256",
+		H: hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
 	}, n, nil
 }

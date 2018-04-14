@@ -22,8 +22,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
@@ -545,7 +546,7 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Error("Write() = nil; wanted error")
 	} else if se, ok := err.(*Error); !ok {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)
-	} else if !reflect.DeepEqual(se, expectedError) {
-		t.Errorf("Write() = %v, wanted: %v", se, expectedError)
+	} else if diff := cmp.Diff(expectedError, se); diff != "" {
+		t.Errorf("Write(); (-want +got) = %s", diff)
 	}
 }
