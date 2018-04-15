@@ -21,6 +21,48 @@ import (
 	"github.com/google/go-containerregistry/v1/v1util"
 )
 
+// CompressedLayer represents the bare minimum interface a natively
+// compressed layer must implement for us to produce a v1.Layer
+type CompressedLayer interface {
+	// Digest returns the Hash of the compressed layer.
+	Digest() (v1.Hash, error)
+
+	// Compressed returns an io.ReadCloser for the compressed layer contents.
+	Compressed() (io.ReadCloser, error)
+
+	// Size returns the compressed size of the Layer.
+	Size() (int64, error)
+}
+
+// compressedLayerExtender implements v1.Image using the compressed base properties.
+type compressedLayerExtender struct {
+	CompressedLayer
+}
+
+// Uncompressed implements v1.Layer
+func (ule *compressedLayerExtender) Uncompressed() (io.ReadCloser, error) {
+	u, err := ule.Compressed()
+	if err != nil {
+		return nil, err
+	}
+	return v1util.GunzipReadCloser(u)
+}
+
+// DiffID implements v1.Layer
+func (ule *compressedLayerExtender) DiffID() (v1.Hash, error) {
+	r, err := ule.Uncompressed()
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	h, _, err := v1.SHA256(r)
+	return h, err
+}
+
+// CompressedToLayer fills in the missing methos from an CompressedLayer so that it implements v1.Layer
+func CompressedToLayer(ul CompressedLayer) (v1.Layer, error) {
+	return &compressedLayerExtender{ul}, nil
+}
+
 // CompressedImageCore represents the base minimum interface a natively
 // compressed image must implement for us to produce a v1.Image.
 type CompressedImageCore interface {
@@ -29,12 +71,10 @@ type CompressedImageCore interface {
 	// RawManifest returns the serialized bytes of the manifest.
 	RawManifest() ([]byte, error)
 
-	// Blob returns a ReadCloser for streaming the blob's content.
-	Blob(v1.Hash) (io.ReadCloser, error)
+	// LayerByDigest is a variation on the v1.Image method, which returns
+	// an CompressedLayer instead.
+	LayerByDigest(v1.Hash) (CompressedLayer, error)
 }
-
-// Assert that Image is a superset of this partial interface.
-var _ CompressedImageCore = (v1.Image)(nil)
 
 // compressedImageExtender implements v1.Image by extending CompressedImageCore with the
 // appropriate methods computed from the minimal core.
@@ -49,10 +89,6 @@ func (i *compressedImageExtender) BlobSet() (map[v1.Hash]struct{}, error) {
 	return BlobSet(i)
 }
 
-func (i *compressedImageExtender) BlobSize(h v1.Hash) (int64, error) {
-	return BlobSize(i, h)
-}
-
 func (i *compressedImageExtender) Digest() (v1.Hash, error) {
 	return Digest(i)
 }
@@ -61,32 +97,36 @@ func (i *compressedImageExtender) ConfigName() (v1.Hash, error) {
 	return ConfigName(i)
 }
 
-func (i *compressedImageExtender) DiffIDs() ([]v1.Hash, error) {
-	return DiffIDs(i)
+func (i *compressedImageExtender) Layers() ([]v1.Layer, error) {
+	hs, err := FSLayers(i)
+	if err != nil {
+		return nil, err
+	}
+	ls := make([]v1.Layer, 0, len(hs))
+	for _, h := range hs {
+		l, err := i.LayerByDigest(h)
+		if err != nil {
+			return nil, err
+		}
+		ls = append(ls, l)
+	}
+	return ls, nil
 }
 
-func (i *compressedImageExtender) FSLayers() ([]v1.Hash, error) {
-	return FSLayers(i)
+func (i *compressedImageExtender) LayerByDigest(h v1.Hash) (v1.Layer, error) {
+	cl, err := i.CompressedImageCore.LayerByDigest(h)
+	if err != nil {
+		return nil, err
+	}
+	return CompressedToLayer(cl)
 }
 
-func (i *compressedImageExtender) Layer(h v1.Hash) (io.ReadCloser, error) {
-	return i.Blob(h)
-}
-
-func (i *compressedImageExtender) UncompressedBlob(h v1.Hash) (io.ReadCloser, error) {
-	return UncompressedBlob(i, h)
-}
-
-func (i *compressedImageExtender) UncompressedLayer(h v1.Hash) (io.ReadCloser, error) {
+func (i *compressedImageExtender) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
 	h, err := DiffIDToBlob(i, h)
 	if err != nil {
 		return nil, err
 	}
-	rc, err := i.Blob(h)
-	if err != nil {
-		return nil, err
-	}
-	return v1util.GunzipReadCloser(rc)
+	return i.LayerByDigest(h)
 }
 
 func (i *compressedImageExtender) ConfigFile() (*v1.ConfigFile, error) {

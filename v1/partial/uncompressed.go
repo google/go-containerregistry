@@ -24,17 +24,64 @@ import (
 	"github.com/google/go-containerregistry/v1/v1util"
 )
 
+// UncompressedLayer represents the bare minimum interface a natively
+// uncompressed layer must implement for us to produce a v1.Layer
+type UncompressedLayer interface {
+	// DiffID returns the Hash of the uncompressed layer.
+	DiffID() (v1.Hash, error)
+
+	// Uncompressed returns an io.ReadCloser for the uncompressed layer contents.
+	Uncompressed() (io.ReadCloser, error)
+}
+
+// uncompressedLayerExtender implements v1.Image using the uncompressed base properties.
+type uncompressedLayerExtender struct {
+	UncompressedLayer
+}
+
+// Compressed implements v1.Layer
+func (ule *uncompressedLayerExtender) Compressed() (io.ReadCloser, error) {
+	u, err := ule.Uncompressed()
+	if err != nil {
+		return nil, err
+	}
+	return v1util.GzipReadCloser(u)
+}
+
+// Digest implements v1.Layer
+func (ule *uncompressedLayerExtender) Digest() (v1.Hash, error) {
+	r, err := ule.Compressed()
+	if err != nil {
+		return v1.Hash{}, err
+	}
+	h, _, err := v1.SHA256(r)
+	return h, err
+}
+
+// Size implements v1.Layer
+func (ule *uncompressedLayerExtender) Size() (int64, error) {
+	r, err := ule.Compressed()
+	if err != nil {
+		return -1, err
+	}
+	_, i, err := v1.SHA256(r)
+	return i, err
+}
+
+// UncompressedToLayer fills in the missing methos from an UncompressedLayer so that it implements v1.Layer
+func UncompressedToLayer(ul UncompressedLayer) (v1.Layer, error) {
+	return &uncompressedLayerExtender{ul}, nil
+}
+
 // UncompressedImageCore represents the bare minimum interface a natively
 // uncompressed image must implement for us to produce a v1.Image
 type UncompressedImageCore interface {
 	imageCore
 
-	// UncompressedLayer is like UncompressedBlob, but takes the "diff id".
-	UncompressedLayer(v1.Hash) (io.ReadCloser, error)
+	// LayerByDiffID is a variation on the v1.Image method, which returns
+	// an UncompressedLayer instead.
+	LayerByDiffID(v1.Hash) (UncompressedLayer, error)
 }
-
-// Assert that Image is a superset of this partial interface.
-var _ UncompressedImageCore = (v1.Image)(nil)
 
 // UncompressedToImage fills in the missing methods from an UncompressedImageCore so that it implements v1.Image.
 func UncompressedToImage(uic UncompressedImageCore) (v1.Image, error) {
@@ -54,14 +101,6 @@ type uncompressedImageExtender struct {
 
 // Assert that our extender type completes the v1.Image interface
 var _ v1.Image = (*uncompressedImageExtender)(nil)
-
-func (i *uncompressedImageExtender) FSLayers() ([]v1.Hash, error) {
-	return FSLayers(i)
-}
-
-func (i *uncompressedImageExtender) DiffIDs() ([]v1.Hash, error) {
-	return DiffIDs(i)
-}
 
 func (i *uncompressedImageExtender) BlobSet() (map[v1.Hash]struct{}, error) {
 	return BlobSet(i)
@@ -97,13 +136,13 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 		},
 	}
 
-	diffIDs, err := i.DiffIDs()
+	ls, err := i.Layers()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, diffID := range diffIDs {
-		rdr, err := i.Layer(diffID)
+	for _, l := range ls {
+		rdr, err := l.Compressed()
 		if err != nil {
 			return nil, err
 		}
@@ -134,37 +173,41 @@ func (i *uncompressedImageExtender) ConfigFile() (*v1.ConfigFile, error) {
 	return ConfigFile(i)
 }
 
-func (i *uncompressedImageExtender) BlobSize(h v1.Hash) (int64, error) {
-	return BlobSize(i, h)
+func (i *uncompressedImageExtender) Layers() ([]v1.Layer, error) {
+	diffIDs, err := DiffIDs(i)
+	if err != nil {
+		return nil, err
+	}
+	ls := make([]v1.Layer, 0, len(diffIDs))
+	for _, h := range diffIDs {
+		l, err := i.LayerByDiffID(h)
+		if err != nil {
+			return nil, err
+		}
+		ls = append(ls, l)
+	}
+	return ls, nil
 }
 
-func (i *uncompressedImageExtender) Blob(h v1.Hash) (io.ReadCloser, error) {
+func (i *uncompressedImageExtender) LayerByDiffID(diffID v1.Hash) (v1.Layer, error) {
+	ul, err := i.UncompressedImageCore.LayerByDiffID(diffID)
+	if err != nil {
+		return nil, err
+	}
+	return UncompressedToLayer(ul)
+}
+
+func (i *uncompressedImageExtender) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	// Support returning the ConfigFile when asked for its hash.
 	if cfgName, err := i.ConfigName(); err != nil {
 		return nil, err
 	} else if cfgName == h {
-		b, err := i.RawConfigFile()
-		if err != nil {
-			return nil, err
-		}
-		return v1util.NopReadCloser(bytes.NewBuffer(b)), nil
+		return ConfigLayer(i)
 	}
 
 	diffID, err := BlobToDiffID(i, h)
 	if err != nil {
 		return nil, err
 	}
-	return i.Layer(diffID)
-}
-
-func (i *uncompressedImageExtender) UncompressedBlob(h v1.Hash) (io.ReadCloser, error) {
-	diffID, err := BlobToDiffID(i, h)
-	if err != nil {
-		return nil, err
-	}
-	return i.UncompressedLayer(diffID)
-}
-
-func (i *uncompressedImageExtender) Layer(h v1.Hash) (io.ReadCloser, error) {
-	return Layer(i, h)
+	return i.LayerByDiffID(diffID)
 }

@@ -66,23 +66,27 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	}
 
 	// Write the layers.
-	layers, err := img.FSLayers()
+	layers, err := img.Layers()
 	if err != nil {
 		return err
 	}
 	layerPaths := []string{}
 	for _, l := range layers {
-		layerPaths = append(layerPaths, l.String())
-		r, err := img.Blob(l)
+		d, err := l.Digest()
 		if err != nil {
 			return err
 		}
-		blobSize, err := img.BlobSize(l)
+		layerPaths = append(layerPaths, d.String())
+		r, err := l.Compressed()
+		if err != nil {
+			return err
+		}
+		blobSize, err := l.Size()
 		if err != nil {
 			return err
 		}
 
-		if err := writeFile(tf, l.String(), r, blobSize); err != nil {
+		if err := writeFile(tf, d.String(), r, blobSize); err != nil {
 			return err
 		}
 	}

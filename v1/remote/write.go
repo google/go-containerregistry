@@ -168,7 +168,11 @@ func (w *writer) initiateUpload(h v1.Hash) (location string, mounted bool, err e
 // On failure, this will return an error.  On success, this will return the location
 // header indicating how to commit the streamed blob.
 func (w *writer) streamBlob(h v1.Hash, streamLocation string) (commitLocation string, err error) {
-	blob, err := w.img.Blob(h)
+	l, err := w.img.LayerByDigest(h)
+	if err != nil {
+		return "", err
+	}
+	blob, err := l.Compressed()
 	if err != nil {
 		return "", err
 	}

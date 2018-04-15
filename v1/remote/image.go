@@ -137,7 +137,11 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 		return nil, err
 	}
 
-	body, err := r.Blob(m.Config.Digest)
+	cl, err := r.LayerByDigest(m.Config.Digest)
+	if err != nil {
+		return nil, err
+	}
+	body, err := cl.Compressed()
 	if err != nil {
 		return nil, err
 	}
@@ -150,9 +154,21 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 	return r.config, nil
 }
 
-func (r *remoteImage) Blob(h v1.Hash) (io.ReadCloser, error) {
-	u := r.url("blobs", h.String())
-	resp, err := r.client.Get(u.String())
+// remoteLayer implements partial.CompressedLayer
+type remoteLayer struct {
+	ri     *remoteImage
+	digest v1.Hash
+}
+
+// DiffID implements partial.CompressedLayer
+func (rl *remoteLayer) Digest() (v1.Hash, error) {
+	return rl.digest, nil
+}
+
+// Compressed implements partial.CompressedLayer
+func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
+	u := rl.ri.url("blobs", rl.digest.String())
+	resp, err := rl.ri.client.Get(u.String())
 	if err != nil {
 		return nil, err
 	}
@@ -162,5 +178,23 @@ func (r *remoteImage) Blob(h v1.Hash) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	return v1util.VerifyReadCloser(resp.Body, h)
+	return v1util.VerifyReadCloser(resp.Body, rl.digest)
+}
+
+// Manifest implements partial.WithManifest so that we can use partial.BlobSize below.
+func (rl *remoteLayer) Manifest() (*v1.Manifest, error) {
+	return partial.Manifest(rl.ri)
+}
+
+// Size implements partial.CompressedLayer
+func (rl *remoteLayer) Size() (int64, error) {
+	// Look up the size of this digest in the manifest to avoid a request.
+	return partial.BlobSize(rl, rl.digest)
+}
+
+func (r *remoteImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
+	return &remoteLayer{
+		ri:     r,
+		digest: h,
+	}, nil
 }
