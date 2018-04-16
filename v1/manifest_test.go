@@ -44,8 +44,8 @@ func TestGoodManifestWithHash(t *testing.T) {
 		t.Errorf("Unexpected error parsing manifest: %v", err)
 	}
 
-	if got, want := good.Config.Digest.Algorithm(), "sha256"; got != want {
-		t.Errorf("ParseManifest().Config.Digest.Algorithm(); got %v, want %v", got, want)
+	if got, want := good.Config.Digest.Algorithm, "sha256"; got != want {
+		t.Errorf("ParseManifest().Config.Digest.Algorithm; got %v, want %v", got, want)
 	}
 }
 
