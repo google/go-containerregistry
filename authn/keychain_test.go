@@ -132,7 +132,7 @@ func TestVariousPaths(t *testing.T) {
 		content: `{"credHelpers": {"https://test.io": "test"}}`,
 		check:   checkHelper,
 	}, {
-		content: `{"credStore": "test"}`,
+		content: `{"credsStore": "test"}`,
 		check:   checkHelper,
 	}, {
 		content: `{"auths": {"http://test.io/v2/": {"auth": "Zm9vOmJhcg=="}}}`,
