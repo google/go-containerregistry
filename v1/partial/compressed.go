@@ -58,7 +58,7 @@ func (ule *compressedLayerExtender) DiffID() (v1.Hash, error) {
 	return h, err
 }
 
-// CompressedToLayer fills in the missing methos from an CompressedLayer so that it implements v1.Layer
+// CompressedToLayer fills in the missing methods from a CompressedLayer so that it implements v1.Layer
 func CompressedToLayer(ul CompressedLayer) (v1.Layer, error) {
 	return &compressedLayerExtender{ul}, nil
 }
@@ -72,7 +72,7 @@ type CompressedImageCore interface {
 	RawManifest() ([]byte, error)
 
 	// LayerByDigest is a variation on the v1.Image method, which returns
-	// an CompressedLayer instead.
+	// a CompressedLayer instead.
 	LayerByDigest(v1.Hash) (CompressedLayer, error)
 }
 
@@ -85,18 +85,22 @@ type compressedImageExtender struct {
 // Assert that our extender type completes the v1.Image interface
 var _ v1.Image = (*compressedImageExtender)(nil)
 
+// BlobSet implements v1.Image
 func (i *compressedImageExtender) BlobSet() (map[v1.Hash]struct{}, error) {
 	return BlobSet(i)
 }
 
+// Digest implements v1.Image
 func (i *compressedImageExtender) Digest() (v1.Hash, error) {
 	return Digest(i)
 }
 
+// ConfigName implements v1.Image
 func (i *compressedImageExtender) ConfigName() (v1.Hash, error) {
 	return ConfigName(i)
 }
 
+// Layers implements v1.Image
 func (i *compressedImageExtender) Layers() ([]v1.Layer, error) {
 	hs, err := FSLayers(i)
 	if err != nil {
@@ -113,6 +117,7 @@ func (i *compressedImageExtender) Layers() ([]v1.Layer, error) {
 	return ls, nil
 }
 
+// LayerByDigest implements v1.Image
 func (i *compressedImageExtender) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	cl, err := i.CompressedImageCore.LayerByDigest(h)
 	if err != nil {
@@ -121,6 +126,7 @@ func (i *compressedImageExtender) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	return CompressedToLayer(cl)
 }
 
+// LayerByDiffID implements v1.Image
 func (i *compressedImageExtender) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
 	h, err := DiffIDToBlob(i, h)
 	if err != nil {
@@ -129,10 +135,12 @@ func (i *compressedImageExtender) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
 	return i.LayerByDigest(h)
 }
 
+// ConfigFile implements v1.Image
 func (i *compressedImageExtender) ConfigFile() (*v1.ConfigFile, error) {
 	return ConfigFile(i)
 }
 
+// Manifest implements v1.Image
 func (i *compressedImageExtender) Manifest() (*v1.Manifest, error) {
 	return Manifest(i)
 }

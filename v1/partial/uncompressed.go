@@ -37,6 +37,8 @@ type UncompressedLayer interface {
 // uncompressedLayerExtender implements v1.Image using the uncompressed base properties.
 type uncompressedLayerExtender struct {
 	UncompressedLayer
+	// TODO(mattmoor): Memoize size/hash so that the methods aren't twice as
+	// expensive as doing this manually.
 }
 
 // Compressed implements v1.Layer
@@ -68,7 +70,7 @@ func (ule *uncompressedLayerExtender) Size() (int64, error) {
 	return i, err
 }
 
-// UncompressedToLayer fills in the missing methos from an UncompressedLayer so that it implements v1.Layer
+// UncompressedToLayer fills in the missing methods from an UncompressedLayer so that it implements v1.Layer
 func UncompressedToLayer(ul UncompressedLayer) (v1.Layer, error) {
 	return &uncompressedLayerExtender{ul}, nil
 }
@@ -102,14 +104,17 @@ type uncompressedImageExtender struct {
 // Assert that our extender type completes the v1.Image interface
 var _ v1.Image = (*uncompressedImageExtender)(nil)
 
+// BlobSet implements v1.Image
 func (i *uncompressedImageExtender) BlobSet() (map[v1.Hash]struct{}, error) {
 	return BlobSet(i)
 }
 
+// Digest implements v1.Image
 func (i *uncompressedImageExtender) Digest() (v1.Hash, error) {
 	return Digest(i)
 }
 
+// Manifest implements v1.Image
 func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 	i.lock.Lock()
 	defer i.lock.Unlock()
@@ -142,11 +147,11 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 	}
 
 	for _, l := range ls {
-		rdr, err := l.Compressed()
+		sz, err := l.Size()
 		if err != nil {
 			return nil, err
 		}
-		h, sz, err := v1.SHA256(rdr)
+		h, err := l.Digest()
 		if err != nil {
 			return nil, err
 		}
@@ -161,18 +166,22 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 	return i.manifest, nil
 }
 
+// RawManifest implements v1.Image
 func (i *uncompressedImageExtender) RawManifest() ([]byte, error) {
 	return RawManifest(i)
 }
 
+// ConfigName implements v1.Image
 func (i *uncompressedImageExtender) ConfigName() (v1.Hash, error) {
 	return ConfigName(i)
 }
 
+// ConfigFile implements v1.Image
 func (i *uncompressedImageExtender) ConfigFile() (*v1.ConfigFile, error) {
 	return ConfigFile(i)
 }
 
+// Layers implements v1.Image
 func (i *uncompressedImageExtender) Layers() ([]v1.Layer, error) {
 	diffIDs, err := DiffIDs(i)
 	if err != nil {
@@ -189,6 +198,7 @@ func (i *uncompressedImageExtender) Layers() ([]v1.Layer, error) {
 	return ls, nil
 }
 
+// LayerByDiffID implements v1.Image
 func (i *uncompressedImageExtender) LayerByDiffID(diffID v1.Hash) (v1.Layer, error) {
 	ul, err := i.UncompressedImageCore.LayerByDiffID(diffID)
 	if err != nil {
@@ -197,6 +207,7 @@ func (i *uncompressedImageExtender) LayerByDiffID(diffID v1.Hash) (v1.Layer, err
 	return UncompressedToLayer(ul)
 }
 
+// LayerByDigest implements v1.Image
 func (i *uncompressedImageExtender) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	// Support returning the ConfigFile when asked for its hash.
 	if cfgName, err := i.ConfigName(); err != nil {

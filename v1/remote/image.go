@@ -160,7 +160,7 @@ type remoteLayer struct {
 	digest v1.Hash
 }
 
-// DiffID implements partial.CompressedLayer
+// Digest implements partial.CompressedLayer
 func (rl *remoteLayer) Digest() (v1.Hash, error) {
 	return rl.digest, nil
 }
@@ -192,6 +192,7 @@ func (rl *remoteLayer) Size() (int64, error) {
 	return partial.BlobSize(rl, rl.digest)
 }
 
+// LayerByDigest implements partial.CompressedLayer
 func (r *remoteImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
 	return &remoteLayer{
 		ri:     r,

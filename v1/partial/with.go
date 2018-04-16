@@ -51,6 +51,7 @@ func ConfigName(i WithRawConfigFile) (v1.Hash, error) {
 }
 
 // configLayer implements v1.Layer from the raw config bytes.
+// This is so that clients (e.g. remote) can access the config as a blob.
 type configLayer struct {
 	hash    v1.Hash
 	content []byte
