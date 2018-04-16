@@ -26,14 +26,6 @@ import (
 	"github.com/google/go-containerregistry/v1/remote"
 )
 
-func parseReference(ref string) (name.Reference, error) {
-	tag, err := name.NewTag(ref, name.WeakValidation)
-	if err == nil {
-		return tag, nil
-	}
-	return name.NewDigest(ref, name.WeakValidation)
-}
-
 func dispatch(cmd string, i v1.Image) (string, error) {
 	switch cmd {
 	case "config":
@@ -68,7 +60,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ref, err := parseReference(os.Args[2])
+	ref, err := name.ParseReference(os.Args[2], name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
 	}
