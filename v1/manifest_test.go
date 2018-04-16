@@ -17,8 +17,9 @@ package v1
 import (
 	"bytes"
 	"io/ioutil"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestGoodManifestSimple(t *testing.T) {
@@ -28,8 +29,8 @@ func TestGoodManifestSimple(t *testing.T) {
 	}
 
 	want := Manifest{}
-	if !reflect.DeepEqual(*got, want) {
-		t.Errorf("ParseManifest({}); got %v, want %v", *got, want)
+	if diff := cmp.Diff(want, *got); diff != "" {
+		t.Errorf("ParseManifest({}); (-want +got) %s", diff)
 	}
 }
 
@@ -43,8 +44,8 @@ func TestGoodManifestWithHash(t *testing.T) {
 		t.Errorf("Unexpected error parsing manifest: %v", err)
 	}
 
-	if got, want := good.Config.Digest.Algorithm(), "sha256"; got != want {
-		t.Errorf("ParseManifest().Config.Digest.Algorithm(); got %v, want %v", got, want)
+	if got, want := good.Config.Digest.Algorithm, "sha256"; got != want {
+		t.Errorf("ParseManifest().Config.Digest.Algorithm; got %v, want %v", got, want)
 	}
 }
 

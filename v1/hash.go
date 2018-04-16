@@ -27,23 +27,16 @@ import (
 
 // Hash is an unqualified digest of some content, e.g. sha256:deadbeef
 type Hash struct {
-	algorithm string
-	hex       string
-}
+	// Algorithm holds the algorithm used to compute the hash.
+	Algorithm string
 
-// Algorithm returns the algorithm used to compute the hash.
-func (h Hash) Algorithm() string {
-	return h.algorithm
-}
-
-// Hex returns the hex portion of the content hash.
-func (h Hash) Hex() string {
-	return h.hex
+	// Hex holds the hex portion of the content hash.
+	Hex string
 }
 
 // String reverses NewHash returning the string-form of the hash.
 func (h Hash) String() string {
-	return fmt.Sprintf("%s:%s", h.Algorithm(), h.Hex())
+	return fmt.Sprintf("%s:%s", h.Algorithm, h.Hex)
 }
 
 // NewHash validates the input string is a hash and returns a strongly type Hash object.
@@ -99,8 +92,8 @@ func (h *Hash) parse(unquoted string) error {
 		return fmt.Errorf("wrong number of hex digits for %s: %s", parts[0], parts[1])
 	}
 
-	h.algorithm = parts[0]
-	h.hex = parts[1]
+	h.Algorithm = parts[0]
+	h.Hex = parts[1]
 	return nil
 }
 
@@ -113,7 +106,7 @@ func SHA256(r io.ReadCloser) (Hash, int64, error) {
 		return Hash{}, 0, err
 	}
 	return Hash{
-		algorithm: "sha256",
-		hex:       hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
+		Algorithm: "sha256",
+		Hex:       hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
 	}, n, nil
 }

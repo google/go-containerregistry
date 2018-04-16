@@ -34,9 +34,9 @@ func (vc *verifyReader) Read(b []byte) (int, error) {
 	n, err := vc.inner.Read(b)
 	if err == io.EOF {
 		got := hex.EncodeToString(vc.hasher.Sum(make([]byte, 0, vc.hasher.Size())))
-		if want := vc.expected.Hex(); got != want {
+		if want := vc.expected.Hex; got != want {
 			return n, fmt.Errorf("error verifying %s checksum; got %q, want %q",
-				vc.expected.Algorithm(), got, want)
+				vc.expected.Algorithm, got, want)
 		}
 	}
 	return n, err
@@ -45,7 +45,7 @@ func (vc *verifyReader) Read(b []byte) (int, error) {
 // VerifyReadCloser wraps the given io.ReadCloser to verify that its contents match
 // the provided v1.Hash before io.EOF is returned.
 func VerifyReadCloser(r io.ReadCloser, h v1.Hash) (io.ReadCloser, error) {
-	w, err := v1.Hasher(h.Algorithm())
+	w, err := v1.Hasher(h.Algorithm)
 	if err != nil {
 		return nil, err
 	}

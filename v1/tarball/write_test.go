@@ -17,11 +17,11 @@ package tarball
 import (
 	"io/ioutil"
 	"os"
-	"reflect"
 	"testing"
 
-	"github.com/google/go-containerregistry/name"
+	"github.com/google/go-cmp/cmp"
 
+	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1/random"
 )
 
@@ -65,8 +65,8 @@ func TestWrite(t *testing.T) {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
 		}
 
-		if !reflect.DeepEqual(tarManifest, randManifest) {
-			t.Errorf("Manifests not equal. Expected %v\n%v", tarManifest, randManifest)
+		if diff := cmp.Diff(randManifest, tarManifest); diff != "" {
+			t.Errorf("Manifests not equal. (-rand +tar) %s", diff)
 		}
 	}
 

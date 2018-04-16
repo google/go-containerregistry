@@ -65,11 +65,11 @@ func TestSHA256(t *testing.T) {
 	if err != nil {
 		t.Errorf("SHA256(asdf) = %v", err)
 	}
-	if got, want := h.Algorithm(), "sha256"; got != want {
-		t.Errorf("Algorithm(); got %v, want %v", got, want)
+	if got, want := h.Algorithm, "sha256"; got != want {
+		t.Errorf("Algorithm; got %v, want %v", got, want)
 	}
-	if got, want := h.Hex(), "f0e4c2f76c58916ec258f246851bea091d14d4247a2fc3e18694461b1816e13b"; got != want {
-		t.Errorf("Hex(); got %v, want %v", got, want)
+	if got, want := h.Hex, "f0e4c2f76c58916ec258f246851bea091d14d4247a2fc3e18694461b1816e13b"; got != want {
+		t.Errorf("Hex; got %v, want %v", got, want)
 	}
 	if got, want := n, int64(len(input)); got != want {
 		t.Errorf("n; got %v, want %v", got, want)

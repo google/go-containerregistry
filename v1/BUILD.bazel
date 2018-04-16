@@ -21,4 +21,5 @@ go_test(
         "manifest_test.go",
     ],
     embed = [":go_default_library"],
+    deps = ["//vendor/github.com/google/go-cmp/cmp:go_default_library"],
 )

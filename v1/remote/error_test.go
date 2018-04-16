@@ -18,8 +18,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"reflect"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/google/go-containerregistry/v1/v1util"
 )
@@ -110,8 +111,8 @@ func TestCheckErrorWithError(t *testing.T) {
 			t.Errorf("checkError(%d, %s) = nil, wanted error", test.code, string(b))
 		} else if se, ok := err.(*Error); !ok {
 			t.Errorf("checkError(%d, %s) = %T, wanted *remote.Error", test.code, string(b), se)
-		} else if !reflect.DeepEqual(se, test.error) {
-			t.Errorf("checkError(%d, %s) = %v, wanted %v", test.code, string(b), se, test.error)
+		} else if diff := cmp.Diff(test.error, se); diff != "" {
+			t.Errorf("checkError(%d, %s); (-want +got) %s", test.code, string(b), diff)
 		}
 	}
 }
