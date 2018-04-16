@@ -54,20 +54,19 @@ type compressedImage struct {
 var _ partial.UncompressedImageCore = (*uncompressedImage)(nil)
 var _ partial.CompressedImageCore = (*compressedImage)(nil)
 
-// Image exp oses an image from the tarball at the provided path.
-
 type Opener func() (io.ReadCloser, error)
 
-func PathOpener(path string) Opener {
+func pathOpener(path string) Opener {
 	return func() (io.ReadCloser, error) {
 		return os.Open(path)
 	}
 }
 
 func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
-	return Image(PathOpener(path), tag)
+	return Image(pathOpener(path), tag)
 }
 
+// Image exposes an image from the tarball at the provided path.
 func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 	img := &image{
 		opener: opener,

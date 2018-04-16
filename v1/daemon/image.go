@@ -29,15 +29,24 @@ import (
 
 // image accesses an image from a docker daemon
 type image struct {
-	cli *client.Client
 	v1.Image
 }
 
 var _ v1.Image = (*image)(nil)
 
+// API interface for testing.
+type ImageSaver interface {
+	ImageSave(context.Context, []string) (io.ReadCloser, error)
+}
+
+// This is a variable so we can override in tests.
+var getImageSaver = func() (ImageSaver, error) {
+	return client.NewEnvClient()
+}
+
 // Image exposes an image reference from within the Docker daemon.
 func Image(ref name.Reference) (v1.Image, error) {
-	cli, err := client.NewEnvClient()
+	cli, err := getImageSaver()
 	if err != nil {
 		return nil, err
 	}
@@ -52,6 +61,8 @@ func Image(ref name.Reference) (v1.Image, error) {
 		return nil, err
 	}
 
+	// The tarball interface takes a function that it can call to return an opened reader-like object.
+	// Daemon comes from a set of bytes, so wrap them in a ReadCloser so it looks like an opened file.
 	opener := func() (io.ReadCloser, error) {
 		return ioutil.NopCloser(bytes.NewReader(imageBytes)), nil
 	}
@@ -61,7 +72,6 @@ func Image(ref name.Reference) (v1.Image, error) {
 		return nil, err
 	}
 	img := &image{
-		cli:   cli,
 		Image: tb,
 	}
 	return img, nil

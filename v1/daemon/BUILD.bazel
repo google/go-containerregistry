@@ -1,4 +1,4 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
@@ -7,6 +7,9 @@ go_library(
         "image.go",
         "write.go",
     ],
+    data = [
+        "//v1/tarball:test_image_1.tar",  # keep
+    ],
     importpath = "github.com/google/go-containerregistry/v1/daemon",
     visibility = ["//visibility:public"],
     deps = [
@@ -14,5 +17,16 @@ go_library(
         "//v1:go_default_library",
         "//v1/tarball:go_default_library",
         "//vendor/github.com/docker/docker/client:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["image_test.go"],
+    data = ["//v1/tarball:test_image_1.tar"],  # keep
+    embed = [":go_default_library"],
+    deps = [
+        "//name:go_default_library",
+        "//v1/tarball:go_default_library",
     ],
 )

@@ -53,6 +53,7 @@ container_image(
         "testdata/bar",
         "testdata/foo",
     ],
+    visibility = ["//visibility:public"],
 )
 
 container_image(
