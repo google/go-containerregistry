@@ -15,10 +15,12 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 
-	"github.com/google/go-containerregistry/v1/types"
+	"github.com/google/go-containerregistry/v1/tarball"
 
 	"github.com/docker/docker/client"
 	"github.com/google/go-containerregistry/name"
@@ -28,6 +30,7 @@ import (
 // image accesses an image from a docker daemon
 type image struct {
 	cli *client.Client
+	v1.Image
 }
 
 var _ v1.Image = (*image)(nil)
@@ -38,68 +41,28 @@ func Image(ref name.Reference) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
+	rc, err := cli.ImageSave(context.Background(), []string{ref.String()})
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+
+	// Write the docker save tarball to a temp file.
+	// TODO: Clean this up.
+	tf, err := ioutil.TempFile("", "")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := io.Copy(tf, rc); err != nil {
+		return nil, err
+	}
+	tb, err := tarball.Image(tf.Name(), nil)
+	if err != nil {
+		return nil, err
+	}
 	img := &image{
-		cli: cli,
+		cli:   cli,
+		Image: tb,
 	}
 	return img, fmt.Errorf("NYI: daemon.Image(%v)", ref)
-}
-
-func (i *image) FSLayers() ([]v1.Hash, error) {
-	panic("not implemented")
-}
-
-func (i *image) DiffIDs() ([]v1.Hash, error) {
-	panic("not implemented")
-}
-
-func (i *image) ConfigName() (v1.Hash, error) {
-	panic("not implemented")
-}
-
-func (i *image) BlobSet() (map[v1.Hash]struct{}, error) {
-	panic("not implemented")
-}
-
-func (i *image) Digest() (v1.Hash, error) {
-	panic("not implemented")
-}
-
-func (i *image) MediaType() (types.MediaType, error) {
-	panic("not implemented")
-}
-
-func (i *image) Manifest() (*v1.Manifest, error) {
-	panic("not implemented")
-}
-
-func (i *image) RawManifest() ([]byte, error) {
-	panic("not implemented")
-}
-
-func (i *image) ConfigFile() (*v1.ConfigFile, error) {
-	panic("not implemented")
-}
-
-func (i *image) RawConfigFile() ([]byte, error) {
-	panic("not implemented")
-}
-
-func (i *image) BlobSize(v1.Hash) (int64, error) {
-	panic("not implemented")
-}
-
-func (i *image) Blob(v1.Hash) (io.ReadCloser, error) {
-	panic("not implemented")
-}
-
-func (i *image) Layer(v1.Hash) (io.ReadCloser, error) {
-	panic("not implemented")
-}
-
-func (i *image) UncompressedBlob(v1.Hash) (io.ReadCloser, error) {
-	panic("not implemented")
-}
-
-func (i *image) UncompressedLayer(v1.Hash) (io.ReadCloser, error) {
-	panic("not implemented")
 }
