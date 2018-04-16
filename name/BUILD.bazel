@@ -19,6 +19,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "digest_test.go",
+        "ref_test.go",
         "registry_test.go",
         "repository_test.go",
         "tag_test.go",

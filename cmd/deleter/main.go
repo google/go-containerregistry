@@ -28,21 +28,13 @@ var (
 	ref = flag.String("ref", "", "The reference to delete from its registry.")
 )
 
-func parseReference(ref string) (name.Reference, error) {
-	tag, err := name.NewTag(ref, name.WeakValidation)
-	if err == nil {
-		return tag, nil
-	}
-	return name.NewDigest(ref, name.WeakValidation)
-}
-
 func main() {
 	flag.Parse()
 	if *ref == "" {
 		log.Fatalln("-ref must be specified.")
 	}
 
-	r, err := parseReference(*ref)
+	r, err := name.ParseReference(*ref, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
 	}
