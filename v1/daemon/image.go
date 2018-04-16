@@ -15,6 +15,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -47,16 +48,16 @@ func Image(ref name.Reference) (v1.Image, error) {
 	}
 	defer rc.Close()
 
-	// Write the docker save tarball to a temp file.
-	// TODO: Clean this up.
-	tf, err := ioutil.TempFile("", "")
+	imageBytes, err := ioutil.ReadAll(rc)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := io.Copy(tf, rc); err != nil {
-		return nil, err
+
+	opener := func() (io.ReadCloser, error) {
+		return ioutil.NopCloser(bytes.NewReader(imageBytes)), nil
 	}
-	tb, err := tarball.Image(tf.Name(), nil)
+
+	tb, err := tarball.Image(opener, nil)
 	if err != nil {
 		return nil, err
 	}
