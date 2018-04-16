@@ -17,7 +17,6 @@ package daemon
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 
@@ -42,7 +41,7 @@ func Image(ref name.Reference) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	rc, err := cli.ImageSave(context.Background(), []string{ref.String()})
+	rc, err := cli.ImageSave(context.Background(), []string{ref.Name()})
 	if err != nil {
 		return nil, err
 	}
@@ -65,5 +64,5 @@ func Image(ref name.Reference) (v1.Image, error) {
 		cli:   cli,
 		Image: tb,
 	}
-	return img, fmt.Errorf("NYI: daemon.Image(%v)", ref)
+	return img, nil
 }
