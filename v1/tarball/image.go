@@ -51,9 +51,6 @@ type compressedImage struct {
 	manifest     *v1.Manifest
 }
 
-var _ partial.UncompressedImageCore = (*uncompressedImage)(nil)
-var _ partial.CompressedImageCore = (*compressedImage)(nil)
-
 // Image exposes an image from the tarball at the provided path.
 func Image(path string, tag *name.Tag) (v1.Image, error) {
 	img := &image{
@@ -195,14 +192,35 @@ func extractFileFromTar(tarPath string, filePath string) (io.ReadCloser, error) 
 	return nil, fmt.Errorf("file %s not found in tar", filePath)
 }
 
-func (i *uncompressedImage) UncompressedLayer(h v1.Hash) (io.ReadCloser, error) {
+// uncompressedLayerFromTarball implements partial.UncompressedLayer
+type uncompressedLayerFromTarball struct {
+	diffID   v1.Hash
+	tarPath  string
+	filePath string
+}
+
+// DiffID implements partial.UncompressedLayer
+func (ulft *uncompressedLayerFromTarball) DiffID() (v1.Hash, error) {
+	return ulft.diffID, nil
+}
+
+// Uncompressed implements partial.UncompressedLayer
+func (ulft *uncompressedLayerFromTarball) Uncompressed() (io.ReadCloser, error) {
+	return extractFileFromTar(ulft.tarPath, ulft.filePath)
+}
+
+func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer, error) {
 	cfg, err := partial.ConfigFile(i)
 	if err != nil {
 		return nil, err
 	}
 	for idx, diffID := range cfg.RootFS.DiffIDs {
 		if diffID == h {
-			return extractFileFromTar(i.path, i.imgDescriptor.Layers[idx])
+			return &uncompressedLayerFromTarball{
+				diffID:   diffID,
+				tarPath:  i.path,
+				filePath: i.imgDescriptor.Layers[idx],
+			}, nil
 		}
 	}
 	return nil, fmt.Errorf("diff id %q not found", h)
@@ -257,7 +275,34 @@ func (c *compressedImage) RawManifest() ([]byte, error) {
 	return partial.RawManifest(c)
 }
 
-func (c *compressedImage) Blob(h v1.Hash) (io.ReadCloser, error) {
+// compressedLayerFromTarball implements partial.CompressedLayer
+type compressedLayerFromTarball struct {
+	digest   v1.Hash
+	tarPath  string
+	filePath string
+}
+
+// DiffID implements partial.CompressedLayer
+func (clft *compressedLayerFromTarball) Digest() (v1.Hash, error) {
+	return clft.digest, nil
+}
+
+// Compressed implements partial.CompressedLayer
+func (clft *compressedLayerFromTarball) Compressed() (io.ReadCloser, error) {
+	return extractFileFromTar(clft.tarPath, clft.filePath)
+}
+
+// Size implements partial.CompressedLayer
+func (clft *compressedLayerFromTarball) Size() (int64, error) {
+	r, err := clft.Compressed()
+	if err != nil {
+		return -1, err
+	}
+	_, i, err := v1.SHA256(r)
+	return i, err
+}
+
+func (c *compressedImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
 	m, err := c.Manifest()
 	if err != nil {
 		return nil, err
@@ -265,7 +310,11 @@ func (c *compressedImage) Blob(h v1.Hash) (io.ReadCloser, error) {
 	for i, l := range m.Layers {
 		if l.Digest == h {
 			fp := c.imgDescriptor.Layers[i]
-			return extractFileFromTar(c.path, fp)
+			return &compressedLayerFromTarball{
+				digest:   h,
+				tarPath:  c.path,
+				filePath: fp,
+			}, nil
 		}
 	}
 	return nil, fmt.Errorf("blob %v not found", h)

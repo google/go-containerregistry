@@ -50,6 +50,55 @@ func ConfigName(i WithRawConfigFile) (v1.Hash, error) {
 	return h, err
 }
 
+// configLayer implements v1.Layer from the raw config bytes.
+// This is so that clients (e.g. remote) can access the config as a blob.
+type configLayer struct {
+	hash    v1.Hash
+	content []byte
+}
+
+// Digest implements v1.Layer
+func (cl *configLayer) Digest() (v1.Hash, error) {
+	return cl.hash, nil
+}
+
+// DiffID implements v1.Layer
+func (cl *configLayer) DiffID() (v1.Hash, error) {
+	return cl.hash, nil
+}
+
+// Uncompressed implements v1.Layer
+func (cl *configLayer) Uncompressed() (io.ReadCloser, error) {
+	return v1util.NopReadCloser(bytes.NewBuffer(cl.content)), nil
+}
+
+// Compressed implements v1.Layer
+func (cl *configLayer) Compressed() (io.ReadCloser, error) {
+	return v1util.NopReadCloser(bytes.NewBuffer(cl.content)), nil
+}
+
+// Size implements v1.Layer
+func (cl *configLayer) Size() (int64, error) {
+	return int64(len(cl.content)), nil
+}
+
+var _ v1.Layer = (*configLayer)(nil)
+
+func ConfigLayer(i WithRawConfigFile) (v1.Layer, error) {
+	h, err := ConfigName(i)
+	if err != nil {
+		return nil, err
+	}
+	rcfg, err := i.RawConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	return &configLayer{
+		hash:    h,
+		content: rcfg,
+	}, nil
+}
+
 // WithConfigFile defines the subset of v1.Image used by these helper methods
 type WithConfigFile interface {
 	// ConfigFile returns this image's config file.

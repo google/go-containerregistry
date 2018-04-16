@@ -26,9 +26,28 @@ import (
 	"github.com/google/go-containerregistry/v1/v1util"
 )
 
+// uncompressedLayer implements partial.UncompressedLayer from raw bytes.
+// TODO(mattmoor): Consider moving this into a library.
+type uncompressedLayer struct {
+	diffID  v1.Hash
+	content []byte
+}
+
+// DiffID implements partial.UncompressedLayer
+func (ul *uncompressedLayer) DiffID() (v1.Hash, error) {
+	return ul.diffID, nil
+}
+
+// Uncompressed implements partial.UncompressedLayer
+func (ul *uncompressedLayer) Uncompressed() (io.ReadCloser, error) {
+	return v1util.NopReadCloser(bytes.NewBuffer(ul.content)), nil
+}
+
+var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)
+
 // Image returns a pseudo-randomly generated Image.
 func Image(byteSize, layers int64) (v1.Image, error) {
-	layerz := make(map[v1.Hash][]byte)
+	layerz := make(map[v1.Hash]partial.UncompressedLayer)
 	for i := int64(0); i < layers; i++ {
 		b := bytes.NewBuffer(nil)
 		if _, err := io.CopyN(b, rand.Reader, byteSize); err != nil {
@@ -39,7 +58,10 @@ func Image(byteSize, layers int64) (v1.Image, error) {
 		if err != nil {
 			return nil, err
 		}
-		layerz[h] = bts
+		layerz[h] = &uncompressedLayer{
+			diffID:  h,
+			content: bts,
+		}
 	}
 
 	cfg := &v1.ConfigFile{}
@@ -58,7 +80,7 @@ func Image(byteSize, layers int64) (v1.Image, error) {
 // image is pseudo-randomly generated.
 type image struct {
 	config *v1.ConfigFile
-	layers map[v1.Hash][]byte
+	layers map[v1.Hash]partial.UncompressedLayer
 }
 
 var _ partial.UncompressedImageCore = (*image)(nil)
@@ -78,11 +100,11 @@ func (i *image) MediaType() (types.MediaType, error) {
 	return types.DockerManifestSchema2, nil
 }
 
-// UncompressedLayer implements partial.UncompressedImageCore
-func (i *image) UncompressedLayer(diffID v1.Hash) (io.ReadCloser, error) {
-	b, ok := i.layers[diffID]
+// LayerByDiffID implements partial.UncompressedImageCore
+func (i *image) LayerByDiffID(diffID v1.Hash) (partial.UncompressedLayer, error) {
+	l, ok := i.layers[diffID]
 	if !ok {
 		return nil, fmt.Errorf("unknown diff_id: %v", diffID)
 	}
-	return v1util.NopReadCloser(bytes.NewBuffer(b)), nil
+	return l, nil
 }
