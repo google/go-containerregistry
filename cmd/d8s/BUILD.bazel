@@ -1,0 +1,21 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = glob(["*.go"]),
+    importpath = "github.com/google/go-containerregistry/cmd/d8s",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//authn:go_default_library",
+        "//name:go_default_library",
+        "//v1/remote:go_default_library",
+        "//v1/tarball:go_default_library",
+        "//vendor/github.com/google/subcommands:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "d8s",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

@@ -12,9 +12,15 @@
   revision = "3af367b6b30c263d47e8895973edcca9a49cf029"
   version = "v0.2.0"
 
+[[projects]]
+  branch = "master"
+  name = "github.com/google/subcommands"
+  packages = ["."]
+  revision = "a3682377147edf596d303faabd89f81977b3f678"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a9fc52e870e8eef02b0e34e49602a3b8541e2b41b913d304f9dc50c20cc8a21d"
+  inputs-digest = "86f0484d6ccec492f43513faa9ea990ec237673915dca69a3d6c994da44964b4"
   solver-name = "gps-cdcl"
   solver-version = 1
