@@ -71,6 +71,22 @@ func TestNewRegistry(t *testing.T) {
 	}
 }
 
+func TestDefaultRegistryNames(t *testing.T) {
+	testRegistries := []string{"docker.io", ""}
+
+	for _, testRegistry := range testRegistries {
+		registry, err := NewRegistry(testRegistry, WeakValidation)
+		if err != nil {
+			t.Fatalf("`%s` should be a valid Registry name, got error: %v", testRegistry, err)
+		}
+
+		actualRegistry := registry.RegistryStr()
+		if actualRegistry != DefaultRegistry {
+			t.Errorf("RegistryStr() was incorrect for %v. Wanted: `%s` Got: `%s`", registry, DefaultRegistry, actualRegistry)
+		}
+	}
+}
+
 func TestRegistryComponents(t *testing.T) {
 	t.Parallel()
 	testRegistry := "gcr.io"
