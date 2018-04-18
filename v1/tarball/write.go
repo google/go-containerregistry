@@ -39,7 +39,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	// One file for each layer, named after the layer's SHA.
 	// One file for the config blob, named after its SHA.
 
-	w, err := os.OpenFile(p, os.O_WRONLY, 0644)
+	w, err := os.Create(p)
 	if err != nil {
 		return err
 	}

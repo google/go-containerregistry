@@ -15,9 +15,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
+
+	"github.com/google/subcommands"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
@@ -25,37 +28,39 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
-var (
-	path = flag.String("tarball", "", "Path to the 'docker save' tarball on disk.")
-	tag  = flag.String("tag", "", "The tag to which to publish the image in the tarball.")
-)
+type pushCmd struct{}
 
-func main() {
-	flag.Parse()
-	if *path == "" {
-		log.Fatalln("-tarball must be specified.")
-	}
-	if *tag == "" {
-		log.Fatalln("-tag must be specified.")
+func (*pushCmd) Name() string { return "push" }
+func (*pushCmd) Synopsis() string {
+	return "Pushes image contents as a tarball to a remote registry"
+}
+func (*pushCmd) Usage() string            { return "push <tarball> <tag>" }
+func (*pushCmd) SetFlags(f *flag.FlagSet) {}
+
+func (*pushCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	if len(f.Args()) != 2 {
+		return subcommands.ExitUsageError
 	}
 
-	t, err := name.NewTag(*tag, name.WeakValidation)
+	path, tag := f.Args()[0], f.Args()[1]
+	t, err := name.NewTag(tag, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf("Pushing %v", t)
+	log.Printf("Pulling %v", t)
 
 	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	i, err := tarball.Image(*path, nil)
+	i, err := remote.Image(t, auth, http.DefaultTransport)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
+	if err := tarball.Write(path, t, i, &tarball.WriteOptions{}); err != nil {
 		log.Fatalln(err)
 	}
+	return subcommands.ExitSuccess
 }
