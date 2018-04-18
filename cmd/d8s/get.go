@@ -1,3 +1,17 @@
+// Copyright 2018 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -31,7 +45,7 @@ type configCmd struct{}
 
 func (*configCmd) Name() string             { return "config" }
 func (*configCmd) Synopsis() string         { return "Prints the image's config" }
-func (*configCmd) Usage() string            { return "config <image>" }
+func (*configCmd) Usage() string            { return "config <reference>" }
 func (*configCmd) SetFlags(f *flag.FlagSet) {}
 
 func (*configCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -55,7 +69,7 @@ type digestCmd struct{}
 
 func (*digestCmd) Name() string             { return "digest" }
 func (*digestCmd) Synopsis() string         { return "Prints the image's digest" }
-func (*digestCmd) Usage() string            { return "digest <image>" }
+func (*digestCmd) Usage() string            { return "digest <reference>" }
 func (*digestCmd) SetFlags(f *flag.FlagSet) {}
 
 func (*digestCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -79,7 +93,7 @@ type manifestCmd struct{}
 
 func (*manifestCmd) Name() string             { return "manifest" }
 func (*manifestCmd) Synopsis() string         { return "Prints the image's manifest" }
-func (*manifestCmd) Usage() string            { return "manifest <image>" }
+func (*manifestCmd) Usage() string            { return "manifest <reference>" }
 func (*manifestCmd) SetFlags(f *flag.FlagSet) {}
 
 func (*manifestCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
