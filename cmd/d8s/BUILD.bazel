@@ -25,6 +25,7 @@ go_library(
 go_binary(
     name = "d8s",
     embed = [":go_default_library"],
+    pure = "on",
     visibility = ["//visibility:public"],
 )
 
