@@ -54,7 +54,7 @@ func Image(byteSize, layers int64) (v1.Image, error) {
 			return nil, err
 		}
 		bts := b.Bytes()
-		h, _, err := v1.SHA256(v1util.NopReadCloser(bytes.NewBuffer(bts)))
+		h, _, err := v1.SHA256(bytes.NewReader(bts))
 		if err != nil {
 			return nil, err
 		}

@@ -98,9 +98,8 @@ type Config struct {
 	Shell           []string
 }
 
-// ParseConfigFile parses the io.ReadCloser's contents into a ConfigFile.
-func ParseConfigFile(r io.ReadCloser) (*ConfigFile, error) {
-	defer r.Close()
+// ParseConfigFile parses the io.Reader's contents into a ConfigFile.
+func ParseConfigFile(r io.Reader) (*ConfigFile, error) {
 	cf := ConfigFile{}
 	if err := json.NewDecoder(r).Decode(&cf); err != nil {
 		return nil, err

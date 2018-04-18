@@ -238,7 +238,7 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		return nil, err
 	}
 
-	cfgHash, cfgSize, err := v1.SHA256(v1util.NopReadCloser(bytes.NewBuffer(b)))
+	cfgHash, cfgSize, err := v1.SHA256(bytes.NewReader(b))
 	if err != nil {
 		return nil, err
 	}
@@ -258,6 +258,7 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		if err != nil {
 			return nil, err
 		}
+		defer l.Close()
 		sha, size, err := v1.SHA256(l)
 		if err != nil {
 			return nil, err
@@ -298,6 +299,7 @@ func (clft *compressedLayerFromTarball) Size() (int64, error) {
 	if err != nil {
 		return -1, err
 	}
+	defer r.Close()
 	_, i, err := v1.SHA256(r)
 	return i, err
 }

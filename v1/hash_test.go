@@ -15,8 +15,7 @@
 package v1
 
 import (
-	"bytes"
-	"io/ioutil"
+	"strings"
 	"testing"
 )
 
@@ -61,7 +60,7 @@ func TestBadHashes(t *testing.T) {
 
 func TestSHA256(t *testing.T) {
 	input := "asdf"
-	h, n, err := SHA256(ioutil.NopCloser(bytes.NewBufferString(input)))
+	h, n, err := SHA256(strings.NewReader(input))
 	if err != nil {
 		t.Errorf("SHA256(asdf) = %v", err)
 	}

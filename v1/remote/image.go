@@ -100,7 +100,7 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		return nil, err
 	}
 
-	digest, _, err := v1.SHA256(ioutil.NopCloser(bytes.NewReader(manifest)))
+	digest, _, err := v1.SHA256(bytes.NewReader(manifest))
 	if err != nil {
 		return nil, err
 	}

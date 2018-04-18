@@ -17,13 +17,14 @@ package v1util
 import (
 	"bytes"
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/v1"
 )
 
 func mustHash(s string, t *testing.T) v1.Hash {
-	h, _, err := v1.SHA256(NopReadCloser(bytes.NewBufferString(s)))
+	h, _, err := v1.SHA256(strings.NewReader(s))
 	if err != nil {
 		t.Fatalf("SHA256(%s) = %v", s, err)
 	}
