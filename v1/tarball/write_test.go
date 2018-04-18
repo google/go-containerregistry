@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/google/go-containerregistry/name"
+	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/random"
 )
 
@@ -68,6 +69,9 @@ func TestWrite(t *testing.T) {
 		if diff := cmp.Diff(randManifest, tarManifest); diff != "" {
 			t.Errorf("Manifests not equal. (-rand +tar) %s", diff)
 		}
+
+		assertImageLayersMatchManifestLayers(t, tarImage)
+		assertLayersAreIdentical(t, randImage, tarImage)
 	}
 
 	// Try loading a different tag, it should error.
@@ -78,4 +82,90 @@ func TestWrite(t *testing.T) {
 	if _, err := Image(fp.Name(), &fakeTag); err == nil {
 		t.Errorf("Expected error loading tag %v from image", fakeTag)
 	}
+}
+
+func assertImageLayersMatchManifestLayers(t *testing.T, i v1.Image) {
+	t.Helper()
+
+	layers, err := i.Layers()
+	if err != nil {
+		t.Fatalf("error getting layers: %v", err)
+	}
+
+	digestsFromImage := make([]v1.Hash, len(layers))
+
+	for i, layer := range layers {
+		digest, err := layer.Digest()
+		if err != nil {
+			t.Fatalf("error getting digests: %v", err)
+		}
+		digestsFromImage[len(layers)-i-1] = digest
+	}
+
+	m, err := i.Manifest()
+	if err != nil {
+		t.Fatalf("error getting layers to compare: %v", err)
+	}
+
+	digestsFromManifest := make([]v1.Hash, 0, len(m.Layers))
+	for _, layer := range m.Layers {
+		digestsFromManifest = append(digestsFromManifest, layer.Digest)
+	}
+
+	if diff := cmp.Diff(digestsFromImage, digestsFromManifest); diff != "" {
+		t.Fatalf("image.Layers() are not in the same order as"+
+			"the image.Manifest().Layers (-image +manifest) %s", diff)
+	}
+}
+
+func assertLayersAreIdentical(t *testing.T, a, b v1.Image) {
+	t.Helper()
+
+	aLayers, err := a.Layers()
+	if err != nil {
+		t.Fatalf("error getting layers to compare: %v", err)
+	}
+
+	bLayers, err := b.Layers()
+	if err != nil {
+		t.Fatalf("error getting layers to compare: %v", err)
+	}
+
+	if diff := cmp.Diff(getDigests(t, aLayers), getDigests(t, bLayers)); diff != "" {
+		t.Fatalf("layers digests are not identical (-rand +tar) %s", diff)
+	}
+
+	if diff := cmp.Diff(getDiffIDs(t, aLayers), getDiffIDs(t, bLayers)); diff != "" {
+		t.Fatalf("layers digests are not identical (-rand +tar) %s", diff)
+	}
+}
+
+func getDigests(t *testing.T, layers []v1.Layer) []v1.Hash {
+	t.Helper()
+
+	digests := make([]v1.Hash, 0, len(layers))
+	for _, layer := range layers {
+		digest, err := layer.Digest()
+		if err != nil {
+			t.Fatalf("error getting digests: %s", err)
+		}
+		digests = append(digests, digest)
+	}
+
+	return digests
+}
+
+func getDiffIDs(t *testing.T, layers []v1.Layer) []v1.Hash {
+	t.Helper()
+
+	diffIDs := make([]v1.Hash, 0, len(layers))
+	for _, layer := range layers {
+		diffID, err := layer.DiffID()
+		if err != nil {
+			t.Fatalf("error getting diffID: %s", err)
+		}
+		diffIDs = append(diffIDs, diffID)
+	}
+
+	return diffIDs
 }

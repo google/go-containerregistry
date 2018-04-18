@@ -149,7 +149,8 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 		return nil, err
 	}
 
-	for _, l := range ls {
+	m.Layers = make([]v1.Descriptor, len(ls))
+	for i, l := range ls {
 		sz, err := l.Size()
 		if err != nil {
 			return nil, err
@@ -158,11 +159,12 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 		if err != nil {
 			return nil, err
 		}
-		m.Layers = append(m.Layers, v1.Descriptor{
+
+		m.Layers[len(ls)-1-i] = v1.Descriptor{
 			MediaType: types.DockerLayer,
 			Size:      sz,
 			Digest:    h,
-		})
+		}
 	}
 
 	i.manifest = m

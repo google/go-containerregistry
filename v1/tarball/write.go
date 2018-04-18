@@ -70,13 +70,16 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	if err != nil {
 		return err
 	}
-	layerPaths := []string{}
-	for _, l := range layers {
+	digests := make([]string, len(layers))
+	for i, l := range layers {
 		d, err := l.Digest()
 		if err != nil {
 			return err
 		}
-		layerPaths = append(layerPaths, d.String())
+
+		// v1.Image.Layers() is sorted most recent added layer first
+		// the OCI image spec has the base layer first
+		digests[len(digests)-1-i] = d.String()
 		r, err := l.Compressed()
 		if err != nil {
 			return err
@@ -96,7 +99,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 		singleImageTarDescriptor{
 			Config:   cfgName.String(),
 			RepoTags: []string{tag.String()},
-			Layers:   layerPaths,
+			Layers:   digests,
 		},
 	}
 	tdBytes, err := json.Marshal(td)
