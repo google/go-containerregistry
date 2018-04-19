@@ -4,6 +4,7 @@ load("@io_bazel_rules_docker//go:image.bzl", "go_image")
 go_library(
     name = "go_default_library",
     srcs = [
+        "append.go",
         "delete.go",
         "get.go",
         "main.go",
@@ -16,6 +17,7 @@ go_library(
         "//authn:go_default_library",
         "//name:go_default_library",
         "//v1:go_default_library",
+        "//v1/mutate:go_default_library",
         "//v1/remote:go_default_library",
         "//v1/tarball:go_default_library",
         "//vendor/github.com/google/subcommands:go_default_library",
