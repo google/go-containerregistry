@@ -15,6 +15,8 @@
 package transport
 
 import (
+	"fmt"
+
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -90,12 +92,28 @@ func (bt *bearerTransport) refresh() error {
 		return err
 	}
 
-	// Parse the response into a Bearer authenticator
-	bearer := &authn.Bearer{}
-	if err := json.Unmarshal(content, bearer); err != nil {
+	// Some registries don't have "token" in the response. See #54.
+	type tokenResponse struct {
+		Token       string `json:"token"`
+		AccessToken string `json:"access_token"`
+	}
+
+	var response tokenResponse
+	if err := json.Unmarshal(content, &response); err != nil {
 		return err
 	}
+
+	// Find a token to turn into a Bearer authenticator
+	var bearer authn.Bearer
+	if response.Token != "" {
+		bearer = authn.Bearer{Token: response.Token}
+	} else if response.AccessToken != "" {
+		bearer = authn.Bearer{Token: response.AccessToken}
+	} else {
+		return fmt.Errorf("no token in bearer response")
+	}
+
 	// Replace our old bearer authenticator (if we had one) with our newly refreshed authenticator.
-	bt.bearer = bearer
+	bt.bearer = &bearer
 	return nil
 }

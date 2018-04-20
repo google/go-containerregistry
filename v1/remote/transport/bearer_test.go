@@ -30,39 +30,58 @@ func TestBearerRefresh(t *testing.T) {
 	expectedToken := "Sup3rDup3rS3cr3tz"
 	expectedScope := "this-is-your-scope"
 	expectedService := "my-service.io"
-	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			hdr := r.Header.Get("Authorization")
-			if !strings.HasPrefix(hdr, "Basic ") {
-				t.Errorf("Header.Get(Authorization); got %v, want Basic prefix", hdr)
-			}
-			if got, want := r.FormValue("scope"), expectedScope; got != want {
-				t.Errorf("FormValue(scope); got %v, want %v", got, want)
-			}
-			if got, want := r.FormValue("service"), expectedService; got != want {
-				t.Errorf("FormValue(service); got %v, want %v", got, want)
-			}
-			w.Write([]byte(fmt.Sprintf(`{"token": %q}`, expectedToken)))
-		}))
-	defer server.Close()
 
-	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	registry, err := name.NewRegistry(expectedService, name.WeakValidation)
-	if err != nil {
-		t.Errorf("Unexpected error during NewRegistry: %v", err)
-	}
+	cases := []struct {
+		tokenKey string
+		wantErr  bool
+	}{{
+		tokenKey: "token",
+		wantErr:  false,
+	}, {
+		tokenKey: "access_token",
+		wantErr:  false,
+	}, {
+		tokenKey: "tolkien",
+		wantErr:  true,
+	}}
 
-	bt := &bearerTransport{
-		inner:    http.DefaultTransport,
-		basic:    basic,
-		registry: registry,
-		realm:    server.URL,
-		scope:    expectedScope,
-		service:  expectedService,
-	}
+	for _, tc := range cases {
+		t.Run(tc.tokenKey, func(t *testing.T) {
+			server := httptest.NewServer(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					hdr := r.Header.Get("Authorization")
+					if !strings.HasPrefix(hdr, "Basic ") {
+						t.Errorf("Header.Get(Authorization); got %v, want Basic prefix", hdr)
+					}
+					if got, want := r.FormValue("scope"), expectedScope; got != want {
+						t.Errorf("FormValue(scope); got %v, want %v", got, want)
+					}
+					if got, want := r.FormValue("service"), expectedService; got != want {
+						t.Errorf("FormValue(service); got %v, want %v", got, want)
+					}
+					w.Write([]byte(fmt.Sprintf(`{%q: %q}`, tc.tokenKey, expectedToken)))
+				}))
+			defer server.Close()
 
-	if err := bt.refresh(); err != nil {
-		t.Errorf("refresh() = %v", err)
+			basic := &authn.Basic{Username: "foo", Password: "bar"}
+			registry, err := name.NewRegistry(expectedService, name.WeakValidation)
+			if err != nil {
+				t.Errorf("Unexpected error during NewRegistry: %v", err)
+			}
+
+			bt := &bearerTransport{
+				inner:    http.DefaultTransport,
+				basic:    basic,
+				registry: registry,
+				realm:    server.URL,
+				scope:    expectedScope,
+				service:  expectedService,
+			}
+
+			if err := bt.refresh(); (err != nil) != tc.wantErr {
+				t.Errorf("refresh() = %v", err)
+			}
+		})
 	}
 }
 
