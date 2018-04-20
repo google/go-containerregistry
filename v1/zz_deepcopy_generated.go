@@ -31,8 +31,8 @@ func (in *Config) DeepCopyInto(out *Config) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.End != nil {
-		in, out := &in.End, &out.End
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}

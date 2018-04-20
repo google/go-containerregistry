@@ -111,6 +111,29 @@ func Append(base v1.Image, adds ...Addendum) (v1.Image, error) {
 	return image, nil
 }
 
+func NewFromConfig(base v1.Image, cfg v1.Config) (v1.Image, error) {
+	m, err := base.Manifest()
+	if err != nil {
+		return nil, err
+	}
+
+	cf, err := base.ConfigFile()
+	if err != nil {
+		return nil, err
+	}
+
+	cf.Config = cfg
+
+	image := &image{
+		Image:      base,
+		manifest:   m.DeepCopy(),
+		configFile: cf.DeepCopy(),
+		diffIDMap:  make(map[v1.Hash]v1.Layer),
+		digestMap:  make(map[v1.Hash]v1.Layer),
+	}
+	return image, nil
+}
+
 type image struct {
 	v1.Image
 	configFile *v1.ConfigFile

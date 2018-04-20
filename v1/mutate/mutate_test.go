@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -100,6 +101,33 @@ func TestAppendLayers(t *testing.T) {
 	assertLayerOrderMatchesConfig(t, result)
 	assertLayerOrderMatchesManifest(t, result)
 	assertQueryingForLayerSucceeds(t, result, layers[0])
+}
+
+func TestMutateConfig(t *testing.T) {
+	source := sourceImage(t)
+	cfg, err := source.ConfigFile()
+	if err != nil {
+		t.Fatalf("error getting source config file")
+	}
+
+	newEnv := []string{"foo=bar"}
+	cfg.Config.Env = newEnv
+	result, err := NewFromConfig(source, cfg.Config)
+	if err != nil {
+		t.Fatalf("failed to mutate a config: %v", err)
+	}
+
+	if !manifestsAreEqual(t, source, result) {
+		t.Fatal("mutating the config mutated the manifest")
+	}
+
+	if configFilesAreEqual(t, source, result) {
+		t.Fatal("mutating the config did not mutate the config file")
+	}
+
+	if !reflect.DeepEqual(cfg.Config.Env, newEnv) {
+		t.Fatalf("incorrect environment set %v!=%v", cfg.Config.Env, newEnv)
+	}
 }
 
 func assertQueryingForLayerSucceeds(t *testing.T, image v1.Image, layer v1.Layer) {

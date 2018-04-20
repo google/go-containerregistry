@@ -79,7 +79,7 @@ type Config struct {
 	Cmd             []string
 	Domainname      string
 	Entrypoint      []string
-	End             []string
+	Env             []string
 	Hostname        string
 	Image           string
 	Labels          map[string]string
