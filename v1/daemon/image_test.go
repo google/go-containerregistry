@@ -16,7 +16,6 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"reflect"
@@ -39,7 +38,6 @@ func (m *MockImageSaver) ImageSave(_ context.Context, _ []string) (io.ReadCloser
 
 func init() {
 	getImageSaver = func() (ImageSaver, error) {
-		fmt.Println("mock")
 		return &MockImageSaver{path: imagePath}, nil
 	}
 }
@@ -54,20 +52,27 @@ func TestImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating test name: %s", err)
 	}
-	daemonImage, err := Image(tag)
-	if err != nil {
-		t.Errorf("Error loading daemon image: %s", err)
+
+	runTest := func(buffered bool) {
+		daemonImage, err := Image(tag, &ReadOptions{Buffer: buffered})
+		if err != nil {
+			t.Errorf("Error loading daemon image: %s", err)
+		}
+
+		dmfst, err := daemonImage.Manifest()
+		if err != nil {
+			t.Errorf("Error getting daemon manifest: %s", err)
+		}
+		tmfst, err := testImage.Manifest()
+		if err != nil {
+			t.Errorf("Error getting test manifest: %s", err)
+		}
+		if !reflect.DeepEqual(dmfst, tmfst) {
+			t.Errorf("%v != %v", testImage, daemonImage)
+		}
 	}
 
-	dmfst, err := daemonImage.Manifest()
-	if err != nil {
-		t.Errorf("Error getting daemon manifest: %s", err)
-	}
-	tmfst, err := testImage.Manifest()
-	if err != nil {
-		t.Errorf("Error getting test manifest: %s", err)
-	}
-	if !reflect.DeepEqual(dmfst, tmfst) {
-		t.Errorf("%v != %v", testImage, daemonImage)
-	}
+	runTest(false)
+	runTest(true)
+
 }

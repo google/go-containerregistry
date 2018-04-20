@@ -2,12 +2,6 @@
 
 
 [[projects]]
-<<<<<<< HEAD
-  branch = "master"
-  name = "github.com/golang/glog"
-  packages = ["."]
-  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
-=======
   name = "github.com/Microsoft/go-winio"
   packages = ["."]
   revision = "7da180ee92d8bd8bb8c37fc560e673e6557c392f"
@@ -60,7 +54,12 @@
   packages = ["."]
   revision = "47565b4f722fb6ceae66b95f853feed578a4a51c"
   version = "v0.3.3"
->>>>>>> Initial dep vendor commit.
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/glog"
+  packages = ["."]
+  revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
 
 [[projects]]
   name = "github.com/google/go-cmp"
@@ -80,7 +79,12 @@
   revision = "a3682377147edf596d303faabd89f81977b3f678"
 
 [[projects]]
-<<<<<<< HEAD
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   name = "github.com/spf13/pflag"
   packages = ["."]
   revision = "583c0c0531f06d5278b7d917446061adc344b5cd"
@@ -88,12 +92,30 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "context/ctxhttp",
+    "internal/socks",
+    "proxy"
+  ]
+  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["windows"]
+  revision = "79b0c6888797020a994db17c8510466c72fe75d9"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
-    "imports"
+    "imports",
+    "internal/fastwalk"
   ]
-  revision = "1a83a0b54880dd62aaf82968d7cdd83007ecc60e"
+  revision = "94b14834a20132093826ea5e2da5502a13908ad3"
 
 [[projects]]
   name = "k8s.io/code-generator"
@@ -118,37 +140,10 @@
     "types"
   ]
   revision = "01a732e01d00cb9a81bb0ca050d3e6d2b947927b"
-=======
-  name = "github.com/pkg/errors"
-  packages = ["."]
-  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
-  version = "v0.8.0"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/net"
-  packages = [
-    "context",
-    "context/ctxhttp",
-    "internal/socks",
-    "proxy"
-  ]
-  revision = "d41e8174641f662c5a2d1c7a5f9e828788eb8706"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/sys"
-  packages = ["windows"]
-  revision = "b126b21c05a91c856b027c16779c12e3bf236954"
->>>>>>> Initial dep vendor commit.
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-<<<<<<< HEAD
-  inputs-digest = "0004553fd04cb333a8fc01e5895cfe21388fce7e83a726115537925809e36d6a"
-=======
-  inputs-digest = "f01c90459994c83d96e4203d35fc3167b27a12ec2c58f9103dd8b74897a4b468"
->>>>>>> Initial dep vendor commit.
+  inputs-digest = "954de238cd4402db836aa6ca162d813309f1e477cebb52979829fa6cd9144eb1"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -19,7 +19,6 @@
 #   name = "github.com/x/y"
 #   version = "2.4.0"
 #
-<<<<<<< HEAD
 
 # Used for deep copy code generation
 required = [
@@ -33,18 +32,6 @@ required = [
 [[constraint]]
   name = "github.com/google/go-cmp"
   version = "0.2.0"
-
-[prune]
-  non-go = true
-  go-tests = true
-  unused-packages = true
-=======
-# [prune]
-#   non-go = false
-#   go-tests = true
-#   unused-packages = true
-
->>>>>>> Initial dep vendor commit.
 
 [prune]
   go-tests = true
