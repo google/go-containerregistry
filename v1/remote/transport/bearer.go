@@ -110,7 +110,7 @@ func (bt *bearerTransport) refresh() error {
 	} else if response.AccessToken != "" {
 		bearer = authn.Bearer{Token: response.AccessToken}
 	} else {
-		return fmt.Errorf("no token in bearer response")
+		return fmt.Errorf("no token in bearer response:\n%s", content)
 	}
 
 	// Replace our old bearer authenticator (if we had one) with our newly refreshed authenticator.
