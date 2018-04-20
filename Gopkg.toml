@@ -33,6 +33,12 @@ required = [
   name = "github.com/google/go-cmp"
   version = "0.2.0"
 
+# Use HEAD (2018-04-21) to pick up:
+# https://github.com/spf13/cobra/pull/662
+[[constraint]]
+  name = "github.com/spf13/cobra"
+  revision = "615425954c3b0d9485a7027d4d451fdcdfdee84e"
+
 [prune]
   go-tests = true
   unused-packages = true
