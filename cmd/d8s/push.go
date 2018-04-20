@@ -54,7 +54,7 @@ func (*pushCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 		log.Fatalln(err)
 	}
 
-	i, err := tarball.Image(path, nil)
+	i, err := tarball.ImageFromPath(path, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
