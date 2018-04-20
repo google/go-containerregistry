@@ -15,15 +15,14 @@
 package v1
 
 import (
-	"bytes"
-	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestGoodManifestSimple(t *testing.T) {
-	got, err := ParseManifest(ioutil.NopCloser(bytes.NewBufferString((`{}`))))
+	got, err := ParseManifest(strings.NewReader(`{}`))
 	if err != nil {
 		t.Errorf("Unexpected error parsing manifest: %v", err)
 	}
@@ -35,11 +34,11 @@ func TestGoodManifestSimple(t *testing.T) {
 }
 
 func TestGoodManifestWithHash(t *testing.T) {
-	good, err := ParseManifest(ioutil.NopCloser(bytes.NewBufferString((`{
+	good, err := ParseManifest(strings.NewReader(`{
   "config": {
     "digest": "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
   }
-}`))))
+}`))
 	if err != nil {
 		t.Errorf("Unexpected error parsing manifest: %v", err)
 	}
@@ -50,11 +49,11 @@ func TestGoodManifestWithHash(t *testing.T) {
 }
 
 func TestManifestWithBadHash(t *testing.T) {
-	bad, err := ParseManifest(ioutil.NopCloser(bytes.NewBufferString((`{
+	bad, err := ParseManifest(strings.NewReader(`{
   "config": {
     "digest": "sha256:deadbeed"
   }
-}`))))
+}`))
 	if err == nil {
 		t.Errorf("Expected error parsing manifest, but got: %v", bad)
 	}

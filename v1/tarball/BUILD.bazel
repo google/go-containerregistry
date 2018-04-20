@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "doc.go",
         "image.go",
+        "layer.go",
         "write.go",
     ],
     importpath = "github.com/google/go-containerregistry/v1/tarball",
@@ -22,12 +23,14 @@ go_test(
     name = "go_default_test",
     srcs = [
         "image_test.go",
+        "layer_test.go",
         "write_test.go",
     ],
     data = glob(["testdata/**"]) + [
         ":test_image_1.tar",  # keep
         ":test_image_2.tar",  # keep
         ":test_bundle.tar",  # keep
+        ":content.tar",  # keep
     ],
     embed = [":go_default_library"],
     deps = [
@@ -65,4 +68,17 @@ container_bundle(
         "test_image_1": ":test_image_1",
         "test_image_2": ":test_image_2",
     },
+)
+
+load(
+    "@bazel_tools//tools/build_defs/pkg:pkg.bzl",
+    "pkg_tar",
+)
+
+pkg_tar(
+    name = "content",
+    srcs = [
+        "testdata/bat/bat",
+        "testdata/baz",
+    ],
 )

@@ -9,6 +9,7 @@ go_library(
         "image.go",
         "layer.go",
         "manifest.go",
+        "zz_deepcopy_generated.go",
     ],
     importpath = "github.com/google/go-containerregistry/v1",
     visibility = ["//visibility:public"],
