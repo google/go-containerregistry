@@ -99,7 +99,7 @@ func assertImageLayersMatchManifestLayers(t *testing.T, i v1.Image) {
 		if err != nil {
 			t.Fatalf("error getting digests: %v", err)
 		}
-		digestsFromImage[len(layers)-i-1] = digest
+		digestsFromImage[i] = digest
 	}
 
 	m, err := i.Manifest()
@@ -113,7 +113,7 @@ func assertImageLayersMatchManifestLayers(t *testing.T, i v1.Image) {
 	}
 
 	if diff := cmp.Diff(digestsFromImage, digestsFromManifest); diff != "" {
-		t.Fatalf("image.Layers() are not in the same order as"+
+		t.Fatalf("image.Layers() are not in the same order as "+
 			"the image.Manifest().Layers (-image +manifest) %s", diff)
 	}
 }

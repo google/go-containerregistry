@@ -189,7 +189,7 @@ func FSLayers(i WithManifest) ([]v1.Hash, error) {
 	}
 	fsl := make([]v1.Hash, len(m.Layers))
 	for i, l := range m.Layers {
-		fsl[len(fsl)-i-1] = l.Digest
+		fsl[i] = l.Digest
 	}
 	return fsl, nil
 }

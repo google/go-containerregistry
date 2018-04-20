@@ -77,9 +77,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 			return err
 		}
 
-		// v1.Image.Layers() is sorted most recent added layer first
-		// the OCI image spec has the base layer first
-		digests[len(digests)-1-i] = d.String()
+		digests[i] = d.String()
 		r, err := l.Compressed()
 		if err != nil {
 			return err
