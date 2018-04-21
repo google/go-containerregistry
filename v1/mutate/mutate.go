@@ -111,7 +111,8 @@ func Append(base v1.Image, adds ...Addendum) (v1.Image, error) {
 	return image, nil
 }
 
-func NewFromConfig(base v1.Image, cfg v1.Config) (v1.Image, error) {
+// Config mutates the provided v1.Image to have the provided v1.Config
+func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 	m, err := base.Manifest()
 	if err != nil {
 		return nil, err
