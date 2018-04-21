@@ -132,6 +132,10 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 		diffIDMap:  make(map[v1.Hash]v1.Layer),
 		digestMap:  make(map[v1.Hash]v1.Layer),
 	}
+	image.manifest.Config.Digest, err = image.ConfigName()
+	if err != nil {
+		return nil, err
+	}
 	return image, nil
 }
 
@@ -199,6 +203,11 @@ func (i *image) RawManifest() ([]byte, error) {
 // LayerByDigest returns a Layer for interacting with a particular layer of
 // the image, looking it up by "digest" (the compressed hash).
 func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
+	if cn, err := i.ConfigName(); err != nil {
+		return nil, err
+	} else if h == cn {
+		return partial.ConfigLayer(i)
+	}
 	if layer, ok := i.digestMap[h]; ok {
 		return layer, nil
 	}
