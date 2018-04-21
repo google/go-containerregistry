@@ -3,7 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "append.go",
+        "mutate.go",
     ],
     importpath = "github.com/google/go-containerregistry/v1/mutate",
     visibility = ["//visibility:public"],
@@ -11,15 +11,13 @@ go_library(
         "//v1:go_default_library",
         "//v1/partial:go_default_library",
         "//v1/types:go_default_library",
-        "//v1/v1util:go_default_library",
-        "//vendor/github.com/google/go-cmp/cmp:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
     srcs = [
-        "append_test.go",
+        "mutate_test.go",
     ],
     data = glob(["testdata/**"]) + [
         ":source_image.tar",  # keep
@@ -28,6 +26,7 @@ go_test(
     deps = [
         "//v1:go_default_library",
         "//v1/tarball:go_default_library",
+        "//vendor/github.com/google/go-cmp/cmp:go_default_library",
     ],
 )
 
