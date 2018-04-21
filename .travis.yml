@@ -32,7 +32,7 @@ script:
   - buildifier -mode=check $(find . -name WORKSPACE -type f)
 
   # Verify that all source files are correctly formatted.
-  - gofmt -d -e -l .
+  - find . -name "*.go" | grep -v vendor/ | xargs gofmt -d -e -l
 
   - go clean -i
   - go build -a -v -race ./...

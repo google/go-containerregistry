@@ -52,7 +52,7 @@ func TestWrite(t *testing.T) {
 	// Make sure the image is valid and can be loaded.
 	// Load it both by nil and by its name.
 	for _, it := range []*name.Tag{nil, &tag} {
-		tarImage, err := Image(fp.Name(), it)
+		tarImage, err := ImageFromPath(fp.Name(), it)
 		if err != nil {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
 		}
@@ -79,7 +79,7 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error generating tag: %v", err)
 	}
-	if _, err := Image(fp.Name(), &fakeTag); err == nil {
+	if _, err := ImageFromPath(fp.Name(), &fakeTag); err == nil {
 		t.Errorf("Expected error loading tag %v from image", fakeTag)
 	}
 }

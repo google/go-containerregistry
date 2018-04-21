@@ -166,7 +166,7 @@ func assertQueryingForLayerSucceeds(t *testing.T, image v1.Image, layer v1.Layer
 func sourceImage(t *testing.T) v1.Image {
 	t.Helper()
 
-	image, err := tarball.Image("source_image.tar", nil)
+	image, err := tarball.ImageFromPath("source_image.tar", nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}

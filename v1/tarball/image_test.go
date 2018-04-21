@@ -21,7 +21,7 @@ import (
 )
 
 func TestManifestAndConfig(t *testing.T) {
-	img, err := Image("test_image_1.tar", nil)
+	img, err := ImageFromPath("test_image_1.tar", nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}
@@ -43,14 +43,14 @@ func TestManifestAndConfig(t *testing.T) {
 }
 
 func TestNoManifest(t *testing.T) {
-	img, err := Image("testdata/no_manifest.tar", nil)
+	img, err := ImageFromPath("testdata/no_manifest.tar", nil)
 	if err == nil {
 		t.Fatalf("Error expected loading image: %v", img)
 	}
 }
 
 func TestBundleSingle(t *testing.T) {
-	img, err := Image("test_bundle.tar", nil)
+	img, err := ImageFromPath("test_bundle.tar", nil)
 	if err == nil {
 		t.Fatalf("Error expected loading image: %v", img)
 	}
@@ -69,7 +69,7 @@ func TestBundleMultiple(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error creating tag: %v", err)
 			}
-			img, err := Image("test_bundle.tar", &tag)
+			img, err := ImageFromPath("test_bundle.tar", &tag)
 			if err != nil {
 				t.Fatalf("Error loading image: %v", err)
 			}
