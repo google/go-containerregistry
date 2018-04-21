@@ -47,19 +47,19 @@ func (*pushCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf("Pulling %v", t)
+	log.Printf("Pushing %v", t)
 
 	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	i, err := remote.Image(t, auth, http.DefaultTransport)
+	i, err := tarball.Image(path, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if err := tarball.Write(path, t, i, &tarball.WriteOptions{}); err != nil {
+	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
 		log.Fatalln(err)
 	}
 	return subcommands.ExitSuccess
