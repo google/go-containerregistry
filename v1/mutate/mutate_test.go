@@ -112,7 +112,7 @@ func TestMutateConfig(t *testing.T) {
 
 	newEnv := []string{"foo=bar"}
 	cfg.Config.Env = newEnv
-	result, err := NewFromConfig(source, cfg.Config)
+	result, err := Config(source, cfg.Config)
 	if err != nil {
 		t.Fatalf("failed to mutate a config: %v", err)
 	}
