@@ -117,8 +117,8 @@ func TestMutateConfig(t *testing.T) {
 		t.Fatalf("failed to mutate a config: %v", err)
 	}
 
-	if !manifestsAreEqual(t, source, result) {
-		t.Fatal("mutating the config mutated the manifest")
+	if manifestsAreEqual(t, source, result) {
+		t.Fatal("mutating the config MUST mutate the manifest")
 	}
 
 	if configFilesAreEqual(t, source, result) {
