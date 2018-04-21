@@ -160,7 +160,7 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 			return nil, err
 		}
 
-		m.Layers[len(ls)-1-i] = v1.Descriptor{
+		m.Layers[i] = v1.Descriptor{
 			MediaType: types.DockerLayer,
 			Size:      sz,
 			Digest:    h,
