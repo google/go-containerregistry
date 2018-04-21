@@ -2,4 +2,4 @@
 # Linguist-specific attributes are documented at
 # https://github.com/github/linguist.
 
-**/zz_generated_*.go linguist-generated=true
+**/zz_deepcopy_generated.go linguist-generated=true
