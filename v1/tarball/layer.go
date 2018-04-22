@@ -106,7 +106,7 @@ func LayerFromOpener(opener Opener) (v1.Layer, error) {
 func computeDigest(opener Opener, compressed bool) (v1.Hash, int64, error) {
 	rc, err := opener()
 	if err != nil {
-		return nil, err
+		return v1.Hash{}, 0, err
 	}
 	defer rc.Close()
 	
@@ -125,7 +125,7 @@ func computeDigest(opener Opener, compressed bool) (v1.Hash, int64, error) {
 func computeDiffID(opener Opener, compressed bool) (v1.Hash, error) {
 	rc, err := opener()
 	if err != nil {
-		return nil, err
+		return v1.Hash{}, err
 	}
 	defer rc.Close()
 
