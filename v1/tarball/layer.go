@@ -111,10 +111,10 @@ func computeDigest(opener Opener, compressed bool) (v1.Hash, int64, error) {
 	defer rc.Close()
 	
 	if compressed {
-		return v1.SHA256(r)
+		return v1.SHA256(rc)
 	}
 
-	reader, err := v1util.GzipReadCloser(ioutil.NopCloser(r))
+	reader, err := v1util.GzipReadCloser(ioutil.NopCloser(rc))
 	if err != nil {
 		return v1.Hash{}, 0, err
 	}
@@ -130,11 +130,11 @@ func computeDiffID(opener Opener, compressed bool) (v1.Hash, error) {
 	defer rc.Close()
 
 	if !compressed {
-		digest, _, err := v1.SHA256(r)
+		digest, _, err := v1.SHA256(rc)
 		return digest, err
 	}
 
-	reader, err := gzip.NewReader(r)
+	reader, err := gzip.NewReader(rc)
 	if err != nil {
 		return v1.Hash{}, err
 	}
