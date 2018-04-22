@@ -76,7 +76,6 @@ func LayerFromOpener(opener Opener) (v1.Layer, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	defer rc.Close()
 
 	compressed, err := v1util.IsGzipped(rc)
@@ -84,20 +83,13 @@ func LayerFromOpener(opener Opener) (v1.Layer, error) {
 		return nil, err
 	}
 
-	if rc, err = opener(); err != nil {
-		return nil, err
-	}
 	var digest v1.Hash
 	var size int64
-	if digest, size, err = computeDigest(rc, compressed); err != nil {
+	if digest, size, err = computeDigest(opener, compressed); err != nil {
 		return nil, err
 	}
 
-	if rc, err = opener(); err != nil {
-		return nil, err
-	}
-
-	diffID, err := computeDiffID(rc, compressed)
+	diffID, err := computeDiffID(opener, compressed)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +103,13 @@ func LayerFromOpener(opener Opener) (v1.Layer, error) {
 	}, nil
 }
 
-func computeDigest(r io.Reader, compressed bool) (v1.Hash, int64, error) {
+func computeDigest(opener Opener, compressed bool) (v1.Hash, int64, error) {
+	rc, err := opener()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+	
 	if compressed {
 		return v1.SHA256(r)
 	}
@@ -124,7 +122,13 @@ func computeDigest(r io.Reader, compressed bool) (v1.Hash, int64, error) {
 	return v1.SHA256(reader)
 }
 
-func computeDiffID(r io.Reader, compressed bool) (v1.Hash, error) {
+func computeDiffID(opener Opener, compressed bool) (v1.Hash, error) {
+	rc, err := opener()
+	if err != nil {
+		return nil, err
+	}
+	defer rc.Close()
+
 	if !compressed {
 		digest, _, err := v1.SHA256(r)
 		return digest, err
