@@ -27,6 +27,8 @@ go_test(
         "write_test.go",
     ],
     data = glob(["testdata/**"]) + [
+        ":whiteout_image.tar",
+        ":overwritten_file.tar",
         ":test_image_1.tar",  # keep
         ":test_image_2.tar",  # keep
         ":test_bundle.tar",  # keep
@@ -45,6 +47,51 @@ load(
     "@io_bazel_rules_docker//container:container.bzl",
     "container_image",
     "container_bundle",
+    "container_layer",
+)
+
+container_layer(
+    name = "base_layer",
+    files = [
+        "testdata/whiteout/foo.txt",
+        "testdata/whiteout/bar.txt",
+    ],
+)
+
+container_layer(
+    name = "whiteout_layer",
+    files = [
+        "testdata/whiteout/.wh.foo.txt"
+    ],
+)
+
+container_image(
+    name = "whiteout_image",
+    layers = [
+        ":base_layer",
+        ":whiteout_layer",
+    ],
+)
+
+container_layer(
+    name = "unmodified_foo",
+    files = [
+        "testdata/whiteout/foo.txt",
+    ],
+)
+
+container_layer(
+    name = "symlinked_foo",
+    files = ["testdata/whiteout/bar.txt"],
+    symlinks = {"foo.txt": "bar.txt"},
+)
+
+container_image(
+    name = "overwritten_file",
+    layers = [
+        ":unmodified_foo",
+        ":symlinked_foo",
+    ],
 )
 
 container_image(

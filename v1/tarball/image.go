@@ -34,7 +34,7 @@ import (
 	"github.com/google/go-containerregistry/v1/v1util"
 )
 
-const whiteoutPrefix string = ".wh."
+const whiteoutPrefix = ".wh."
 
 type image struct {
 	opener        Opener
@@ -192,7 +192,7 @@ func Flatten(img v1.Image, tarFilePath string) error {
 	tarWriter := tar.NewWriter(tarFile)
 	defer tarWriter.Close()
 
-	fileMap := make(map[string]bool, 0)
+	fileMap := map[string]bool{}
 
 	layers, err := img.Layers()
 	if err != nil {
@@ -241,7 +241,9 @@ func Flatten(img v1.Image, tarFilePath string) error {
 			if !tombstone {
 				tarWriter.WriteHeader(header)
 				if header.Size > 0 {
-					io.Copy(tarWriter, tarReader)
+					if _, err := io.Copy(tarWriter, tarReader); err != nil {
+						return err
+					}
 				}
 			}
 		}
