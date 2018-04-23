@@ -16,6 +16,7 @@ package tarball
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -23,6 +24,8 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/google/go-containerregistry/name"
@@ -31,6 +34,8 @@ import (
 	"github.com/google/go-containerregistry/v1/types"
 	"github.com/google/go-containerregistry/v1/v1util"
 )
+
+const whiteoutPrefix string = ".wh."
 
 type image struct {
 	opener        Opener
@@ -175,6 +180,89 @@ func (i *image) loadTarDescriptorAndConfig() error {
 
 func (i *image) RawConfigFile() ([]byte, error) {
 	return i.config, nil
+}
+
+// Flatten takes an image and flattens its layers into a single tarball at the specified path
+func Flatten(img v1.Image, tarFilePath string) error {
+	tarFile, err := os.Create(tarFilePath)
+	if err != nil {
+		return fmt.Errorf("Error creating tar file: %v", err)
+	}
+	defer tarFile.Close()
+	fileWriter := bufio.NewWriter(tarFile)
+	defer fileWriter.Flush()
+	tarWriter := tar.NewWriter(fileWriter)
+	defer tarWriter.Close()
+
+	fileMap := make(map[string]bool, 0)
+
+	layers, err := img.Layers()
+	if err != nil {
+		return fmt.Errorf("Error retriving image layers: %v", err)
+	}
+	for i := len(layers) - 1; i >= 0; i-- {
+		layer := layers[i]
+		layerReader, err := layer.Uncompressed()
+		if err != nil {
+			return fmt.Errorf("Error reading layer contents: %v", err)
+		}
+		tarReader := tar.NewReader(layerReader)
+		for {
+			header, err := tarReader.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("Error reading tar: %v", err)
+			}
+
+			basename := filepath.Base(header.Name)
+			dirname := filepath.Dir(header.Name)
+			tombstone := strings.HasPrefix(basename, whiteoutPrefix)
+			if tombstone {
+				basename = basename[len(whiteoutPrefix):]
+			}
+
+			// check if we have seen value before
+			name := filepath.Join(dirname, basename)
+			if _, ok := fileMap[name]; ok {
+				continue
+			}
+
+			// check for a whited out parent directory
+			if inWhiteoutDir(fileMap, name) {
+				continue
+			}
+
+			// mark file as handled. non-directory implicitly tombstones
+			// any entries with a matching (or child) name
+			fileMap[name] = tombstone || !(header.Typeflag == tar.TypeDir)
+			if !tombstone {
+				buf := make([]byte, header.Size)
+				tarReader.Read(buf)
+				tarWriter.WriteHeader(header)
+				tarWriter.Write(buf)
+			}
+		}
+	}
+	return nil
+}
+
+func inWhiteoutDir(fileMap map[string]bool, file string) bool {
+	for {
+		if file == "" {
+			break
+		}
+		dirname := filepath.Dir(file)
+		if file == dirname {
+			break
+		}
+		if val, ok := fileMap[dirname]; ok && val {
+			return true
+		}
+		file = dirname
+	}
+	return false
 }
 
 // tarFile represents a single file inside a tar. Closing it closes the tar itself.

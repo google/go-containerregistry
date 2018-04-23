@@ -15,10 +15,47 @@
 package tarball
 
 import (
+	"archive/tar"
+	"bufio"
+	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-containerregistry/name"
 )
+
+func TestFlatten(t *testing.T) {
+	img, err := ImageFromPath("testdata/whiteout.tar", nil)
+	if err != nil {
+		t.Errorf("Error loading image: %v", err)
+	}
+	tarPath, _ := filepath.Abs("img.tar")
+	defer os.Remove(tarPath)
+	if err := Flatten(img, tarPath); err != nil {
+		t.Errorf("Error when flattening image: %v", err)
+	}
+	f, err := os.Open(tarPath)
+	if err != nil {
+		t.Errorf("Error when opening tar file for reading: %v", err)
+	}
+	r := bufio.NewReader(f)
+	tr := tar.NewReader(r)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		name := header.Name
+		// this image was built by creating a directory called "foo",
+		// touching "/foo/bar", and then removing the whole directory.
+		for _, part := range filepath.SplitList(name) {
+			if part == "foo" || part == "bar" {
+				t.Errorf("whiteout file found in tar: %v", name)
+			}
+		}
+	}
+}
 
 func TestManifestAndConfig(t *testing.T) {
 	img, err := ImageFromPath("test_image_1.tar", nil)
