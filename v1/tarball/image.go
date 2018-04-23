@@ -16,7 +16,6 @@ package tarball
 
 import (
 	"archive/tar"
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -183,23 +182,25 @@ func (i *image) RawConfigFile() ([]byte, error) {
 }
 
 // Flatten takes an image and flattens its layers into a single tarball at the specified path
+// Adapted from https://github.com/google/containerregistry/blob/master/client/v2_2/docker_image_.py#L731
 func Flatten(img v1.Image, tarFilePath string) error {
 	tarFile, err := os.Create(tarFilePath)
 	if err != nil {
 		return fmt.Errorf("Error creating tar file: %v", err)
 	}
 	defer tarFile.Close()
-	fileWriter := bufio.NewWriter(tarFile)
-	defer fileWriter.Flush()
-	tarWriter := tar.NewWriter(fileWriter)
+	tarWriter := tar.NewWriter(tarFile)
 	defer tarWriter.Close()
 
 	fileMap := make(map[string]bool, 0)
 
 	layers, err := img.Layers()
 	if err != nil {
-		return fmt.Errorf("Error retriving image layers: %v", err)
+		return fmt.Errorf("Error retrieving image layers: %v", err)
 	}
+	// we iterate through the layers in reverse order because it makes handling
+	// whiteout layers more efficient, since we can just keep track of the removed
+	// files as we see .wh. layers and ignore those in previous layers.
 	for i := len(layers) - 1; i >= 0; i-- {
 		layer := layers[i]
 		layerReader, err := layer.Uncompressed()
@@ -230,7 +231,7 @@ func Flatten(img v1.Image, tarFilePath string) error {
 			}
 
 			// check for a whited out parent directory
-			if inWhiteoutDir(fileMap, name) {
+			if InWhiteoutDir(fileMap, name) {
 				continue
 			}
 
@@ -238,17 +239,17 @@ func Flatten(img v1.Image, tarFilePath string) error {
 			// any entries with a matching (or child) name
 			fileMap[name] = tombstone || !(header.Typeflag == tar.TypeDir)
 			if !tombstone {
-				buf := make([]byte, header.Size)
-				tarReader.Read(buf)
 				tarWriter.WriteHeader(header)
-				tarWriter.Write(buf)
+				if header.Size > 0 {
+					io.Copy(tarWriter, tarReader)
+				}
 			}
 		}
 	}
 	return nil
 }
 
-func inWhiteoutDir(fileMap map[string]bool, file string) bool {
+func InWhiteoutDir(fileMap map[string]bool, file string) bool {
 	for {
 		if file == "" {
 			break

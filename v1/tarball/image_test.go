@@ -16,7 +16,6 @@ package tarball
 
 import (
 	"archive/tar"
-	"bufio"
 	"io"
 	"os"
 	"path/filepath"
@@ -39,8 +38,7 @@ func TestFlatten(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error when opening tar file for reading: %v", err)
 	}
-	r := bufio.NewReader(f)
-	tr := tar.NewReader(r)
+	tr := tar.NewReader(f)
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -53,6 +51,30 @@ func TestFlatten(t *testing.T) {
 			if part == "foo" || part == "bar" {
 				t.Errorf("whiteout file found in tar: %v", name)
 			}
+		}
+	}
+}
+
+func TestWhiteoutDir(t *testing.T) {
+	fsMap := map[string]bool{
+		"baz":      true,
+		"red/blue": true,
+	}
+	var tests = []struct {
+		path     string
+		whiteout bool
+	}{
+		{"usr/bin", false},
+		{"baz/foo.txt", true},
+		{"baz/bar/foo.txt", true},
+		{"red/green", false},
+		{"red/yellow.txt", false},
+	}
+
+	for _, tt := range tests {
+		whiteout := InWhiteoutDir(fsMap, tt.path)
+		if whiteout != tt.whiteout {
+			t.Errorf("Whiteout %s: expected %v, but got %v", tt.path, tt.whiteout, whiteout)
 		}
 	}
 }
