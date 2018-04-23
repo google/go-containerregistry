@@ -59,33 +59,33 @@ func (a *appendCmd) Execute(
 
 	srcRef, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
 
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	dstTag, err := name.NewTag(dst, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	layer, err := tarball.LayerFromFile(tar)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	image, err := mutate.AppendLayers(srcImage, layer)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	if a.outputFile != "" {
@@ -105,16 +105,16 @@ func (a *appendCmd) Execute(
 func writeRemote(ref name.Reference, i v1.Image, opts remote.WriteOptions) {
 	dstAuth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	if err := remote.Write(ref, i, dstAuth, http.DefaultTransport, opts); err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 }
 
 func writeTarball(file string, tag name.Tag, i v1.Image) {
 	if err := tarball.Write(file, tag, i, &tarball.WriteOptions{}); err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 }

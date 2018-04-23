@@ -55,11 +55,11 @@ func (*configCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}
 
 	i, err := getImage(f.Args()[0])
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	config, err := i.RawConfigFile()
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	fmt.Println(string(config))
 	return subcommands.ExitSuccess
@@ -79,11 +79,11 @@ func (*digestCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}
 
 	i, err := getImage(f.Args()[0])
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	digest, err := i.Digest()
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	fmt.Println(digest.String())
 	return subcommands.ExitSuccess
@@ -103,11 +103,11 @@ func (*manifestCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface
 
 	i, err := getImage(f.Args()[0])
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	manifest, err := i.RawManifest()
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	fmt.Println(string(manifest))
 	return subcommands.ExitSuccess
