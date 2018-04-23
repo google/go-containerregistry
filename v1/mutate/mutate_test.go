@@ -61,7 +61,7 @@ func TestAppendWithHistory(t *testing.T) {
 
 	layers := getLayers(t, result)
 
-	if diff := cmp.Diff(layers[0], mockLayer{}); diff != "" {
+	if diff := cmp.Diff(layers[1], mockLayer{}); diff != "" {
 		t.Fatalf("correct layer was not appended (-got, +want) %v", diff)
 	}
 
@@ -94,13 +94,13 @@ func TestAppendLayers(t *testing.T) {
 			"- got size %d; expected 2", len(layers))
 	}
 
-	if diff := cmp.Diff(layers[0], mockLayer{}); diff != "" {
+	if diff := cmp.Diff(layers[1], mockLayer{}); diff != "" {
 		t.Fatalf("correct layer was not appended (-got, +want) %v", diff)
 	}
 
 	assertLayerOrderMatchesConfig(t, result)
 	assertLayerOrderMatchesManifest(t, result)
-	assertQueryingForLayerSucceeds(t, result, layers[0])
+	assertQueryingForLayerSucceeds(t, result, layers[1])
 }
 
 func TestMutateConfig(t *testing.T) {
@@ -241,11 +241,9 @@ func assertLayerOrderMatchesConfig(t *testing.T, i v1.Image) {
 			t.Fatalf("Unable to fetch layer diff id: %v", err)
 		}
 
-		diffIDIndex := len(layers) - 1 - i
-
-		if got, want := diffID, cf.RootFS.DiffIDs[diffIDIndex]; got != want {
+		if got, want := diffID, cf.RootFS.DiffIDs[i]; got != want {
 			t.Fatalf("Layer diff id (%v) is not at the expected index (%d) in %+v",
-				got, diffIDIndex, cf.RootFS.DiffIDs)
+				got, i, cf.RootFS.DiffIDs)
 		}
 	}
 }
@@ -267,11 +265,9 @@ func assertLayerOrderMatchesManifest(t *testing.T, i v1.Image) {
 			t.Fatalf("Unable to fetch layer diff id: %v", err)
 		}
 
-		digestIndex := len(layers) - 1 - i
-
-		if got, want := digest, mf.Layers[digestIndex].Digest; got != want {
+		if got, want := digest, mf.Layers[i].Digest; got != want {
 			t.Fatalf("Layer digest (%v) is not at the expected index (%d) in %+v",
-				got, digestIndex, mf.Layers)
+				got, i, mf.Layers)
 		}
 	}
 }
