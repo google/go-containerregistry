@@ -148,7 +148,7 @@ type image struct {
 }
 
 // Layers returns the ordered collection of filesystem layers that comprise this image.
-// The order of the list is most-recent first, and oldest base layer last.
+// The order of the list is oldest/base layer first, and most-recent/top layer last.
 func (i *image) Layers() ([]v1.Layer, error) {
 	diffIDs, err := partial.DiffIDs(i)
 	if err != nil {
