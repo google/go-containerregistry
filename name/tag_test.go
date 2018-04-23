@@ -32,6 +32,7 @@ var goodWeakValidationTagNames = []string{
 	"namespace/pathcomponent/image",
 	"library/ubuntu",
 	"gcr.io/project-id/implicit-latest",
+	"www.example.test:12345/repo/path",
 }
 
 var badTagNames = []string{
