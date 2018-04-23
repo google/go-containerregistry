@@ -53,11 +53,7 @@ func Write(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	if err != nil {
 		return err
 	}
-	cfg, err := img.ConfigFile()
-	if err != nil {
-		return err
-	}
-	cfgBlob, err := json.Marshal(cfg)
+	cfgBlob, err := img.RawConfigFile()
 	if err != nil {
 		return err
 	}
