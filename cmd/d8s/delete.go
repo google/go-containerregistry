@@ -41,16 +41,16 @@ func (*deleteCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}
 
 	r, err := name.ParseReference(ref, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	auth, err := authn.DefaultKeychain.Resolve(r.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	if err := remote.Delete(r, auth, http.DefaultTransport, remote.DeleteOptions{}); err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	return subcommands.ExitSuccess
 }

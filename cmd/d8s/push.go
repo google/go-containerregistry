@@ -45,22 +45,22 @@ func (*pushCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 	path, tag := f.Args()[0], f.Args()[1]
 	t, err := name.NewTag(tag, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	log.Printf("Pushing %v", t)
 
 	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	i, err := tarball.ImageFromPath(path, nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 
 	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
-		log.Fatalln(err)
+		log.Panicln(err)
 	}
 	return subcommands.ExitSuccess
 }
