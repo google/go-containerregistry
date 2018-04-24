@@ -15,13 +15,22 @@
 package mutate
 
 import (
+	"archive/tar"
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
+	"path/filepath"
+	"strings"
 
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/partial"
 	"github.com/google/go-containerregistry/v1/types"
 )
+
+const whiteoutPrefix = ".wh."
 
 // Addendum contains layers and history to be appended
 // to a base image
@@ -230,4 +239,89 @@ func validate(adds []Addendum) error {
 		}
 	}
 	return nil
+}
+
+// Extract takes an image, flattens its filesystem and returns
+// an io.Reader to read the contents of the final fs
+// Adapted from https://github.com/google/containerregistry/blob/master/client/v2_2/docker_image_.py#L731
+func Extract(img v1.Image) (io.Reader, error) {
+	var b bytes.Buffer
+	writer := bufio.NewWriter(&b)
+	tarWriter := tar.NewWriter(writer)
+	defer tarWriter.Close()
+
+	fileMap := map[string]bool{}
+
+	layers, err := img.Layers()
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving image layers: %v", err)
+	}
+	// we iterate through the layers in reverse order because it makes handling
+	// whiteout layers more efficient, since we can just keep track of the removed
+	// files as we see .wh. layers and ignore those in previous layers.
+	for i := len(layers) - 1; i >= 0; i-- {
+		layer := layers[i]
+		layerReader, err := layer.Uncompressed()
+		if err != nil {
+			return nil, fmt.Errorf("Error reading layer contents: %v", err)
+		}
+		tarReader := tar.NewReader(layerReader)
+		for {
+			header, err := tarReader.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil, fmt.Errorf("Error reading tar: %v", err)
+			}
+
+			basename := filepath.Base(header.Name)
+			dirname := filepath.Dir(header.Name)
+			tombstone := strings.HasPrefix(basename, whiteoutPrefix)
+			if tombstone {
+				basename = basename[len(whiteoutPrefix):]
+			}
+
+			// check if we have seen value before
+			name := filepath.Join(dirname, basename)
+			if _, ok := fileMap[name]; ok {
+				continue
+			}
+
+			// check for a whited out parent directory
+			if InWhiteoutDir(fileMap, name) {
+				continue
+			}
+
+			// mark file as handled. non-directory implicitly tombstones
+			// any entries with a matching (or child) name
+			fileMap[name] = tombstone || !(header.Typeflag == tar.TypeDir)
+			if !tombstone {
+				tarWriter.WriteHeader(header)
+				if header.Size > 0 {
+					if _, err := io.Copy(tarWriter, tarReader); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+	}
+	return tar.NewReader(&b), nil
+}
+
+func InWhiteoutDir(fileMap map[string]bool, file string) bool {
+	for {
+		if file == "" {
+			break
+		}
+		dirname := filepath.Dir(file)
+		if file == dirname {
+			break
+		}
+		if val, ok := fileMap[dirname]; ok && val {
+			return true
+		}
+		file = dirname
+	}
+	return false
 }
