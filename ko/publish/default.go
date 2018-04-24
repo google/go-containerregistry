@@ -25,7 +25,7 @@ import (
 	"github.com/google/go-containerregistry/v1/remote"
 )
 
-// defalt is intentionally mispelled to avoid keyword collision (and drive Jon nuts).
+// defalt is intentionally misspelled to avoid keyword collision (and drive Jon nuts).
 type defalt struct {
 	base name.Repository
 	t    http.RoundTripper
