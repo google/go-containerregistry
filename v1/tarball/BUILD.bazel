@@ -53,15 +53,15 @@ load(
 container_layer(
     name = "base_layer",
     files = [
-        "testdata/whiteout/foo.txt",
         "testdata/whiteout/bar.txt",
+        "testdata/whiteout/foo.txt",
     ],
 )
 
 container_layer(
     name = "whiteout_layer",
     files = [
-        "testdata/whiteout/.wh.foo.txt"
+        "testdata/whiteout/.wh.foo.txt",
     ],
 )
 

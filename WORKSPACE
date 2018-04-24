@@ -22,8 +22,8 @@ gazelle_dependencies()
 
 git_repository(
     name = "io_bazel_rules_docker",
-    remote = "https://github.com/bazelbuild/rules_docker.git",
     commit = "4d8ec6570a5313fb0128e2354f2bc4323685282a",
+    remote = "https://github.com/bazelbuild/rules_docker.git",
 )
 
 load(
