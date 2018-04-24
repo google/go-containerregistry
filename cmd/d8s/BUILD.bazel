@@ -5,6 +5,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "append.go",
+        "copy.go",
         "delete.go",
         "get.go",
         "main.go",

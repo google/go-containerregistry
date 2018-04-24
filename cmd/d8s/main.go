@@ -27,6 +27,7 @@ func main() {
 	subcommands.Register(subcommands.FlagsCommand(), "")
 	subcommands.Register(subcommands.CommandsCommand(), "")
 	subcommands.Register(&configCmd{}, "")
+	subcommands.Register(&copyCmd{}, "")
 	subcommands.Register(&deleteCmd{}, "")
 	subcommands.Register(&digestCmd{}, "")
 	subcommands.Register(&manifestCmd{}, "")
