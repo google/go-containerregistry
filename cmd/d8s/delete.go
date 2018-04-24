@@ -30,7 +30,7 @@ func init() {
 	deleteCmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete an image reference from its registry",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(*cobra.Command, []string) {
 			if ref == "" {
 				log.Fatalln("Must provide -ref")
 			}

@@ -27,12 +27,12 @@ import (
 )
 
 func init() {
-	var pullSrc, pullDst string
+	var src, dst string
 	pullCmd := &cobra.Command{
 		Use:   "pull",
 		Short: "Pull a remote image by reference and store its contents in a tarball",
-		Run: func(cmd *cobra.Command, args []string) {
-			t, err := name.NewTag(pullSrc, name.WeakValidation)
+		Run: func(*cobra.Command, []string) {
+			t, err := name.NewTag(src, name.WeakValidation)
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -48,12 +48,12 @@ func init() {
 				log.Fatalln(err)
 			}
 
-			if err := tarball.Write(pullDst, t, i, &tarball.WriteOptions{}); err != nil {
+			if err := tarball.Write(dst, t, i, &tarball.WriteOptions{}); err != nil {
 				log.Fatalln(err)
 			}
 		},
 	}
-	pullCmd.Flags().StringVarP(&pullSrc, "src", "s", "", "Remote image reference to pull from")
-	pullCmd.Flags().StringVarP(&pullDst, "dst", "d", "", "Path to tarball to write")
+	pullCmd.Flags().StringVarP(&src, "src", "s", "", "Remote image reference to pull from")
+	pullCmd.Flags().StringVarP(&dst, "dst", "d", "", "Path to tarball to write")
 	rootCmd.AddCommand(pullCmd)
 }

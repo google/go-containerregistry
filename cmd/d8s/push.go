@@ -31,7 +31,7 @@ func init() {
 	pushCmd := &cobra.Command{
 		Use:   "push",
 		Short: "Push image contents as a tarball to a remote registry",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(*cobra.Command, []string) {
 			if src == "" || dst == "" {
 				log.Fatalln("Must provide both -src and -dst")
 			}

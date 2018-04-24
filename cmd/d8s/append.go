@@ -28,11 +28,11 @@ import (
 )
 
 func init() {
-	var outputFile, src, dst, tar string
+	var output, src, dst, tar string
 	appendCmd := &cobra.Command{
 		Use:   "append",
 		Short: "Append contents of a tarball to a remote image",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(*cobra.Command, []string) {
 			if src == "" || dst == "" || tar == "" {
 				log.Fatalln("Must provide -src, -dst and -tarball")
 			}
@@ -68,8 +68,8 @@ func init() {
 				log.Fatalln(err)
 			}
 
-			if outputFile != "" {
-				if err := tarball.Write(outputFile, dstTag, image, &tarball.WriteOptions{}); err != nil {
+			if output != "" {
+				if err := tarball.Write(output, dstTag, image, &tarball.WriteOptions{}); err != nil {
 					log.Fatalln(err)
 				}
 				return
@@ -90,7 +90,7 @@ func init() {
 			}
 		},
 	}
-	appendCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Path to new tarball of resulting image")
+	appendCmd.Flags().StringVarP(&output, "output", "o", "", "Path to new tarball of resulting image")
 	appendCmd.Flags().StringVarP(&src, "src", "s", "", "Image reference to append to")
 	appendCmd.Flags().StringVarP(&dst, "dst", "d", "", "Image reference to apply to new image")
 	appendCmd.Flags().StringVarP(&tar, "tar", "t", "", "Path to tarball to append to image")
