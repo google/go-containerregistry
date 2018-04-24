@@ -6,6 +6,7 @@ go_library(
     srcs = [
         "append.go",
         "config.go",
+        "copy.go",
         "delete.go",
         "digest.go",
         "get.go",
