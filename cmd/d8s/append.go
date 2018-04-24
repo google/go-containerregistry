@@ -34,7 +34,7 @@ func init() {
 		Short: "Append contents of a tarball to a remote image",
 		Run: func(*cobra.Command, []string) {
 			if src == "" || dst == "" || tar == "" {
-				log.Fatalln("Must provide -src, -dst and -tarball")
+				log.Fatalln("Must provide -src, -dst and -tar")
 			}
 
 			srcRef, err := name.ParseReference(src, name.WeakValidation)
