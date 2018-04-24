@@ -15,12 +15,10 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
 	"net/http"
 
-	"github.com/google/subcommands"
+	"github.com/spf13/cobra"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
@@ -28,39 +26,38 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
-type pushCmd struct{}
+func init() {
+	var src, dst string
+	pushCmd := &cobra.Command{
+		Use:   "push",
+		Short: "Push image contents as a tarball to a remote registry",
+		Run: func(cmd *cobra.Command, args []string) {
+			if src == "" || dst == "" {
+				log.Fatalln("Must provide both -src and -dst")
+			}
 
-func (*pushCmd) Name() string { return "push" }
-func (*pushCmd) Synopsis() string {
-	return "Pushes image contents as a tarball to a remote registry"
-}
-func (*pushCmd) Usage() string            { return "push <tarball> <tag>" }
-func (*pushCmd) SetFlags(f *flag.FlagSet) {}
+			t, err := name.NewTag(dst, name.WeakValidation)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			log.Printf("Pushing %v", t)
 
-func (*pushCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	if len(f.Args()) != 2 {
-		return subcommands.ExitUsageError
+			auth, err := authn.DefaultKeychain.Resolve(t.Registry)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			i, err := tarball.ImageFromPath(src, nil)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
+				log.Fatalln(err)
+			}
+		},
 	}
-
-	path, tag := f.Args()[0], f.Args()[1]
-	t, err := name.NewTag(tag, name.WeakValidation)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Printf("Pushing %v", t)
-
-	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	i, err := tarball.ImageFromPath(path, nil)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
-		log.Fatalln(err)
-	}
-	return subcommands.ExitSuccess
+	pushCmd.Flags().StringVarP(&src, "src", "s", "", "Path to tarball to push")
+	pushCmd.Flags().StringVarP(&dst, "dst", "d", "", "Remote image reference to push to")
+	rootCmd.AddCommand(pushCmd)
 }

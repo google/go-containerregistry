@@ -15,106 +15,84 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
 	"net/http"
 
+	"github.com/spf13/cobra"
+
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/mutate"
 	"github.com/google/go-containerregistry/v1/remote"
 	"github.com/google/go-containerregistry/v1/tarball"
-	"github.com/google/subcommands"
 )
 
-type appendCmd struct {
-	outputFile string
-}
+func init() {
+	var outputFile, src, dst, tar string
+	appendCmd := &cobra.Command{
+		Use:   "append",
+		Short: "Append contents of a tarball to a remote image",
+		Run: func(cmd *cobra.Command, args []string) {
+			if src == "" || dst == "" || tar == "" {
+				log.Fatalln("Must provide -src, -dst and -tarball")
+			}
 
-func (*appendCmd) Name() string { return "append" }
+			srcRef, err := name.ParseReference(src, name.WeakValidation)
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-func (*appendCmd) Synopsis() string {
-	return "Appends a tarball to a remote image"
-}
-func (*appendCmd) Usage() string {
-	return "append [-o output-file] <src-reference> <dest-tag> <tarball>"
-}
+			srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-func (a *appendCmd) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&a.outputFile, "o", "", "output the resulting image to a new tarball")
-}
+			srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
 
-func (a *appendCmd) Execute(
-	ctx context.Context,
-	f *flag.FlagSet,
-	_ ...interface{}) subcommands.ExitStatus {
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-	if len(f.Args()) != 3 {
-		return subcommands.ExitUsageError
+			dstTag, err := name.NewTag(dst, name.WeakValidation)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			layer, err := tarball.LayerFromFile(tar)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			image, err := mutate.AppendLayers(srcImage, layer)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			if outputFile != "" {
+				if err := tarball.Write(outputFile, dstTag, image, &tarball.WriteOptions{}); err != nil {
+					log.Fatalln(err)
+				}
+				return
+			}
+
+			opts := remote.WriteOptions{}
+			if srcRef.Context().RegistryStr() == dstTag.Context().RegistryStr() {
+				opts.MountPaths = append(opts.MountPaths, srcRef.Context())
+			}
+
+			dstAuth, err := authn.DefaultKeychain.Resolve(dstTag.Context().Registry)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			if err := remote.Write(dstTag, image, dstAuth, http.DefaultTransport, opts); err != nil {
+				log.Fatalln(err)
+			}
+		},
 	}
-
-	src, dst, tar := f.Arg(0), f.Arg(1), f.Arg(2)
-
-	srcRef, err := name.ParseReference(src, name.WeakValidation)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
-
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	dstTag, err := name.NewTag(dst, name.WeakValidation)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	layer, err := tarball.LayerFromFile(tar)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	image, err := mutate.AppendLayers(srcImage, layer)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if a.outputFile != "" {
-		writeTarball(a.outputFile, dstTag, image)
-		return subcommands.ExitSuccess
-	}
-
-	opts := remote.WriteOptions{}
-	if srcRef.Context().RegistryStr() == dstTag.Context().RegistryStr() {
-		opts.MountPaths = append(opts.MountPaths, srcRef.Context())
-	}
-
-	writeRemote(dstTag, image, opts)
-	return subcommands.ExitSuccess
-}
-
-func writeRemote(ref name.Reference, i v1.Image, opts remote.WriteOptions) {
-	dstAuth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if err := remote.Write(ref, i, dstAuth, http.DefaultTransport, opts); err != nil {
-		log.Fatalln(err)
-	}
-}
-
-func writeTarball(file string, tag name.Tag, i v1.Image) {
-	if err := tarball.Write(file, tag, i, &tarball.WriteOptions{}); err != nil {
-		log.Fatalln(err)
-	}
+	appendCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Path to new tarball of resulting image")
+	appendCmd.Flags().StringVarP(&src, "src", "s", "", "Image reference to append to")
+	appendCmd.Flags().StringVarP(&dst, "dst", "d", "", "Image reference to apply to new image")
+	appendCmd.Flags().StringVarP(&tar, "tar", "t", "", "Path to tarball to append to image")
+	rootCmd.AddCommand(appendCmd)
 }

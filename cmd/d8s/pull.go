@@ -15,12 +15,10 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
 	"net/http"
 
-	"github.com/google/subcommands"
+	"github.com/spf13/cobra"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
@@ -28,39 +26,34 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
-type pullCmd struct{}
+func init() {
+	var pullSrc, pullDst string
+	pullCmd := &cobra.Command{
+		Use:   "pull",
+		Short: "Pull a remote image by reference and store its contents in a tarball",
+		Run: func(cmd *cobra.Command, args []string) {
+			t, err := name.NewTag(pullSrc, name.WeakValidation)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			log.Printf("Pulling %v", t)
 
-func (*pullCmd) Name() string { return "pull" }
-func (*pullCmd) Synopsis() string {
-	return "Pulls an image by reference and stores its contents in a tarball"
-}
-func (*pullCmd) Usage() string            { return "pull <reference> <tarball>" }
-func (*pullCmd) SetFlags(f *flag.FlagSet) {}
+			auth, err := authn.DefaultKeychain.Resolve(t.Registry)
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-func (*pullCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	if len(f.Args()) != 2 {
-		return subcommands.ExitUsageError
+			i, err := remote.Image(t, auth, http.DefaultTransport)
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			if err := tarball.Write(pullDst, t, i, &tarball.WriteOptions{}); err != nil {
+				log.Fatalln(err)
+			}
+		},
 	}
-
-	tag, path := f.Args()[0], f.Args()[1]
-	t, err := name.NewTag(tag, name.WeakValidation)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	log.Printf("Pulling %v", t)
-
-	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	i, err := remote.Image(t, auth, http.DefaultTransport)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if err := tarball.Write(path, t, i, &tarball.WriteOptions{}); err != nil {
-		log.Fatalln(err)
-	}
-	return subcommands.ExitSuccess
+	pullCmd.Flags().StringVarP(&pullSrc, "src", "s", "", "Remote image reference to pull from")
+	pullCmd.Flags().StringVarP(&pullDst, "dst", "d", "", "Path to tarball to write")
+	rootCmd.AddCommand(pullCmd)
 }

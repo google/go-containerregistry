@@ -15,22 +15,32 @@
 package main
 
 import (
-	"net/http"
+	"fmt"
+	"log"
 
-	"github.com/google/go-containerregistry/authn"
-	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1"
-	"github.com/google/go-containerregistry/v1/remote"
+	"github.com/spf13/cobra"
 )
 
-func getImage(r string) (v1.Image, error) {
-	ref, err := name.ParseReference(r, name.WeakValidation)
-	if err != nil {
-		return nil, err
+func init() {
+	var ref string
+	manifestCmd := &cobra.Command{
+		Use:   "manifest",
+		Short: "Get the manifest of an image",
+		Run: func(*cobra.Command, []string) {
+			if ref == "" {
+				log.Fatalln("Must provide -ref")
+			}
+			i, err := getImage(ref)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			manifest, err := i.RawManifest()
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Println(string(manifest))
+		},
 	}
-	auth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
-	if err != nil {
-		return nil, err
-	}
-	return remote.Image(ref, auth, http.DefaultTransport)
+	manifestCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to get")
+	rootCmd.AddCommand(manifestCmd)
 }

@@ -15,26 +15,21 @@
 package main
 
 import (
-	"context"
-	"flag"
+	"fmt"
 	"os"
 
-	"github.com/google/subcommands"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	subcommands.Register(subcommands.HelpCommand(), "")
-	subcommands.Register(subcommands.FlagsCommand(), "")
-	subcommands.Register(subcommands.CommandsCommand(), "")
-	subcommands.Register(&configCmd{}, "")
-	subcommands.Register(&deleteCmd{}, "")
-	subcommands.Register(&digestCmd{}, "")
-	subcommands.Register(&manifestCmd{}, "")
-	subcommands.Register(&pullCmd{}, "")
-	subcommands.Register(&pushCmd{}, "")
-	subcommands.Register(&appendCmd{}, "")
+var rootCmd = &cobra.Command{
+	Use:   "d8s",
+	Short: `D8s (Short for "dockerless") is a tool for managing container images`,
+	Run:   func(cmd *cobra.Command, args []string) { cmd.Usage() },
+}
 
-	flag.Parse()
-	ctx := context.Background()
-	os.Exit(int(subcommands.Execute(ctx)))
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }

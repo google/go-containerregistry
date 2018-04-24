@@ -73,16 +73,22 @@
   version = "v0.2.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/google/subcommands"
+  name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
-  revision = "a3682377147edf596d303faabd89f81977b3f678"
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
 
 [[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
+
+[[projects]]
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  revision = "a1f051bc3eba734da4772d60e2d677f47cf93ef4"
+  version = "v0.0.2"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -115,7 +121,7 @@
     "imports",
     "internal/fastwalk"
   ]
-  revision = "94b14834a20132093826ea5e2da5502a13908ad3"
+  revision = "c1def519f03ddf76f16b3e444ee1095d73afa01b"
 
 [[projects]]
   name = "k8s.io/code-generator"
@@ -144,6 +150,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "954de238cd4402db836aa6ca162d813309f1e477cebb52979829fa6cd9144eb1"
+  inputs-digest = "0dce051207c5d9e5805f24759207a33a521f325de3c0f896b8047ce0dc6a1d6a"
   solver-name = "gps-cdcl"
   solver-version = 1
