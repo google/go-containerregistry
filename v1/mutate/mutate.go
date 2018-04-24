@@ -289,7 +289,7 @@ func Extract(img v1.Image) (io.Reader, error) {
 			}
 
 			// check for a whited out parent directory
-			if InWhiteoutDir(fileMap, name) {
+			if inWhiteoutDir(fileMap, name) {
 				continue
 			}
 
@@ -309,7 +309,7 @@ func Extract(img v1.Image) (io.Reader, error) {
 	return tar.NewReader(&b), nil
 }
 
-func InWhiteoutDir(fileMap map[string]bool, file string) bool {
+func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 	for {
 		if file == "" {
 			break

@@ -117,7 +117,7 @@ func TestWhiteoutDir(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		whiteout := InWhiteoutDir(fsMap, tt.path)
+		whiteout := inWhiteoutDir(fsMap, tt.path)
 		if whiteout != tt.whiteout {
 			t.Errorf("Whiteout %s: expected %v, but got %v", tt.path, tt.whiteout, whiteout)
 		}
