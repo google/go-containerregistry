@@ -4,7 +4,8 @@ vendor/k8s.io/code-generator/cmd/deepcopy-gen/args,\
 vendor/k8s.io/code-generator/pkg/util,\
 vendor/k8s.io/gengo/args,\
 vendor/k8s.io/gengo/examples/deepcopy-gen/generators,\
-vendor/k8s.io/gengo/examples/deepcopy-gen/generators/args
+vendor/k8s.io/gengo/examples/deepcopy-gen/generators/args,\
+vendor/github.com/spf13/cobra/cobra/cmd
 
 test --test_output=errors \
 --deleted_packages=\
@@ -13,3 +14,4 @@ vendor/k8s.io/code-generator/cmd/deepcopy-gen/args,\
 vendor/k8s.io/code-generator/pkg/util,\
 vendor/k8s.io/gengo/args,\
 vendor/k8s.io/gengo/examples/deepcopy-gen/generators,\
+vendor/github.com/spf13/cobra/cobra/cmd
