@@ -31,9 +31,9 @@ type copyCmd struct{}
 
 func (*copyCmd) Name() string { return "copy" }
 func (*copyCmd) Synopsis() string {
-	return "Lazily copies a remote src ref to a remote dst ref"
+	return "Efficiently copies a remote image from src reference to dst reference"
 }
-func (*copyCmd) Usage() string            { return "copy <src> <dst>" }
+func (*copyCmd) Usage() string            { return "copy <src reference> <dst reference>" }
 func (*copyCmd) SetFlags(f *flag.FlagSet) {}
 
 func (*copyCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -52,7 +52,7 @@ func (*copyCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 		log.Fatalln(err)
 	}
 
-	i, err := remote.Image(src, srcAuth, http.DefaultTransport)
+	img, err := remote.Image(src, srcAuth, http.DefaultTransport)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -72,7 +72,7 @@ func (*copyCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 		MountPaths: []name.Repository{src.Context()},
 	}
 
-	if err := remote.Write(dst, i, dstAuth, http.DefaultTransport, wo); err != nil {
+	if err := remote.Write(dst, img, dstAuth, http.DefaultTransport, wo); err != nil {
 		log.Fatalln(err)
 	}
 
