@@ -65,6 +65,7 @@
   name = "github.com/google/go-cmp"
   packages = [
     "cmp",
+    "cmp/cmpopts",
     "cmp/internal/diff",
     "cmp/internal/function",
     "cmp/internal/value"
@@ -118,6 +119,12 @@
   revision = "94b14834a20132093826ea5e2da5502a13908ad3"
 
 [[projects]]
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
+
+[[projects]]
   name = "k8s.io/code-generator"
   packages = [
     "cmd/deepcopy-gen",
@@ -144,6 +151,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "954de238cd4402db836aa6ca162d813309f1e477cebb52979829fa6cd9144eb1"
+  inputs-digest = "89d88798457456ac32dc8bd7d8162c450168fc9ed5d2c840d4e9648931a4e6fa"
   solver-name = "gps-cdcl"
   solver-version = 1
