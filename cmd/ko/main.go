@@ -65,27 +65,6 @@ func passthru(command string) runCmd {
 	}
 }
 
-// addGoCommands augments our CLI surface with passthru sub-commands for the Go CLI surface.
-func addGoCommands(topLevel *cobra.Command) {
-	// For convenience, we expose top-level commands for each of the top-level "go foo" commands.
-	// TODO(mattmoor): Split out some of these where we can splice in additional goodness.
-	// e.g. could we make `ko fmt` format K8s yamls?
-	foos := []string{"build", "clean", "doc", "env", "bug", "fix", "fmt", "generate", "get",
-		"install", "list", "run", "test", "tool", "version", "vet"}
-	for _, foo := range foos {
-		topLevel.AddCommand(&cobra.Command{
-			Use:   foo,
-			Short: fmt.Sprintf(`See "go help %s" for detailed usage.`, foo),
-			Run:   passthru("go"),
-			// We ignore unknown flags to avoid importing everything Go exposes
-			// from our commands.
-			FParseErrWhitelist: cobra.FParseErrWhitelist{
-				UnknownFlags: true,
-			},
-		})
-	}
-}
-
 // addKubeCommands augments our CLI surface with a passthru delete command, and an apply
 // command that realizes the promise of ko, as outlined here:
 //    https://github.com/google/go-containerregistry/issues/80
@@ -108,7 +87,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 		Run: func(cmd *cobra.Command, args []string) {
 			// TODO(mattmoor): Use io.Pipe to avoid buffering the whole thing.
 			buf := bytes.NewBuffer(nil)
-			resolveFilesTo(fo, buf)
+			resolveFilesToWriter(fo, buf)
 
 			// Issue a "kubectl apply" command reading from stdin,
 			// to which we will pipe the resolved files.
@@ -134,7 +113,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 		Use:   "resolve -f FILENAME",
 		Short: `Print the input files with image references resolved to built/pushed image digests.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			resolveFilesTo(fo, os.Stdout)
+			resolveFilesToWriter(fo, os.Stdout)
 		},
 	}
 	addFileArg(resolve, fo)
@@ -142,7 +121,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 }
 
 func gobuildOptions() build.Options {
-	// A better story for O
+	// A better story for configuring options.
 	base, err := remote.Image(baseImage, authn.Anonymous, http.DefaultTransport)
 	if err != nil {
 		log.Fatalln(err)
@@ -201,7 +180,7 @@ func enumerateFiles(fo *FilenameOptions) ([]string, error) {
 	return files, nil
 }
 
-func resolveFilesTo(fo *FilenameOptions, out io.Writer) {
+func resolveFilesToWriter(fo *FilenameOptions, out io.Writer) {
 	fs, err := enumerateFiles(fo)
 	if err != nil {
 		log.Fatalln(err)
@@ -278,7 +257,6 @@ func main() {
 			cmd.Help()
 		},
 	}
-	addGoCommands(cmds)
 	addKubeCommands(cmds)
 
 	if err := cmds.Execute(); err != nil {

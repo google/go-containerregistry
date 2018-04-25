@@ -52,31 +52,82 @@ spec:
         - containerPort: 8080
 ```
 
-**This extension of the Go convention enables us to create a tool with an
-extremely fast development cycle and effectively zero configuration.**
+### Determining supported import paths
+
+Similar to other tooling in the Go ecosystem, `ko` expects to execute in the
+context of your `$GOPATH`. This is used to determine what package(s) `ko`
+is expected to build.
+
+Suppose `GOPATH` is `~/gopath` and the current directory is
+`~/gopath/src/github.com/mattmoor/examples`. `ko` will deduce the base import
+path to be `github.com/mattmoor/examples`, and any references to subpackages
+of this will be built, containerized and published.
+
+For example, any of the following would be matched:
+* `github.com/mattmoor/examples`
+* `github.com/mattmoor/examples/cmd/foo`
+* `github.com/mattmoor/examples/bar`
+
+`ko` does not (currently) support `vendor`d binaries, or building other
+binaries from `GOPATH` (outside of the current scope).
+
+### Results
+
+Employing this convention enables `ko` to have effectively zero configuration
+and enable very fast development iteration. For
+[warm-image](https://github.com/mattmoor/warm-image), `ko` is able to
+build, containerize, and redeploy a non-trivial Kubernetes controller app in
+roughly 10 seconds (dominated by two `go build`s).
+
+```shell
+~/go/src/github.com/mattmoor/warm-image$ ko apply -f config/
+2018/04/25 17:11:28 Go building github.com/mattmoor/warm-image/cmd/sleeper
+2018/04/25 17:11:28 Go building github.com/mattmoor/warm-image/cmd/controller
+2018/04/25 17:11:29 Publishing us.gcr.io/convoy-adapter/github.com/mattmoor/warm-image/cmd/sleeper:latest
+2018/04/25 17:11:30 mounted sha256:eb05f3dbdb543cc610527248690575bacbbcebabe6ecf665b189cf18b541e3ca
+2018/04/25 17:11:30 mounted sha256:3ca7d60fa89dc8a1faea3046fd3516f23dab93489f3888ae539df4abc0973e52
+2018/04/25 17:11:30 mounted sha256:e2cc7c829942a768015dbcfdad7205c104cb85b84a79573555a8f4381b98110c
+2018/04/25 17:11:30 pushed us.gcr.io/convoy-adapter/github.com/mattmoor/warm-image/cmd/sleeper:latest
+2018/04/25 17:11:30 Published us.gcr.io/convoy-adapter/github.com/mattmoor/warm-image/cmd/sleeper@sha256:193acdbeff1ea9f105f49d97a6ceb7adbd30b3d64a8b9949382f4be9569cd06d
+2018/04/25 17:11:37 Publishing us.gcr.io/convoy-adapter/github.com/mattmoor/warm-image/cmd/controller:latest
+2018/04/25 17:11:37 mounted sha256:dc0dd55edef1443e976c835825479c3dc713bb689547f8a170f8a0d14f9ff734
+2018/04/25 17:11:37 mounted sha256:eb05f3dbdb543cc610527248690575bacbbcebabe6ecf665b189cf18b541e3ca
+2018/04/25 17:11:37 mounted sha256:fbc44e14a1d848ed485b5c3f03611c3e21aaa197fcba579255e5f8416a1b7172
+2018/04/25 17:11:38 pushed us.gcr.io/convoy-adapter/github.com/mattmoor/warm-image/cmd/controller:latest
+2018/04/25 17:11:38 Published us.gcr.io/convoy-adapter/github.com/mattmoor/warm-image/cmd/controller@sha256:78794915fca48d0c4b339dc1df91a72f1e4bc6a7b33beaeef8aecda0947d5d31
+clusterrolebinding "warmimage-controller-admin" configured
+deployment "warmimage-controller" unchanged
+namespace "warmimage-system" configured
+serviceaccount "warmimage-controller" unchanged
+customresourcedefinition "warmimages.mattmoor.io" configured
+```
 
 ## Usage
 
-`ko` also three commands that interact with Kubernetes resources.
+`ko` has three commands that interact with Kubernetes resources.
 
 ### `ko resolve`
 
-`ko resolve` builds on the [model](#the-ko-model) above to determine the set of
-Go import paths to build, containerize, and publish. It then outputs a
-multi-document yaml of the resources to `STDOUT`, replacing import paths with
-published image digests.
+`ko resolve` takes Kubernetes yaml files in the style of `kubectl apply`
+and (based on the [model above](#the-ko-model)) determines the set of
+Go import paths to build, containerize, and publish.
 
 To determine where to publish the images, `ko` currently requires the
 environment variable `KO_DOCKER_REPO` to be set to an acceptable docker
-repository (e.g. `gcr.io/your-project`). This will likely change in a
-future version.
+repository (e.g. `gcr.io/your-project`). **This will likely change in a
+future version.**
 
-Following the example above, this might result in:
+The output of `ko resolve` is the concatenated yaml with import paths
+replaced with published image digests.  Following the example above,
+this would be:
 
 ```shell
+# Command
 export PROJECT_ID=$(gcloud config get-value core/project)
 export KO_DOCKER_REPO="gcr.io/${PROJECT_ID}"
 ko resolve -f deployment.yaml
+
+# Output
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
