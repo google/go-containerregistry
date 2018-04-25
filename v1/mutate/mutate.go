@@ -16,8 +16,6 @@ package mutate
 
 import (
 	"archive/tar"
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -241,20 +239,39 @@ func validate(adds []Addendum) error {
 	return nil
 }
 
-// Extract takes an image, flattens its filesystem and returns
-// an io.Reader to read the contents of the final fs
+// Extract takes an image and returns an io.ReadCloser containing the image's
+// flattened filesystem.
+//
+// Callers can read the filesystem contents by passing the reader to
+// tar.NewReader, or io.Copy it directly to some output.
+//
+// If a caller doesn't read the full contents, they should Close it to free up
+// resources used during extraction.
+//
 // Adapted from https://github.com/google/containerregistry/blob/master/client/v2_2/docker_image_.py#L731
-func Extract(img v1.Image) (io.Reader, error) {
-	var b bytes.Buffer
-	writer := bufio.NewWriter(&b)
-	tarWriter := tar.NewWriter(writer)
+func Extract(img v1.Image) io.ReadCloser {
+	pr, pw := io.Pipe()
+
+	go func() {
+		// Close the writer with any errors encountered during
+		// extraction. These errors will be returned by the reader end
+		// on subsequent reads. If err == nil, the reader will return
+		// EOF.
+		pw.CloseWithError(extract(img, pw))
+	}()
+
+	return pr
+}
+
+func extract(img v1.Image, w io.Writer) error {
+	tarWriter := tar.NewWriter(w)
 	defer tarWriter.Close()
 
 	fileMap := map[string]bool{}
 
 	layers, err := img.Layers()
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving image layers: %v", err)
+		return fmt.Errorf("retrieving image layers: %v", err)
 	}
 	// we iterate through the layers in reverse order because it makes handling
 	// whiteout layers more efficient, since we can just keep track of the removed
@@ -263,7 +280,7 @@ func Extract(img v1.Image) (io.Reader, error) {
 		layer := layers[i]
 		layerReader, err := layer.Uncompressed()
 		if err != nil {
-			return nil, fmt.Errorf("Error reading layer contents: %v", err)
+			return fmt.Errorf("reading layer contents: %v", err)
 		}
 		tarReader := tar.NewReader(layerReader)
 		for {
@@ -272,7 +289,7 @@ func Extract(img v1.Image) (io.Reader, error) {
 				break
 			}
 			if err != nil {
-				return nil, fmt.Errorf("Error reading tar: %v", err)
+				return fmt.Errorf("reading tar: %v", err)
 			}
 
 			basename := filepath.Base(header.Name)
@@ -300,13 +317,13 @@ func Extract(img v1.Image) (io.Reader, error) {
 				tarWriter.WriteHeader(header)
 				if header.Size > 0 {
 					if _, err := io.Copy(tarWriter, tarReader); err != nil {
-						return nil, err
+						return err
 					}
 				}
 			}
 		}
 	}
-	return tar.NewReader(&b), nil
+	return nil
 }
 
 func inWhiteoutDir(fileMap map[string]bool, file string) bool {
