@@ -41,6 +41,9 @@ func configDir() (string, error) {
 	if dc := os.Getenv("DOCKER_CONFIG"); dc != "" {
 		return dc, nil
 	}
+	if h := os.Getenv("HOME"); h != "" {
+		return path.Join(h, ".docker"), nil
+	}
 	usr, err := user.Current()
 	if err != nil {
 		return "", err

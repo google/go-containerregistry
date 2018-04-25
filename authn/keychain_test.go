@@ -27,27 +27,39 @@ import (
 func TestConfigDir(t *testing.T) {
 	notSet, err := configDir()
 	if err != nil {
-		t.Errorf("configDir() = %v", err)
+		t.Errorf("configDir() without envs set: %v", err)
 	}
 
-	// Now set it to something specific and try again.
+	// Set DOCKER_CONFIG and try again.
 	want := "/path/to/.docker"
 	os.Setenv("DOCKER_CONFIG", want)
-
 	set, err := configDir()
 	if err != nil {
-		t.Errorf("configDir() = %v", err)
+		t.Errorf("configDir() with DOCKER_CONFIG: %v", err)
 	}
 
 	// the "set" version, should match what we want.
 	if set != want {
-		t.Errorf("configDir(set); got %v, want %v", set, want)
+		t.Errorf("configDir() with DOCKER_CONFIG; got %v, want %v", set, want)
 	}
 
-	// the "notSet" version, shouldn't match what we got after setting it.
-	if notSet == set {
-		t.Errorf("configDir(not set) = %v", notSet)
+	// the "set" version should not match the unset version.
+	if set == notSet {
+		t.Errorf("configDir() with DOCKER_CONFIG == without DOCKER_CONFIG (%q)", set)
 	}
+
+	// Unset DOCKER_CONFIG but set HOME.
+	os.Setenv("DOCKER_CONFIG", "")
+	os.Setenv("HOME", "/my/home")
+	set, err = configDir()
+	if err != nil {
+		t.Errorf("configDir() with HOME: %v", err)
+	}
+	want = "/my/home/.docker"
+	if set != want {
+		t.Errorf("configDir() with HOME got %q, want %q", set, want)
+	}
+
 }
 
 var (
