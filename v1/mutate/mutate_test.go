@@ -88,9 +88,6 @@ func TestExtractError(t *testing.T) {
 
 // TestExtractPartialRead tests that the reader can be partially read (e.g.,
 // tar headers) and closed without error.
-//
-// It's important to close the ReadCloser in case of a partial read, since it
-// frees up resources used during extraction.
 func TestExtractPartialRead(t *testing.T) {
 	rc := Extract(invalidImage{})
 	if _, err := io.Copy(ioutil.Discard, io.LimitReader(rc, 1)); err != nil {

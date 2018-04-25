@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"path/filepath"
 	"strings"
 
@@ -243,6 +242,12 @@ func validate(adds []Addendum) error {
 // Extract takes an image and returns an io.ReadCloser containing the image's
 // flattened filesystem.
 //
+// Callers can read the filesystem contents by passing the reader to
+// tar.NewReader, or io.Copy it directly to some output.
+//
+// If a caller doesn't read the full contents, they should Close it to free up
+// resources used during extraction.
+//
 // Adapted from https://github.com/google/containerregistry/blob/master/client/v2_2/docker_image_.py#L731
 func Extract(img v1.Image) io.ReadCloser {
 	pr, pw := io.Pipe()
@@ -266,9 +271,7 @@ func extract(img v1.Image, w io.Writer) error {
 
 	layers, err := img.Layers()
 	if err != nil {
-		log.Printf("RETURNING ERROR: %v", err) // TODO remove
-
-		return fmt.Errorf("Error retrieving image layers: %v", err)
+		return fmt.Errorf("retrieving image layers: %v", err)
 	}
 	// we iterate through the layers in reverse order because it makes handling
 	// whiteout layers more efficient, since we can just keep track of the removed
@@ -277,7 +280,7 @@ func extract(img v1.Image, w io.Writer) error {
 		layer := layers[i]
 		layerReader, err := layer.Uncompressed()
 		if err != nil {
-			return fmt.Errorf("Error reading layer contents: %v", err)
+			return fmt.Errorf("reading layer contents: %v", err)
 		}
 		tarReader := tar.NewReader(layerReader)
 		for {
@@ -286,7 +289,7 @@ func extract(img v1.Image, w io.Writer) error {
 				break
 			}
 			if err != nil {
-				return fmt.Errorf("Error reading tar: %v", err)
+				return fmt.Errorf("reading tar: %v", err)
 			}
 
 			basename := filepath.Base(header.Name)
