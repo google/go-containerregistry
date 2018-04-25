@@ -30,47 +30,51 @@ func init() {
 		Use:   "copy",
 		Short: "Efficiently copy a remote image from --src to --dst",
 		Run: func(*cobra.Command, []string) {
-			if src == "" || dst == "" {
-				log.Fatalln("Must provide both --src and --dst")
-			}
-			srcRef, err := name.ParseReference(src, name.WeakValidation)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			log.Printf("Pulling %v", srcRef)
-
-			srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			img, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			dstRef, err := name.ParseReference(dst, name.WeakValidation)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			log.Printf("Pushing %v", dstRef)
-
-			dstAuth, err := authn.DefaultKeychain.Resolve(dstRef.Context().Registry)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			wo := remote.WriteOptions{
-				MountPaths: []name.Repository{srcRef.Context()},
-			}
-
-			if err := remote.Write(dstRef, img, dstAuth, http.DefaultTransport, wo); err != nil {
-				log.Fatalln(err)
-			}
-
+			coppy(src, dst)
 		},
 	}
 	copyCmd.Flags().StringVarP(&src, "src", "s", "", "Remote image reference to copy from")
 	copyCmd.Flags().StringVarP(&dst, "dst", "d", "", "Remote image reference to copy to")
 	rootCmd.AddCommand(copyCmd)
+}
+
+// coppy is intentionally misspelled to avoid keyword collision (and drive Jon nuts).
+func coppy(src, dst string) {
+	if src == "" || dst == "" {
+		log.Fatalln("Must provide both --src and --dst")
+	}
+	srcRef, err := name.ParseReference(src, name.WeakValidation)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("Pulling %v", srcRef)
+
+	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	img, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	dstRef, err := name.ParseReference(dst, name.WeakValidation)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("Pushing %v", dstRef)
+
+	dstAuth, err := authn.DefaultKeychain.Resolve(dstRef.Context().Registry)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	wo := remote.WriteOptions{
+		MountPaths: []name.Repository{srcRef.Context()},
+	}
+
+	if err := remote.Write(dstRef, img, dstAuth, http.DefaultTransport, wo); err != nil {
+		log.Fatalln(err)
+	}
 }

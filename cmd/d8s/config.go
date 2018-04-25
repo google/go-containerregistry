@@ -27,20 +27,24 @@ func init() {
 		Use:   "config",
 		Short: "Get the config of an image",
 		Run: func(*cobra.Command, []string) {
-			if ref == "" {
-				log.Fatalln("Must provide -ref")
-			}
-			i, err := getImage(ref)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			config, err := i.RawConfigFile()
-			if err != nil {
-				log.Fatalln(err)
-			}
-			fmt.Println(string(config))
+			config(ref)
 		},
 	}
 	configCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to get")
 	rootCmd.AddCommand(configCmd)
+}
+
+func config(ref string) {
+	if ref == "" {
+		log.Fatalln("Must provide --ref")
+	}
+	i, err := getImage(ref)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	config, err := i.RawConfigFile()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(string(config))
 }

@@ -32,28 +32,36 @@ func init() {
 		Use:   "pull",
 		Short: "Pull a remote image by reference and store its contents in a tarball",
 		Run: func(*cobra.Command, []string) {
-			t, err := name.NewTag(src, name.WeakValidation)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			log.Printf("Pulling %v", t)
-
-			auth, err := authn.DefaultKeychain.Resolve(t.Registry)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			i, err := remote.Image(t, auth, http.DefaultTransport)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			if err := tarball.Write(dst, t, i, &tarball.WriteOptions{}); err != nil {
-				log.Fatalln(err)
-			}
+			pull(src, dst)
 		},
 	}
 	pullCmd.Flags().StringVarP(&src, "src", "s", "", "Remote image reference to pull from")
 	pullCmd.Flags().StringVarP(&dst, "dst", "d", "", "Path to tarball to write")
 	rootCmd.AddCommand(pullCmd)
+}
+
+func pull(src, dst string) {
+	if src == "" || dst == "" {
+		log.Fatalln("Must provide both --src and --dst")
+	}
+
+	t, err := name.NewTag(src, name.WeakValidation)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("Pulling %v", t)
+
+	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	i, err := remote.Image(t, auth, http.DefaultTransport)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if err := tarball.Write(dst, t, i, &tarball.WriteOptions{}); err != nil {
+		log.Fatalln(err)
+	}
 }

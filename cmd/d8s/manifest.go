@@ -27,20 +27,24 @@ func init() {
 		Use:   "manifest",
 		Short: "Get the manifest of an image",
 		Run: func(*cobra.Command, []string) {
-			if ref == "" {
-				log.Fatalln("Must provide -ref")
-			}
-			i, err := getImage(ref)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			manifest, err := i.RawManifest()
-			if err != nil {
-				log.Fatalln(err)
-			}
-			fmt.Println(string(manifest))
+			manifest(ref)
 		},
 	}
 	manifestCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to get")
 	rootCmd.AddCommand(manifestCmd)
+}
+
+func manifest(ref string) {
+	if ref == "" {
+		log.Fatalln("Must provide --ref")
+	}
+	i, err := getImage(ref)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	manifest, err := i.RawManifest()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(string(manifest))
 }

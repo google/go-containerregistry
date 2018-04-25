@@ -32,32 +32,36 @@ func init() {
 		Use:   "push",
 		Short: "Push image contents as a tarball to a remote registry",
 		Run: func(*cobra.Command, []string) {
-			if src == "" || dst == "" {
-				log.Fatalln("Must provide both -src and -dst")
-			}
-
-			t, err := name.NewTag(dst, name.WeakValidation)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			log.Printf("Pushing %v", t)
-
-			auth, err := authn.DefaultKeychain.Resolve(t.Registry)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			i, err := tarball.ImageFromPath(src, nil)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
-				log.Fatalln(err)
-			}
+			push(src, dst)
 		},
 	}
 	pushCmd.Flags().StringVarP(&src, "src", "s", "", "Path to tarball to push")
 	pushCmd.Flags().StringVarP(&dst, "dst", "d", "", "Remote image reference to push to")
 	rootCmd.AddCommand(pushCmd)
+}
+
+func push(src, dst string) {
+	if src == "" || dst == "" {
+		log.Fatalln("Must provide both --src and --dst")
+	}
+
+	t, err := name.NewTag(dst, name.WeakValidation)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	log.Printf("Pushing %v", t)
+
+	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	i, err := tarball.ImageFromPath(src, nil)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
+		log.Fatalln(err)
+	}
 }

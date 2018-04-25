@@ -28,66 +28,12 @@ import (
 )
 
 func init() {
-	var output, src, dst, tar string
+	var src, dst, tar, output string
 	appendCmd := &cobra.Command{
 		Use:   "append",
 		Short: "Append contents of a tarball to a remote image",
 		Run: func(*cobra.Command, []string) {
-			if src == "" || dst == "" || tar == "" {
-				log.Fatalln("Must provide -src, -dst and -tarball")
-			}
-
-			srcRef, err := name.ParseReference(src, name.WeakValidation)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
-
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			dstTag, err := name.NewTag(dst, name.WeakValidation)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			layer, err := tarball.LayerFromFile(tar)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			image, err := mutate.AppendLayers(srcImage, layer)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			if output != "" {
-				if err := tarball.Write(output, dstTag, image, &tarball.WriteOptions{}); err != nil {
-					log.Fatalln(err)
-				}
-				return
-			}
-
-			opts := remote.WriteOptions{}
-			if srcRef.Context().RegistryStr() == dstTag.Context().RegistryStr() {
-				opts.MountPaths = append(opts.MountPaths, srcRef.Context())
-			}
-
-			dstAuth, err := authn.DefaultKeychain.Resolve(dstTag.Context().Registry)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			if err := remote.Write(dstTag, image, dstAuth, http.DefaultTransport, opts); err != nil {
-				log.Fatalln(err)
-			}
+			apend(src, dst, tar, output)
 		},
 	}
 	appendCmd.Flags().StringVarP(&output, "output", "o", "", "Path to new tarball of resulting image")
@@ -95,4 +41,63 @@ func init() {
 	appendCmd.Flags().StringVarP(&dst, "dst", "d", "", "Image reference to apply to new image")
 	appendCmd.Flags().StringVarP(&tar, "tar", "t", "", "Path to tarball to append to image")
 	rootCmd.AddCommand(appendCmd)
+}
+
+// apend is intentionally misspelled to avoid keyword collision (and drive Jon nuts).
+func apend(src, dst, tar, output string) {
+	if src == "" || dst == "" || tar == "" {
+		log.Fatalln("Must provide --src, --dst and --tar")
+	}
+
+	srcRef, err := name.ParseReference(src, name.WeakValidation)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	dstTag, err := name.NewTag(dst, name.WeakValidation)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	layer, err := tarball.LayerFromFile(tar)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	image, err := mutate.AppendLayers(srcImage, layer)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if output != "" {
+		if err := tarball.Write(output, dstTag, image, &tarball.WriteOptions{}); err != nil {
+			log.Fatalln(err)
+		}
+		return
+	}
+
+	opts := remote.WriteOptions{}
+	if srcRef.Context().RegistryStr() == dstTag.Context().RegistryStr() {
+		opts.MountPaths = append(opts.MountPaths, srcRef.Context())
+	}
+
+	dstAuth, err := authn.DefaultKeychain.Resolve(dstTag.Context().Registry)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if err := remote.Write(dstTag, image, dstAuth, http.DefaultTransport, opts); err != nil {
+		log.Fatalln(err)
+	}
 }

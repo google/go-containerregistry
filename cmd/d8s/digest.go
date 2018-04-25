@@ -27,20 +27,24 @@ func init() {
 		Use:   "digest",
 		Short: "Get the digest of an image",
 		Run: func(*cobra.Command, []string) {
-			if ref == "" {
-				log.Fatalln("Must provide -ref")
-			}
-			i, err := getImage(ref)
-			if err != nil {
-				log.Fatalln(err)
-			}
-			digest, err := i.Digest()
-			if err != nil {
-				log.Fatalln(err)
-			}
-			fmt.Println(digest.String())
+			digest(ref)
 		},
 	}
 	digestCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to get")
 	rootCmd.AddCommand(digestCmd)
+}
+
+func digest(ref string) {
+	if ref == "" {
+		log.Fatalln("Must provide --ref")
+	}
+	i, err := getImage(ref)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	digest, err := i.Digest()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	fmt.Println(digest.String())
 }

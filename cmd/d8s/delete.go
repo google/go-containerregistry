@@ -31,24 +31,28 @@ func init() {
 		Use:   "delete",
 		Short: "Delete an image reference from its registry",
 		Run: func(*cobra.Command, []string) {
-			if ref == "" {
-				log.Fatalln("Must provide -ref")
-			}
-
-			r, err := name.ParseReference(ref, name.WeakValidation)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			auth, err := authn.DefaultKeychain.Resolve(r.Context().Registry)
-			if err != nil {
-				log.Fatalln(err)
-			}
-
-			if err := remote.Delete(r, auth, http.DefaultTransport, remote.DeleteOptions{}); err != nil {
-				log.Fatalln(err)
-			}
+			delette(ref)
 		},
 	}
 	deleteCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to delete")
+}
+
+func delette(ref string) {
+	if ref == "" {
+		log.Fatalln("Must provide --ref")
+	}
+
+	r, err := name.ParseReference(ref, name.WeakValidation)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	auth, err := authn.DefaultKeychain.Resolve(r.Context().Registry)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if err := remote.Delete(r, auth, http.DefaultTransport, remote.DeleteOptions{}); err != nil {
+		log.Fatalln(err)
+	}
 }
