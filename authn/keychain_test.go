@@ -19,47 +19,84 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/google/go-containerregistry/name"
 )
 
 func TestConfigDir(t *testing.T) {
-	notSet, err := configDir()
-	if err != nil {
-		t.Errorf("configDir() without envs set: %v", err)
+	clearEnv := func() {
+		for _, e := range []string{"HOME", "DOCKER_CONFIG", "HOMEDRIVE", "HOMEPATH"} {
+			os.Unsetenv(e)
+		}
 	}
 
-	// Set DOCKER_CONFIG and try again.
-	want := "/path/to/.docker"
-	os.Setenv("DOCKER_CONFIG", want)
-	set, err := configDir()
-	if err != nil {
-		t.Errorf("configDir() with DOCKER_CONFIG: %v", err)
-	}
+	t.Run("no envs", func(t *testing.T) {
+		// Without any envs set, should return an error.
+		clearEnv()
+		if got, err := configDir(); err == nil {
+			t.Errorf("configDir() returned no error, got %q", got)
+		}
+	})
 
-	// the "set" version, should match what we want.
-	if set != want {
-		t.Errorf("configDir() with DOCKER_CONFIG; got %v, want %v", set, want)
-	}
+	t.Run("DOCKER_CONFIG", func(t *testing.T) {
+		// DOCKER_CONFIG is set and is returned.
+		clearEnv()
+		want := "/path/to/.docker"
+		os.Setenv("DOCKER_CONFIG", want)
+		if got, err := configDir(); err != nil {
+			t.Errorf("configDir(): %v", err)
+		} else if got != want {
+			t.Errorf("configDir() got %v, want %v", got, want)
+		}
+	})
 
-	// the "set" version should not match the unset version.
-	if set == notSet {
-		t.Errorf("configDir() with DOCKER_CONFIG == without DOCKER_CONFIG (%q)", set)
-	}
+	t.Run("HOME", func(t *testing.T) {
+		// DOCKER_CONFIG is unset, but HOME is (on non-Windows).
+		if runtime.GOOS == "windows" {
+			t.Skip("Not running on Windows")
+		}
+		clearEnv()
+		os.Setenv("HOME", "/my/home")
+		want := "/my/home/.docker"
+		if got, err := configDir(); err != nil {
+			t.Errorf("configDir(): %v", err)
+		} else if got != want {
+			t.Errorf("configDir() got %q, want %q", got, want)
+		}
+	})
 
-	// Unset DOCKER_CONFIG but set HOME.
-	os.Setenv("DOCKER_CONFIG", "")
-	os.Setenv("HOME", "/my/home")
-	set, err = configDir()
-	if err != nil {
-		t.Errorf("configDir() with HOME: %v", err)
-	}
-	want = "/my/home/.docker"
-	if set != want {
-		t.Errorf("configDir() with HOME got %q, want %q", set, want)
-	}
+	t.Run("HOMEDRIVE and HOMEPATH", func(t *testing.T) {
+		// DOCKER_CONFIG is unset, but HOMEDRIVE or HOMEPATH are (on Windows).
+		if runtime.GOOS != "windows" {
+			t.Skip("Not running on non-Windows")
+		}
+		clearEnv()
+		os.Setenv("HOMEDRIVE", "/homedrive")
+		os.Setenv("HOMEPATH", "homepath")
+		want := "/homedrive/homepath/.docker"
+		if got, err := configDir(); err != nil {
+			t.Errorf("configDir(): %v", err)
+		} else if got != want {
+			t.Errorf("configDir() got %q, want %q", got, want)
+		}
+	})
 
+	t.Run("USERPROFILE", func(t *testing.T) {
+		// DOCKER_CONFIG is unset, but USERPROFILE is (on Windows).
+		if runtime.GOOS != "windows" {
+			t.Skip("Not running on non-Windows")
+		}
+		clearEnv()
+		os.Setenv("USERPROFILE", "/user/profile")
+		want := "/user/profile/.docker"
+		if got, err := configDir(); err != nil {
+			t.Errorf("configDir(): %v", err)
+		} else if got != want {
+			t.Errorf("configDir() got %q, want %q", got, want)
+		}
+	})
 }
 
 var (

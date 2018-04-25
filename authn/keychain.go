@@ -16,12 +16,13 @@ package authn
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
-	"os/user"
 	"path"
+	"runtime"
 
 	"github.com/google/go-containerregistry/name"
 )
@@ -41,14 +42,23 @@ func configDir() (string, error) {
 	if dc := os.Getenv("DOCKER_CONFIG"); dc != "" {
 		return dc, nil
 	}
-	if h := os.Getenv("HOME"); h != "" {
-		return path.Join(h, ".docker"), nil
+	if h := homeDir(); h != "" {
+		return path.Join(homeDir(), ".docker"), nil
 	}
-	usr, err := user.Current()
-	if err != nil {
-		return "", err
+	return "", errNoHomeDir
+}
+
+var errNoHomeDir = errors.New("could not determine home directory")
+
+func homeDir() string {
+	if runtime.GOOS == "windows" {
+		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+		if home == "" {
+			home = os.Getenv("USERPROFILE")
+		}
+		return home
 	}
-	return path.Join(usr.HomeDir, ".docker"), nil
+	return os.Getenv("HOME")
 }
 
 // authEntry is a helper for JSON parsing an "auth" entry of config.json
