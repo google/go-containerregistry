@@ -135,6 +135,6 @@ func (dk *defaultKeychain) Resolve(reg name.Registry) (Authenticator, error) {
 		}
 	}
 
-	log.Printf("No matching credentials found for %v, falling back on anoynmous", reg)
+	log.Printf("No matching credentials found for %v, falling back on anonymous", reg)
 	return Anonymous, nil
 }
