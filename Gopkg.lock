@@ -84,11 +84,11 @@
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
 
-[[projects]]
+# Use HEAD (2018-04-21) to pick up:
+# https://github.com/spf13/cobra/pull/662
+[[constraint]]
   name = "github.com/spf13/cobra"
-  packages = ["."]
-  revision = "a1f051bc3eba734da4772d60e2d677f47cf93ef4"
-  version = "v0.0.2"
+  revision = "615425954c3b0d9485a7027d4d451fdcdfdee84e"
 
 [[projects]]
   name = "github.com/spf13/pflag"
