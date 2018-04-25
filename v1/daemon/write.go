@@ -15,11 +15,29 @@
 package daemon
 
 import (
-	"fmt"
+	"context"
+	"io"
+	"io/ioutil"
+
+	"github.com/pkg/errors"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
+	"github.com/google/go-containerregistry/v1/tarball"
 )
+
+// API interface for testing.
+type ImageLoader interface {
+	ImageLoad(context.Context, io.Reader, bool) (types.ImageLoadResponse, error)
+}
+
+// This is a variable so we can override in tests.
+var getImageLoader = func() (ImageLoader, error) {
+	return client.NewEnvClient()
+}
 
 // WriteOptions are used to expose optional information to guide or
 // control the image write.
@@ -27,7 +45,28 @@ type WriteOptions struct {
 	// TODO(dlorenc): What kinds of knobs does the daemon expose?
 }
 
-// Write saves the image into the daemon as the given reference.
-func Write(ref name.Reference, img v1.Image, wo WriteOptions) error {
-	return fmt.Errorf("NYI: daemon.Write(%v)", ref)
+// Write saves the image into the daemon as the given tag.
+func Write(tag name.Tag, img v1.Image, wo WriteOptions) (string, error) {
+	cli, err := getImageLoader()
+	if err != nil {
+		return "", err
+	}
+
+	pr, pw := io.Pipe()
+	go func() {
+		pw.CloseWithError(tarball.Write(tag, img, &tarball.WriteOptions{}, pw))
+	}()
+
+	// write the image in docker save format first, then load it
+	resp, err := cli.ImageLoad(context.Background(), pr, false)
+	if err != nil {
+		return "", errors.Wrapf(err, "error loading image")
+	}
+	defer resp.Body.Close()
+	b, readErr := ioutil.ReadAll(resp.Body)
+	response := string(b)
+	if readErr != nil {
+		return response, errors.Wrapf(err, "error reading load response body")
+	}
+	return response, nil
 }

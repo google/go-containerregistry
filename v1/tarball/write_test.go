@@ -45,7 +45,7 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating test tag.")
 	}
-	if err := Write(fp.Name(), tag, randImage, nil); err != nil {
+	if err := WriteToFile(fp.Name(), tag, randImage, nil); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 

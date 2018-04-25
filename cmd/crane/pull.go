@@ -53,7 +53,7 @@ func pull(_ *cobra.Command, args []string) {
 		log.Fatalln(err)
 	}
 
-	if err := tarball.Write(dst, t, i, &tarball.WriteOptions{}); err != nil {
+	if err := tarball.WriteToFile(dst, t, i, &tarball.WriteOptions{}); err != nil {
 		log.Fatalln(err)
 	}
 }
