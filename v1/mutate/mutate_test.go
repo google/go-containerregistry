@@ -17,6 +17,7 @@ package mutate
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -38,18 +39,7 @@ func TestExtractWhiteout(t *testing.T) {
 	}
 	tarPath, _ := filepath.Abs("img.tar")
 	defer os.Remove(tarPath)
-	flattened, err := Extract(img)
-	if err != nil {
-		t.Errorf("Error when flattening image: %v", err)
-	}
-	f, err := os.Create(tarPath)
-	if err != nil {
-		t.Errorf("Error when opening tar file: %v", err)
-	}
-	if _, err := io.Copy(f, flattened); err != nil {
-		t.Errorf("Error when writing flattened fs to disk: %v", err)
-	}
-	tr := tar.NewReader(f)
+	tr := tar.NewReader(Extract(img))
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -69,21 +59,7 @@ func TestExtractOverwrittenFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}
-	tarPath, _ := filepath.Abs("img.tar")
-	defer os.Remove(tarPath)
-	f, err := os.Create(tarPath)
-	if err != nil {
-		t.Errorf("Error when opening tar file: %v", err)
-	}
-	flattened, err := Extract(img)
-	if err != nil {
-		t.Errorf("Error when flattening image: %v", err)
-	}
-	if _, err := io.Copy(f, flattened); err != nil {
-		t.Errorf("Error when writing flattened fs to disk: %v", err)
-	}
-
-	tr := tar.NewReader(f)
+	tr := tar.NewReader(Extract(img))
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -91,13 +67,49 @@ func TestExtractOverwrittenFile(t *testing.T) {
 		}
 		name := header.Name
 		if strings.Contains(name, "foo.txt") {
-			buf := new(bytes.Buffer)
+			var buf bytes.Buffer
 			buf.ReadFrom(tr)
 			if strings.Contains(buf.String(), "foo") {
 				t.Errorf("Contents of file were not correctly overwritten")
 			}
 		}
 	}
+}
+
+// TestExtractError tests that if there are any errors encountered
+func TestExtractError(t *testing.T) {
+	rc := Extract(invalidImage{})
+	if _, err := io.Copy(ioutil.Discard, rc); err == nil {
+		t.Errorf("rc.Read; got nil error")
+	} else if !strings.Contains(err.Error(), errInvalidImage.Error()) {
+		t.Errorf("rc.Read; got %v, want %v", err, errInvalidImage)
+	}
+}
+
+// TestExtractPartialRead tests that the reader can be partially read (e.g.,
+// tar headers) and closed without error.
+//
+// It's important to close the ReadCloser in case of a partial read, since it
+// frees up resources used during extraction.
+func TestExtractPartialRead(t *testing.T) {
+	rc := Extract(invalidImage{})
+	if _, err := io.Copy(ioutil.Discard, io.LimitReader(rc, 1)); err != nil {
+		t.Errorf("Could not read one byte from reader")
+	}
+	if err := rc.Close(); err != nil {
+		t.Errorf("rc.Close: %v", err)
+	}
+}
+
+// invalidImage is an image which returns an error when Layers() is called.
+type invalidImage struct {
+	v1.Image
+}
+
+var errInvalidImage = errors.New("invalid image")
+
+func (invalidImage) Layers() ([]v1.Layer, error) {
+	return nil, errInvalidImage
 }
 
 func TestWhiteoutDir(t *testing.T) {
