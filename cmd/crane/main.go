@@ -23,7 +23,7 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "crane",
-	Short: "Crane is a tool for managing container images, locally or in a registry",
+	Short: "Crane is a tool for managing container images",
 	Run:   func(cmd *cobra.Command, _ []string) { cmd.Usage() },
 }
 
