@@ -22,22 +22,16 @@ import (
 )
 
 func init() {
-	var ref string
-	configCmd := &cobra.Command{
+	rootCmd.AddCommand(&cobra.Command{
 		Use:   "config",
 		Short: "Get the config of an image",
-		Run: func(*cobra.Command, []string) {
-			config(ref)
-		},
-	}
-	configCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to get")
-	rootCmd.AddCommand(configCmd)
+		Args:  cobra.ExactArgs(1),
+		Run:   config,
+	})
 }
 
-func config(ref string) {
-	if ref == "" {
-		log.Fatalln("Must provide --ref")
-	}
+func config(_ *cobra.Command, args []string) {
+	ref := args[0]
 	i, err := getImage(ref)
 	if err != nil {
 		log.Fatalln(err)

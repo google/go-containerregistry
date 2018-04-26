@@ -28,27 +28,21 @@ import (
 )
 
 func init() {
-	var src, dst, tar, output string
+	var output string
 	appendCmd := &cobra.Command{
 		Use:   "append",
 		Short: "Append contents of a tarball to a remote image",
-		Run: func(*cobra.Command, []string) {
-			apend(src, dst, tar, output)
+		Args:  cobra.ExactArgs(3),
+		Run: func(_ *cobra.Command, args []string) {
+			src, dst, tar := args[0], args[1], args[2]
+			doAppend(src, dst, tar, output)
 		},
 	}
 	appendCmd.Flags().StringVarP(&output, "output", "o", "", "Path to new tarball of resulting image")
-	appendCmd.Flags().StringVarP(&src, "src", "s", "", "Image reference to append to")
-	appendCmd.Flags().StringVarP(&dst, "dst", "d", "", "Image reference to apply to new image")
-	appendCmd.Flags().StringVarP(&tar, "tar", "t", "", "Path to tarball to append to image")
 	rootCmd.AddCommand(appendCmd)
 }
 
-// apend is intentionally misspelled to avoid keyword collision (and drive Jon nuts).
-func apend(src, dst, tar, output string) {
-	if src == "" || dst == "" || tar == "" {
-		log.Fatalln("Must provide --src, --dst and --tar")
-	}
-
+func doAppend(src, dst, tar, output string) {
 	srcRef, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)

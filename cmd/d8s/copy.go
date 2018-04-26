@@ -16,33 +16,27 @@ package main
 
 import (
 	"log"
+
 	"net/http"
+
+	"github.com/google/go-containerregistry/v1/remote"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1/remote"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	var src, dst string
-	copyCmd := &cobra.Command{
+	rootCmd.AddCommand(&cobra.Command{
 		Use:   "copy",
-		Short: "Efficiently copy a remote image from --src to --dst",
-		Run: func(*cobra.Command, []string) {
-			coppy(src, dst)
-		},
-	}
-	copyCmd.Flags().StringVarP(&src, "src", "s", "", "Remote image reference to copy from")
-	copyCmd.Flags().StringVarP(&dst, "dst", "d", "", "Remote image reference to copy to")
-	rootCmd.AddCommand(copyCmd)
+		Short: "Efficiently copy a remote image from src to dst",
+		Args:  cobra.ExactArgs(2),
+		Run:   doCopy,
+	})
 }
 
-// coppy is intentionally misspelled to avoid keyword collision (and drive Jon nuts).
-func coppy(src, dst string) {
-	if src == "" || dst == "" {
-		log.Fatalln("Must provide both --src and --dst")
-	}
+func doCopy(_ *cobra.Command, args []string) {
+	src, dst := args[0], args[1]
 	srcRef, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)

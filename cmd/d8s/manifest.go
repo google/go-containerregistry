@@ -22,22 +22,16 @@ import (
 )
 
 func init() {
-	var ref string
-	manifestCmd := &cobra.Command{
+	rootCmd.AddCommand(&cobra.Command{
 		Use:   "manifest",
 		Short: "Get the manifest of an image",
-		Run: func(*cobra.Command, []string) {
-			manifest(ref)
-		},
-	}
-	manifestCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to get")
-	rootCmd.AddCommand(manifestCmd)
+		Args:  cobra.ExactArgs(1),
+		Run:   manifest,
+	})
 }
 
-func manifest(ref string) {
-	if ref == "" {
-		log.Fatalln("Must provide --ref")
-	}
+func manifest(_ *cobra.Command, args []string) {
+	ref := args[0]
 	i, err := getImage(ref)
 	if err != nil {
 		log.Fatalln(err)

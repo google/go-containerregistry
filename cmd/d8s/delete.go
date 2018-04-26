@@ -26,22 +26,16 @@ import (
 )
 
 func init() {
-	var ref string
-	deleteCmd := &cobra.Command{
+	rootCmd.AddCommand(&cobra.Command{
 		Use:   "delete",
 		Short: "Delete an image reference from its registry",
-		Run: func(*cobra.Command, []string) {
-			delette(ref)
-		},
-	}
-	deleteCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to delete")
+		Args:  cobra.ExactArgs(1),
+		Run:   doDelete,
+	})
 }
 
-func delette(ref string) {
-	if ref == "" {
-		log.Fatalln("Must provide --ref")
-	}
-
+func doDelete(_ *cobra.Command, args []string) {
+	ref := args[0]
 	r, err := name.ParseReference(ref, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)

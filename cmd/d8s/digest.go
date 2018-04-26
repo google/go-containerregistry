@@ -22,22 +22,16 @@ import (
 )
 
 func init() {
-	var ref string
-	digestCmd := &cobra.Command{
+	rootCmd.AddCommand(&cobra.Command{
 		Use:   "digest",
 		Short: "Get the digest of an image",
-		Run: func(*cobra.Command, []string) {
-			digest(ref)
-		},
-	}
-	digestCmd.Flags().StringVarP(&ref, "ref", "", "", "Image reference to get")
-	rootCmd.AddCommand(digestCmd)
+		Args:  cobra.ExactArgs(1),
+		Run:   digest,
+	})
 }
 
-func digest(ref string) {
-	if ref == "" {
-		log.Fatalln("Must provide --ref")
-	}
+func digest(_ *cobra.Command, args []string) {
+	ref := args[0]
 	i, err := getImage(ref)
 	if err != nil {
 		log.Fatalln(err)

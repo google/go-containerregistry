@@ -27,24 +27,16 @@ import (
 )
 
 func init() {
-	var src, dst string
-	pushCmd := &cobra.Command{
+	rootCmd.AddCommand(&cobra.Command{
 		Use:   "push",
 		Short: "Push image contents as a tarball to a remote registry",
-		Run: func(*cobra.Command, []string) {
-			push(src, dst)
-		},
-	}
-	pushCmd.Flags().StringVarP(&src, "src", "s", "", "Path to tarball to push")
-	pushCmd.Flags().StringVarP(&dst, "dst", "d", "", "Remote image reference to push to")
-	rootCmd.AddCommand(pushCmd)
+		Args:  cobra.ExactArgs(2),
+		Run:   push,
+	})
 }
 
-func push(src, dst string) {
-	if src == "" || dst == "" {
-		log.Fatalln("Must provide both --src and --dst")
-	}
-
+func push(_ *cobra.Command, args []string) {
+	src, dst := args[0], args[1]
 	t, err := name.NewTag(dst, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
