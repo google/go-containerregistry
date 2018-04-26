@@ -74,16 +74,22 @@
   version = "v0.2.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/google/subcommands"
+  name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
-  revision = "a3682377147edf596d303faabd89f81977b3f678"
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
 
 [[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
+
+# Use HEAD (2018-04-21) to pick up:
+# https://github.com/spf13/cobra/pull/662
+[[constraint]]
+  name = "github.com/spf13/cobra"
+  revision = "615425954c3b0d9485a7027d4d451fdcdfdee84e"
 
 [[projects]]
   name = "github.com/spf13/pflag"
@@ -116,7 +122,7 @@
     "imports",
     "internal/fastwalk"
   ]
-  revision = "94b14834a20132093826ea5e2da5502a13908ad3"
+  revision = "c1def519f03ddf76f16b3e444ee1095d73afa01b"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -151,6 +157,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "89d88798457456ac32dc8bd7d8162c450168fc9ed5d2c840d4e9648931a4e6fa"
+  inputs-digest = "0dce051207c5d9e5805f24759207a33a521f325de3c0f896b8047ce0dc6a1d6a"
   solver-name = "gps-cdcl"
   solver-version = 1

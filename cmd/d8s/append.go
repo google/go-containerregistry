@@ -15,48 +15,34 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
 	"net/http"
 
+	"github.com/spf13/cobra"
+
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/mutate"
 	"github.com/google/go-containerregistry/v1/remote"
 	"github.com/google/go-containerregistry/v1/tarball"
-	"github.com/google/subcommands"
 )
 
-type appendCmd struct {
-	outputFile string
-}
-
-func (*appendCmd) Name() string { return "append" }
-
-func (*appendCmd) Synopsis() string {
-	return "Appends a tarball to a remote image"
-}
-func (*appendCmd) Usage() string {
-	return "append [-o output-file] <src-reference> <dest-tag> <tarball>"
-}
-
-func (a *appendCmd) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&a.outputFile, "o", "", "output the resulting image to a new tarball")
-}
-
-func (a *appendCmd) Execute(
-	ctx context.Context,
-	f *flag.FlagSet,
-	_ ...interface{}) subcommands.ExitStatus {
-
-	if len(f.Args()) != 3 {
-		return subcommands.ExitUsageError
+func init() {
+	var output string
+	appendCmd := &cobra.Command{
+		Use:   "append",
+		Short: "Append contents of a tarball to a remote image",
+		Args:  cobra.ExactArgs(3),
+		Run: func(_ *cobra.Command, args []string) {
+			src, dst, tar := args[0], args[1], args[2]
+			doAppend(src, dst, tar, output)
+		},
 	}
+	appendCmd.Flags().StringVarP(&output, "output", "o", "", "Path to new tarball of resulting image")
+	rootCmd.AddCommand(appendCmd)
+}
 
-	src, dst, tar := f.Arg(0), f.Arg(1), f.Arg(2)
-
+func doAppend(src, dst, tar, output string) {
 	srcRef, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
@@ -88,9 +74,11 @@ func (a *appendCmd) Execute(
 		log.Fatalln(err)
 	}
 
-	if a.outputFile != "" {
-		writeTarball(a.outputFile, dstTag, image)
-		return subcommands.ExitSuccess
+	if output != "" {
+		if err := tarball.Write(output, dstTag, image, &tarball.WriteOptions{}); err != nil {
+			log.Fatalln(err)
+		}
+		return
 	}
 
 	opts := remote.WriteOptions{}
@@ -98,23 +86,12 @@ func (a *appendCmd) Execute(
 		opts.MountPaths = append(opts.MountPaths, srcRef.Context())
 	}
 
-	writeRemote(dstTag, image, opts)
-	return subcommands.ExitSuccess
-}
-
-func writeRemote(ref name.Reference, i v1.Image, opts remote.WriteOptions) {
-	dstAuth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
+	dstAuth, err := authn.DefaultKeychain.Resolve(dstTag.Context().Registry)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if err := remote.Write(ref, i, dstAuth, http.DefaultTransport, opts); err != nil {
-		log.Fatalln(err)
-	}
-}
-
-func writeTarball(file string, tag name.Tag, i v1.Image) {
-	if err := tarball.Write(file, tag, i, &tarball.WriteOptions{}); err != nil {
+	if err := remote.Write(dstTag, image, dstAuth, http.DefaultTransport, opts); err != nil {
 		log.Fatalln(err)
 	}
 }

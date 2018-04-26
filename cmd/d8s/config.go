@@ -15,22 +15,30 @@
 package main
 
 import (
-	"net/http"
+	"fmt"
+	"log"
 
-	"github.com/google/go-containerregistry/authn"
-	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1"
-	"github.com/google/go-containerregistry/v1/remote"
+	"github.com/spf13/cobra"
 )
 
-func getImage(r string) (v1.Image, error) {
-	ref, err := name.ParseReference(r, name.WeakValidation)
+func init() {
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "config",
+		Short: "Get the config of an image",
+		Args:  cobra.ExactArgs(1),
+		Run:   config,
+	})
+}
+
+func config(_ *cobra.Command, args []string) {
+	ref := args[0]
+	i, err := getImage(ref)
 	if err != nil {
-		return nil, err
+		log.Fatalln(err)
 	}
-	auth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
+	config, err := i.RawConfigFile()
 	if err != nil {
-		return nil, err
+		log.Fatalln(err)
 	}
-	return remote.Image(ref, auth, http.DefaultTransport)
+	fmt.Print(string(config))
 }

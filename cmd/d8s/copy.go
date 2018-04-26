@@ -15,66 +15,60 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
+
 	"net/http"
 
-	"github.com/google/subcommands"
+	"github.com/google/go-containerregistry/v1/remote"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1/remote"
+	"github.com/spf13/cobra"
 )
 
-type copyCmd struct{}
-
-func (*copyCmd) Name() string { return "copy" }
-func (*copyCmd) Synopsis() string {
-	return "Efficiently copies a remote image from src reference to dst reference"
+func init() {
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "copy",
+		Short: "Efficiently copy a remote image from src to dst",
+		Args:  cobra.ExactArgs(2),
+		Run:   doCopy,
+	})
 }
-func (*copyCmd) Usage() string            { return "copy <src reference> <dst reference>" }
-func (*copyCmd) SetFlags(f *flag.FlagSet) {}
 
-func (*copyCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	if len(f.Args()) != 2 {
-		return subcommands.ExitUsageError
-	}
-
-	src, err := name.ParseReference(f.Args()[0], name.WeakValidation)
+func doCopy(_ *cobra.Command, args []string) {
+	src, dst := args[0], args[1]
+	srcRef, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf("Pulling %v", src)
+	log.Printf("Pulling %v", srcRef)
 
-	srcAuth, err := authn.DefaultKeychain.Resolve(src.Context().Registry)
+	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	img, err := remote.Image(src, srcAuth, http.DefaultTransport)
+	img, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	dst, err := name.ParseReference(f.Args()[1], name.WeakValidation)
+	dstRef, err := name.ParseReference(dst, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Printf("Pushing %v", dst)
+	log.Printf("Pushing %v", dstRef)
 
-	dstAuth, err := authn.DefaultKeychain.Resolve(dst.Context().Registry)
+	dstAuth, err := authn.DefaultKeychain.Resolve(dstRef.Context().Registry)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	wo := remote.WriteOptions{
-		MountPaths: []name.Repository{src.Context()},
+		MountPaths: []name.Repository{srcRef.Context()},
 	}
 
-	if err := remote.Write(dst, img, dstAuth, http.DefaultTransport, wo); err != nil {
+	if err := remote.Write(dstRef, img, dstAuth, http.DefaultTransport, wo); err != nil {
 		log.Fatalln(err)
 	}
-
-	return subcommands.ExitSuccess
 }

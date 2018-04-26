@@ -15,12 +15,10 @@
 package main
 
 import (
-	"context"
-	"flag"
 	"log"
 	"net/http"
 
-	"github.com/google/subcommands"
+	"github.com/spf13/cobra"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
@@ -28,22 +26,18 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
-type pushCmd struct{}
-
-func (*pushCmd) Name() string { return "push" }
-func (*pushCmd) Synopsis() string {
-	return "Pushes image contents as a tarball to a remote registry"
+func init() {
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "push",
+		Short: "Push image contents as a tarball to a remote registry",
+		Args:  cobra.ExactArgs(2),
+		Run:   push,
+	})
 }
-func (*pushCmd) Usage() string            { return "push <tarball> <tag>" }
-func (*pushCmd) SetFlags(f *flag.FlagSet) {}
 
-func (*pushCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
-	if len(f.Args()) != 2 {
-		return subcommands.ExitUsageError
-	}
-
-	path, tag := f.Args()[0], f.Args()[1]
-	t, err := name.NewTag(tag, name.WeakValidation)
+func push(_ *cobra.Command, args []string) {
+	src, dst := args[0], args[1]
+	t, err := name.NewTag(dst, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -54,7 +48,7 @@ func (*pushCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 		log.Fatalln(err)
 	}
 
-	i, err := tarball.ImageFromPath(path, nil)
+	i, err := tarball.ImageFromPath(src, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -62,5 +56,4 @@ func (*pushCmd) Execute(ctx context.Context, f *flag.FlagSet, _ ...interface{}) 
 	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
 		log.Fatalln(err)
 	}
-	return subcommands.ExitSuccess
 }
