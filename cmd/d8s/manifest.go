@@ -40,5 +40,5 @@ func manifest(_ *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println(string(manifest))
+	fmt.Print(string(manifest))
 }

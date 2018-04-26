@@ -40,5 +40,5 @@ func config(_ *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println(string(config))
+	fmt.Print(string(config))
 }

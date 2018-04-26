@@ -40,5 +40,5 @@ func digest(_ *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println(digest.String())
+	fmt.Print(digest.String())
 }
