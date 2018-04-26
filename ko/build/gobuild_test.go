@@ -116,7 +116,7 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 
 	supportedTests := []string{
 		path.Join(importpath, "pkg", "foo"),
-		path.Join(importpath, "cmd", "d8s"),
+		path.Join(importpath, "cmd", "crane"),
 	}
 
 	for _, test := range supportedTests {
@@ -175,7 +175,7 @@ func TestGoBuild(t *testing.T) {
 	}
 	ng.(*gobuild).build = writeTempFile
 
-	img, err := ng.Build(path.Join(importpath, "cmd", "d8s"))
+	img, err := ng.Build(path.Join(importpath, "cmd", "crane"))
 	if err != nil {
 		t.Errorf("Build() = %v", err)
 	}

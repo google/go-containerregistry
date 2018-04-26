@@ -33,7 +33,7 @@ func TestDefault(t *testing.T) {
 		t.Fatalf("random.Image() = %v", err)
 	}
 	base := "blah"
-	importpath := "github.com/google/go-containerregistry/cmd/d8s"
+	importpath := "github.com/google/go-containerregistry/cmd/crane"
 	expectedRepo := fmt.Sprintf("%s/%s", base, importpath)
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
