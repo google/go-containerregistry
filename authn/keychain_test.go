@@ -19,34 +19,62 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"runtime"
 	"testing"
 
 	"github.com/google/go-containerregistry/name"
 )
 
 func TestConfigDir(t *testing.T) {
-	notSet, err := configDir()
-	if err != nil {
-		t.Errorf("configDir() = %v", err)
+	clearEnv := func() {
+		for _, e := range []string{"HOME", "DOCKER_CONFIG", "HOMEDRIVE", "HOMEPATH"} {
+			os.Unsetenv(e)
+		}
 	}
 
-	// Now set it to something specific and try again.
-	want := "/path/to/.docker"
-	os.Setenv("DOCKER_CONFIG", want)
+	for _, c := range []struct {
+		desc             string
+		env              map[string]string
+		want             string
+		wantErr          bool
+		skipOnNonWindows bool
+	}{{
+		desc:    "no env set",
+		env:     map[string]string{},
+		wantErr: true,
+	}, {
+		desc: "DOCKER_CONFIG",
+		env:  map[string]string{"DOCKER_CONFIG": "/path/to/.docker"},
+		want: "/path/to/.docker",
+	}, {
+		desc: "HOME",
+		env:  map[string]string{"HOME": "/my/home"},
+		want: "/my/home/.docker",
+	}, {
+		desc:             "USERPROFILE",
+		skipOnNonWindows: true,
+		env:              map[string]string{"USERPROFILE": "/user/profile"},
+		want:             "/user/profile/.docker",
+	}} {
+		t.Run(c.desc, func(t *testing.T) {
+			if c.skipOnNonWindows && runtime.GOOS != "windows" {
+				t.Skip("Skipping on non-Windows")
+			}
+			clearEnv()
+			for k, v := range c.env {
+				os.Setenv(k, v)
+			}
+			got, err := configDir()
+			if err == nil && c.wantErr {
+				t.Errorf("configDir() returned no error, got %q", got)
+			} else if err != nil && !c.wantErr {
+				t.Errorf("configDir(): %v", err)
+			}
 
-	set, err := configDir()
-	if err != nil {
-		t.Errorf("configDir() = %v", err)
-	}
-
-	// the "set" version, should match what we want.
-	if set != want {
-		t.Errorf("configDir(set); got %v, want %v", set, want)
-	}
-
-	// the "notSet" version, shouldn't match what we got after setting it.
-	if notSet == set {
-		t.Errorf("configDir(not set) = %v", notSet)
+			if got != c.want {
+				t.Errorf("configDir(); got %q, want %q", got, c.want)
+			}
+		})
 	}
 }
 
