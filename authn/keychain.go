@@ -22,7 +22,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"runtime"
 
 	"github.com/google/go-containerregistry/name"
 )
@@ -51,14 +50,10 @@ func configDir() (string, error) {
 var errNoHomeDir = errors.New("could not determine home directory")
 
 func homeDir() string {
-	if runtime.GOOS == "windows" {
-		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
-		if home == "" {
-			home = os.Getenv("USERPROFILE")
-		}
-		return home
+	if h := os.Getenv("HOME"); h != "" {
+		return h
 	}
-	return os.Getenv("HOME")
+	return os.Getenv("USERPROFILE")
 }
 
 // authEntry is a helper for JSON parsing an "auth" entry of config.json

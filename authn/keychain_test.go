@@ -53,7 +53,7 @@ func TestConfigDir(t *testing.T) {
 	})
 
 	t.Run("HOME", func(t *testing.T) {
-		// DOCKER_CONFIG is unset, but HOME is (on non-Windows).
+		// DOCKER_CONFIG is unset, but HOME is.
 		if runtime.GOOS == "windows" {
 			t.Skip("Not running on Windows")
 		}
@@ -67,27 +67,8 @@ func TestConfigDir(t *testing.T) {
 		}
 	})
 
-	t.Run("HOMEDRIVE and HOMEPATH", func(t *testing.T) {
-		// DOCKER_CONFIG is unset, but HOMEDRIVE or HOMEPATH are (on Windows).
-		if runtime.GOOS != "windows" {
-			t.Skip("Not running on non-Windows")
-		}
-		clearEnv()
-		os.Setenv("HOMEDRIVE", "/homedrive")
-		os.Setenv("HOMEPATH", "homepath")
-		want := "/homedrive/homepath/.docker"
-		if got, err := configDir(); err != nil {
-			t.Errorf("configDir(): %v", err)
-		} else if got != want {
-			t.Errorf("configDir() got %q, want %q", got, want)
-		}
-	})
-
 	t.Run("USERPROFILE", func(t *testing.T) {
-		// DOCKER_CONFIG is unset, but USERPROFILE is (on Windows).
-		if runtime.GOOS != "windows" {
-			t.Skip("Not running on non-Windows")
-		}
+		// DOCKER_CONFIG and HOME are unset, but USERPROFILE is.
 		clearEnv()
 		os.Setenv("USERPROFILE", "/user/profile")
 		want := "/user/profile/.docker"
