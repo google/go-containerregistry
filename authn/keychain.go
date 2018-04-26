@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 
 	"github.com/google/go-containerregistry/name"
 )
@@ -41,19 +42,22 @@ func configDir() (string, error) {
 	if dc := os.Getenv("DOCKER_CONFIG"); dc != "" {
 		return dc, nil
 	}
-	if h := homeDir(); h != "" {
-		return path.Join(homeDir(), ".docker"), nil
+	if h := dockerUserHomeDir(); h != "" {
+		return path.Join(dockerUserHomeDir(), ".docker"), nil
 	}
 	return "", errNoHomeDir
 }
 
 var errNoHomeDir = errors.New("could not determine home directory")
 
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
+// dockerUserHomeDir returns the current user's home directory, as interpreted by Docker.
+func dockerUserHomeDir() string {
+	if runtime.GOOS == "windows" {
+		// Docker specifically expands "%USERPROFILE%" on Windows,
+		return os.Getenv("USERPROFILE")
 	}
-	return os.Getenv("USERPROFILE")
+	// Docker defaults to "$HOME" Linux and OSX.
+	return os.Getenv("HOME")
 }
 
 // authEntry is a helper for JSON parsing an "auth" entry of config.json
