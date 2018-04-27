@@ -22,8 +22,8 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "d8s",
-	Short: `D8s (Short for "dockerless") is a tool for managing container images`,
+	Use:   "crane",
+	Short: "Crane is a tool for managing container images",
 	Run:   func(cmd *cobra.Command, _ []string) { cmd.Usage() },
 }
 

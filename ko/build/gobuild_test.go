@@ -116,7 +116,7 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 
 	supportedTests := []string{
 		path.Join(importpath, "pkg", "foo"),
-		path.Join(importpath, "cmd", "d8s"),
+		path.Join(importpath, "cmd", "crane"),
 	}
 
 	for _, test := range supportedTests {
@@ -175,7 +175,7 @@ func TestGoBuild(t *testing.T) {
 	}
 	ng.(*gobuild).build = writeTempFile
 
-	img, err := ng.Build(path.Join(importpath, "cmd", "d8s"))
+	img, err := ng.Build(path.Join(importpath, "cmd", "crane"))
 	if err != nil {
 		t.Errorf("Build() = %v", err)
 	}
@@ -197,7 +197,7 @@ func TestGoBuild(t *testing.T) {
 	t.Run("check determinism", func(t *testing.T) {
 		expectedHash := v1.Hash{
 			Algorithm: "sha256",
-			Hex:       "f6c290fa444e8e94936132309a42764f8360fb88e38adb8b3077a21780128794",
+			Hex:       "7f4dbad13dfe30c580152f62973627701b72d62654b7c0c62249891f82b80a59",
 		}
 		appLayer := ls[baseLayers]
 

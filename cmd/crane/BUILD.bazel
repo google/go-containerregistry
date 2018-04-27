@@ -15,7 +15,7 @@ go_library(
         "pull.go",
         "push.go",
     ],
-    importpath = "github.com/google/go-containerregistry/cmd/d8s",
+    importpath = "github.com/google/go-containerregistry/cmd/crane",
     visibility = ["//visibility:private"],
     deps = [
         "//authn:go_default_library",
@@ -29,7 +29,7 @@ go_library(
 )
 
 go_binary(
-    name = "d8s",
+    name = "crane",
     embed = [":go_default_library"],
     pure = "on",
     visibility = ["//visibility:public"],
@@ -37,5 +37,5 @@ go_binary(
 
 go_image(
     name = "builder",
-    binary = ":d8s",
+    binary = ":crane",
 )
