@@ -2,7 +2,12 @@ load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["main.go"],
+    srcs = [
+        "commands.go",
+        "filestuff.go",
+        "main.go",
+        "resolve.go",
+    ],
     importpath = "github.com/google/go-containerregistry/cmd/ko",
     visibility = ["//visibility:private"],
     deps = [
