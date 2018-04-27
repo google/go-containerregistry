@@ -15,11 +15,14 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 )
 
 var cmds = &cobra.Command{
@@ -28,7 +31,17 @@ var cmds = &cobra.Command{
 	Run:   func(cmd *cobra.Command, _ []string) { cmd.Usage() },
 }
 
+var gendoc = flag.String("gendoc", "", "If set, path to generate docs and exit")
+
 func main() {
+	flag.Parse()
+	if *gendoc != "" {
+		if err := doc.GenMarkdownTree(rootCmd, *gendoc); err != nil {
+			log.Fatalln(err)
+		}
+		return
+	}
+
 	cmds.AddCommand(crane.NewCmdAppend())
 	cmds.AddCommand(crane.NewCmdConfig())
 	cmds.AddCommand(crane.NewCmdCopy())

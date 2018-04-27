@@ -10,6 +10,7 @@ go_library(
     deps = [
         "//pkg/crane:go_default_library",
         "//vendor/github.com/spf13/cobra:go_default_library",
+        "//vendor/github.com/spf13/cobra/doc:go_default_library",
     ],
 )
 
