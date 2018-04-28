@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "commands.go",
+        "config.go",
         "filestuff.go",
         "main.go",
         "resolve.go",
@@ -16,8 +17,10 @@ go_library(
         "//ko/publish:go_default_library",
         "//ko/resolve:go_default_library",
         "//name:go_default_library",
+        "//v1:go_default_library",
         "//v1/remote:go_default_library",
         "//vendor/github.com/spf13/cobra:go_default_library",
+        "//vendor/github.com/spf13/viper:go_default_library",
     ],
 )
 

@@ -19,12 +19,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-
-	"github.com/google/go-containerregistry/name"
-)
-
-var (
-	baseImage, _ = name.NewTag("gcr.io/distroless/base:latest", name.WeakValidation)
 )
 
 func main() {

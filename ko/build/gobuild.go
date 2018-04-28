@@ -42,9 +42,8 @@ const (
 )
 
 type Options struct {
-	// TODO(mattmoor): Base Image?
 	// TODO(mattmoor): Architectures?
-	Base v1.Image
+	GetBase func(string) (v1.Image, error)
 }
 
 type gobuild struct {
@@ -164,8 +163,14 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 		return nil, err
 	}
 
+	// Determine the appropriate base image for this import path.
+	base, err := gb.opt.GetBase(s)
+	if err != nil {
+		return nil, err
+	}
+
 	// Augment the base image with our application layer.
-	withApp, err := mutate.AppendLayers(gb.opt.Base, layer)
+	withApp, err := mutate.AppendLayers(base, layer)
 	if err != nil {
 		return nil, err
 	}

@@ -23,7 +23,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/ko/build"
 	"github.com/google/go-containerregistry/ko/publish"
 	"github.com/google/go-containerregistry/ko/resolve"
@@ -32,13 +31,8 @@ import (
 )
 
 func gobuildOptions() build.Options {
-	// A better story for configuring options.
-	base, err := remote.Image(baseImage, authn.Anonymous, http.DefaultTransport)
-	if err != nil {
-		log.Fatalln(err)
-	}
 	return build.Options{
-		Base: base,
+		GetBase: GetBaseImage,
 	}
 }
 
@@ -93,7 +87,7 @@ func resolveFile(f string, opt build.Options) ([]byte, error) {
 	}
 
 	publisher := publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
-		MountPaths: []name.Repository{baseImage.Repository},
+		MountPaths: GetMountPaths(),
 	})
 	builder, err := build.NewGo(opt)
 	if err != nil {
