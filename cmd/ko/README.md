@@ -193,7 +193,7 @@ kubectl apply -f release.yaml
 ## Acknowledgements
 
 This work is based heavily on learnings from having built the
-[Docker](github.com/bazelbuild/rules_docker) and
-[Kubernetes](github.com/bazelbuild/rules_k8s) support for
+[Docker](https://github.com/bazelbuild/rules_docker) and
+[Kubernetes](https://github.com/bazelbuild/rules_k8s) support for
 [Bazel](https://bazel.build). That work was presented
 [here](https://www.youtube.com/watch?v=RS1aiQqgUTA).
