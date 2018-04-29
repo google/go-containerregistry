@@ -43,7 +43,7 @@ func passthru(command string) runCmd {
 
 		// Run it.
 		if err := cmd.Run(); err != nil {
-			log.Fatalln(err)
+			log.Fatalf("error executing %q command with args: %v; %v", command, os.Args[1:], err)
 		}
 	}
 }
@@ -85,7 +85,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 
 			// Run it.
 			if err := kubectlCmd.Run(); err != nil {
-				log.Fatalln(err)
+				log.Fatalf("error executing \"kubectl apply\": %v", err)
 			}
 		},
 	}

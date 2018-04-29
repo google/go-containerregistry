@@ -58,13 +58,14 @@ func init() {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			log.Fatalln(err)
+			log.Fatalf("error reading config file: %v", err)
 		}
 	}
 
-	dbi, err := name.ParseReference(viper.GetString("defaultBaseImage"), name.WeakValidation)
+	ref := viper.GetString("defaultBaseImage")
+	dbi, err := name.ParseReference(ref, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("'defaultBaseImage': error parsing %q as image reference: %v", ref, err)
 	}
 	defaultBaseImage = dbi
 
@@ -73,7 +74,7 @@ func init() {
 	for k, v := range overrides {
 		bi, err := name.ParseReference(v, name.WeakValidation)
 		if err != nil {
-			log.Fatalln(err)
+			log.Fatalf("'baseImageOverrides': error parsing %q as image reference: %v", v, err)
 		}
 		baseImageOverrides[k] = bi
 	}

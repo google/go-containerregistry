@@ -39,7 +39,7 @@ func gobuildOptions() build.Options {
 func resolveFilesToWriter(fo *FilenameOptions, out io.Writer) {
 	fs, err := enumerateFiles(fo)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("error enumerating files: %v", err)
 	}
 
 	opt := gobuildOptions()
@@ -52,7 +52,7 @@ func resolveFilesToWriter(fo *FilenameOptions, out io.Writer) {
 
 			b, err := resolveFile(f, opt)
 			if err != nil {
-				log.Fatalln(err)
+				log.Fatalf("error processing import paths in %q: %v", f, err)
 			}
 			sm.Store(f, b)
 		}(f)

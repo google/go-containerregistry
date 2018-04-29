@@ -15,8 +15,7 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"log"
 
 	"github.com/spf13/cobra"
 )
@@ -34,7 +33,6 @@ func main() {
 	addKubeCommands(cmds)
 
 	if err := cmds.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		log.Fatalf("error during command execution: %v", err)
 	}
 }

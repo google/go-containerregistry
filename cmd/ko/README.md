@@ -178,10 +178,10 @@ is not present, then `ko` will rely on its default behaviors.
 
 By default, `ko` makes use of `gcr.io/distroless/base:latest` as the base image
 for containers.  There are a wide array of scenarios in which overriding this
-makes sense, to name a few:
+makes sense, for example:
 1. Pinning to a particular digest of this image for repeatable builds,
 1. Replacing this streamlined base image with another with better debugging
-  tools (e.g. a shell).
+  tools (e.g. a shell, like `docker.io/library/ubuntu`).
 
 The default base image `ko` uses can be changed by simply adding the following
 line to `.ko.yaml`:
@@ -193,7 +193,7 @@ defaultBaseImage: gcr.io/another-project/another-image@sha256:deadbeef
 ### Overriding the base for particular imports
 
 Some of your binaries may have requirements that are a more unique, and you
-want to direct `ko` to use a particular base image for just those binaries.
+may want to direct `ko` to use a particular base image for just those binaries.
 
 The base image `ko` uses can be changed by adding the following to `.ko.yaml`:
 
