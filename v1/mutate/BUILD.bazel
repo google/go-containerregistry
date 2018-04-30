@@ -5,11 +5,14 @@ go_library(
     srcs = [
         "doc.go",
         "mutate.go",
+        "rebase.go",
     ],
     importpath = "github.com/google/go-containerregistry/v1/mutate",
     visibility = ["//visibility:public"],
     deps = [
+        "//name:go_default_library",
         "//v1:go_default_library",
+        "//v1/empty:go_default_library",
         "//v1/partial:go_default_library",
         "//v1/types:go_default_library",
     ],

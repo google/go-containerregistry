@@ -23,14 +23,18 @@ import (
 	"github.com/google/go-containerregistry/v1/remote"
 )
 
-func getImage(r string) (v1.Image, error) {
+func getImage(r string) (v1.Image, name.Reference, error) {
 	ref, err := name.ParseReference(r, name.WeakValidation)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	auth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return remote.Image(ref, auth, http.DefaultTransport)
+	img, err := remote.Image(ref, auth, http.DefaultTransport)
+	if err != nil {
+		return nil, nil, err
+	}
+	return img, ref, nil
 }
