@@ -1,50 +1,65 @@
-This command rewrites an image's manifest to replace layers in a base image
-with layers in another version of that base image. It does so entirely with API
-calls to the registry, so it doesn't have to download or upload full layer
-blobs, if it can be avoided.
+### This code is experimental and might break you if not used correctly.
 
-This can be useful if you want to produce container images that pick up
-security or bug fixes in base images, without having to completely rebuild the
-image from source. For instance, you might not have access to the original
-source anymore, or you want to produce updated images without performing a full
-rebuild.
+The `rebase` command efficiently rewrites an image to replace the base image it
+is FROM with a new base image.
 
-*WARNING:* The image that results from such a rebase might not be valid in all
-cases. More details below, but caveat emptor.
+# TODO: diagram
+
+**This is not safe in general**, but it can be extremely useful for platform
+providers, e.g. when a vulnerability is discovered in a base layer and many
+thousands or millions of applications need to be patched in a short period of
+time.
+
+A commonly accepted guideline for rebase-safety is ABI-compatibility, but this
+is still imperfect in a handful of ways, and the exact contract varies between
+platform providers.
+
+Rebasing is best suited for when rebuilding is either impossible (source is not
+available) or impractical (too much work, too little time).
 
 ## Using `crane rebase`
 
 For purposes of illustration, imagine you've built a container image
-`gcr.io/my-project/my-app:latest`, containing your app, and based on some OS
-image, for instance, `ubuntu`. A vulnerability has been found in the base
-image, and a new fixed version has been released.
+`my-app:latest`, which is `FROM ubuntu`:
 
-You could build your app image again, and its `FROM ubuntu` directive would
-pick up the new base image release, but that requires a full rebuild of your
-entire app from source, which might pull in other changes in dependencies. You
-just want to release this critical bug fix, as quickly as possible.
+```
+FROM ubuntu
+
+RUN ./very-expensive-build-process.sh
+
+ENTRYPOINT ["/bin/myapp"]
+```
+
+A serious vulnerability has been found in the `ubuntu` base image, and a new
+patched version has been released, tagged as `ubuntu:latest`.
+
+You could build your app image again, and the Dockerfile's `FROM ubuntu`
+directive would pick up the new base image release, but that requires a full
+rebuild of your entire app from source, which might take a long time, and might
+pull in other unrelated changes in dependencies.
+
+You may have thousands of images containing the vulnerability. You just want to
+release this critical bug fix across all your apps, as quickly as possible.
 
 Instead, you could use `crane rebase` to replace the vulnerable base image
-layers in your image with new patched base image layers from the newly released
-base image, without needing to rebuild from source, or indeed have access to
-the source at all.
+layers in your image with the patched base image layers, without requiring a
+full rebuild from source.
 
 ```
 $ crane rebase \
-  --original=gcr.io/my-project/my-app:latest \
+  --original=my-app:latest \
   --old_base=ubuntu@sha256:deadbeef... \
   --new_base=ubuntu:latest \
-  --rebased=gcr.io/my-project/my-app:rebased
+  --rebased=my-app:rebased
 ```
 
-This command would fetch the manifest for `original`, `old_base` and `new_base`,
-check that `old_base` is indeed the basis for `original`, remove `old_base`'s
-layers from `original` and replace them with `new_base`'s layers, then compute
-and upload a new valid manifest for the image, tagged as `rebased`.
+This command:
 
-If the image is in Google Container Registry, you can determine `old_base` image
-digests using `gcloud alpha container images describe <image>
---show-image-basis`.
+1. fetches the manifest for `original`, `old_base` and `new_base`
+1. checks that `old_base` is indeed the basis for `original`
+1. removes `old_base`'s layers from `original`
+1. replaces them with `new_base`'s layers
+1. computes and uploads a new manifest for the image, tagged as `rebased`.
 
 ## Rebase visualized
 
@@ -52,17 +67,17 @@ digests using `gcloud alpha container images describe <image>
 
 ## Caveats
 
-Rebasing has no visibility into what the container image contains, or what
-constitutes a "valid" image. As a result, it's perfectly capable of producing an
-image that's entirely invalid garbage. Rebasing arbitrary layers in an image is
-not a good idea.
+The tool has no visibility into what the specific contents of the resulting
+image, and has no idea what constitutes a "valid" image. As a result, it's
+perfectly capable of producing an image that's entirely invalid garbage.
+Rebasing arbitrary layers in an image is not a good idea.
 
 To help prevent garbage images, rebasing should only be done at a point in the
 layer stack between "base" layers and "app" layers. These should adhere to some
 contract about what "base" layers can be expected to produce, and what "app"
 layers should expect from base layers.
 
-In the example above, for instance, we assume that the "Ubuntu" base image is
+In the example above, for instance, we assume that the Ubuntu base image is
 adhering to some contract with downstream app layers, that it won't remove or
 drastically change what it provides to the app layer. If the `new_base` layers
 removed some installed package, or made a breaking change to the version of some
@@ -75,47 +90,3 @@ the `original` tag, perform some sanity checks, then tag the image to the
 
 There is ongoing work to standardize and advertise base image contract
 adherence to make rebasing safer.
-
-## Automatic Rebase Seam Detection
-
-If an app image adheres to a strong contract with its base layers, the tool
-that builds the app image can insert a hint into the image, in the form of a
-`LABEL`, to help `crane rebase` detect the values of `--old_base` and
-`--new_base` automatically.
-
-The form of the `LABEL` is:
-
-```
-LABEL rebase <current-base-image-by-digest> <current-base-image-by-tag>
-```
-
-When `crane rebase` is asked to rebase an image without being passed
-`--old_base` and `--new_base` explicitly, it will look for this label and fill
-in `--old_base=<base-by-digest>` and `--new_base=<base-by-tag>`.
-
-In this way, new releases of `<base-by-tag>` will automatically be considered
-as `--new_base` for the app image, if the flags aren't passed explicitly.
-
-The `crane rebase` tool injects this `LABEL` into the `--rebased` image it
-produces, if `--new_base` is passed as a tag, to aid future rebase operations
-on that image.
-
-Using the example above, `gcr.io/my-project/my-app:rebased` contains the following label:
-
-```
-LABEL rebase ubuntu@sha256:facadecafe... ubuntu:latest
-```
-
-This supplies a hint to `crane rebase` that if `ubuntu16_04:latest` is updated,
-it should be used as the new base for `:rebased` image, instead of
-`ubuntu16_04@sha256:facadecafe...`, which is its current base.
-
-Future rebase operations can be specified with just two flags:
-
-```
-$ crane rebase \
-  --original=gcr.io/my-project/my-app:rebased \
-  --rebased=gcr.io/my-project/my-app:rebased-again
-```
-
-### This code is experimental and might break you if not used correctly.

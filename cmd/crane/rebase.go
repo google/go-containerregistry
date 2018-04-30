@@ -44,25 +44,13 @@ func init() {
 }
 
 func rebase(orig, oldBase, newBase, rebased string) {
-	if orig == "" || rebased == "" {
-		log.Fatalln("Must provide --original and --rebased")
+	if orig == "" || oldBase == "" || newBase == "" || rebased == "" {
+		log.Fatalln("Must provide --original, --old_base, --new_base and --rebased")
 	}
 
 	origImg, origRef, err := getImage(orig)
 	if err != nil {
 		log.Fatalln(err)
-	}
-
-	if oldBase == "" || newBase == "" {
-		// Attempt to detect rebase hints in original image.
-		hint, err := mutate.DetectRebaseHint(origImg)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		if hint == nil {
-			log.Fatalln("--old_base and --new_base were not provided, and rebase hint could not be found")
-		}
-		oldBase, newBase = hint.OldBase, hint.NewBase
 	}
 
 	oldBaseImg, oldBaseRef, err := getImage(oldBase)
@@ -80,24 +68,7 @@ func rebase(orig, oldBase, newBase, rebased string) {
 		log.Fatalln(err)
 	}
 
-	var newBaseTag name.Tag
-	var newBaseDigest name.Digest
-	if t, ok := newBaseRef.(name.Tag); ok {
-		newBaseTag = t
-		dig, err := newBaseImg.Digest()
-		if err != nil {
-			log.Fatalln(err)
-		}
-		newBaseDigest, err = name.NewDigest(fmt.Sprintf("%s@%s", newBaseTag.Context(), dig), name.WeakValidation)
-		if err != nil {
-			log.Fatalln(err)
-		}
-	}
-
-	rebasedImg, err := mutate.Rebase(origImg, oldBaseImg, newBaseImg, &mutate.RebaseOptions{
-		NewBaseTag:    newBaseTag,
-		NewBaseDigest: newBaseDigest,
-	})
+	rebasedImg, err := mutate.Rebase(origImg, oldBaseImg, newBaseImg, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}

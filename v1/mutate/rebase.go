@@ -16,17 +16,15 @@ package mutate
 
 import (
 	"fmt"
-	"log"
-	"strings"
 
-	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/empty"
 )
 
+const rebaseLabelKey = "build.dev/rebase-hint"
+
 type RebaseOptions struct {
-	NewBaseTag    name.Tag
-	NewBaseDigest name.Digest
+	// TODO(jasonhall): Rebase seam hint.
 }
 
 func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, error) {
@@ -41,13 +39,19 @@ func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, err
 		return nil, err
 	}
 	if len(oldBaseLayers) > len(origLayers) {
-		return nil, fmt.Errorf("image %q is not based on %q", orig, oldBase)
+		return nil, fmt.Errorf("image %q is not based on %q (too few layers)", orig, oldBase)
 	}
 	for i, l := range oldBaseLayers {
-		oldLayerDigest, _ := l.Digest()
-		origLayerDigest, _ := origLayers[i].Digest()
+		oldLayerDigest, err := l.Digest()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get digest of layer %d of %q: %v", i, oldBase, err)
+		}
+		origLayerDigest, err := origLayers[i].Digest()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get digest of layer %d of %q: %v", i, orig, err)
+		}
 		if oldLayerDigest != origLayerDigest {
-			return nil, fmt.Errorf("image %q is not based on %q", orig, oldBase)
+			return nil, fmt.Errorf("image %q is not based on %q (layer %d mismatch)", orig, oldBase, i)
 		}
 	}
 
@@ -60,15 +64,7 @@ func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, err
 	// - original image's config
 	// - new base image's layers + top of original image's layers
 	// - new base image's history + top of original image's history
-	rebasedConfig := *origConfig.Config.DeepCopy()
-	if opts != nil {
-		if rebasedConfig.Labels == nil {
-			rebasedConfig.Labels = map[string]string{}
-		}
-		rebasedConfig.Labels["rebase"] = fmt.Sprintf("%s %s", opts.NewBaseDigest, opts.NewBaseTag)
-		log.Println("Adding LABEL rebase", rebasedConfig.Labels["rebase"])
-	}
-	rebasedImage, err := Config(empty.Image, rebasedConfig)
+	rebasedImage, err := Config(empty.Image, *origConfig.Config.DeepCopy())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create empty image with original config: %v", err)
 	}
@@ -81,6 +77,7 @@ func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, err
 	if err != nil {
 		return nil, fmt.Errorf("could not get config for new base: %v", err)
 	}
+	// Add new base layers.
 	for i := range newBaseLayers {
 		rebasedImage, err = Append(rebasedImage, Addendum{
 			Layer:   newBaseLayers[i],
@@ -90,6 +87,7 @@ func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, err
 			return nil, fmt.Errorf("failed to append layer %d of new base layers", i)
 		}
 	}
+	// Add original layers above the old base.
 	for i := range origLayers[len(oldBaseLayers):] {
 		rebasedImage, err = Append(rebasedImage, Addendum{
 			Layer:   origLayers[i],
@@ -100,28 +98,4 @@ func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, err
 		}
 	}
 	return rebasedImage, nil
-}
-
-type RebaseHint struct {
-	OldBase, NewBase string
-}
-
-func DetectRebaseHint(img v1.Image) (*RebaseHint, error) {
-	config, err := img.ConfigFile()
-	if err != nil {
-		return nil, err
-	}
-	lbls := config.Config.Labels
-	if lbls == nil {
-		return nil, nil
-	}
-	lbl, found := lbls["rebase"]
-	if !found {
-		return nil, nil
-	}
-	parts := strings.Split(lbl, " ")
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("Malformed rebase LABEL: %s", lbl)
-	}
-	return &RebaseHint{parts[0], parts[1]}, nil
 }
