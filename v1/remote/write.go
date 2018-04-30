@@ -228,7 +228,7 @@ func (w *writer) uploadOne(h v1.Hash) error {
 	if err != nil {
 		return err
 	} else if mounted {
-		log.Printf("mounted %v", h)
+		log.Printf("mounted blob: %v", h)
 		return nil
 	}
 
@@ -240,7 +240,7 @@ func (w *writer) uploadOne(h v1.Hash) error {
 	if err := w.commitBlob(h, location); err != nil {
 		return err
 	}
-	log.Printf("pushed %v", h)
+	log.Printf("pushed blob %v", h)
 	return nil
 }
 
@@ -273,8 +273,14 @@ func (w *writer) commitImage() error {
 	if err := checkError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
 		return err
 	}
+
+	digest, err := w.img.Digest()
+	if err != nil {
+		return err
+	}
+
 	// The image was successfully pushed!
-	log.Printf("pushed %v", w.ref)
+	fmt.Printf("%v: digest: %v size: %d\n", w.ref, digest, len(raw))
 	return nil
 }
 
