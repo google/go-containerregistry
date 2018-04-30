@@ -65,6 +65,8 @@ This command:
 
 ![rebase visualization](./rebase.png)
 
+([link](https://docs.google.com/drawings/d/1w8UxTZDRbDWVoqnbr17SJuU73pRxpOmOk_vzmC9WB2k/edit))
+
 ## Caveats
 
 The tool has no visibility into what the specific contents of the resulting
