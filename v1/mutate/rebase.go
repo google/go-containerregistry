@@ -88,10 +88,11 @@ func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, err
 		}
 	}
 	// Add original layers above the old base.
-	for i := range origLayers[len(oldBaseLayers):] {
+	start := len(oldBaseLayers)
+	for i := range origLayers[start:] {
 		rebasedImage, err = Append(rebasedImage, Addendum{
-			Layer:   origLayers[i],
-			History: origConfig.History[i],
+			Layer:   origLayers[start+i],
+			History: origConfig.History[start+i],
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to append layer %d of original layers", i)
