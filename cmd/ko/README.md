@@ -166,6 +166,54 @@ to whatever `kubectl` context is active.
 commands. It is exposed purely out of convenience for cleaning up resources
 created through `ko apply`.
 
+## Configuration via `.ko.yaml`
+
+While `ko` aims to have zero configuration, there are certain scenarios where
+you will want to override `ko`'s default behavior. This is done via `.ko.yaml`.
+
+`.ko.yaml` is put into the directory from which `ko` will be invoked.  If it
+is not present, then `ko` will rely on its default behaviors.
+
+### Overriding the default base image
+
+By default, `ko` makes use of `gcr.io/distroless/base:latest` as the base image
+for containers.  There are a wide array of scenarios in which overriding this
+makes sense, for example:
+1. Pinning to a particular digest of this image for repeatable builds,
+1. Replacing this streamlined base image with another with better debugging
+  tools (e.g. a shell, like `docker.io/library/ubuntu`).
+
+The default base image `ko` uses can be changed by simply adding the following
+line to `.ko.yaml`:
+
+```yaml
+defaultBaseImage: gcr.io/another-project/another-image@sha256:deadbeef
+```
+
+### Overriding the base for particular imports
+
+Some of your binaries may have requirements that are a more unique, and you
+may want to direct `ko` to use a particular base image for just those binaries.
+
+The base image `ko` uses can be changed by adding the following to `.ko.yaml`:
+
+```yaml
+baseImageOverrides:
+  github.com/my-org/my-repo/path/to/binary: docker.io/another/base:latest
+```
+
+### Why isn't `KO_DOCKER_REPO` part of `.ko.yaml`?
+
+Once introduced to `.ko.yaml`, you may find yourself wondering: Why does it
+not hold the value of `$KO_DOCKER_REPO`?
+
+The answer is that `.ko.yaml` is expected to sit in the root of a repository,
+and get checked in and versioned alongside your source code. This also means
+that the configured values will be shared across developers on a project, which
+for `KO_DOCKER_REPO` is actually undesireable because each developer is (likely)
+using their own docker repository and cluster.
+
+
 ## Relevance to Release Management
 
 `ko` is also useful for helping manage releases. For example, if your project

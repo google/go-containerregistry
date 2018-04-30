@@ -15,16 +15,9 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	"log"
 
 	"github.com/spf13/cobra"
-
-	"github.com/google/go-containerregistry/name"
-)
-
-var (
-	baseImage, _ = name.NewTag("gcr.io/distroless/base:latest", name.WeakValidation)
 )
 
 func main() {
@@ -40,7 +33,6 @@ func main() {
 	addKubeCommands(cmds)
 
 	if err := cmds.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		log.Fatalf("error during command execution: %v", err)
 	}
 }

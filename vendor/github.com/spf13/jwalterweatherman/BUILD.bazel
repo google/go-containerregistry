@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "default_notepad.go",
+        "log_counter.go",
+        "notepad.go",
+    ],
+    importpath = "github.com/spf13/jwalterweatherman",
+    visibility = ["//visibility:public"],
+)

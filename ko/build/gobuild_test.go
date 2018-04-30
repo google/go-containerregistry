@@ -109,7 +109,9 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 	}
 	tc.Enter(t)
 	defer tc.Exit(t)
-	ng, err := NewGo(Options{Base: img})
+	ng, err := NewGo(Options{GetBase: func(string) (v1.Image, error) {
+		return img, nil
+	}})
 	if err != nil {
 		t.Fatalf("NewGo() = %v", err)
 	}
@@ -169,7 +171,9 @@ func TestGoBuild(t *testing.T) {
 	}
 	tc.Enter(t)
 	defer tc.Exit(t)
-	ng, err := NewGo(Options{Base: base})
+	ng, err := NewGo(Options{GetBase: func(string) (v1.Image, error) {
+		return base, nil
+	}})
 	if err != nil {
 		t.Fatalf("NewGo() = %v", err)
 	}
