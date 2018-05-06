@@ -3,7 +3,9 @@
 The `rebase` command efficiently rewrites an image to replace the base image it
 is FROM with a new base image.
 
-# TODO: diagram
+![rebase visualization](./rebase.png)
+
+([link](https://docs.google.com/drawings/d/1w8UxTZDRbDWVoqnbr17SJuU73pRxpOmOk_vzmC9WB2k/edit))
 
 **This is not safe in general**, but it can be extremely useful for platform
 providers, e.g. when a vulnerability is discovered in a base layer and many
@@ -60,12 +62,6 @@ This command:
 1. removes `old_base`'s layers from `original`
 1. replaces them with `new_base`'s layers
 1. computes and uploads a new manifest for the image, tagged as `rebased`.
-
-## Rebase visualized
-
-![rebase visualization](./rebase.png)
-
-([link](https://docs.google.com/drawings/d/1w8UxTZDRbDWVoqnbr17SJuU73pRxpOmOk_vzmC9WB2k/edit))
 
 ## Caveats
 
