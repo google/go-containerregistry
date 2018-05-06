@@ -21,8 +21,6 @@ import (
 	"github.com/google/go-containerregistry/v1/empty"
 )
 
-const rebaseLabelKey = "build.dev/rebase-hint"
-
 type RebaseOptions struct {
 	// TODO(jasonhall): Rebase seam hint.
 }
