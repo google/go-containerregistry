@@ -29,7 +29,7 @@ const (
 // New returns a new RoundTripper based on the provided RoundTripper that has been
 // setup to authenticate with the remote registry hosting "ref", in the capacity
 // laid out by the specified Scope.
-func New(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, a Scope) (http.RoundTripper, error) {
+func New(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, scopes []string) (http.RoundTripper, error) {
 	// The handshake:
 	//  1. Use "t" to ping() the registry for the authentication challenge.
 	//
@@ -72,7 +72,7 @@ func New(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, a Sc
 			realm:    realm,
 			registry: ref.Context().Registry,
 			service:  service,
-			scope:    ref.Scope(string(a)),
+			scopes:   scopes,
 		}
 		if err := bt.refresh(); err != nil {
 			return nil, err
