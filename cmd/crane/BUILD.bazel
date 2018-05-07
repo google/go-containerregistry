@@ -14,6 +14,7 @@ go_library(
         "manifest.go",
         "pull.go",
         "push.go",
+        "rebase.go",
     ],
     importpath = "github.com/google/go-containerregistry/cmd/crane",
     visibility = ["//visibility:private"],

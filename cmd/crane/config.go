@@ -32,7 +32,7 @@ func init() {
 
 func config(_ *cobra.Command, args []string) {
 	ref := args[0]
-	i, err := getImage(ref)
+	i, _, err := getImage(ref)
 	if err != nil {
 		log.Fatalln(err)
 	}
