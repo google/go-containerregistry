@@ -74,7 +74,7 @@ func TestBearerRefresh(t *testing.T) {
 				basic:    basic,
 				registry: registry,
 				realm:    server.URL,
-				scope:    expectedScope,
+				scopes:   []string{expectedScope},
 				service:  expectedService,
 			}
 

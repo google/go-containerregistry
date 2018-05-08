@@ -180,7 +180,7 @@ func TestRawManifestDigests(t *testing.T) {
 			}
 
 			if _, err := rmt.RawManifest(); (err != nil) != tc.wantErr {
-				t.Error("RawManifest() wrong error: %v, want %v: %v", (err != nil), tc.wantErr, err)
+				t.Errorf("RawManifest() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
 			}
 		})
 	}
