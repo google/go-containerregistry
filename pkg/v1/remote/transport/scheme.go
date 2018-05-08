@@ -29,6 +29,9 @@ var reLoopback = regexp.MustCompile(regexp.QuoteMeta("127.0.0.1"))
 
 // Scheme returns https scheme for all the endpoints except localhost.
 func Scheme(reg name.Registry) string {
+	if reg.Scheme != "" {
+		return reg.Scheme
+	}
 	if strings.HasPrefix(reg.Name(), "localhost:") {
 		return "http"
 	}

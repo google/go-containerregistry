@@ -54,3 +54,14 @@ func TestSheme(t *testing.T) {
 		}
 	}
 }
+
+func TestForcedSheme(t *testing.T) {
+	reg, err := name.NewRegistry("index.docker.io", name.WeakValidation)
+	if err != nil {
+		t.Errorf("NewRegistry(index.docker.io) = %v", err)
+	}
+	reg.Scheme = "http"
+	if got, want := Scheme(reg), "http"; got != want {
+		t.Errorf("scheme(%v); got %v, want %v", reg, got, want)
+	}
+}

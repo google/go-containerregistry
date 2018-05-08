@@ -23,6 +23,7 @@ const (
 
 // Registry stores a docker registry name in a structured form.
 type Registry struct {
+	Scheme   string
 	registry string
 }
 
