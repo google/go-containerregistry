@@ -11,6 +11,7 @@ go_library(
     deps = [
         "//ko/build:go_default_library",
         "//ko/publish:go_default_library",
+        "//vendor/golang.org/x/sync/errgroup:go_default_library",
         "//vendor/gopkg.in/yaml.v2:go_default_library",
     ],
 )

@@ -31,7 +31,7 @@ rm -rf $(find vendor/ -name '*_test.go')
 
 # These vendored deps include symlinks outside the repo,
 # which confuses "gcloud container builds submit"
-rm vendor/github.com/docker/docker/project/CONTRIBUTING.md
+rm vendor/github.com/docker/docker/project/CONTRIBUTORS.md
 rm -r vendor/github.com/docker/docker/hack/make/
 
 # Make sure that BUILD files are up to date (the above removes them).
