@@ -45,7 +45,7 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 		scopes = append(scopes, mp.Scope(transport.PullScope))
 	}
 
-	tr, err := transport.New(ref, auth, t, scopes)
+	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
 	if err != nil {
 		return err
 	}

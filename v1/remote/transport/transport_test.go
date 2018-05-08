@@ -43,7 +43,7 @@ func TestTransportSelectionAnonymous(t *testing.T) {
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
 
-	tp, err := New(testReference, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err != nil {
 		t.Errorf("New() = %v", err)
 	}
@@ -68,7 +68,7 @@ func TestTransportSelectionBasic(t *testing.T) {
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
 
-	tp, err := New(testReference, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err != nil {
 		t.Errorf("New() = %v", err)
 	}
@@ -109,7 +109,7 @@ func TestTransportSelectionBearer(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(testReference, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err != nil {
 		t.Errorf("New() = %v", err)
 	}
@@ -132,7 +132,7 @@ func TestTransportSelectionBearerMissingRealm(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(testReference, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err == nil || !strings.Contains(err.Error(), "missing realm") {
 		t.Errorf("New() = %v, %v", tp, err)
 	}
@@ -159,7 +159,7 @@ func TestTransportSelectionBearerAuthError(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(testReference, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err == nil {
 		t.Errorf("New() = %v", tp)
 	}
@@ -179,7 +179,7 @@ func TestTransportSelectionUnrecognizedChallenge(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(testReference, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err == nil || !strings.Contains(err.Error(), "challenge") {
 		t.Errorf("New() = %v, %v", tp, err)
 	}
