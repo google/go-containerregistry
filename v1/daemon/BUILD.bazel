@@ -16,17 +16,23 @@ go_library(
         "//name:go_default_library",
         "//v1:go_default_library",
         "//v1/tarball:go_default_library",
+        "//vendor/github.com/docker/docker/api/types:go_default_library",
         "//vendor/github.com/docker/docker/client:go_default_library",
+        "//vendor/github.com/pkg/errors:go_default_library",
     ],
 )
 
 go_test(
     name = "go_default_test",
-    srcs = ["image_test.go"],
+    srcs = [
+        "image_test.go",
+        "write_test.go",
+    ],
     data = ["//v1/tarball:test_image_1.tar"],  # keep
     embed = [":go_default_library"],
     deps = [
         "//name:go_default_library",
+        "//v1/random:go_default_library",
         "//v1/tarball:go_default_library",
     ],
 )

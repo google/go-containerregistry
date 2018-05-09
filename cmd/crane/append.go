@@ -75,7 +75,7 @@ func doAppend(src, dst, tar, output string) {
 	}
 
 	if output != "" {
-		if err := tarball.Write(output, dstTag, image, &tarball.WriteOptions{}); err != nil {
+		if err := tarball.WriteToFile(output, dstTag, image, &tarball.WriteOptions{}); err != nil {
 			log.Fatalln(err)
 		}
 		return
