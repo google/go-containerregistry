@@ -8,7 +8,7 @@ with Kubernetes and minimal configuration.
 `ko` can be installed via:
 
 ```shell
-go install github.com/google/go-containerregistry/cmd/ko
+go get -u github.com/google/go-containerregistry/cmd/ko
 ```
 
 ## The `ko` Model
