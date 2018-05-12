@@ -3,6 +3,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "daemon.go",
         "default.go",
         "doc.go",
         "fixed.go",
@@ -14,6 +15,7 @@ go_library(
         "//authn:go_default_library",
         "//name:go_default_library",
         "//v1:go_default_library",
+        "//v1/daemon:go_default_library",
         "//v1/remote:go_default_library",
     ],
 )
@@ -21,6 +23,7 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = [
+        "daemon_test.go",
         "default_test.go",
         "fixed_test.go",
     ],
@@ -28,7 +31,9 @@ go_test(
     deps = [
         "//name:go_default_library",
         "//v1:go_default_library",
+        "//v1/daemon:go_default_library",
         "//v1/random:go_default_library",
         "//v1/remote:go_default_library",
+        "//vendor/github.com/docker/docker/api/types:go_default_library",
     ],
 )

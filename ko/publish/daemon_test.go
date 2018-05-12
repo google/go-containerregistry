@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package daemon
+package publish
 
 import (
 	"context"
@@ -22,8 +22,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1/tarball"
+	"github.com/google/go-containerregistry/v1/daemon"
+	"github.com/google/go-containerregistry/v1/random"
 )
 
 type MockImageLoader struct{}
@@ -35,25 +35,22 @@ func (m *MockImageLoader) ImageLoad(_ context.Context, _ io.Reader, _ bool) (typ
 }
 
 func init() {
-	GetImageLoader = func() (ImageLoader, error) {
+	daemon.GetImageLoader = func() (daemon.ImageLoader, error) {
 		return &MockImageLoader{}, nil
 	}
 }
 
-func TestWriteImage(t *testing.T) {
-	image, err := tarball.ImageFromPath("../tarball/test_image_1.tar", nil)
+func TestDaemon(t *testing.T) {
+	importpath := "github.com/google/go-containerregistry/cmd/ko"
+	img, err := random.Image(1024, 1)
 	if err != nil {
-		t.Errorf("Error loading image: %v", err.Error())
+		t.Fatalf("random.Image() = %v", err)
 	}
-	tag, err := name.NewTag("test_image_2:latest", name.WeakValidation)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-	response, err := Write(tag, image, WriteOptions{})
-	if err != nil {
-		t.Errorf("Error writing image tar: %s", err.Error())
-	}
-	if !strings.Contains(response, "Loaded") {
-		t.Errorf("Error loading image. Response: %s", response)
+
+	def := NewDaemon(daemon.WriteOptions{})
+	if d, err := def.Publish(img, importpath); err != nil {
+		t.Errorf("Publish() = %v", err)
+	} else if got, want := d.String(), importpath; !strings.HasPrefix(got, want) {
+		t.Errorf("Publish() = %v, wanted prefix %v", got, want)
 	}
 }

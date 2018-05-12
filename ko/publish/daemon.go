@@ -15,32 +15,33 @@
 package publish
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
+	"github.com/google/go-containerregistry/v1/daemon"
 )
 
-type fixed struct {
-	base    name.Repository
-	entries map[string]v1.Hash
+// demon is intentionally misspelled to avoid name collision (and drive Jon nuts).
+type demon struct {
+	wo daemon.WriteOptions
 }
 
-// NewFixed returns a publish.Interface implementation that simply resolves particular
-// references to fixed name.Digest references.
-func NewFixed(base name.Repository, entries map[string]v1.Hash) Interface {
-	return &fixed{base, entries}
+// NewDaemon returns a new publish.Interface that publishes images to a container daemon.
+func NewDaemon(wo daemon.WriteOptions) Interface {
+	return &demon{wo}
 }
 
 // Publish implements publish.Interface
-func (f *fixed) Publish(_ v1.Image, s string) (name.Reference, error) {
-	h, ok := f.entries[s]
-	if !ok {
-		return nil, fmt.Errorf("unsupported importpath: %q", s)
-	}
-	d, err := name.NewDigest(fmt.Sprintf("%s/%s@%s", f.base, s, h), name.WeakValidation)
+func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
+	tag, err := name.NewTag(s, name.WeakValidation)
 	if err != nil {
 		return nil, err
 	}
-	return &d, nil
+	log.Printf("Loading %v", tag)
+	if _, err := daemon.Write(tag, img, d.wo); err != nil {
+		return nil, err
+	}
+	log.Printf("Loaded %v", tag)
+	return &tag, nil
 }

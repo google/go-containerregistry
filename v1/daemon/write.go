@@ -35,7 +35,7 @@ type ImageLoader interface {
 }
 
 // This is a variable so we can override in tests.
-var getImageLoader = func() (ImageLoader, error) {
+var GetImageLoader = func() (ImageLoader, error) {
 	return client.NewEnvClient()
 }
 
@@ -47,7 +47,7 @@ type WriteOptions struct {
 
 // Write saves the image into the daemon as the given tag.
 func Write(tag name.Tag, img v1.Image, wo WriteOptions) (string, error) {
-	cli, err := getImageLoader()
+	cli, err := GetImageLoader()
 	if err != nil {
 		return "", err
 	}

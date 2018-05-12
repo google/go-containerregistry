@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package publish
+package main
 
 import (
-	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1"
+	"github.com/spf13/cobra"
 )
 
-// Interface abstracts different methods for publishing images.
-type Interface interface {
-	// Publish uploads the given v1.Image to a registry incorporating the
-	// provided string into the image's repository name.  Returns the digest
-	// of the published image.
-	Publish(v1.Image, string) (name.Reference, error)
+type LocalOptions struct {
+	Local bool
+}
+
+func addLocalArg(cmd *cobra.Command, lo *LocalOptions) {
+	cmd.Flags().BoolVarP(&lo.Local, "local", "L", lo.Local,
+		"Whether to publish images to a local docker daemon vs. a registry.")
 }
