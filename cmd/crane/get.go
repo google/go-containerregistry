@@ -15,6 +15,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/google/go-containerregistry/authn"
@@ -26,15 +27,15 @@ import (
 func getImage(r string) (v1.Image, name.Reference, error) {
 	ref, err := name.ParseReference(r, name.WeakValidation)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("parsing reference %q: %v", r, err)
 	}
 	auth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("getting creds for %q: %v", ref, err)
 	}
 	img, err := remote.Image(ref, auth, http.DefaultTransport)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
 	}
 	return img, ref, nil
 }

@@ -39,29 +39,29 @@ func doCopy(_ *cobra.Command, args []string) {
 	src, dst := args[0], args[1]
 	srcRef, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing reference %q: %v", src, err)
 	}
 	log.Printf("Pulling %v", srcRef)
 
 	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", srcRef, err)
 	}
 
 	img, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("reading image %q: %v", srcRef, err)
 	}
 
 	dstRef, err := name.ParseReference(dst, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing reference %q: %v", dst, err)
 	}
 	log.Printf("Pushing %v", dstRef)
 
 	dstAuth, err := authn.DefaultKeychain.Resolve(dstRef.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", dstRef, err)
 	}
 
 	wo := remote.WriteOptions{
@@ -69,6 +69,6 @@ func doCopy(_ *cobra.Command, args []string) {
 	}
 
 	if err := remote.Write(dstRef, img, dstAuth, http.DefaultTransport, wo); err != nil {
-		log.Fatalln(err)
+		log.Fatalf("writing image %q: %v", dstRef, err)
 	}
 }

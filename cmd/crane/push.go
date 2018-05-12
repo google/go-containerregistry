@@ -39,21 +39,21 @@ func push(_ *cobra.Command, args []string) {
 	src, dst := args[0], args[1]
 	t, err := name.NewTag(dst, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing tag %q: %v", dst, err)
 	}
 	log.Printf("Pushing %v", t)
 
 	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", t, err)
 	}
 
 	i, err := tarball.ImageFromPath(src, nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("reading image %q: %v", src, err)
 	}
 
 	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
-		log.Fatalln(err)
+		log.Fatalf("writing image %q: %v", t, err)
 	}
 }
