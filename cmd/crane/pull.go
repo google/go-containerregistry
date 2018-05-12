@@ -37,23 +37,24 @@ func init() {
 
 func pull(_ *cobra.Command, args []string) {
 	src, dst := args[0], args[1]
+	// TODO: Why is only tag allowed?
 	t, err := name.NewTag(src, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing tag %q: %v", src, err)
 	}
 	log.Printf("Pulling %v", t)
 
 	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", t, err)
 	}
 
 	i, err := remote.Image(t, auth, http.DefaultTransport)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("reading image %q: %v", t, err)
 	}
 
 	if err := tarball.WriteToFile(dst, t, i, &tarball.WriteOptions{}); err != nil {
-		log.Fatalln(err)
+		log.Fatalf("writing image %q: %v", dst, err)
 	}
 }

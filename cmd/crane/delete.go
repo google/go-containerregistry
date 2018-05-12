@@ -38,15 +38,15 @@ func doDelete(_ *cobra.Command, args []string) {
 	ref := args[0]
 	r, err := name.ParseReference(ref, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing reference %q: %v", ref, err)
 	}
 
 	auth, err := authn.DefaultKeychain.Resolve(r.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", r, err)
 	}
 
 	if err := remote.Delete(r, auth, http.DefaultTransport, remote.DeleteOptions{}); err != nil {
-		log.Fatalln(err)
+		log.Fatalf("deleting image %q: %v", r, err)
 	}
 }

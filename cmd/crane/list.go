@@ -39,15 +39,17 @@ func ls(_ *cobra.Command, args []string) {
 	r := args[0]
 	repo, err := name.NewRepository(r, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing repo %q: %v", r, err)
 	}
+
 	auth, err := authn.DefaultKeychain.Resolve(repo.Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", repo, err)
 	}
+
 	tags, err := remote.List(repo, auth, http.DefaultTransport)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("reading tags for %q: %v", repo, err)
 	}
 
 	for _, tag := range tags {

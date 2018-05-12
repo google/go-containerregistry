@@ -45,38 +45,37 @@ func init() {
 func doAppend(src, dst, tar, output string) {
 	srcRef, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing reference %q: %v", src, err)
 	}
 
 	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", srcRef, err)
 	}
 
 	srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
-
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("reading image %q: %v", srcRef, err)
 	}
 
 	dstTag, err := name.NewTag(dst, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing tag %q: %v", dst, err)
 	}
 
 	layer, err := tarball.LayerFromFile(tar)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("reading tar %q: %v", tar, err)
 	}
 
 	image, err := mutate.AppendLayers(srcImage, layer)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("appending layer: %v", err)
 	}
 
 	if output != "" {
 		if err := tarball.WriteToFile(output, dstTag, image, &tarball.WriteOptions{}); err != nil {
-			log.Fatalln(err)
+			log.Fatalf("writing output %q: %v", output, err)
 		}
 		return
 	}
@@ -88,10 +87,10 @@ func doAppend(src, dst, tar, output string) {
 
 	dstAuth, err := authn.DefaultKeychain.Resolve(dstTag.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", dstTag, err)
 	}
 
 	if err := remote.Write(dstTag, image, dstAuth, http.DefaultTransport, opts); err != nil {
-		log.Fatalln(err)
+		log.Fatalf("writing image %q: %v", dstTag, err)
 	}
 }

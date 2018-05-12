@@ -65,28 +65,28 @@ func rebase(orig, oldBase, newBase, rebased string) {
 
 	rebasedTag, err := name.NewTag(rebased, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("parsing tag %q: %v", rebased, err)
 	}
 
 	rebasedImg, err := mutate.Rebase(origImg, oldBaseImg, newBaseImg, nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("rebasing: %v", err)
 	}
 
 	dig, err := rebasedImg.Digest()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("digesting rebased: %v", err)
 	}
 
 	auth, err := authn.DefaultKeychain.Resolve(rebasedTag.Context().Registry)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("getting creds for %q: %v", rebasedTag, err)
 	}
 
 	if err := remote.Write(rebasedTag, rebasedImg, auth, http.DefaultTransport, remote.WriteOptions{
 		MountPaths: []name.Repository{origRef.Context(), oldBaseRef.Context(), newBaseRef.Context()},
 	}); err != nil {
-		log.Fatalln(err)
+		log.Fatalf("writing image %q: %v", rebasedTag, err)
 	}
 	fmt.Print(dig.String())
 }
