@@ -62,6 +62,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 			UnknownFlags: true,
 		},
 	})
+	lo := &LocalOptions{}
 	fo := &FilenameOptions{}
 	apply := &cobra.Command{
 		Use: "apply -f FILENAME",
@@ -70,7 +71,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 		Run: func(cmd *cobra.Command, args []string) {
 			// TODO(mattmoor): Use io.Pipe to avoid buffering the whole thing.
 			buf := bytes.NewBuffer(nil)
-			resolveFilesToWriter(fo, buf)
+			resolveFilesToWriter(fo, lo, buf)
 
 			// Issue a "kubectl apply" command reading from stdin,
 			// to which we will pipe the resolved files.
@@ -89,6 +90,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 			}
 		},
 	}
+	addLocalArg(apply, lo)
 	addFileArg(apply, fo)
 	topLevel.AddCommand(apply)
 	resolve := &cobra.Command{
@@ -96,9 +98,10 @@ func addKubeCommands(topLevel *cobra.Command) {
 		Use:   "resolve -f FILENAME",
 		Short: `Print the input files with image references resolved to built/pushed image digests.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			resolveFilesToWriter(fo, os.Stdout)
+			resolveFilesToWriter(fo, lo, os.Stdout)
 		},
 	}
+	addLocalArg(resolve, lo)
 	addFileArg(resolve, fo)
 	topLevel.AddCommand(resolve)
 }

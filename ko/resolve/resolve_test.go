@@ -105,7 +105,7 @@ func TestYAMLArrays(t *testing.T) {
 			for i, ref := range test.refs {
 				hash := test.hashes[i]
 				expectedStructured = append(expectedStructured,
-					computeDigest(test.base, ref, hash).String())
+					computeDigest(test.base, ref, hash))
 			}
 
 			if diff := cmp.Diff(expectedStructured, outStructured, cmpopts.EquateEmpty()); diff != "" {
@@ -124,18 +124,18 @@ func TestYAMLMaps(t *testing.T) {
 	}{{
 		desc:     "simple value",
 		input:    map[string]string{"image": fooRef},
-		expected: map[string]string{"image": computeDigest(base, fooRef, fooHash).String()},
+		expected: map[string]string{"image": computeDigest(base, fooRef, fooHash)},
 	}, {
 		desc:  "simple key",
 		input: map[string]string{bazRef: "blah"},
 		expected: map[string]string{
-			computeDigest(base, bazRef, bazHash).String(): "blah",
+			computeDigest(base, bazRef, bazHash): "blah",
 		},
 	}, {
 		desc:  "key and value",
 		input: map[string]string{fooRef: barRef},
 		expected: map[string]string{
-			computeDigest(base, fooRef, fooHash).String(): computeDigest(base, barRef, barHash).String(),
+			computeDigest(base, fooRef, fooHash): computeDigest(base, barRef, barHash),
 		},
 	}, {
 		desc:     "empty map",
@@ -148,8 +148,8 @@ func TestYAMLMaps(t *testing.T) {
 			"arg2": barRef,
 		},
 		expected: map[string]string{
-			"arg1": computeDigest(base, fooRef, fooHash).String(),
-			"arg2": computeDigest(base, barRef, barHash).String(),
+			"arg1": computeDigest(base, fooRef, fooHash),
+			"arg2": computeDigest(base, barRef, barHash),
 		},
 	}}
 
@@ -202,23 +202,23 @@ func TestYAMLObject(t *testing.T) {
 	}, {
 		desc:     "string field",
 		input:    &object{S: fooRef},
-		expected: &object{S: computeDigest(base, fooRef, fooHash).String()},
+		expected: &object{S: computeDigest(base, fooRef, fooHash)},
 	}, {
 		desc:     "map field",
 		input:    &object{M: map[string]object{"blah": object{S: fooRef}}},
-		expected: &object{M: map[string]object{"blah": object{S: computeDigest(base, fooRef, fooHash).String()}}},
+		expected: &object{M: map[string]object{"blah": object{S: computeDigest(base, fooRef, fooHash)}}},
 	}, {
 		desc:     "array field",
 		input:    &object{A: []object{{S: fooRef}}},
-		expected: &object{A: []object{{S: computeDigest(base, fooRef, fooHash).String()}}},
+		expected: &object{A: []object{{S: computeDigest(base, fooRef, fooHash)}}},
 	}, {
 		desc:     "pointer field",
 		input:    &object{P: &object{S: fooRef}},
-		expected: &object{P: &object{S: computeDigest(base, fooRef, fooHash).String()}},
+		expected: &object{P: &object{S: computeDigest(base, fooRef, fooHash)}},
 	}, {
 		desc:     "deep field",
 		input:    &object{M: map[string]object{"blah": object{A: []object{{P: &object{S: fooRef}}}}}},
-		expected: &object{M: map[string]object{"blah": object{A: []object{{P: &object{S: computeDigest(base, fooRef, fooHash).String()}}}}}},
+		expected: &object{M: map[string]object{"blah": object{A: []object{{P: &object{S: computeDigest(base, fooRef, fooHash)}}}}}},
 	}}
 
 	for _, test := range tests {
@@ -293,7 +293,7 @@ func TestMultiDocumentYAMLs(t *testing.T) {
 			for i, ref := range test.refs {
 				hash := test.hashes[i]
 				expectedStructured = append(expectedStructured,
-					computeDigest(test.base, ref, hash).String())
+					computeDigest(test.base, ref, hash))
 			}
 			// The multi-document output always seems to leave a trailing --- so we end up with
 			// an extra empty element.
@@ -334,10 +334,10 @@ func mustDigest(img v1.Image) v1.Hash {
 	return d
 }
 
-func computeDigest(base name.Repository, ref string, h v1.Hash) name.Digest {
+func computeDigest(base name.Repository, ref string, h v1.Hash) string {
 	d, err := publish.NewFixed(base, map[string]v1.Hash{ref: h}).Publish(nil, ref)
 	if err != nil {
 		panic(err)
 	}
-	return *d
+	return d.String()
 }

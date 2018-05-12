@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-containerregistry/ko/publish"
 	"github.com/google/go-containerregistry/ko/resolve"
 	"github.com/google/go-containerregistry/name"
+	"github.com/google/go-containerregistry/v1/daemon"
 	"github.com/google/go-containerregistry/v1/remote"
 )
 
@@ -36,7 +37,7 @@ func gobuildOptions() build.Options {
 	}
 }
 
-func resolveFilesToWriter(fo *FilenameOptions, out io.Writer) {
+func resolveFilesToWriter(fo *FilenameOptions, lo *LocalOptions, out io.Writer) {
 	fs, err := enumerateFiles(fo)
 	if err != nil {
 		log.Fatalf("error enumerating files: %v", err)
@@ -50,7 +51,7 @@ func resolveFilesToWriter(fo *FilenameOptions, out io.Writer) {
 		go func(f string) {
 			defer wg.Done()
 
-			b, err := resolveFile(f, opt)
+			b, err := resolveFile(f, lo, opt)
 			if err != nil {
 				log.Fatalf("error processing import paths in %q: %v", f, err)
 			}
@@ -74,7 +75,7 @@ func resolveFilesToWriter(fo *FilenameOptions, out io.Writer) {
 	}
 }
 
-func resolveFile(f string, opt build.Options) ([]byte, error) {
+func resolveFile(f string, lo *LocalOptions, opt build.Options) ([]byte, error) {
 	repoName := os.Getenv("KO_DOCKER_REPO")
 	repo, err := name.NewRepository(repoName, name.WeakValidation)
 	if err != nil {
@@ -86,13 +87,20 @@ func resolveFile(f string, opt build.Options) ([]byte, error) {
 		return nil, err
 	}
 
-	publisher := publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
-		MountPaths: GetMountPaths(),
-	})
+	var pub publish.Interface
+
+	if lo.Local {
+		pub = publish.NewDaemon(daemon.WriteOptions{})
+	} else {
+		pub = publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
+			MountPaths: GetMountPaths(),
+		})
+	}
+
 	builder, err := build.NewGo(opt)
 	if err != nil {
 		return nil, err
 	}
 
-	return resolve.ImageReferences(b, builder, publisher)
+	return resolve.ImageReferences(b, builder, pub)
 }
