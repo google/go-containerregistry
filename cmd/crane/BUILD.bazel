@@ -10,6 +10,7 @@ go_library(
         "delete.go",
         "digest.go",
         "get.go",
+        "list.go",
         "main.go",
         "manifest.go",
         "pull.go",
