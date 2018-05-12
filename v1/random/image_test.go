@@ -76,6 +76,5 @@ func TestTarLayer(t *testing.T) {
 		if _, err := tr.Next(); err != io.EOF {
 			t.Errorf("Layer contained more files; got %v, want EOF", err)
 		}
-
 	}
 }
