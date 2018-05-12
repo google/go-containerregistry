@@ -94,7 +94,5 @@ func resolveFile(f string, opt build.Options) ([]byte, error) {
 		return nil, err
 	}
 
-	// TODO(mattmoor): To better approximate Bazel, we should collect the importpath references
-	// in advance, trigger builds, and then do a second pass to finalize each of the configs.
 	return resolve.ImageReferences(b, builder, publisher)
 }
