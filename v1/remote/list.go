@@ -17,7 +17,6 @@ package remote
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 
@@ -29,14 +28,6 @@ import (
 type Tags struct {
 	Name string   `json:"name"`
 	Tags []string `json:"tags"`
-}
-
-func parseTags(r io.Reader) (*Tags, error) {
-	tags := Tags{}
-	if err := json.NewDecoder(r).Decode(&tags); err != nil {
-		return nil, err
-	}
-	return &tags, nil
 }
 
 // TODO(jonjohnsonjr): return []name.Tag?
@@ -64,8 +55,8 @@ func List(repo name.Repository, auth authn.Authenticator, t http.RoundTripper) (
 		return nil, err
 	}
 
-	tags, err := parseTags(resp.Body)
-	if err != nil {
+	tags := Tags{}
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
 		return nil, err
 	}
 

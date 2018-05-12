@@ -30,26 +30,25 @@ import (
 func TestList(t *testing.T) {
 	cases := []struct {
 		name         string
-		repo         string
 		responseBody []byte
 		wantErr      bool
 		wantTags     []string
 	}{{
 		name:         "success",
-		repo:         "ubuntu",
 		responseBody: []byte(`{"tags":["foo","bar"]}`),
 		wantErr:      false,
 		wantTags:     []string{"foo", "bar"},
 	}, {
 		name:         "not json",
-		repo:         "ubuntu",
 		responseBody: []byte("notjson"),
 		wantErr:      true,
 	}}
 
+	repoName := "ubuntu"
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tagsPath := fmt.Sprintf("/v2/%s/tags/list", tc.repo)
+			tagsPath := fmt.Sprintf("/v2/%s/tags/list", repoName)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
 				case "/v2/":
@@ -70,9 +69,9 @@ func TestList(t *testing.T) {
 				t.Fatalf("url.Parse(%v) = %v", server.URL, err)
 			}
 
-			repo, err := name.NewRepository(fmt.Sprintf("%s/%s", u.Host, tc.repo), name.WeakValidation)
+			repo, err := name.NewRepository(fmt.Sprintf("%s/%s", u.Host, repoName), name.WeakValidation)
 			if err != nil {
-				t.Fatalf("name.NewRepository(%v) = %v", tc.repo, err)
+				t.Fatalf("name.NewRepository(%v) = %v", repoName, err)
 			}
 
 			tags, err := List(repo, authn.Anonymous, http.DefaultTransport)
