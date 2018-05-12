@@ -15,6 +15,9 @@
 package random
 
 import (
+	"archive/tar"
+	"io"
+	"io/ioutil"
 	"testing"
 )
 
@@ -38,5 +41,40 @@ func TestManifestAndConfig(t *testing.T) {
 	}
 	if got := int64(len(config.RootFS.DiffIDs)); got != want {
 		t.Fatalf("num diff ids; got %v, want %v", got, want)
+	}
+}
+
+func TestTarLayer(t *testing.T) {
+	img, err := Image(1024, 5)
+	if err != nil {
+		t.Fatalf("Image: %v", err)
+	}
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("Layers: %v", err)
+	}
+	if len(layers) != 5 {
+		t.Errorf("Got %d layers, want 5", len(layers))
+	}
+	for i, l := range layers {
+		rc, err := l.Uncompressed()
+		if err != nil {
+			t.Errorf("Uncompressed(%d): %v", i, err)
+		}
+		defer rc.Close()
+		tr := tar.NewReader(rc)
+		if _, err := tr.Next(); err != nil {
+			t.Errorf("tar.Next: %v", err)
+		}
+
+		if n, err := io.Copy(ioutil.Discard, tr); err != nil {
+			t.Errorf("Reading tar layer: %v", err)
+		} else if n != 1024 {
+			t.Errorf("Layer %d was %d bytes, want 1024", i, n)
+		}
+
+		if _, err := tr.Next(); err != io.EOF {
+			t.Errorf("Layer contained more files; got %v, want EOF", err)
+		}
 	}
 }
