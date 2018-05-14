@@ -73,7 +73,7 @@ type HealthConfig struct {
 	// {"NONE"} : disable healthcheck
 	// {"CMD", args...} : exec arguments directly
 	// {"CMD-SHELL", command} : run command with system's default shell
-	Test []string `json:",omitempty"`
+	Test []string `json:"test,omitempty"`
 
 	// Zero means to inherit. Durations are expressed as integer nanoseconds.
 	Interval    time.Duration `json:",omitempty"` // Interval is the time to wait between checks.
