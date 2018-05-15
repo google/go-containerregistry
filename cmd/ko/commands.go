@@ -15,7 +15,7 @@
 package main
 
 import (
-	"bytes"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -68,9 +68,11 @@ func addKubeCommands(topLevel *cobra.Command) {
 		// TODO(mattmoor): Expose our own apply surface.
 		Short: `See "kubectl help apply" for detailed usage.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO(mattmoor): Use io.Pipe to avoid buffering the whole thing.
-			buf := bytes.NewBuffer(nil)
-			resolveFilesToWriter(fo, buf)
+			pr, pw := io.Pipe()
+
+			go func() {
+				resolveFilesToWriter(fo, pw)
+			}()
 
 			// Issue a "kubectl apply" command reading from stdin,
 			// to which we will pipe the resolved files.
@@ -78,10 +80,10 @@ func addKubeCommands(topLevel *cobra.Command) {
 
 			// Pass through our environment
 			kubectlCmd.Env = os.Environ()
-			// Pass through our std{out,err} and make our resolved buffer stdin.
+			// Pass through our std{out,err} and pipe resolved config to stdin.
 			kubectlCmd.Stderr = os.Stderr
 			kubectlCmd.Stdout = os.Stdout
-			kubectlCmd.Stdin = buf
+			kubectlCmd.Stdin = pr
 
 			// Run it.
 			if err := kubectlCmd.Run(); err != nil {

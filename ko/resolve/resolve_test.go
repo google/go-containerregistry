@@ -16,10 +16,11 @@ package resolve
 
 import (
 	"bytes"
+	"errors"
 	"io"
+	"io/ioutil"
+	"strings"
 	"testing"
-
-	"gopkg.in/yaml.v2"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -28,6 +29,7 @@ import (
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/random"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var (
@@ -51,6 +53,18 @@ var (
 		bazRef: bazHash,
 	}
 )
+
+func mustReadAll(t *testing.T, rc io.ReadCloser) []byte {
+	t.Helper()
+	all, err := ioutil.ReadAll(rc)
+	if err != nil {
+		t.Errorf("Error reading all: %v", err)
+	}
+	if err := rc.Close(); err != nil {
+		t.Errorf("Error closing after read: %v", err)
+	}
+	return all
+}
 
 func TestYAMLArrays(t *testing.T) {
 	tests := []struct {
@@ -88,10 +102,7 @@ func TestYAMLArrays(t *testing.T) {
 				t.Fatalf("yaml.Marshal(%v) = %v", inputStructured, err)
 			}
 
-			outYAML, err := ImageReferences(inputYAML, testBuilder, publish.NewFixed(test.base, testHashes))
-			if err != nil {
-				t.Fatalf("ImageReferences(%v) = %v", string(inputYAML), err)
-			}
+			outYAML := mustReadAll(t, ImageReferences(bytes.NewReader(inputYAML), testBuilder, publish.NewFixed(test.base, testHashes)))
 			var outStructured []string
 			if err := yaml.Unmarshal(outYAML, &outStructured); err != nil {
 				t.Errorf("yaml.Unmarshal(%v) = %v", string(outYAML), err)
@@ -161,10 +172,7 @@ func TestYAMLMaps(t *testing.T) {
 				t.Fatalf("yaml.Marshal(%v) = %v", inputStructured, err)
 			}
 
-			outYAML, err := ImageReferences(inputYAML, testBuilder, publish.NewFixed(base, testHashes))
-			if err != nil {
-				t.Fatalf("ImageReferences(%v) = %v", string(inputYAML), err)
-			}
+			outYAML := mustReadAll(t, ImageReferences(bytes.NewReader(inputYAML), testBuilder, publish.NewFixed(base, testHashes)))
 			var outStructured map[string]string
 			if err := yaml.Unmarshal(outYAML, &outStructured); err != nil {
 				t.Errorf("yaml.Unmarshal(%v) = %v", string(outYAML), err)
@@ -229,10 +237,7 @@ func TestYAMLObject(t *testing.T) {
 				t.Fatalf("yaml.Marshal(%v) = %v", inputStructured, err)
 			}
 
-			outYAML, err := ImageReferences(inputYAML, testBuilder, publish.NewFixed(base, testHashes))
-			if err != nil {
-				t.Fatalf("ImageReferences(%v) = %v", string(inputYAML), err)
-			}
+			outYAML := mustReadAll(t, ImageReferences(bytes.NewReader(inputYAML), testBuilder, publish.NewFixed(base, testHashes)))
 			var outStructured *object
 			if err := yaml.Unmarshal(outYAML, &outStructured); err != nil {
 				t.Errorf("yaml.Unmarshal(%v) = %v", string(outYAML), err)
@@ -269,10 +274,7 @@ func TestMultiDocumentYAMLs(t *testing.T) {
 			}
 			inputYAML := buf.Bytes()
 
-			outYAML, err := ImageReferences(inputYAML, testBuilder, publish.NewFixed(test.base, testHashes))
-			if err != nil {
-				t.Fatalf("ImageReferences(%v) = %v", string(inputYAML), err)
-			}
+			outYAML := mustReadAll(t, ImageReferences(bytes.NewReader(inputYAML), testBuilder, publish.NewFixed(test.base, testHashes)))
 
 			buf = bytes.NewBuffer(outYAML)
 			decoder := yaml.NewDecoder(buf)
@@ -308,6 +310,71 @@ func TestMultiDocumentYAMLs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestImageReferencesError tests that errors encountered during resolution are
+// exposed to the ReadCloser's Read method, except when the error is EOF in
+// which case the error is ignored.
+func TestImageReferencesError(t *testing.T) {
+	rc := ImageReferences(strings.NewReader("}{}{invalid yaml"), nil, nil)
+	if _, err := io.Copy(ioutil.Discard, rc); err == nil {
+		t.Errorf("Read: got no error, expected error")
+	}
+	if err := rc.Close(); err != nil {
+		t.Errorf("Close: %v", err)
+	}
+
+	rc = ImageReferences(strings.NewReader(""), nil, nil)
+	if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+		t.Errorf("Read empty YAML: got %v, want nil (EOF)", err)
+	}
+	if err := rc.Close(); err != nil {
+		t.Errorf("Close empty YAML: got %v, want nil", err)
+	}
+}
+
+// TestImageReferencesErrorPublishing tests that failures to build are surfaced
+// as errors in the returned ReadCloser.
+func TestImageReferencesErrorBuilding(t *testing.T) {
+	inputYAML, err := yaml.Marshal([]string{fooRef, barRef, bazRef, "github.com/awesomesauce/badbadbad"})
+	if err != nil {
+		t.Fatalf("yaml.Marshal: %v", err)
+	}
+
+	rc := ImageReferences(bytes.NewReader(inputYAML), badBuilder{}, publish.NewFixed(mustRepository("gcr.io/jasonhall"), testHashes))
+	if _, err := ioutil.ReadAll(rc); err == nil {
+		t.Errorf("Read got no error, expected error")
+	}
+}
+
+// TestImageReferencesErrorPublishing tests that failures to publish are
+// surfaced as errors in the returned ReadCloser.
+func TestImageReferencesErrorPublishing(t *testing.T) {
+	inputYAML, err := yaml.Marshal([]string{fooRef, barRef, bazRef})
+	if err != nil {
+		t.Fatalf("yaml.Marshal: %v", err)
+	}
+
+	rc := ImageReferences(bytes.NewReader(inputYAML), testBuilder, badPublisher{})
+	if _, err := ioutil.ReadAll(rc); err == nil {
+		t.Errorf("Read got no error, expected error")
+	}
+}
+
+type badBuilder struct{}
+
+func (badBuilder) IsSupportedReference(string) bool { return true }
+func (badBuilder) Build(s string) (v1.Image, error) {
+	if strings.Contains(s, "bad") {
+		return nil, errors.New("cannot build")
+	}
+	return random.Image(10, 10)
+}
+
+type badPublisher struct{}
+
+func (badPublisher) Publish(i v1.Image, s string) (*name.Digest, error) {
+	return nil, errors.New("cannot publish")
 }
 
 func mustRandom() v1.Image {

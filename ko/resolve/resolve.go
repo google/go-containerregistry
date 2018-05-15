@@ -15,63 +15,73 @@
 package resolve
 
 import (
-	"bytes"
 	"io"
 	"sync"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/google/go-containerregistry/ko/build"
 	"github.com/google/go-containerregistry/ko/publish"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // ImageReferences resolves supported references to images within the input yaml
 // to published image digests.
-func ImageReferences(input []byte, builder build.Interface, publisher publish.Interface) ([]byte, error) {
-	// The loop is to support multi-document yaml files.
-	// This is handled by using a yaml.Decoder and reading objects until io.EOF, see:
-	// https://github.com/go-yaml/yaml/blob/v2.2.1/yaml.go#L124
-	decoder := yaml.NewDecoder(bytes.NewBuffer(input))
-	buf := bytes.NewBuffer(nil)
-	encoder := yaml.NewEncoder(buf)
-	for {
-		var obj interface{}
-		if err := decoder.Decode(&obj); err != nil {
-			if err == io.EOF {
-				return buf.Bytes(), nil
-			}
-			return nil, err
-		}
+//
+// The returned io.ReadCloser represents the resolved YAML input, with image
+// references replaced. Read will return errors if there are errors building or
+// publishing images during resolution.
+func ImageReferences(r io.Reader, builder build.Interface, publisher publish.Interface) io.ReadCloser {
+	pr, pw := io.Pipe()
+	decoder := yaml.NewDecoder(r)
+	encoder := yaml.NewEncoder(pw)
 
-		// Recursively walk input, building and publishing supported references.
-		// TODO(mattmoor): It may be worth considering gathering the supported references in
-		// a first pass, performing the builds and pushes, and then performing the
-		// substitutions in a second pass.  This would enable us to eliminate the goroutine
-		// logic embedded in the recursive walk, naturally eliminate redundant build / publish
-		// for the same reference, and potentially enable us to create a single larger build
-		// (not clear if/how much this is possible in go build).
-		obj2, err := replaceRecursive(obj, func(ref string) (string, error) {
-			if !builder.IsSupportedReference(ref) {
-				return ref, nil
+	go func() {
+		// The loop is to support multi-document yaml files.
+		// This is handled by using a yaml.Decoder and reading objects until io.EOF, see:
+		// https://github.com/go-yaml/yaml/blob/v2.2.1/yaml.go#L124
+		for {
+			var obj interface{}
+			if err := decoder.Decode(&obj); err != nil {
+				if err == io.EOF {
+					pw.Close()
+					return
+				}
+				pw.CloseWithError(err)
+				return
 			}
-			img, err := builder.Build(ref)
-			if err != nil {
-				return "", err
-			}
-			digest, err := publisher.Publish(img, ref)
-			if err != nil {
-				return "", err
-			}
-			return digest.String(), nil
-		})
-		if err != nil {
-			return nil, err
-		}
 
-		if err := encoder.Encode(obj2); err != nil {
-			return nil, err
+			// Recursively walk input, building and publishing supported references.
+			// TODO(mattmoor): It may be worth considering gathering the supported references in
+			// a first pass, performing the builds and pushes, and then performing the
+			// substitutions in a second pass.  This would enable us to eliminate the goroutine
+			// logic embedded in the recursive walk, naturally eliminate redundant build / publish
+			// for the same reference, and potentially enable us to create a single larger build
+			// (not clear if/how much this is possible in go build).
+			obj2, err := replaceRecursive(obj, func(ref string) (string, error) {
+				if !builder.IsSupportedReference(ref) {
+					return ref, nil
+				}
+				img, err := builder.Build(ref)
+				if err != nil {
+					return "", err
+				}
+				digest, err := publisher.Publish(img, ref)
+				if err != nil {
+					return "", err
+				}
+				return digest.String(), nil
+			})
+			if err != nil {
+				pw.CloseWithError(err)
+				return
+			}
+
+			if err := encoder.Encode(obj2); err != nil {
+				pw.CloseWithError(err)
+				return
+			}
 		}
-	}
+	}()
+	return pr
 }
 
 type replaceString func(string) (string, error)

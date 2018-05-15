@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -49,12 +48,8 @@ func resolveFilesToWriter(fo *FilenameOptions, out io.Writer) {
 		wg.Add(1)
 		go func(f string) {
 			defer wg.Done()
-
-			b, err := resolveFile(f, opt)
-			if err != nil {
-				log.Fatalf("error processing import paths in %q: %v", f, err)
-			}
-			sm.Store(f, b)
+			rc := resolveFile(f, opt)
+			sm.Store(f, rc)
 		}(f)
 	}
 	// Wait for all of the go routines to complete.
@@ -64,37 +59,50 @@ func resolveFilesToWriter(fo *FilenameOptions, out io.Writer) {
 		if !ok {
 			log.Fatalf("missing file in resolved map: %v", f)
 		}
-		b, ok := iface.([]byte)
+		rc, ok := iface.(io.ReadCloser)
 		if !ok {
 			log.Fatalf("unsupported type in sync.Map's value: %T", iface)
 		}
 		// Our sole output should be the resolved yamls
 		out.Write([]byte("---\n"))
-		out.Write(b)
+		if _, err := io.Copy(out, rc); err != nil {
+			log.Fatalf("Error writing resolved output of %q: %v", f, err)
+		}
+		if err := rc.Close(); err != nil {
+			log.Fatalf("Error closing resolved output of %q: %v", f, err)
+		}
 	}
 }
 
-func resolveFile(f string, opt build.Options) ([]byte, error) {
+type errReadCloser struct {
+	err error
+}
+
+func (e errReadCloser) Read([]byte) (int, error) { return 0, e.err }
+func (e errReadCloser) Close() error             { return e.err }
+
+func resolveFile(fn string, opt build.Options) io.ReadCloser {
 	repoName := os.Getenv("KO_DOCKER_REPO")
 	repo, err := name.NewRepository(repoName, name.WeakValidation)
 	if err != nil {
-		return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
+		return errReadCloser{fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)}
 	}
 
-	b, err := ioutil.ReadFile(f)
+	f, err := os.Open(fn)
 	if err != nil {
-		return nil, err
+		return errReadCloser{err}
 	}
+	defer f.Close()
 
 	publisher := publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
 		MountPaths: GetMountPaths(),
 	})
 	builder, err := build.NewGo(opt)
 	if err != nil {
-		return nil, err
+		return errReadCloser{err}
 	}
 
 	// TODO(mattmoor): To better approximate Bazel, we should collect the importpath references
 	// in advance, trigger builds, and then do a second pass to finalize each of the configs.
-	return resolve.ImageReferences(b, builder, publisher)
+	return resolve.ImageReferences(f, builder, publisher)
 }
