@@ -15,6 +15,7 @@
 package publish
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/google/go-containerregistry/name"
@@ -34,7 +35,11 @@ func NewDaemon(wo daemon.WriteOptions) Interface {
 
 // Publish implements publish.Interface
 func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
-	tag, err := name.NewTag(s, name.WeakValidation)
+	h, err := img.Digest()
+	if err != nil {
+		return nil, err
+	}
+	tag, err := name.NewTag(fmt.Sprintf("ko.local/%s:%s", s, h.Hex), name.WeakValidation)
 	if err != nil {
 		return nil, err
 	}
