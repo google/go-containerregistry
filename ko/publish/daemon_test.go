@@ -50,7 +50,7 @@ func TestDaemon(t *testing.T) {
 	def := NewDaemon(daemon.WriteOptions{})
 	if d, err := def.Publish(img, importpath); err != nil {
 		t.Errorf("Publish() = %v", err)
-	} else if got, want := d.String(), importpath; !strings.HasPrefix(got, want) {
+	} else if got, want := d.String(), "ko.local/"+importpath; !strings.HasPrefix(got, want) {
 		t.Errorf("Publish() = %v, wanted prefix %v", got, want)
 	}
 }
