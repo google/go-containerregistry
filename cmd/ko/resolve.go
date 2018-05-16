@@ -33,7 +33,7 @@ import (
 
 func gobuildOptions() build.Options {
 	return build.Options{
-		GetBase: GetBaseImage,
+		GetBase: getBaseImage,
 	}
 }
 
@@ -88,7 +88,7 @@ func resolveFile(f string, lo *LocalOptions, opt build.Options) ([]byte, error) 
 		}
 
 		pub = publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
-			MountPaths: GetMountPaths(),
+			MountPaths: getMountPaths(),
 		})
 	}
 
