@@ -76,25 +76,25 @@ func resolveFilesToWriter(fo *FilenameOptions, lo *LocalOptions, out io.Writer) 
 }
 
 func resolveFile(f string, lo *LocalOptions, opt build.Options) ([]byte, error) {
-	repoName := os.Getenv("KO_DOCKER_REPO")
-	repo, err := name.NewRepository(repoName, name.WeakValidation)
-	if err != nil {
-		return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
-	}
-
-	b, err := ioutil.ReadFile(f)
-	if err != nil {
-		return nil, err
-	}
-
 	var pub publish.Interface
 
 	if lo.Local {
 		pub = publish.NewDaemon(daemon.WriteOptions{})
 	} else {
+		repoName := os.Getenv("KO_DOCKER_REPO")
+		repo, err := name.NewRepository(repoName, name.WeakValidation)
+		if err != nil {
+			return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
+		}
+
 		pub = publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
 			MountPaths: GetMountPaths(),
 		})
+	}
+
+	b, err := ioutil.ReadFile(f)
+	if err != nil {
+		return nil, err
 	}
 
 	builder, err := build.NewGo(opt)
