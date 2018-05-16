@@ -18,17 +18,29 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
+var cmds = &cobra.Command{
 	Use:   "crane",
 	Short: "Crane is a tool for managing container images",
 	Run:   func(cmd *cobra.Command, _ []string) { cmd.Usage() },
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
+	cmds.AddCommand(crane.NewCmdAppend())
+	cmds.AddCommand(crane.NewCmdConfig())
+	cmds.AddCommand(crane.NewCmdCopy())
+	cmds.AddCommand(crane.NewCmdDelete())
+	cmds.AddCommand(crane.NewCmdDigest())
+	cmds.AddCommand(crane.NewCmdList())
+	cmds.AddCommand(crane.NewCmdManifest())
+	cmds.AddCommand(crane.NewCmdPull())
+	cmds.AddCommand(crane.NewCmdPush())
+	cmds.AddCommand(crane.NewCmdRebase())
+
+	if err := cmds.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

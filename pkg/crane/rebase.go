@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
 	"fmt"
@@ -26,7 +26,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
+func NewCmdRebase() *cobra.Command {
 	var orig, oldBase, newBase, rebased string
 	rebaseCmd := &cobra.Command{
 		Use:   "rebase",
@@ -40,7 +40,7 @@ func init() {
 	rebaseCmd.Flags().StringVarP(&oldBase, "old_base", "", "", "Old base image to remove")
 	rebaseCmd.Flags().StringVarP(&newBase, "new_base", "", "", "New base image to insert")
 	rebaseCmd.Flags().StringVarP(&rebased, "rebased", "", "", "Tag to apply to rebased image")
-	rootCmd.AddCommand(rebaseCmd)
+	return rebaseCmd
 }
 
 func rebase(orig, oldBase, newBase, rebased string) {

@@ -12,48 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
-	"log"
+	"fmt"
 	"net/http"
-
-	"github.com/spf13/cobra"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
+	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/remote"
-	"github.com/google/go-containerregistry/v1/tarball"
 )
 
-func init() {
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "push",
-		Short: "Push image contents as a tarball to a remote registry",
-		Args:  cobra.ExactArgs(2),
-		Run:   push,
-	})
-}
-
-func push(_ *cobra.Command, args []string) {
-	src, dst := args[0], args[1]
-	t, err := name.NewTag(dst, name.WeakValidation)
+func getImage(r string) (v1.Image, name.Reference, error) {
+	ref, err := name.ParseReference(r, name.WeakValidation)
 	if err != nil {
-		log.Fatalf("parsing tag %q: %v", dst, err)
+		return nil, nil, fmt.Errorf("parsing reference %q: %v", r, err)
 	}
-	log.Printf("Pushing %v", t)
-
-	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
+	auth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
 	if err != nil {
-		log.Fatalf("getting creds for %q: %v", t, err)
+		return nil, nil, fmt.Errorf("getting creds for %q: %v", ref, err)
 	}
-
-	i, err := tarball.ImageFromPath(src, nil)
+	img, err := remote.Image(ref, auth, http.DefaultTransport)
 	if err != nil {
-		log.Fatalf("reading image %q: %v", src, err)
+		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
 	}
-
-	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
-		log.Fatalf("writing image %q: %v", t, err)
-	}
+	return img, ref, nil
 }

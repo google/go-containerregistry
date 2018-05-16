@@ -12,47 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
+	"log"
 	"net/http"
 
-	"fmt"
-	"log"
+	"github.com/spf13/cobra"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1/remote"
-	"github.com/spf13/cobra"
 )
 
-func init() {
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "ls",
-		Short: "List the tags in a repo",
+func NewCmdDelete() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete",
+		Short: "Delete an image reference from its registry",
 		Args:  cobra.ExactArgs(1),
-		Run:   ls,
-	})
+		Run:   doDelete,
+	}
 }
 
-func ls(_ *cobra.Command, args []string) {
-	r := args[0]
-	repo, err := name.NewRepository(r, name.WeakValidation)
+func doDelete(_ *cobra.Command, args []string) {
+	ref := args[0]
+	r, err := name.ParseReference(ref, name.WeakValidation)
 	if err != nil {
-		log.Fatalf("parsing repo %q: %v", r, err)
+		log.Fatalf("parsing reference %q: %v", ref, err)
 	}
 
-	auth, err := authn.DefaultKeychain.Resolve(repo.Registry)
+	auth, err := authn.DefaultKeychain.Resolve(r.Context().Registry)
 	if err != nil {
-		log.Fatalf("getting creds for %q: %v", repo, err)
+		log.Fatalf("getting creds for %q: %v", r, err)
 	}
 
-	tags, err := remote.List(repo, auth, http.DefaultTransport)
-	if err != nil {
-		log.Fatalf("reading tags for %q: %v", repo, err)
-	}
-
-	for _, tag := range tags {
-		fmt.Println(tag)
+	if err := remote.Delete(r, auth, http.DefaultTransport, remote.DeleteOptions{}); err != nil {
+		log.Fatalf("deleting image %q: %v", r, err)
 	}
 }
