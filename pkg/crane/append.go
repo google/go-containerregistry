@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
 	"log"
@@ -27,7 +27,7 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
-func init() {
+func NewCmdAppend() *cobra.Command {
 	var output string
 	appendCmd := &cobra.Command{
 		Use:   "append",
@@ -39,7 +39,7 @@ func init() {
 		},
 	}
 	appendCmd.Flags().StringVarP(&output, "output", "o", "", "Path to new tarball of resulting image")
-	rootCmd.AddCommand(appendCmd)
+	return appendCmd
 }
 
 func doAppend(src, dst, tar, output string) {

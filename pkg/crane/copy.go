@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
 	"log"
@@ -26,13 +26,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	rootCmd.AddCommand(&cobra.Command{
+func NewCmdCopy() *cobra.Command {
+	return &cobra.Command{
 		Use:   "copy",
 		Short: "Efficiently copy a remote image from src to dst",
 		Args:  cobra.ExactArgs(2),
 		Run:   doCopy,
-	})
+	}
 }
 
 func doCopy(_ *cobra.Command, args []string) {

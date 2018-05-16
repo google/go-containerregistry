@@ -12,30 +12,47 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
-	"fmt"
 	"net/http"
+
+	"fmt"
+	"log"
 
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1"
 	"github.com/google/go-containerregistry/v1/remote"
+	"github.com/spf13/cobra"
 )
 
-func getImage(r string) (v1.Image, name.Reference, error) {
-	ref, err := name.ParseReference(r, name.WeakValidation)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parsing reference %q: %v", r, err)
+func NewCmdList() *cobra.Command {
+	return &cobra.Command{
+		Use:   "ls",
+		Short: "List the tags in a repo",
+		Args:  cobra.ExactArgs(1),
+		Run:   ls,
 	}
-	auth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
+}
+
+func ls(_ *cobra.Command, args []string) {
+	r := args[0]
+	repo, err := name.NewRepository(r, name.WeakValidation)
 	if err != nil {
-		return nil, nil, fmt.Errorf("getting creds for %q: %v", ref, err)
+		log.Fatalf("parsing repo %q: %v", r, err)
 	}
-	img, err := remote.Image(ref, auth, http.DefaultTransport)
+
+	auth, err := authn.DefaultKeychain.Resolve(repo.Registry)
 	if err != nil {
-		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
+		log.Fatalf("getting creds for %q: %v", repo, err)
 	}
-	return img, ref, nil
+
+	tags, err := remote.List(repo, auth, http.DefaultTransport)
+	if err != nil {
+		log.Fatalf("reading tags for %q: %v", repo, err)
+	}
+
+	for _, tag := range tags {
+		fmt.Println(tag)
+	}
 }

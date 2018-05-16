@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
 	"fmt"
@@ -21,24 +21,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "manifest",
-		Short: "Get the manifest of an image",
+func NewCmdConfig() *cobra.Command {
+	return &cobra.Command{
+		Use:   "config",
+		Short: "Get the config of an image",
 		Args:  cobra.ExactArgs(1),
-		Run:   manifest,
-	})
+		Run:   config,
+	}
 }
 
-func manifest(_ *cobra.Command, args []string) {
+func config(_ *cobra.Command, args []string) {
 	ref := args[0]
 	i, _, err := getImage(ref)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	manifest, err := i.RawManifest()
+	config, err := i.RawConfigFile()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Print(string(manifest))
+	fmt.Print(string(config))
 }

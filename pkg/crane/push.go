@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
 	"log"
@@ -26,35 +26,34 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
-func init() {
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "pull",
-		Short: "Pull a remote image by reference and store its contents in a tarball",
+func NewCmdPush() *cobra.Command {
+	return &cobra.Command{
+		Use:   "push",
+		Short: "Push image contents as a tarball to a remote registry",
 		Args:  cobra.ExactArgs(2),
-		Run:   pull,
-	})
+		Run:   push,
+	}
 }
 
-func pull(_ *cobra.Command, args []string) {
+func push(_ *cobra.Command, args []string) {
 	src, dst := args[0], args[1]
-	// TODO: Why is only tag allowed?
-	t, err := name.NewTag(src, name.WeakValidation)
+	t, err := name.NewTag(dst, name.WeakValidation)
 	if err != nil {
-		log.Fatalf("parsing tag %q: %v", src, err)
+		log.Fatalf("parsing tag %q: %v", dst, err)
 	}
-	log.Printf("Pulling %v", t)
+	log.Printf("Pushing %v", t)
 
 	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
 	if err != nil {
 		log.Fatalf("getting creds for %q: %v", t, err)
 	}
 
-	i, err := remote.Image(t, auth, http.DefaultTransport)
+	i, err := tarball.ImageFromPath(src, nil)
 	if err != nil {
-		log.Fatalf("reading image %q: %v", t, err)
+		log.Fatalf("reading image %q: %v", src, err)
 	}
 
-	if err := tarball.WriteToFile(dst, t, i, &tarball.WriteOptions{}); err != nil {
-		log.Fatalf("writing image %q: %v", dst, err)
+	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
+		log.Fatalf("writing image %q: %v", t, err)
 	}
 }

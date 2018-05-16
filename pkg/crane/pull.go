@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package crane
 
 import (
 	"log"
@@ -23,30 +23,38 @@ import (
 	"github.com/google/go-containerregistry/authn"
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1/remote"
+	"github.com/google/go-containerregistry/v1/tarball"
 )
 
-func init() {
-	rootCmd.AddCommand(&cobra.Command{
-		Use:   "delete",
-		Short: "Delete an image reference from its registry",
-		Args:  cobra.ExactArgs(1),
-		Run:   doDelete,
-	})
+func NewCmdPull() *cobra.Command {
+	return &cobra.Command{
+		Use:   "pull",
+		Short: "Pull a remote image by reference and store its contents in a tarball",
+		Args:  cobra.ExactArgs(2),
+		Run:   pull,
+	}
 }
 
-func doDelete(_ *cobra.Command, args []string) {
-	ref := args[0]
-	r, err := name.ParseReference(ref, name.WeakValidation)
+func pull(_ *cobra.Command, args []string) {
+	src, dst := args[0], args[1]
+	// TODO: Why is only tag allowed?
+	t, err := name.NewTag(src, name.WeakValidation)
 	if err != nil {
-		log.Fatalf("parsing reference %q: %v", ref, err)
+		log.Fatalf("parsing tag %q: %v", src, err)
+	}
+	log.Printf("Pulling %v", t)
+
+	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
+	if err != nil {
+		log.Fatalf("getting creds for %q: %v", t, err)
 	}
 
-	auth, err := authn.DefaultKeychain.Resolve(r.Context().Registry)
+	i, err := remote.Image(t, auth, http.DefaultTransport)
 	if err != nil {
-		log.Fatalf("getting creds for %q: %v", r, err)
+		log.Fatalf("reading image %q: %v", t, err)
 	}
 
-	if err := remote.Delete(r, auth, http.DefaultTransport, remote.DeleteOptions{}); err != nil {
-		log.Fatalf("deleting image %q: %v", r, err)
+	if err := tarball.WriteToFile(dst, t, i, &tarball.WriteOptions{}); err != nil {
+		log.Fatalf("writing image %q: %v", dst, err)
 	}
 }
