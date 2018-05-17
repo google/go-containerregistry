@@ -162,9 +162,8 @@ to whatever `kubectl` context is active.
 
 ### `ko delete`
 
-`ko delete` simply passes through to `kubectl delete`, as with the `go`
-commands. It is exposed purely out of convenience for cleaning up resources
-created through `ko apply`.
+`ko delete` simply passes through to `kubectl delete`. It is exposed purely out
+of convenience for cleaning up resources created through `ko apply`.
 
 ## Configuration via `.ko.yaml`
 
