@@ -8,6 +8,7 @@ go_library(
         "filestuff.go",
         "local.go",
         "main.go",
+        "publish.go",
         "resolve.go",
     ],
     importpath = "github.com/google/go-containerregistry/cmd/ko",

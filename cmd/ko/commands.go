@@ -17,13 +17,9 @@ package main
 import (
 	"bytes"
 	"log"
-	"net/http"
 	"os"
 	"os/exec"
 
-	"github.com/google/go-containerregistry/ko/build"
-	"github.com/google/go-containerregistry/ko/publish"
-	"github.com/google/go-containerregistry/v1/remote"
 	"github.com/spf13/cobra"
 )
 
@@ -115,28 +111,10 @@ func addKubeCommands(topLevel *cobra.Command) {
 		Use:   "publish importpath",
 		Short: "Build and publish container images from the given importpaths.",
 		Args:  cobra.MinimumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			b, err := build.NewGo(gobuildOptions())
-			if err != nil {
-				log.Fatalf("error creating go builder: %v", err)
-			}
-			for _, importpath := range args {
-				img, err := b.Build(importpath)
-				if err != nil {
-					log.Fatalf("error building %q: %v", importpath, err)
-				}
-				ref, ok := baseImageOverrides[importpath]
-				if !ok {
-					ref = defaultBaseImage
-				}
-				pub := publish.NewDefault(ref.Context(), http.DefaultTransport, remote.WriteOptions{
-					MountPaths: getMountPaths(),
-				})
-				if _, err := pub.Publish(img, importpath); err != nil {
-					log.Fatalf("error publishing %s: %v", importpath, err)
-				}
-			}
+		Run: func(_ *cobra.Command, args []string) {
+			publishImages(args, lo)
 		},
 	}
+	addLocalArg(publish, lo)
 	topLevel.AddCommand(publish)
 }
