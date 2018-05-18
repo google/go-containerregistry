@@ -17,6 +17,7 @@ package random
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -116,6 +117,10 @@ func (i *image) ConfigFile() (*v1.ConfigFile, error) {
 // MediaType implements partial.UncompressedImageCore
 func (i *image) MediaType() (types.MediaType, error) {
 	return types.DockerManifestSchema2, nil
+}
+
+func (i *image) CompressionLevel() int {
+	return gzip.DefaultCompression
 }
 
 // LayerByDiffID implements partial.UncompressedImageCore

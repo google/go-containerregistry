@@ -33,7 +33,7 @@ func getImage(r string) (v1.Image, name.Reference, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("getting creds for %q: %v", ref, err)
 	}
-	img, err := remote.Image(ref, auth, http.DefaultTransport)
+	img, err := remote.Image(ref, auth, http.DefaultTransport, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
 	}

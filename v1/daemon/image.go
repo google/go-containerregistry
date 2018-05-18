@@ -16,6 +16,7 @@ package daemon
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"io"
 	"io/ioutil"
@@ -32,8 +33,16 @@ type image struct {
 	v1.Image
 }
 
-type ReadOptions struct {
-	Buffer bool
+type readOptions struct {
+	Buffer      bool
+	Compression int
+}
+
+func NewReadOptions(buffer bool, compression int) *readOptions {
+	return &readOptions{
+		Buffer:      buffer,
+		Compression: compression,
+	}
 }
 
 var _ v1.Image = (*image)(nil)
@@ -84,9 +93,15 @@ func unbufferedOpener(ref name.Reference) (tarball.Opener, error) {
 }
 
 // Image exposes an image reference from within the Docker daemon.
-func Image(ref name.Reference, ro *ReadOptions) (v1.Image, error) {
+func Image(ref name.Reference, ro *readOptions) (v1.Image, error) {
 	var opener tarball.Opener
 	var err error
+	if ro == nil {
+		ro = &readOptions{
+			Buffer:      false,
+			Compression: gzip.DefaultCompression,
+		}
+	}
 	if ro.Buffer {
 		opener, err = bufferedOpener(ref)
 	} else {
@@ -96,7 +111,7 @@ func Image(ref name.Reference, ro *ReadOptions) (v1.Image, error) {
 		return nil, err
 	}
 
-	tb, err := tarball.Image(opener, nil)
+	tb, err := tarball.Image(opener, nil, tarball.NewReadOptions(ro.Compression))
 	if err != nil {
 		return nil, err
 	}

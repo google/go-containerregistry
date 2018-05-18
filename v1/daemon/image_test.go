@@ -15,6 +15,7 @@
 package daemon
 
 import (
+	"compress/gzip"
 	"context"
 	"io"
 	"os"
@@ -22,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/name"
-
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
@@ -54,7 +54,7 @@ func TestImage(t *testing.T) {
 	}
 
 	runTest := func(buffered bool) {
-		daemonImage, err := Image(tag, &ReadOptions{Buffer: buffered})
+		daemonImage, err := Image(tag, NewReadOptions(buffered, gzip.DefaultCompression))
 		if err != nil {
 			t.Errorf("Error loading daemon image: %s", err)
 		}
@@ -74,5 +74,4 @@ func TestImage(t *testing.T) {
 
 	runTest(false)
 	runTest(true)
-
 }

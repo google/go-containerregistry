@@ -25,4 +25,6 @@ type imageCore interface {
 
 	// MediaType of this image's manifest.
 	MediaType() (types.MediaType, error)
+
+	CompressionLevel() int
 }

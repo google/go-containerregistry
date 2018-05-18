@@ -17,6 +17,7 @@ package tarball
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +38,7 @@ type image struct {
 	td            *tarDescriptor
 	config        []byte
 	imgDescriptor *singleImageTarDescriptor
+	compression   int
 
 	tag *name.Tag
 }
@@ -62,15 +64,30 @@ func pathOpener(path string) Opener {
 	}
 }
 
+type readOptions struct {
+	compression int
+}
+
+func NewReadOptions(compression int) *readOptions {
+	return &readOptions{
+		compression: compression,
+	}
+}
+
 func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
-	return Image(pathOpener(path), tag)
+	return Image(pathOpener(path), tag, nil)
 }
 
 // Image exposes an image from the tarball at the provided path.
-func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
+func Image(opener Opener, tag *name.Tag, ro *readOptions) (v1.Image, error) {
+	compression := gzip.DefaultCompression
+	if ro != nil {
+		compression = ro.compression
+	}
 	img := &image{
-		opener: opener,
-		tag:    tag,
+		opener:      opener,
+		tag:         tag,
+		compression: compression,
 	}
 	if err := img.loadTarDescriptorAndConfig(); err != nil {
 		return nil, err
@@ -92,6 +109,10 @@ func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 		image: img,
 	}
 	return partial.UncompressedToImage(&uc)
+}
+
+func (i *image) CompressionLevel() int {
+	return i.compression
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
@@ -209,9 +230,10 @@ func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, error) {
 
 // uncompressedLayerFromTarball implements partial.UncompressedLayer
 type uncompressedLayerFromTarball struct {
-	diffID   v1.Hash
-	opener   Opener
-	filePath string
+	diffID      v1.Hash
+	opener      Opener
+	filePath    string
+	compression int
 }
 
 // DiffID implements partial.UncompressedLayer
@@ -224,6 +246,10 @@ func (ulft *uncompressedLayerFromTarball) Uncompressed() (io.ReadCloser, error) 
 	return extractFileFromTar(ulft.opener, ulft.filePath)
 }
 
+func (ulft *uncompressedLayerFromTarball) CompressionLevel() int {
+	return ulft.compression
+}
+
 func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer, error) {
 	cfg, err := partial.ConfigFile(i)
 	if err != nil {
@@ -232,9 +258,10 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 	for idx, diffID := range cfg.RootFS.DiffIDs {
 		if diffID == h {
 			return &uncompressedLayerFromTarball{
-				diffID:   diffID,
-				opener:   i.opener,
-				filePath: i.imgDescriptor.Layers[idx],
+				diffID:      diffID,
+				opener:      i.opener,
+				filePath:    i.imgDescriptor.Layers[idx],
+				compression: i.CompressionLevel(),
 			}, nil
 		}
 	}
@@ -298,7 +325,7 @@ type compressedLayerFromTarball struct {
 	filePath string
 }
 
-// DiffID implements partial.CompressedLayer
+// Digest implements partial.CompressedLayer
 func (clft *compressedLayerFromTarball) Digest() (v1.Hash, error) {
 	return clft.digest, nil
 }
