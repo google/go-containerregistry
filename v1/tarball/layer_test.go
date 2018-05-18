@@ -193,7 +193,7 @@ func assertSizesAreEqual(t *testing.T, a, b v1.Layer) {
 // Compression settings matter in order for the digest, size,
 // compressed assertions to pass
 //
-// Since our v1util.GzipReadCloser uses gzip.BestCompression
+// Since our v1util.GzipReadCloser uses gzip.DefaultCompression
 // we need our fixture to use the same - bazel's pkg_tar doesn't
 // seem to let you control compression settings
 func setupFixtures(t *testing.T) {
@@ -213,7 +213,7 @@ func setupFixtures(t *testing.T) {
 
 	defer out.Close()
 
-	gw, _ := gzip.NewWriterLevel(out, gzip.BestCompression)
+	gw, _ := gzip.NewWriterLevel(out, gzip.DefaultCompression)
 	defer gw.Close()
 
 	_, err = io.Copy(gw, in)

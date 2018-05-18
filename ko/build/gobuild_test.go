@@ -201,7 +201,7 @@ func TestGoBuild(t *testing.T) {
 	t.Run("check determinism", func(t *testing.T) {
 		expectedHash := v1.Hash{
 			Algorithm: "sha256",
-			Hex:       "7f4dbad13dfe30c580152f62973627701b72d62654b7c0c62249891f82b80a59",
+			Hex:       "118e77d59f3b68ad30e76ed9a4e1af9842ede1396f15daca2d7c249402d32acd",
 		}
 		appLayer := ls[baseLayers]
 
