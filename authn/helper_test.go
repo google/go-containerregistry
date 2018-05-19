@@ -47,6 +47,22 @@ func (pr *printRunner) Run(cmd *exec.Cmd) error {
 	return err
 }
 
+// errorPrintRunner implements runner to write a fixed message to stdout
+// and exit with an error code.
+type errorPrintRunner struct {
+	msg string
+}
+
+// Run implements runner
+func (pr *errorPrintRunner) Run(cmd *exec.Cmd) error {
+	_, err := cmd.Stdout.Write([]byte(pr.msg))
+	if err != nil {
+		return err
+	}
+
+	return &exec.ExitError{}
+}
+
 func TestHelperError(t *testing.T) {
 	want := errors.New("fdhskjdfhkjhsf")
 	h := &helper{name: "test", domain: testDomain, r: &errorRunner{err: want}}
@@ -57,7 +73,7 @@ func TestHelperError(t *testing.T) {
 }
 
 func TestMagicString(t *testing.T) {
-	h := &helper{name: "test", domain: testDomain, r: &printRunner{msg: magicNotFoundMessage}}
+	h := &helper{name: "test", domain: testDomain, r: &errorPrintRunner{msg: magicNotFoundMessage}}
 
 	got, err := h.Authorization()
 	if err != nil {
