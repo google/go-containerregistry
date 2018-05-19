@@ -108,7 +108,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	topLevel.AddCommand(resolve)
 
 	publish := &cobra.Command{
-		Use:   "publish importpath",
+		Use:   "publish IMPORTPATH...",
 		Short: "Build and publish container images from the given importpaths.",
 		Args:  cobra.MinimumNArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
