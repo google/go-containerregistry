@@ -182,8 +182,6 @@ to whatever `kubectl` context is active.
 commands. It is exposed purely out of convenience for cleaning up resources
 created through `ko apply`.
 
-`ko` also has a command that only builds and publishes images:
-
 ## Configuration via `.ko.yaml`
 
 While `ko` aims to have zero configuration, there are certain scenarios where
