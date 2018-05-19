@@ -33,7 +33,7 @@ import (
 
 func gobuildOptions() build.Options {
 	return build.Options{
-		GetBase: GetBaseImage,
+		GetBase: getBaseImage,
 	}
 }
 
@@ -77,7 +77,6 @@ func resolveFilesToWriter(fo *FilenameOptions, lo *LocalOptions, out io.Writer) 
 
 func resolveFile(f string, lo *LocalOptions, opt build.Options) ([]byte, error) {
 	var pub publish.Interface
-
 	if lo.Local {
 		pub = publish.NewDaemon(daemon.WriteOptions{})
 	} else {
@@ -88,7 +87,7 @@ func resolveFile(f string, lo *LocalOptions, opt build.Options) ([]byte, error) 
 		}
 
 		pub = publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
-			MountPaths: GetMountPaths(),
+			MountPaths: getMountPaths(),
 		})
 	}
 
