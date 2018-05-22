@@ -140,7 +140,7 @@ func assertCompressedStreamsAreEqual(t *testing.T, a, b v1.Layer) {
 	}
 
 	if diff := cmp.Diff(saBytes, sbBytes); diff != "" {
-		t.Fatalf("Compressed streams were different: %v", diff)
+		t.Fatal("Compressed streams were different")
 	}
 }
 

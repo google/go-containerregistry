@@ -16,6 +16,7 @@ package remote
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -40,20 +41,36 @@ type remoteImage struct {
 	manifest     []byte
 	configLock   sync.Mutex // Protects config
 	config       []byte
+	compression  int
+}
+
+type readOptions struct {
+	Compression int
+}
+
+func NewReadOptions(compression int) *readOptions {
+	return &readOptions{
+		Compression: compression,
+	}
 }
 
 var _ partial.CompressedImageCore = (*remoteImage)(nil)
 
 // Image accesses a given image reference over the provided transport, with the provided authentication.
-func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper) (v1.Image, error) {
+func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, ro *readOptions) (v1.Image, error) {
 	scopes := []string{ref.Scope(transport.PullScope)}
 	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
 	if err != nil {
 		return nil, err
 	}
+	compression := gzip.DefaultCompression
+	if ro != nil {
+		compression = ro.Compression
+	}
 	return partial.CompressedToImage(&remoteImage{
-		ref:    ref,
-		client: &http.Client{Transport: tr},
+		ref:         ref,
+		client:      &http.Client{Transport: tr},
+		compression: compression,
 	})
 }
 
@@ -68,6 +85,10 @@ func (r *remoteImage) url(resource, identifier string) url.URL {
 func (r *remoteImage) MediaType() (types.MediaType, error) {
 	// TODO(jonjohnsonjr): Determine this based on response.
 	return types.DockerManifestSchema2, nil
+}
+
+func (r *remoteImage) CompressionLevel() int {
+	return r.compression
 }
 
 // TODO(jonjohnsonjr): Handle manifest lists.

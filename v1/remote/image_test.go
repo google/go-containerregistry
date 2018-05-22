@@ -328,7 +328,7 @@ func TestImage(t *testing.T) {
 	}
 
 	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
-	rmt, err := Image(tag, authn.Anonymous, http.DefaultTransport)
+	rmt, err := Image(tag, authn.Anonymous, http.DefaultTransport, nil)
 	if err != nil {
 		t.Errorf("Image() = %v", err)
 	}

@@ -268,7 +268,6 @@ func DiffIDToBlob(wm WithManifestAndConfigFile, h v1.Hash) (v1.Hash, error) {
 		}
 	}
 	return v1.Hash{}, fmt.Errorf("unknown diffID %v", h)
-
 }
 
 // WithBlob defines the subset of v1.Image used by these helper methods
