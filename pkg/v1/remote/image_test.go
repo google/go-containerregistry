@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -328,7 +327,7 @@ func TestImage(t *testing.T) {
 	}
 
 	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
-	rmt, err := Image(tag, authn.Anonymous, http.DefaultTransport)
+	rmt, err := Image(tag, WithTransport(http.DefaultTransport))
 	if err != nil {
 		t.Errorf("Image() = %v", err)
 	}

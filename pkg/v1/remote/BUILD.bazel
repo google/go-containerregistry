@@ -9,6 +9,7 @@ go_library(
         "image.go",
         "list.go",
         "mount.go",
+        "options.go",
         "write.go",
     ],
     importpath = "github.com/google/go-containerregistry/pkg/v1/remote",

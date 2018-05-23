@@ -55,13 +55,7 @@ func doAppend(src, dst, tar, output string) {
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", src, err)
 	}
-
-	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
-	if err != nil {
-		log.Fatalf("getting creds for %q: %v", srcRef, err)
-	}
-
-	srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
+	srcImage, err := remote.Image(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		log.Fatalf("reading image %q: %v", srcRef, err)
 	}
