@@ -40,25 +40,29 @@ func NewCmdPull() *cobra.Command {
 	}
 }
 
-type ondiskCache struct{}
+type ondiskCache struct {
+	tmpdir string
+}
 
-func (ondiskCache) Load(h v1.Hash) (io.ReadCloser, error) {
-	f, err := os.Open(path.Join("/Users/jasonhall", strings.Replace(h.String(), ":", "_", -1)))
+func (c ondiskCache) Load(h v1.Hash) (io.ReadCloser, error) {
+	f, err := os.Open(path.Join(c.tmpdir, strings.Replace(h.String(), ":", "_", -1)))
 	if os.IsNotExist(err) {
 		return nil, remote.ErrCacheMiss
 	} else if err != nil {
 		return nil, err
 	}
+	log.Println("reading from cache", h)
 	return f, nil
 }
 
-func (ondiskCache) Store(h v1.Hash, rc io.ReadCloser) error {
-	f, err := os.Create(path.Join("/Users/jasonhall", strings.Replace(h.String(), ":", "_", -1)))
+func (c ondiskCache) Store(h v1.Hash, rc io.ReadCloser) error {
+	f, err := os.Create(path.Join(c.tmpdir, strings.Replace(h.String(), ":", "_", -1)))
 	if err != nil {
 		return err
 	}
 	defer rc.Close()
 	_, err = io.Copy(f, rc)
+	log.Println("wrote to cache", h)
 	return err
 }
 
@@ -77,7 +81,7 @@ func pull(_ *cobra.Command, args []string) {
 	}
 
 	i, err := remote.Image(t, auth, http.DefaultTransport, &remote.ImageOptions{
-		Cache: ondiskCache{},
+		Cache: ondiskCache{os.Getenv("HOME")},
 	})
 	if err != nil {
 		log.Fatalf("reading image %q: %v", t, err)
