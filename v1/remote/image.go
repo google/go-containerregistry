@@ -16,6 +16,7 @@ package remote
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -36,6 +37,7 @@ import (
 type remoteImage struct {
 	ref          name.Reference
 	client       *http.Client
+	cache        Cache
 	manifestLock sync.Mutex // Protects manifest
 	manifest     []byte
 	configLock   sync.Mutex // Protects config
@@ -44,8 +46,28 @@ type remoteImage struct {
 
 var _ partial.CompressedImageCore = (*remoteImage)(nil)
 
+type ImageOptions struct {
+	Cache Cache
+}
+
+func (o *ImageOptions) cache() Cache {
+	if o == nil {
+		return nil
+	}
+	return o.Cache
+}
+
+// ErrCacheMiss is the error returned by implementations of Cache.Load when the
+// blob was not found in the cache.
+var ErrCacheMiss = errors.New("blob not found in cache")
+
+type Cache interface {
+	Load(v1.Hash) (io.ReadCloser, error)
+	Store(v1.Hash, io.ReadCloser) error
+}
+
 // Image accesses a given image reference over the provided transport, with the provided authentication.
-func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper) (v1.Image, error) {
+func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, opt *ImageOptions) (v1.Image, error) {
 	scopes := []string{ref.Scope(transport.PullScope)}
 	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
 	if err != nil {
@@ -54,6 +76,7 @@ func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper) (v
 	return partial.CompressedToImage(&remoteImage{
 		ref:    ref,
 		client: &http.Client{Transport: tr},
+		cache:  opt.cache(),
 	})
 }
 
@@ -76,6 +99,21 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 	defer r.manifestLock.Unlock()
 	if r.manifest != nil {
 		return r.manifest, nil
+	}
+
+	// If the image is specified by digest and a cache implementation is
+	// provided, attempt to lookup in the cache.
+	if dig, ok := r.ref.(name.Digest); ok && r.cache != nil {
+		h, err := v1.NewHash(dig.DigestStr())
+		if err != nil {
+			return nil, err
+		}
+		rc, err := r.cache.Load(h)
+		if err != nil && err != ErrCacheMiss {
+			return nil, err
+		}
+		defer rc.Close()
+		return ioutil.ReadAll(rc)
 	}
 
 	u := r.url("manifests", r.ref.Identifier())
@@ -116,6 +154,14 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 			// TODO(docker/distribution#2395): Remove this check.
 		} else {
 			// When pulling by tag, we can only validate that the digest matches what the registry told us it should be.
+			return nil, err
+		}
+	}
+
+	// If a cache implementation is provided, attempt to store the blob in
+	// the cache.
+	if r.cache != nil {
+		if err := r.cache.Store(digest, ioutil.NopCloser(bytes.NewReader(manifest))); err != nil {
 			return nil, err
 		}
 	}
@@ -166,6 +212,14 @@ func (rl *remoteLayer) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
+	if rl.ri.cache != nil {
+		if rc, err := rl.ri.cache.Load(rl.digest); err != nil && err != ErrCacheMiss {
+			return nil, err
+		} else if err == nil {
+			return rc, nil
+		}
+	}
+
 	u := rl.ri.url("blobs", rl.digest.String())
 	resp, err := rl.ri.client.Get(u.String())
 	if err != nil {
@@ -175,6 +229,18 @@ func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
 	if err := checkError(resp, http.StatusOK); err != nil {
 		resp.Body.Close()
 		return nil, err
+	}
+
+	// If a cache implementation is provided, attempt to store the blob in
+	// the cache.
+	if rl.ri.cache != nil {
+		defer resp.Body.Close()
+		// TODO don't buffer
+		all, _ := ioutil.ReadAll(resp.Body)
+		if err := rl.ri.cache.Store(rl.digest, ioutil.NopCloser(bytes.NewReader(all))); err != nil {
+			return nil, err
+		}
+		return v1util.VerifyReadCloser(ioutil.NopCloser(bytes.NewReader(all)), rl.digest)
 	}
 
 	return v1util.VerifyReadCloser(resp.Body, rl.digest)
