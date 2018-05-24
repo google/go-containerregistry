@@ -31,6 +31,10 @@ func publishImages(importpaths []string, lo *LocalOptions) {
 		log.Fatalf("error creating go builder: %v", err)
 	}
 	for _, importpath := range importpaths {
+		if !b.IsSupportedReference(importpath) {
+			log.Fatalf("importpath %q is not supported", importpath)
+		}
+
 		img, err := b.Build(importpath)
 		if err != nil {
 			log.Fatalf("error building %q: %v", importpath, err)

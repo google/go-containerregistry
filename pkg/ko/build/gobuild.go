@@ -17,7 +17,6 @@ package build
 import (
 	"archive/tar"
 	"bytes"
-	"fmt"
 	gb "go/build"
 	"io"
 	"io/ioutil"
@@ -25,7 +24,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -33,14 +31,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
-var (
-	// getwd is a variable for testing.
-	getwd = os.Getwd
-)
-
-const (
-	appPath = "/ko-app"
-)
+const appPath = "/ko-app"
 
 type Options struct {
 	// TODO(mattmoor): Architectures?
@@ -49,48 +40,27 @@ type Options struct {
 }
 
 type gobuild struct {
-	importpath string
-	opt        Options
-	build      func(string) (string, error)
-}
-
-func computeImportpath() (string, error) {
-	wd, err := getwd()
-	if err != nil {
-		return "", err
-	}
-	// Go code lives under $GOPATH/src/...
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		gopath = gb.Default.GOPATH
-	}
-	src := filepath.Join(gopath, "src")
-	relpath, err := filepath.Rel(src, wd)
-	if err != nil {
-		return "", fmt.Errorf("Unable to determine relative path from %q to %q: %v", wd, src, err)
-	}
-	if strings.HasPrefix(relpath, "..") {
-		return "", fmt.Errorf("working directory %q must be on GOPATH %q", wd, src)
-	}
-	return filepath.ToSlash(relpath), nil
+	opt   Options
+	build func(string) (string, error)
 }
 
 // NewGo returns a build.Interface implementation that:
 //  1. builds go binaries named by importpath,
 //  2. containerizes the binary on a suitable base,
 func NewGo(opt Options) (Interface, error) {
-	importpath, err := computeImportpath()
-	if err != nil {
-		return nil, err
-	}
-
-	return &gobuild{importpath, opt, build}, nil
+	return &gobuild{opt, build}, nil
 }
 
 // IsSupportedReference implements build.Interface
-func (gb *gobuild) IsSupportedReference(s string) bool {
-	// TODO(mattmoor): Consider supporting vendored things as well.
-	return strings.HasPrefix(s, gb.importpath)
+//
+// Only valid importpaths that provide commands (i.e., are "package main") are
+// supported.
+func (*gobuild) IsSupportedReference(s string) bool {
+	p, err := gb.Import(s, gb.Default.GOPATH, gb.ImportComment)
+	if err != nil {
+		return false
+	}
+	return p.IsCommand()
 }
 
 func build(ip string) (string, error) {
