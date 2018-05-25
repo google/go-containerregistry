@@ -37,7 +37,11 @@ func getBaseImage(s string) (v1.Image, error) {
 		ref = defaultBaseImage
 	}
 	log.Printf("Using base %s for %s", ref, s)
-	return remote.Image(ref, authn.Anonymous, http.DefaultTransport)
+	auth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
+	if err != nil {
+		return nil, err
+	}
+	return remote.Image(ref, auth, http.DefaultTransport)
 }
 
 func getMountPaths() []name.Repository {
