@@ -15,8 +15,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
+	"time"
 
 	"github.com/spf13/viper"
 
@@ -42,6 +46,19 @@ func getBaseImage(s string) (v1.Image, error) {
 		return nil, err
 	}
 	return remote.Image(ref, auth, http.DefaultTransport)
+}
+
+func getCreationTime() (*v1.Time, error) {
+	epoch := os.Getenv("SOURCE_DATE_EPOCH")
+	if epoch == "" {
+		return nil, nil
+	}
+
+	seconds, err := strconv.ParseInt(epoch, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("the environment variable SOURCE_DATE_EPOCH is invalid. It's must be a number of seconds since January 1st 1970, 00:00 UTC, got %v", err)
+	}
+	return &v1.Time{time.Unix(seconds, 0)}, nil
 }
 
 func getMountPaths() []name.Repository {

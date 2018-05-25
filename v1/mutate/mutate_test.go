@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/v1"
@@ -236,6 +237,24 @@ func TestMutateConfig(t *testing.T) {
 	}
 }
 
+func TestMutateCreatedAt(t *testing.T) {
+	source := sourceImage(t)
+	want := time.Now().Add(-2 * time.Minute)
+	result, err := CreatedAt(source, v1.Time{want})
+	if err != nil {
+		t.Fatalf("failed to mutate a config: %v", err)
+	}
+
+	if manifestDigestsAreEqual(t, source, result) {
+		t.Fatal("mutating the created time MUST mutate the manifest digest")
+	}
+
+	got := getConfigFile(t, result).Created.Time
+	if got != want {
+		t.Fatal("mutating the created time MUST mutate the time from %v to %v", got, want)
+	}
+}
+
 func assertQueryingForLayerSucceeds(t *testing.T, image v1.Image, layer v1.Layer) {
 	t.Helper()
 
@@ -319,6 +338,15 @@ func configFilesAreEqual(t *testing.T, first, second v1.Image) bool {
 	sc := getConfigFile(t, second)
 
 	return cmp.Equal(fc, sc)
+}
+
+func manifestDigestsAreEqual(t *testing.T, first, second v1.Image) bool {
+	t.Helper()
+
+	fm := getManifest(t, first)
+	sm := getManifest(t, second)
+
+	return fm.Config.Digest == sm.Config.Digest
 }
 
 func manifestsAreEqual(t *testing.T, first, second v1.Image) bool {
