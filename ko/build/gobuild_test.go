@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 
 	"testing"
 
@@ -171,9 +172,18 @@ func TestGoBuild(t *testing.T) {
 	}
 	tc.Enter(t)
 	defer tc.Exit(t)
-	ng, err := NewGo(Options{GetBase: func(string) (v1.Image, error) {
-		return base, nil
-	}})
+
+	creationTime := func() (*v1.Time, error) {
+		return &v1.Time{time.Unix(5000, 0)}, nil
+	}
+
+	ng, err := NewGo(
+		Options{
+			GetCreationTime: creationTime,
+			GetBase: func(string) (v1.Image, error) {
+				return base, nil
+			},
+		})
 	if err != nil {
 		t.Fatalf("NewGo() = %v", err)
 	}
@@ -225,6 +235,23 @@ func TestGoBuild(t *testing.T) {
 
 		if got, want := entrypoint[0], appPath; got != want {
 			t.Errorf("entrypoint = %v, want %v", got, want)
+		}
+	})
+
+	t.Run("check creation time", func(t *testing.T) {
+		cfg, err := img.ConfigFile()
+		if err != nil {
+			t.Errorf("ConfigFile() = %v", err)
+		}
+
+		actual := cfg.Created
+		want, err := creationTime()
+		if err != nil {
+			t.Errorf("CreationTime() = %v", err)
+		}
+
+		if actual.Time != want.Time {
+			t.Errorf("created = %v, want %v", actual, want)
 		}
 	})
 }
