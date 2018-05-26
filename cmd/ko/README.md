@@ -8,6 +8,12 @@ with Kubernetes and minimal configuration.
 `ko` can be installed via:
 
 ```shell
+go get github.com/google/go-containerregistry/cmd/ko
+```
+
+To update your installation:
+
+```shell
 go get -u github.com/google/go-containerregistry/cmd/ko
 ```
 
@@ -104,7 +110,13 @@ customresourcedefinition "warmimages.mattmoor.io" configured
 
 ## Usage
 
-`ko` has four commands:
+`ko` has four commands, most of which build and publish images as part of
+their execution.  By default, `ko` publishes images to a Docker Registry
+specified via `KO_DOCKER_REPO`.
+
+However, these same commands can be directed to operate locally as well via
+the `--local` or `-L` command.  See the `minikube` section for more detail.
+
 
 ### `ko publish`
 
@@ -121,11 +133,6 @@ $ ko publish github.com/mattmoor/warm-image/cmd/sleeper
 2018/04/25 17:11:30 pushed gcr.io/my-project/github.com/mattmoor/warm-image/cmd/sleeper:latest
 2018/04/25 17:11:30 Published gcr.io/my-project/github.com/mattmoor/warm-image/cmd/sleeper@sha256:193acdbeff1ea9f105f49d97a6ceb7adbd30b3d64a8b9949382f4be9569cd06d
 ```
-
-To determine where to publish the images, `ko` currently requires the
-environment variable `KO_DOCKER_REPO` to be set to an acceptable docker
-repository (e.g. `gcr.io/your-project`). **This will likely change in a
-future version.**
 
 ### `ko resolve`
 
@@ -180,6 +187,33 @@ to whatever `kubectl` context is active.
 
 `ko delete` simply passes through to `kubectl delete`. It is exposed purely out
 of convenience for cleaning up resources created through `ko apply`.
+
+
+### With `minikube`
+
+You can use `ko` with `minikube` via a Docker Registry, but this involves
+publishing images only to pull them back down to your machine again.  To avoid
+this `ko` exposes `--local` or `-L` options to instead publish the images to
+the local machine's Docker daemon.
+
+This would look something like:
+
+```shell
+# Use the minikube docker daemon.
+eval $(minikube docker-env)
+
+# Make sure minikube is the current kubectl context.
+kubectl config use-context minikube
+
+# Deploy to minikube w/o registry.
+ko apply -L -f config/
+```
+
+A caveat of this approach is that it will not work if your container is
+configured with `imagePullPolicy: Always` because despite having the image
+locally, a pull is performed to ensure we have the latest version.
+
+Images will appear in the Docker daemon as `ko.local/github.com/foo/cmd/bar`.
 
 ## Configuration via `.ko.yaml`
 
