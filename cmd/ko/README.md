@@ -194,7 +194,7 @@ of convenience for cleaning up resources created through `ko apply`.
 
 You can use `ko` with `minikube` via a Docker Registry, but this involves
 publishing images only to pull them back down to your machine again.  To avoid
-this `ko` exposes `--local` or `-L` options to instead publish the images to
+this, `ko` exposes `--local` or `-L` options to instead publish the images to
 the local machine's Docker daemon.
 
 This would look something like:
@@ -212,9 +212,12 @@ ko apply -L -f config/
 
 A caveat of this approach is that it will not work if your container is
 configured with `imagePullPolicy: Always` because despite having the image
-locally, a pull is performed to ensure we have the latest version.
+locally, a pull is performed to ensure we have the latest version, it still
+exists, and that access hasn't been revoked. A workaround for this is to
+use `imagePullPolicy: IfNotPresent`, which should work well with `ko` in
+all contexts.
 
-Images will appear in the Docker daemon as `ko.local/github.com/foo/cmd/bar`.
+Images will appear in the Docker daemon as `ko.local/import.path.com/foo/cmd/bar`.
 
 ## Configuration via `.ko.yaml`
 
