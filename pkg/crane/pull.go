@@ -17,8 +17,6 @@ package crane
 import (
 	"log"
 	"net/http"
-	"os"
-	"path"
 
 	"github.com/spf13/cobra"
 
@@ -51,9 +49,7 @@ func pull(_ *cobra.Command, args []string) {
 		log.Fatalf("getting creds for %q: %v", t, err)
 	}
 
-	i, err := remote.Image(t, auth, http.DefaultTransport, &remote.ImageOptions{
-		Cache: remote.NewDiskCache(path.Join(os.Getenv("HOME"), ".crane-cache")),
-	})
+	i, err := remote.Image(t, auth, http.DefaultTransport, &remote.ImageOptions{Cache: cache()})
 	if err != nil {
 		log.Fatalf("reading image %q: %v", t, err)
 	}

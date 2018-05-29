@@ -61,6 +61,10 @@ func (c diskCache) Load(h v1.Hash) (io.ReadCloser, error) {
 }
 
 func (c diskCache) Store(h v1.Hash, rc io.Reader) error {
+	if err := os.MkdirAll(c.tmpdir, 0777); err != nil {
+		return err
+	}
+
 	f, err := os.Create(path.Join(c.tmpdir, sanitizeHash(h)))
 	if err != nil {
 		return err

@@ -24,6 +24,16 @@ import (
 	"github.com/google/go-containerregistry/v1/remote"
 )
 
+// If set, directory where blobs should be cached.
+var CacheDir string
+
+func cache() remote.Cache {
+	if CacheDir == "" {
+		return nil
+	}
+	return remote.NewDiskCache(CacheDir)
+}
+
 func getImage(r string) (v1.Image, name.Reference, error) {
 	ref, err := name.ParseReference(r, name.WeakValidation)
 	if err != nil {
@@ -33,7 +43,7 @@ func getImage(r string) (v1.Image, name.Reference, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("getting creds for %q: %v", ref, err)
 	}
-	img, err := remote.Image(ref, auth, http.DefaultTransport, nil)
+	img, err := remote.Image(ref, auth, http.DefaultTransport, &remote.ImageOptions{Cache: cache()})
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
 	}
