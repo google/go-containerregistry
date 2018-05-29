@@ -16,7 +16,10 @@ package remote
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -29,7 +32,10 @@ import (
 	"github.com/google/go-containerregistry/v1/types"
 )
 
-const bogusDigest = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+const (
+	bogusDigest = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	pingPath    = "/v2/"
+)
 
 func mustDigest(t *testing.T, img v1.Image) v1.Hash {
 	h, err := img.Digest()
@@ -64,7 +70,7 @@ func mustRawConfigFile(t *testing.T, img v1.Image) []byte {
 }
 
 func randomImage(t *testing.T) v1.Image {
-	rnd, err := random.Image(1024, 1)
+	rnd, err := random.Image(1024, 3)
 	if err != nil {
 		t.Fatalf("random.Image() = %v", err)
 	}
@@ -152,6 +158,7 @@ func TestRawManifestDigests(t *testing.T) {
 			manifestPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, tc.ref)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.URL.Path {
+				case pingPath: //ping
 				case manifestPath:
 					if r.Method != http.MethodGet {
 						t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
@@ -191,6 +198,7 @@ func TestRawManifestNotFound(t *testing.T) {
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case pingPath: //ping
 		case manifestPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
@@ -223,6 +231,7 @@ func TestRawConfigFileNotFound(t *testing.T) {
 	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, mustConfigName(t, img))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case pingPath: //ping
 		case configPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
@@ -259,6 +268,7 @@ func TestAcceptHeaders(t *testing.T) {
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case pingPath: //ping
 		case manifestPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
@@ -302,8 +312,7 @@ func TestImage(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/v2/":
-			w.WriteHeader(http.StatusOK)
+		case pingPath: //ping
 		case configPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
@@ -328,7 +337,7 @@ func TestImage(t *testing.T) {
 	}
 
 	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
-	rmt, err := Image(tag, authn.Anonymous, http.DefaultTransport)
+	rmt, err := Image(tag, authn.Anonymous, http.DefaultTransport, nil)
 	if err != nil {
 		t.Errorf("Image() = %v", err)
 	}
@@ -356,4 +365,72 @@ func TestImage(t *testing.T) {
 	if got, want := size, layerSize; want != got {
 		t.Errorf("BlobSize() = %v want %v", got, want)
 	}
+}
+
+type memcache struct{ m map[v1.Hash][]byte }
+
+func newMemcache() *memcache { return &memcache{map[v1.Hash][]byte{}} }
+
+var _ Cache = (*memcache)(nil)
+
+func (m *memcache) Store(h v1.Hash, r io.Reader) error {
+	all, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	m.m[h] = all
+	return nil
+}
+
+func (m *memcache) Load(h v1.Hash) (io.ReadCloser, error) {
+	b, ok := m.m[h]
+	if !ok {
+		return nil, ErrCacheMiss
+	}
+	return ioutil.NopCloser(bytes.NewReader(b)), nil
+}
+
+func TestCache(t *testing.T) {
+	c := newMemcache()
+
+	// First, populate the cache.
+	img := randomImage(t)
+	c.m[mustDigest(t, img)] = mustRawManifest(t, img)
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("image.Layers: %v", err)
+	}
+	for i, l := range layers {
+		h, err := l.DiffID()
+		if err != nil {
+			t.Fatalf("layer.DiffID (layer %d): %v", i, err)
+		}
+		rc, err := l.Compressed()
+		if err != nil {
+			t.Fatalf("layer.Compressed (layer %d): %v", i, err)
+		}
+		b, err := ioutil.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			t.Fatalf("ReadAll (layer %d): %v", i, err)
+		}
+		c.m[h] = b
+	}
+
+	// Now "fetch" the image with a bad HTTP transport, which should never be called.
+	dig, err := name.NewDigest(fmt.Sprintf("image@%s", mustDigest(t, img).String()), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewDigest: %v", err)
+	}
+	pulled, err := Image(dig, nil, failTransport{}, &ImageOptions{Cache: c})
+	if err != nil {
+		t.Fatalf("remote.Image: %v", err)
+	}
+	t.Logf("pulled: %+v", pulled)
+}
+
+type failTransport struct{}
+
+func (failTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return nil, errors.New("fail transport called")
 }

@@ -35,13 +35,18 @@ import (
 
 // remoteImage accesses an image from a remote registry
 type remoteImage struct {
-	ref          name.Reference
+	ref  name.Reference
+	auth authn.Authenticator
+	t    http.RoundTripper
+
 	client       *http.Client
 	cache        Cache
 	manifestLock sync.Mutex // Protects manifest
 	manifest     []byte
 	configLock   sync.Mutex // Protects config
 	config       []byte
+
+	initOnce sync.Once
 }
 
 var _ partial.CompressedImageCore = (*remoteImage)(nil)
@@ -63,20 +68,16 @@ var ErrCacheMiss = errors.New("blob not found in cache")
 
 type Cache interface {
 	Load(v1.Hash) (io.ReadCloser, error)
-	Store(v1.Hash, io.ReadCloser) error
+	Store(v1.Hash, io.Reader) error
 }
 
 // Image accesses a given image reference over the provided transport, with the provided authentication.
 func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, opt *ImageOptions) (v1.Image, error) {
-	scopes := []string{ref.Scope(transport.PullScope)}
-	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
-	if err != nil {
-		return nil, err
-	}
 	return partial.CompressedToImage(&remoteImage{
-		ref:    ref,
-		client: &http.Client{Transport: tr},
-		cache:  opt.cache(),
+		ref:   ref,
+		auth:  auth,
+		t:     t,
+		cache: opt.cache(),
 	})
 }
 
@@ -113,7 +114,23 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 			return nil, err
 		}
 		defer rc.Close()
-		return ioutil.ReadAll(rc)
+		r.manifest, err = ioutil.ReadAll(rc)
+		return r.manifest, err
+	}
+
+	// Initialize the HTTP transport, if this is the first time its needed.
+	var initErr error
+	r.initOnce.Do(func() {
+		scopes := []string{r.ref.Scope(transport.PullScope)}
+		tr, err := transport.New(r.ref.Context().Registry, r.auth, r.t, scopes)
+		if err != nil {
+			initErr = err
+			return
+		}
+		r.client = &http.Client{Transport: tr}
+	})
+	if initErr != nil {
+		return nil, initErr
 	}
 
 	u := r.url("manifests", r.ref.Identifier())
@@ -235,12 +252,10 @@ func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
 	// the cache.
 	if rl.ri.cache != nil {
 		defer resp.Body.Close()
-		// TODO don't buffer
-		all, _ := ioutil.ReadAll(resp.Body)
-		if err := rl.ri.cache.Store(rl.digest, ioutil.NopCloser(bytes.NewReader(all))); err != nil {
+		if err := rl.ri.cache.Store(rl.digest, resp.Body); err != nil {
 			return nil, err
 		}
-		return v1util.VerifyReadCloser(ioutil.NopCloser(bytes.NewReader(all)), rl.digest)
+		return rl.ri.cache.Load(rl.digest)
 	}
 
 	return v1util.VerifyReadCloser(resp.Body, rl.digest)

@@ -44,8 +44,12 @@ type ondiskCache struct {
 	tmpdir string
 }
 
+func sanitizeHash(h v1.Hash) string {
+	return strings.Replace(h.String(), ":", "_", -1)
+}
+
 func (c ondiskCache) Load(h v1.Hash) (io.ReadCloser, error) {
-	f, err := os.Open(path.Join(c.tmpdir, strings.Replace(h.String(), ":", "_", -1)))
+	f, err := os.Open(path.Join(c.tmpdir, sanitizeHash(h)))
 	if os.IsNotExist(err) {
 		return nil, remote.ErrCacheMiss
 	} else if err != nil {
@@ -55,12 +59,11 @@ func (c ondiskCache) Load(h v1.Hash) (io.ReadCloser, error) {
 	return f, nil
 }
 
-func (c ondiskCache) Store(h v1.Hash, rc io.ReadCloser) error {
-	f, err := os.Create(path.Join(c.tmpdir, strings.Replace(h.String(), ":", "_", -1)))
+func (c ondiskCache) Store(h v1.Hash, rc io.Reader) error {
+	f, err := os.Create(path.Join(c.tmpdir, sanitizeHash(h)))
 	if err != nil {
 		return err
 	}
-	defer rc.Close()
 	_, err = io.Copy(f, rc)
 	log.Println("wrote to cache", h)
 	return err
