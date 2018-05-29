@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -367,31 +366,8 @@ func TestImage(t *testing.T) {
 	}
 }
 
-type memcache struct{ m map[v1.Hash][]byte }
-
-func newMemcache() *memcache { return &memcache{map[v1.Hash][]byte{}} }
-
-var _ Cache = (*memcache)(nil)
-
-func (m *memcache) Store(h v1.Hash, r io.Reader) error {
-	all, err := ioutil.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	m.m[h] = all
-	return nil
-}
-
-func (m *memcache) Load(h v1.Hash) (io.ReadCloser, error) {
-	b, ok := m.m[h]
-	if !ok {
-		return nil, ErrCacheMiss
-	}
-	return ioutil.NopCloser(bytes.NewReader(b)), nil
-}
-
 func TestCache(t *testing.T) {
-	c := newMemcache()
+	c := NewMemCache().(*memcache)
 
 	// First, populate the cache.
 	img := randomImage(t)

@@ -16,7 +16,6 @@ package remote
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -60,15 +59,6 @@ func (o *ImageOptions) cache() Cache {
 		return nil
 	}
 	return o.Cache
-}
-
-// ErrCacheMiss is the error returned by implementations of Cache.Load when the
-// blob was not found in the cache.
-var ErrCacheMiss = errors.New("blob not found in cache")
-
-type Cache interface {
-	Load(v1.Hash) (io.ReadCloser, error)
-	Store(v1.Hash, io.Reader) error
 }
 
 // Image accesses a given image reference over the provided transport, with the provided authentication.
