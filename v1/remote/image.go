@@ -108,7 +108,7 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		return r.manifest, err
 	}
 
-	// Initialize the HTTP transport, if this is the first time its needed.
+	// Initialize the HTTP transport, if this is the first time it's needed.
 	var initErr error
 	r.initOnce.Do(func() {
 		scopes := []string{r.ref.Scope(transport.PullScope)}
@@ -165,8 +165,7 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		}
 	}
 
-	// If a cache implementation is provided, attempt to store the blob in
-	// the cache.
+	// If a cache implementation is provided, attempt to cache the blob.
 	if r.cache != nil {
 		if err := r.cache.Store(digest, ioutil.NopCloser(bytes.NewReader(manifest))); err != nil {
 			return nil, err
@@ -238,10 +237,12 @@ func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	// If a cache implementation is provided, attempt to store the blob in
-	// the cache.
+	// If a cache implementation is provided, attempt to cache the blob.
 	if rl.ri.cache != nil {
 		defer resp.Body.Close()
+		// TODO(jasonhall): Don't do this. Instead, tee the body into
+		// the cache and into the verifying read closer passed to the
+		// caller.
 		if err := rl.ri.cache.Store(rl.digest, resp.Body); err != nil {
 			return nil, err
 		}

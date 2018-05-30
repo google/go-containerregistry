@@ -38,10 +38,10 @@ type Cache interface {
 }
 
 // NewDiskCache returns a Cache backed by a directory on disk, rooted under the
-// specified temp dir.
-func NewDiskCache(tmpdir string) Cache { return diskCache{tmpdir} }
+// specified directory.
+func NewDiskCache(dir string) Cache { return diskCache{dir} }
 
-type diskCache struct{ tmpdir string }
+type diskCache struct{ dir string }
 
 var _ Cache = (*diskCache)(nil)
 
@@ -50,7 +50,7 @@ func sanitizeHash(h v1.Hash) string {
 }
 
 func (c diskCache) Load(h v1.Hash) (io.ReadCloser, error) {
-	f, err := os.Open(path.Join(c.tmpdir, sanitizeHash(h)))
+	f, err := os.Open(path.Join(c.dir, sanitizeHash(h)))
 	if os.IsNotExist(err) {
 		return nil, ErrCacheMiss
 	} else if err != nil {
@@ -61,11 +61,11 @@ func (c diskCache) Load(h v1.Hash) (io.ReadCloser, error) {
 }
 
 func (c diskCache) Store(h v1.Hash, rc io.Reader) error {
-	if err := os.MkdirAll(c.tmpdir, 0777); err != nil {
+	if err := os.MkdirAll(c.dir, 0700); err != nil {
 		return err
 	}
 
-	f, err := os.Create(path.Join(c.tmpdir, sanitizeHash(h)))
+	f, err := os.Create(path.Join(c.dir, sanitizeHash(h)))
 	if err != nil {
 		return err
 	}

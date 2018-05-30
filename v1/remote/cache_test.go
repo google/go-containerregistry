@@ -42,7 +42,6 @@ func TestReadOnlyCache(t *testing.T) {
 	if err := ro.Store(h, r); err != nil {
 		t.Errorf("ReadOnly.Store: %v", err)
 	}
-
 }
 
 type failStore struct{}
