@@ -190,7 +190,7 @@ to whatever `kubectl` context is active.
 of convenience for cleaning up resources created through `ko apply`.
 
 
-### With `minikube`
+## With `minikube`
 
 You can use `ko` with `minikube` via a Docker Registry, but this involves
 publishing images only to pull them back down to your machine again.  To avoid
