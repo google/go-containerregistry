@@ -49,7 +49,7 @@ func pull(_ *cobra.Command, args []string) {
 		log.Fatalf("getting creds for %q: %v", t, err)
 	}
 
-	i, err := remote.Image(t, auth, http.DefaultTransport)
+	i, err := remote.Image(t, auth, http.DefaultTransport, &remote.ImageOptions{Cache: cache()})
 	if err != nil {
 		log.Fatalf("reading image %q: %v", t, err)
 	}

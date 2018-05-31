@@ -53,7 +53,7 @@ func doAppend(src, dst, tar, output string) {
 		log.Fatalf("getting creds for %q: %v", srcRef, err)
 	}
 
-	srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
+	srcImage, err := remote.Image(srcRef, srcAuth, http.DefaultTransport, &remote.ImageOptions{Cache: cache()})
 	if err != nil {
 		log.Fatalf("reading image %q: %v", srcRef, err)
 	}

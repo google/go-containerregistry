@@ -17,6 +17,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
@@ -29,6 +30,8 @@ var cmds = &cobra.Command{
 }
 
 func main() {
+	cmds.Flags().StringVarP(&crane.CacheDir, "cache", "c", path.Join(os.Getenv("HOME"), ".crane-cache"), "Path to directory where blobs should be cached")
+
 	cmds.AddCommand(crane.NewCmdAppend())
 	cmds.AddCommand(crane.NewCmdConfig())
 	cmds.AddCommand(crane.NewCmdCopy())

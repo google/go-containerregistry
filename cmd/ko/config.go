@@ -45,7 +45,7 @@ func getBaseImage(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	return remote.Image(ref, auth, http.DefaultTransport)
+	return remote.Image(ref, auth, http.DefaultTransport, nil)
 }
 
 func getCreationTime() (*v1.Time, error) {

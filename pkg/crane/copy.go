@@ -48,7 +48,7 @@ func doCopy(_ *cobra.Command, args []string) {
 		log.Fatalf("getting creds for %q: %v", srcRef, err)
 	}
 
-	img, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
+	img, err := remote.Image(srcRef, srcAuth, http.DefaultTransport, &remote.ImageOptions{Cache: cache()})
 	if err != nil {
 		log.Fatalf("reading image %q: %v", srcRef, err)
 	}

@@ -34,26 +34,40 @@ import (
 
 // remoteImage accesses an image from a remote registry
 type remoteImage struct {
-	ref          name.Reference
+	ref  name.Reference
+	auth authn.Authenticator
+	t    http.RoundTripper
+
 	client       *http.Client
+	cache        Cache
 	manifestLock sync.Mutex // Protects manifest
 	manifest     []byte
 	configLock   sync.Mutex // Protects config
 	config       []byte
+
+	initOnce sync.Once
 }
 
 var _ partial.CompressedImageCore = (*remoteImage)(nil)
 
-// Image accesses a given image reference over the provided transport, with the provided authentication.
-func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper) (v1.Image, error) {
-	scopes := []string{ref.Scope(transport.PullScope)}
-	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
-	if err != nil {
-		return nil, err
+type ImageOptions struct {
+	Cache Cache
+}
+
+func (o *ImageOptions) cache() Cache {
+	if o == nil {
+		return nil
 	}
+	return o.Cache
+}
+
+// Image accesses a given image reference over the provided transport, with the provided authentication.
+func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper, opt *ImageOptions) (v1.Image, error) {
 	return partial.CompressedToImage(&remoteImage{
-		ref:    ref,
-		client: &http.Client{Transport: tr},
+		ref:   ref,
+		auth:  auth,
+		t:     t,
+		cache: opt.cache(),
 	})
 }
 
@@ -76,6 +90,37 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 	defer r.manifestLock.Unlock()
 	if r.manifest != nil {
 		return r.manifest, nil
+	}
+
+	// If the image is specified by digest and a cache implementation is
+	// provided, attempt to lookup in the cache.
+	if dig, ok := r.ref.(name.Digest); ok && r.cache != nil {
+		h, err := v1.NewHash(dig.DigestStr())
+		if err != nil {
+			return nil, err
+		}
+		rc, err := r.cache.Load(h)
+		if err != nil && err != ErrCacheMiss {
+			return nil, err
+		}
+		defer rc.Close()
+		r.manifest, err = ioutil.ReadAll(rc)
+		return r.manifest, err
+	}
+
+	// Initialize the HTTP transport, if this is the first time it's needed.
+	var initErr error
+	r.initOnce.Do(func() {
+		scopes := []string{r.ref.Scope(transport.PullScope)}
+		tr, err := transport.New(r.ref.Context().Registry, r.auth, r.t, scopes)
+		if err != nil {
+			initErr = err
+			return
+		}
+		r.client = &http.Client{Transport: tr}
+	})
+	if initErr != nil {
+		return nil, initErr
 	}
 
 	u := r.url("manifests", r.ref.Identifier())
@@ -116,6 +161,13 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 			// TODO(docker/distribution#2395): Remove this check.
 		} else {
 			// When pulling by tag, we can only validate that the digest matches what the registry told us it should be.
+			return nil, err
+		}
+	}
+
+	// If a cache implementation is provided, attempt to cache the blob.
+	if r.cache != nil {
+		if err := r.cache.Store(digest, ioutil.NopCloser(bytes.NewReader(manifest))); err != nil {
 			return nil, err
 		}
 	}
@@ -166,6 +218,14 @@ func (rl *remoteLayer) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
+	if rl.ri.cache != nil {
+		if rc, err := rl.ri.cache.Load(rl.digest); err != nil && err != ErrCacheMiss {
+			return nil, err
+		} else if err == nil {
+			return rc, nil
+		}
+	}
+
 	u := rl.ri.url("blobs", rl.digest.String())
 	resp, err := rl.ri.client.Get(u.String())
 	if err != nil {
@@ -175,6 +235,18 @@ func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
 	if err := checkError(resp, http.StatusOK); err != nil {
 		resp.Body.Close()
 		return nil, err
+	}
+
+	// If a cache implementation is provided, attempt to cache the blob.
+	if rl.ri.cache != nil {
+		defer resp.Body.Close()
+		// TODO(jasonhall): Don't do this. Instead, tee the body into
+		// the cache and into the verifying read closer passed to the
+		// caller.
+		if err := rl.ri.cache.Store(rl.digest, resp.Body); err != nil {
+			return nil, err
+		}
+		return rl.ri.cache.Load(rl.digest)
 	}
 
 	return v1util.VerifyReadCloser(resp.Body, rl.digest)
