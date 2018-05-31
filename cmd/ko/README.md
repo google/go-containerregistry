@@ -115,8 +115,8 @@ their execution.  By default, `ko` publishes images to a Docker Registry
 specified via `KO_DOCKER_REPO`.
 
 However, these same commands can be directed to operate locally as well via
-the `--local` or `-L` command.  See the [`minikube` section](
-./README.md#with-minikube) for more detail.
+the `--local` or `-L` command (or setting `KO_DOCKER_REPO=ko.local`).  See
+the [`minikube` section](./README.md#with-minikube) for more detail.
 
 
 ### `ko publish`
@@ -208,6 +208,9 @@ kubectl config use-context minikube
 
 # Deploy to minikube w/o registry.
 ko apply -L -f config/
+
+# This is the same as above.
+KO_DOCKER_REPO=ko.local ko apply -f config/
 ```
 
 A caveat of this approach is that it will not work if your container is

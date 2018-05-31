@@ -78,10 +78,10 @@ func resolveFilesToWriter(fo *FilenameOptions, lo *LocalOptions, out io.Writer) 
 
 func resolveFile(f string, lo *LocalOptions, opt build.Options) ([]byte, error) {
 	var pub publish.Interface
-	if lo.Local {
+	repoName := os.Getenv("KO_DOCKER_REPO")
+	if lo.Local || repoName == publish.LocalDomain {
 		pub = publish.NewDaemon(daemon.WriteOptions{})
 	} else {
-		repoName := os.Getenv("KO_DOCKER_REPO")
 		repo, err := name.NewRepository(repoName, name.WeakValidation)
 		if err != nil {
 			return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
