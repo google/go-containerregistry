@@ -82,6 +82,7 @@ func addKubeCommands(topLevel *cobra.Command) {
   #   ko.local/<import path>
   # Then, feed the resulting yaml into "kubectl apply"
   ko apply -L -f config/`,
+		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			// TODO(mattmoor): Use io.Pipe to avoid buffering the whole thing.
 			buf := bytes.NewBuffer(nil)
@@ -123,6 +124,7 @@ func addKubeCommands(topLevel *cobra.Command) {
   # daemon as:
   #   ko.local/<import path>
   ko resolve -L -f config/`,
+		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			resolveFilesToWriter(fo, lo, os.Stdout)
 		},
