@@ -37,10 +37,10 @@ func publishImages(importpaths []string, lo *LocalOptions) {
 			log.Fatalf("error building %q: %v", importpath, err)
 		}
 		var pub publish.Interface
-		if lo.Local {
+		repoName := os.Getenv("KO_DOCKER_REPO")
+		if lo.Local || repoName == publish.LocalDomain {
 			pub = publish.NewDaemon(daemon.WriteOptions{})
 		} else {
-			repoName := os.Getenv("KO_DOCKER_REPO")
 			repo, err := name.NewRepository(repoName, name.WeakValidation)
 			if err != nil {
 				log.Fatalf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)

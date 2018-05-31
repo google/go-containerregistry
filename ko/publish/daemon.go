@@ -23,6 +23,10 @@ import (
 	"github.com/google/go-containerregistry/v1/daemon"
 )
 
+const (
+	LocalDomain = "ko.local"
+)
+
 // demon is intentionally misspelled to avoid name collision (and drive Jon nuts).
 type demon struct {
 	wo daemon.WriteOptions
@@ -39,7 +43,7 @@ func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	tag, err := name.NewTag(fmt.Sprintf("ko.local/%s:%s", s, h.Hex), name.WeakValidation)
+	tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, s, h.Hex), name.WeakValidation)
 	if err != nil {
 		return nil, err
 	}

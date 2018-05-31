@@ -73,7 +73,8 @@ func addKubeCommands(topLevel *cobra.Command) {
   # Build and publish import path references to a Docker
   # Registry as:
   #   ${KO_DOCKER_REPO}/<import path>
-  # Then, feed the resulting yaml into "kubectl apply"
+  # Then, feed the resulting yaml into "kubectl apply".
+  # When KO_DOCKER_REPO is ko.local, it is the same as if -L were passed.
   ko apply -f config/
 
   # Build and publish import path references to a Docker
@@ -115,6 +116,7 @@ func addKubeCommands(topLevel *cobra.Command) {
   # Build and publish import path references to a Docker
   # Registry as:
   #   ${KO_DOCKER_REPO}/<import path>
+  # When KO_DOCKER_REPO is ko.local, it is the same as if -L were passed.
   ko resolve -f config/
 
   # Build and publish import path references to a Docker
@@ -137,6 +139,7 @@ func addKubeCommands(topLevel *cobra.Command) {
   # Build and publish import path references to a Docker
   # Registry as:
   #   ${KO_DOCKER_REPO}/<import path>
+  # When KO_DOCKER_REPO is ko.local, it is the same as if -L were passed.
   ko publish github.com/foo/bar/cmd/baz github.com/foo/bar/cmd/blah
 
   # Build and publish import path references to a Docker
