@@ -39,7 +39,7 @@ var (
 )
 
 const (
-	appPath = "/app"
+	appPath = "/ko-app"
 )
 
 type Options struct {
