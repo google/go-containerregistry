@@ -34,14 +34,6 @@ var cmds = &cobra.Command{
 var gendoc = flag.String("gendoc", "", "If set, path to generate docs and exit")
 
 func main() {
-	flag.Parse()
-	if *gendoc != "" {
-		if err := doc.GenMarkdownTree(rootCmd, *gendoc); err != nil {
-			log.Fatalln(err)
-		}
-		return
-	}
-
 	cmds.AddCommand(crane.NewCmdAppend())
 	cmds.AddCommand(crane.NewCmdConfig())
 	cmds.AddCommand(crane.NewCmdCopy())
@@ -52,6 +44,14 @@ func main() {
 	cmds.AddCommand(crane.NewCmdPull())
 	cmds.AddCommand(crane.NewCmdPush())
 	cmds.AddCommand(crane.NewCmdRebase())
+
+	flag.Parse()
+	if *gendoc != "" {
+		if err := doc.GenMarkdownTree(cmds, *gendoc); err != nil {
+			log.Fatalln(err)
+		}
+		return
+	}
 
 	if err := cmds.Execute(); err != nil {
 		fmt.Println(err)

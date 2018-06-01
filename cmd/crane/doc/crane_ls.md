@@ -1,19 +1,19 @@
-## crane copy
+## crane ls
 
-Efficiently copy a remote image from src to dst
+List the tags in a repo
 
 ### Synopsis
 
-Efficiently copy a remote image from src to dst
+List the tags in a repo
 
 ```
-crane copy [flags]
+crane ls [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for copy
+  -h, --help   help for ls
 ```
 
 ### SEE ALSO
