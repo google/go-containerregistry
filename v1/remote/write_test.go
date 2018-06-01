@@ -265,6 +265,11 @@ func TestInitiateUploadMountsWithMount(t *testing.T) {
 		"from":  []string{expectedMountRepo},
 	}.Encode()
 
+	img = &mountableImage{
+		Image:      img,
+		Repository: mustNewTag(t, fmt.Sprintf("gcr.io/%s", expectedMountRepo)).Repository,
+	}
+
 	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
@@ -281,8 +286,6 @@ func TestInitiateUploadMountsWithMount(t *testing.T) {
 		t.Fatalf("setupWriter() = %v", err)
 	}
 	defer closer.Close()
-	w.options.MountPaths = append(w.options.MountPaths,
-		mustNewTag(t, fmt.Sprintf("gcr.io/%s", expectedMountRepo)).Repository)
 
 	_, mounted, err := w.initiateUpload(h)
 	if err != nil {

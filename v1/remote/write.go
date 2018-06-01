@@ -31,8 +31,6 @@ import (
 // WriteOptions are used to expose optional information to guide or
 // control the image write.
 type WriteOptions struct {
-	// The set of paths from which to attempt to mount blobs.
-	MountPaths []name.Repository
 	// TODO(mattmoor): Expose "threads" to limit parallelism?
 }
 
@@ -40,9 +38,15 @@ type WriteOptions struct {
 func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.RoundTripper,
 	wo WriteOptions) error {
 
+	ls, err := img.Layers()
+	if err != nil {
+		return err
+	}
 	scopes := []string{ref.Scope(transport.PushScope)}
-	for _, mp := range wo.MountPaths {
-		scopes = append(scopes, mp.Scope(transport.PullScope))
+	for _, l := range ls {
+		if ml, ok := l.(*MountableLayer); ok {
+			scopes = append(scopes, ml.Repository.Scope(transport.PullScope))
+		}
 	}
 
 	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
@@ -132,16 +136,16 @@ func (w *writer) initiateUpload(h v1.Hash) (location string, mounted bool, err e
 	uv := url.Values{
 		"mount": []string{h.String()},
 	}
-	var from []string
-	for _, m := range w.options.MountPaths {
-		from = append(from, m.RepositoryStr())
+	l, err := w.img.LayerByDigest(h)
+	if err != nil {
+		return "", false, err
 	}
 	// We currently avoid HEAD because it's semi-redundant with the mount that is part
 	// of initiating the blob upload.  GCR will perform an existence check on the initiation
 	// if "mount" is specified, even if no "from" sources are specified.  If this turns out
 	// to not be broadly applicable then we should replace mounts without "from"s with a HEAD.
-	if len(from) > 0 {
-		uv["from"] = from
+	if ml, ok := l.(*MountableLayer); ok {
+		uv["from"] = []string{ml.Repository.RepositoryStr()}
 	}
 	u.RawQuery = uv.Encode()
 

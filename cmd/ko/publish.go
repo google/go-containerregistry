@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-containerregistry/ko/publish"
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1/daemon"
-	"github.com/google/go-containerregistry/v1/remote"
 )
 
 func publishImages(importpaths []string, lo *LocalOptions) {
@@ -45,9 +44,7 @@ func publishImages(importpaths []string, lo *LocalOptions) {
 			if err != nil {
 				log.Fatalf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
 			}
-			pub = publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
-				MountPaths: getMountPaths(),
-			})
+			pub = publish.NewDefault(repo, http.DefaultTransport)
 		}
 		if _, err := pub.Publish(img, importpath); err != nil {
 			log.Fatalf("error publishing %s: %v", importpath, err)

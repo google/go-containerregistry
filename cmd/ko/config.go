@@ -61,15 +61,6 @@ func getCreationTime() (*v1.Time, error) {
 	return &v1.Time{time.Unix(seconds, 0)}, nil
 }
 
-func getMountPaths() []name.Repository {
-	repos := make([]name.Repository, 0, len(baseImageOverrides)+1)
-	repos = append(repos, defaultBaseImage.Context())
-	for _, v := range baseImageOverrides {
-		repos = append(repos, v.Context())
-	}
-	return repos
-}
-
 func init() {
 	// If omitted, use this base image.
 	viper.SetDefault("defaultBaseImage", "gcr.io/distroless/base:latest")

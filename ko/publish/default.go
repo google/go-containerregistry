@@ -29,13 +29,12 @@ import (
 type defalt struct {
 	base name.Repository
 	t    http.RoundTripper
-	wo   remote.WriteOptions
 }
 
 // NewDefault returns a new publish.Interface that publishes references under the provided base
 // repository using the default keychain to authenticate and the default naming scheme.
-func NewDefault(base name.Repository, t http.RoundTripper, wo remote.WriteOptions) Interface {
-	return &defalt{base, t, wo}
+func NewDefault(base name.Repository, t http.RoundTripper) Interface {
+	return &defalt{base, t}
 }
 
 // Publish implements publish.Interface
@@ -51,7 +50,7 @@ func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
 		return nil, err
 	}
 	log.Printf("Publishing %v", tag)
-	if err := remote.Write(tag, img, auth, d.t, d.wo); err != nil {
+	if err := remote.Write(tag, img, auth, d.t, remote.WriteOptions{}); err != nil {
 		return nil, err
 	}
 	h, err := img.Digest()
