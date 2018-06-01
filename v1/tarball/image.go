@@ -298,7 +298,7 @@ type compressedLayerFromTarball struct {
 	filePath string
 }
 
-// DiffID implements partial.CompressedLayer
+// Digest implements partial.CompressedLayer
 func (clft *compressedLayerFromTarball) Digest() (v1.Hash, error) {
 	return clft.digest, nil
 }
