@@ -285,3 +285,8 @@ func UncompressedBlob(b WithBlob, h v1.Hash) (io.ReadCloser, error) {
 	}
 	return v1util.GunzipReadCloser(rc)
 }
+
+// WithDiffID defines the subset of v1.Layer for exposing the DiffID method.
+type WithDiffID interface {
+	DiffID() (v1.Hash, error)
+}
