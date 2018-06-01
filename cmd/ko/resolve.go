@@ -28,7 +28,6 @@ import (
 	"github.com/google/go-containerregistry/ko/resolve"
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1/daemon"
-	"github.com/google/go-containerregistry/v1/remote"
 )
 
 func gobuildOptions() build.Options {
@@ -87,9 +86,7 @@ func resolveFile(f string, lo *LocalOptions, opt build.Options) ([]byte, error) 
 			return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
 		}
 
-		pub = publish.NewDefault(repo, http.DefaultTransport, remote.WriteOptions{
-			MountPaths: getMountPaths(),
-		})
+		pub = publish.NewDefault(repo, http.DefaultTransport)
 	}
 
 	b, err := ioutil.ReadFile(f)

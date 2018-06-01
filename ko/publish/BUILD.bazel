@@ -33,7 +33,6 @@ go_test(
         "//v1:go_default_library",
         "//v1/daemon:go_default_library",
         "//v1/random:go_default_library",
-        "//v1/remote:go_default_library",
         "//vendor/github.com/docker/docker/api/types:go_default_library",
     ],
 )

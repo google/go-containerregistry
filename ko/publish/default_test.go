@@ -24,7 +24,6 @@ import (
 
 	"github.com/google/go-containerregistry/name"
 	"github.com/google/go-containerregistry/v1/random"
-	"github.com/google/go-containerregistry/v1/remote"
 )
 
 func TestDefault(t *testing.T) {
@@ -71,7 +70,7 @@ func TestDefault(t *testing.T) {
 		t.Fatalf("NewRepository() = %v", err)
 	}
 
-	def := NewDefault(baseRepo, http.DefaultTransport, remote.WriteOptions{})
+	def := NewDefault(baseRepo, http.DefaultTransport)
 	if d, err := def.Publish(img, importpath); err != nil {
 		t.Errorf("Publish() = %v", err)
 	} else if !strings.HasPrefix(d.String(), tag.Repository.String()) {

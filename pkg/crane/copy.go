@@ -64,10 +64,7 @@ func doCopy(_ *cobra.Command, args []string) {
 		log.Fatalf("getting creds for %q: %v", dstRef, err)
 	}
 
-	wo := remote.WriteOptions{
-		MountPaths: []name.Repository{srcRef.Context()},
-	}
-
+	wo := remote.WriteOptions{}
 	if err := remote.Write(dstRef, img, dstAuth, http.DefaultTransport, wo); err != nil {
 		log.Fatalf("writing image %q: %v", dstRef, err)
 	}
