@@ -78,6 +78,7 @@ func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, err
 	// Add new base layers.
 	for i := range newBaseLayers {
 		rebasedImage, err = Append(rebasedImage, Addendum{
+			Image:   newBase,
 			Layer:   newBaseLayers[i],
 			History: newConfig.History[i],
 		})
@@ -89,6 +90,7 @@ func Rebase(orig, oldBase, newBase v1.Image, opts *RebaseOptions) (v1.Image, err
 	start := len(oldBaseLayers)
 	for i := range origLayers[start:] {
 		rebasedImage, err = Append(rebasedImage, Addendum{
+			Image:   orig,
 			Layer:   origLayers[start+i],
 			History: origConfig.History[start+i],
 		})

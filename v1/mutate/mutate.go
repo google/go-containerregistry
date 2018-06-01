@@ -30,9 +30,9 @@ import (
 
 const whiteoutPrefix = ".wh."
 
-// Addendum contains layers and history to be appended
-// to a base image
+// Addendum contains the layer, history, and source image to be appended to a base image
 type Addendum struct {
+	Image   v1.Image
 	Layer   v1.Layer
 	History v1.History
 }
@@ -79,9 +79,21 @@ func Append(base v1.Image, adds ...Addendum) (v1.Image, error) {
 	history := image.configFile.History
 
 	for _, add := range adds {
-		diffID, err := add.Layer.DiffID()
+		digest, err := add.Layer.Digest()
 		if err != nil {
 			return nil, err
+		}
+		var diffID v1.Hash
+		if add.Image != nil {
+			diffID, err = partial.BlobToDiffID(add.Image, digest)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			diffID, err = add.Layer.DiffID()
+			if err != nil {
+				return nil, err
+			}
 		}
 		diffIDs = append(diffIDs, diffID)
 		history = append(history, add.History)
