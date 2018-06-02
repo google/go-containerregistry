@@ -23,11 +23,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/google/go-containerregistry/ko/build"
-	"github.com/google/go-containerregistry/ko/publish"
-	"github.com/google/go-containerregistry/ko/resolve"
-	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1/daemon"
+	"github.com/google/go-containerregistry/pkg/ko/build"
+	"github.com/google/go-containerregistry/pkg/ko/publish"
+	"github.com/google/go-containerregistry/pkg/ko/resolve"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/daemon"
 )
 
 func gobuildOptions() build.Options {

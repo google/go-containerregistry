@@ -19,10 +19,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/go-containerregistry/ko/build"
-	"github.com/google/go-containerregistry/ko/publish"
-	"github.com/google/go-containerregistry/name"
-	"github.com/google/go-containerregistry/v1/daemon"
+	"github.com/google/go-containerregistry/pkg/ko/build"
+	"github.com/google/go-containerregistry/pkg/ko/publish"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/daemon"
 )
 
 func publishImages(importpaths []string, lo *LocalOptions) {
