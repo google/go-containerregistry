@@ -96,7 +96,7 @@ func TestPingNoChallenge(t *testing.T) {
 func TestPingBasicChallengeNoParams(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("WWW-Authenticate", `Basic`)
+			w.Header().Set("WWW-Authenticate", `BASIC`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()

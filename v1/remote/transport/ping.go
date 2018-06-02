@@ -75,13 +75,13 @@ func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
 		if parts := strings.SplitN(wac, " ", 2); len(parts) == 2 {
 			// If there are two parts, then parse the challenge parameters.
 			return &pingResp{
-				challenge:  challenge(strings.Title(parts[0])),
+				challenge:  challenge(strings.Title(strings.ToLower(parts[0]))),
 				parameters: parseChallenge(parts[1]),
 			}, nil
 		}
 		// Otherwise, just return the challenge without parameters.
 		return &pingResp{
-			challenge: challenge(strings.Title(wac)),
+			challenge: challenge(strings.Title(strings.ToLower(wac))),
 		}, nil
 	default:
 		return nil, fmt.Errorf("unrecognized HTTP status: %v", resp.Status)
