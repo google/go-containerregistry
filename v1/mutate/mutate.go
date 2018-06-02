@@ -16,6 +16,7 @@ package mutate
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -110,10 +111,17 @@ func Append(base v1.Image, adds ...Addendum) (v1.Image, error) {
 	image.configFile.RootFS.DiffIDs = diffIDs
 	image.configFile.History = history
 	image.manifest.Layers = manifestLayers
-	image.manifest.Config.Digest, err = image.ConfigName()
+
+	rcfg, err := image.RawConfigFile()
 	if err != nil {
 		return nil, err
 	}
+	d, sz, err := v1.SHA256(bytes.NewBuffer(rcfg))
+	if err != nil {
+		return nil, err
+	}
+	image.manifest.Config.Digest = d
+	image.manifest.Config.Size = sz
 
 	return image, nil
 }
@@ -139,10 +147,16 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 		digestMap:  make(map[v1.Hash]v1.Layer),
 	}
 
-	image.manifest.Config.Digest, err = image.ConfigName()
+	rcfg, err := image.RawConfigFile()
 	if err != nil {
 		return nil, err
 	}
+	d, sz, err := v1.SHA256(bytes.NewBuffer(rcfg))
+	if err != nil {
+		return nil, err
+	}
+	image.manifest.Config.Digest = d
+	image.manifest.Config.Size = sz
 	return image, nil
 }
 

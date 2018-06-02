@@ -172,6 +172,10 @@ func TestAppendWithHistory(t *testing.T) {
 		t.Fatalf("correct layer was not appended (-got, +want) %v", diff)
 	}
 
+	if configSizesAreEqual(t, source, result) {
+		t.Fatal("adding a layer MUST change the config file size")
+	}
+
 	cf := getConfigFile(t, result)
 
 	if diff := cmp.Diff(cf.History[1], addendum.History); diff != "" {
@@ -192,6 +196,10 @@ func TestAppendLayers(t *testing.T) {
 
 	if configFilesAreEqual(t, source, result) {
 		t.Fatal("appending a layer did not mutate the config file")
+	}
+
+	if configSizesAreEqual(t, source, result) {
+		t.Fatal("adding a layer MUST change the config file size")
 	}
 
 	layers := getLayers(t, result)
@@ -232,6 +240,10 @@ func TestMutateConfig(t *testing.T) {
 		t.Fatal("mutating the config did not mutate the config file")
 	}
 
+	if configSizesAreEqual(t, source, result) {
+		t.Fatal("adding an enviornment variable MUST change the config file size")
+	}
+
 	if !reflect.DeepEqual(cfg.Config.Env, newEnv) {
 		t.Fatalf("incorrect environment set %v!=%v", cfg.Config.Env, newEnv)
 	}
@@ -245,8 +257,8 @@ func TestMutateCreatedAt(t *testing.T) {
 		t.Fatalf("failed to mutate a config: %v", err)
 	}
 
-	if manifestDigestsAreEqual(t, source, result) {
-		t.Fatal("mutating the created time MUST mutate the manifest digest")
+	if configDigestsAreEqual(t, source, result) {
+		t.Fatal("mutating the created time MUST mutate the config digest")
 	}
 
 	got := getConfigFile(t, result).Created.Time
@@ -340,13 +352,22 @@ func configFilesAreEqual(t *testing.T, first, second v1.Image) bool {
 	return cmp.Equal(fc, sc)
 }
 
-func manifestDigestsAreEqual(t *testing.T, first, second v1.Image) bool {
+func configDigestsAreEqual(t *testing.T, first, second v1.Image) bool {
 	t.Helper()
 
 	fm := getManifest(t, first)
 	sm := getManifest(t, second)
 
 	return fm.Config.Digest == sm.Config.Digest
+}
+
+func configSizesAreEqual(t *testing.T, first, second v1.Image) bool {
+	t.Helper()
+
+	fm := getManifest(t, first)
+	sm := getManifest(t, second)
+
+	return fm.Config.Size == sm.Config.Size
 }
 
 func manifestsAreEqual(t *testing.T, first, second v1.Image) bool {
