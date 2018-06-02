@@ -25,9 +25,9 @@ import (
 type challenge string
 
 const (
-	anonymous challenge = "Anonymous"
-	basic     challenge = "Basic"
-	bearer    challenge = "Bearer"
+	anonymous challenge = "anonymous"
+	basic     challenge = "basic"
+	bearer    challenge = "bearer"
 )
 
 type pingResp struct {
@@ -39,7 +39,7 @@ type pingResp struct {
 }
 
 func (c challenge) Canonical() challenge {
-	return challenge(strings.Title(strings.ToLower(string(c))))
+	return challenge(strings.ToLower(string(c)))
 }
 
 func parseChallenge(suffix string) map[string]string {
