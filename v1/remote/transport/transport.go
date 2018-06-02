@@ -49,7 +49,7 @@ func New(reg name.Registry, auth authn.Authenticator, t http.RoundTripper, scope
 		return nil, err
 	}
 
-	switch pr.challenge {
+	switch pr.challenge.Canonical() {
 	case anonymous:
 		return t, nil
 	case basic:
