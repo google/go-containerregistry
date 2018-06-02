@@ -7,10 +7,7 @@ go_library(
     ],
     importpath = "github.com/google/go-containerregistry/cmd/crane",
     visibility = ["//visibility:private"],
-    deps = [
-        "//pkg/crane:go_default_library",
-        "//vendor/github.com/spf13/cobra:go_default_library",
-    ],
+    deps = ["//pkg/crane:go_default_library"],
 )
 
 go_binary(

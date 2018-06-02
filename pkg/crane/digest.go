@@ -21,6 +21,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func init() { Root.AddCommand(NewCmdDigest()) }
+
 func NewCmdDigest() *cobra.Command {
 	return &cobra.Command{
 		Use:   "digest",

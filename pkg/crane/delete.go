@@ -25,6 +25,8 @@ import (
 	"github.com/google/go-containerregistry/v1/remote"
 )
 
+func init() { Root.AddCommand(NewCmdDelete()) }
+
 func NewCmdDelete() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete",

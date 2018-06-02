@@ -26,6 +26,8 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
+func init() { Root.AddCommand(NewCmdPush()) }
+
 func NewCmdPush() *cobra.Command {
 	return &cobra.Command{
 		Use:   "push",

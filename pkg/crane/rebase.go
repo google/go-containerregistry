@@ -26,6 +26,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func init() { Root.AddCommand(NewCmdRebase()) }
+
 func NewCmdRebase() *cobra.Command {
 	var orig, oldBase, newBase, rebased string
 	rebaseCmd := &cobra.Command{

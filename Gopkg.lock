@@ -8,6 +8,12 @@
   version = "v0.4.7"
 
 [[projects]]
+  name = "github.com/cpuguy83/go-md2man"
+  packages = ["md2man"]
+  revision = "20f5889cbdc3c73dbd2862796665e7c465ade7d1"
+  version = "v1.0.8"
+
+[[projects]]
   name = "github.com/docker/distribution"
   packages = [
     "digest",
@@ -105,14 +111,14 @@
 [[projects]]
   name = "github.com/magiconair/properties"
   packages = ["."]
-  revision = "c3beff4c2358b44d0493c7dda585e7db7ff28ae6"
-  version = "v1.7.6"
+  revision = "c2353362d570a7bfa228149c62842019201cfb71"
+  version = "v1.8.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
-  revision = "00c29f56e2386353d58c599509e8dc3801b0d716"
+  revision = "bb74f1db0675b241733089d5a1faa5dd8b0ef57b"
 
 [[projects]]
   name = "github.com/pelletier/go-toml"
@@ -125,6 +131,12 @@
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
   version = "v0.8.0"
+
+[[projects]]
+  name = "github.com/russross/blackfriday"
+  packages = ["."]
+  revision = "55d61fa8aa702f59229e6cff85793c22e580eaf5"
+  version = "v1.5.1"
 
 [[projects]]
   name = "github.com/spf13/afero"
@@ -143,7 +155,10 @@
 
 [[projects]]
   name = "github.com/spf13/cobra"
-  packages = ["."]
+  packages = [
+    ".",
+    "doc"
+  ]
   revision = "615425954c3b0d9485a7027d4d451fdcdfdee84e"
 
 [[projects]]
@@ -173,7 +188,7 @@
     "internal/socks",
     "proxy"
   ]
-  revision = "5f9ae10d9af5b1c89ae6904293b14b064d4ada23"
+  revision = "1e491301e022f8f977054da4c2d852decd59571f"
 
 [[projects]]
   branch = "master"
@@ -188,7 +203,7 @@
     "unix",
     "windows"
   ]
-  revision = "79b0c6888797020a994db17c8510466c72fe75d9"
+  revision = "c11f84a56e43e20a78cee75a7c034031ecf57d1f"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -211,7 +226,7 @@
     "imports",
     "internal/fastwalk"
   ]
-  revision = "c1def519f03ddf76f16b3e444ee1095d73afa01b"
+  revision = "a5b4c53f6e8bdcafa95a94671bf2d1203365858b"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -241,11 +256,11 @@
     "parser",
     "types"
   ]
-  revision = "01a732e01d00cb9a81bb0ca050d3e6d2b947927b"
+  revision = "2e1a79edcaecf0bfbde129a1fd55624b66adb699"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "747a1af3275517cedca99e49ebb4df86abe67be9f978fb857bfa475a303a0ab6"
+  inputs-digest = "d70a4e8d00df5092c29e042845e6ba476b253a9738e2f4c2d162c0fd17de5c1f"
   solver-name = "gps-cdcl"
   solver-version = 1
