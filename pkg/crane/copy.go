@@ -26,6 +26,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func init() { Root.AddCommand(NewCmdCopy()) }
+
 func NewCmdCopy() *cobra.Command {
 	return &cobra.Command{
 		Use:   "copy",

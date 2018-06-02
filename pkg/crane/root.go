@@ -1,5 +1,3 @@
-// Copyright 2018 Google LLC All Rights Reserved.
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,33 +12,10 @@
 
 package crane
 
-import (
-	"fmt"
-	"log"
+import "github.com/spf13/cobra"
 
-	"github.com/spf13/cobra"
-)
-
-func init() { Root.AddCommand(NewCmdConfig()) }
-
-func NewCmdConfig() *cobra.Command {
-	return &cobra.Command{
-		Use:   "config",
-		Short: "Get the config of an image",
-		Args:  cobra.ExactArgs(1),
-		Run:   config,
-	}
-}
-
-func config(_ *cobra.Command, args []string) {
-	ref := args[0]
-	i, _, err := getImage(ref)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	config, err := i.RawConfigFile()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Print(string(config))
+var Root = &cobra.Command{
+	Use:   "crane",
+	Short: "Crane is a tool for managing container images",
+	Run:   func(cmd *cobra.Command, _ []string) { cmd.Usage() },
 }

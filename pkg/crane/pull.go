@@ -26,6 +26,8 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
+func init() { Root.AddCommand(NewCmdPull()) }
+
 func NewCmdPull() *cobra.Command {
 	return &cobra.Command{
 		Use:   "pull",

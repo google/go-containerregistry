@@ -27,6 +27,8 @@ import (
 	"github.com/google/go-containerregistry/v1/tarball"
 )
 
+func init() { Root.AddCommand(NewCmdAppend()) }
+
 func NewCmdAppend() *cobra.Command {
 	var output string
 	appendCmd := &cobra.Command{
