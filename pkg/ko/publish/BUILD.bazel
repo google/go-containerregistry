@@ -1,0 +1,38 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "daemon.go",
+        "default.go",
+        "doc.go",
+        "fixed.go",
+        "publish.go",
+    ],
+    importpath = "github.com/google/go-containerregistry/pkg/ko/publish",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/authn:go_default_library",
+        "//pkg/name:go_default_library",
+        "//pkg/v1:go_default_library",
+        "//pkg/v1/daemon:go_default_library",
+        "//pkg/v1/remote:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "daemon_test.go",
+        "default_test.go",
+        "fixed_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//pkg/name:go_default_library",
+        "//pkg/v1:go_default_library",
+        "//pkg/v1/daemon:go_default_library",
+        "//pkg/v1/random:go_default_library",
+        "//vendor/github.com/docker/docker/api/types:go_default_library",
+    ],
+)

@@ -1,0 +1,32 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "build.go",
+        "doc.go",
+        "fixed.go",
+        "gobuild.go",
+    ],
+    importpath = "github.com/google/go-containerregistry/pkg/ko/build",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//pkg/v1:go_default_library",
+        "//pkg/v1/mutate:go_default_library",
+        "//pkg/v1/tarball:go_default_library",
+        "//pkg/v1/v1util:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "fixed_test.go",
+        "gobuild_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "//pkg/v1:go_default_library",
+        "//pkg/v1/random:go_default_library",
+    ],
+)
