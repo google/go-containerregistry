@@ -7,3 +7,15 @@
 ## Introduction
 
 This is a golang library for working with container registries. It's largely based on the [Python library of the same name](https://github.com/google/containerregistry), but more hip and uses GitHub as the source of truth.
+
+## Tools
+
+This repo hosts two tools built on top of the library.
+
+### crane
+
+[`crane`](cmd/crane/doc/crane.md) is a tool for interacting with remote images and registries.
+
+### ko
+
+[`ko`](cmd/ko/README.md) is a tool for building and deploying golang applications to kubernetes.
