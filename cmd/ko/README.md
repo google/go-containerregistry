@@ -26,8 +26,8 @@ In Go, dependencies are expressed via blocks like:
 
 ```go
 import (
-    "github.com/google/go-containerregistry/authn"
-    "github.com/google/go-containerregistry/name"
+    "github.com/google/go-containerregistry/pkg/authn"
+    "github.com/google/go-containerregistry/pkg/name"
 )
 ```
 
