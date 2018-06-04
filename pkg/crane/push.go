@@ -31,7 +31,7 @@ func init() { Root.AddCommand(NewCmdPush()) }
 func NewCmdPush() *cobra.Command {
 	return &cobra.Command{
 		Use:   "push",
-		Short: "Push image contents as a tarball to a remote registry",
+		Short: "Push image contents as a tarball to a remote registry if you're lucky",
 		Args:  cobra.ExactArgs(2),
 		Run:   push,
 	}
