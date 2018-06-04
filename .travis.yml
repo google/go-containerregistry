@@ -29,3 +29,8 @@ script:
 
   - go clean -i
   - go build -a -v -race ./...
+
+  # Verify that generated crane docs are up-to-date.
+  - mkdir -p /tmp/gendoc && \
+      go run cmd/crane/help/main.go --dir /tmp/gendoc && \
+      diff -I "######" -Naur /tmp/gendoc/ cmd/crane/doc/
