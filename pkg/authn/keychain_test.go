@@ -84,20 +84,29 @@ var (
 )
 
 // setupConfigDir sets up an isolated configDir() for this test.
-func setupConfigDir() string {
+func setupConfigDir(t *testing.T) string {
+	tmpdir := os.Getenv("TEST_TMPDIR")
+	if tmpdir == "" {
+		var err error
+		tmpdir, err = ioutil.TempDir("", "keychain_test")
+		if err != nil {
+			t.Fatalf("creating temp dir: %v", err)
+		}
+	}
+
 	fresh = fresh + 1
-	p := fmt.Sprintf("%s/%d", os.Getenv("TEST_TMPDIR"), fresh)
+	p := fmt.Sprintf("%s/%d", tmpdir, fresh)
 	os.Setenv("DOCKER_CONFIG", p)
 	if err := os.Mkdir(p, 0777); err != nil {
-		panic(err)
+		t.Fatalf("mkdir %q: %v", p, err)
 	}
 	return p
 }
 
-func setupConfigFile(content string) {
-	p := path.Join(setupConfigDir(), "config.json")
+func setupConfigFile(t *testing.T, content string) {
+	p := path.Join(setupConfigDir(t), "config.json")
 	if err := ioutil.WriteFile(p, []byte(content), 0600); err != nil {
-		panic(err)
+		t.Fatalf("write %q: %v", p, err)
 	}
 }
 
@@ -144,7 +153,7 @@ func checkHelper(t *testing.T) {
 }
 
 func TestNoConfig(t *testing.T) {
-	setupConfigDir()
+	setupConfigDir(t)
 
 	checkAnonymousFallback(t)
 }
@@ -174,7 +183,7 @@ func TestVariousPaths(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		setupConfigFile(test.content)
+		setupConfigFile(t, test.content)
 
 		test.check(t)
 	}
