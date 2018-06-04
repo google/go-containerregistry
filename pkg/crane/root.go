@@ -15,7 +15,8 @@ package crane
 import "github.com/spf13/cobra"
 
 var Root = &cobra.Command{
-	Use:   "crane",
-	Short: "Crane is a tool for managing container images",
-	Run:   func(cmd *cobra.Command, _ []string) { cmd.Usage() },
+	Use:               "crane",
+	Short:             "Crane is a tool for managing container images",
+	Run:               func(cmd *cobra.Command, _ []string) { cmd.Usage() },
+	DisableAutoGenTag: true,
 }

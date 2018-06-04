@@ -42,6 +42,11 @@ func NewCmdRebase() *cobra.Command {
 	rebaseCmd.Flags().StringVarP(&oldBase, "old_base", "", "", "Old base image to remove")
 	rebaseCmd.Flags().StringVarP(&newBase, "new_base", "", "", "New base image to insert")
 	rebaseCmd.Flags().StringVarP(&rebased, "rebased", "", "", "Tag to apply to rebased image")
+
+	rebaseCmd.MarkFlagRequired("original")
+	rebaseCmd.MarkFlagRequired("old_base")
+	rebaseCmd.MarkFlagRequired("new_base")
+	rebaseCmd.MarkFlagRequired("rebased")
 	return rebaseCmd
 }
 
