@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -145,6 +146,33 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 		Image:      base,
 		manifest:   m.DeepCopy(),
 		configFile: cf.DeepCopy(),
+		digestMap:  make(map[v1.Hash]v1.Layer),
+	}
+
+	rcfg, err := image.RawConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	d, sz, err := v1.SHA256(bytes.NewBuffer(rcfg))
+	if err != nil {
+		return nil, err
+	}
+	image.manifest.Config.Digest = d
+	image.manifest.Config.Size = sz
+	return image, nil
+}
+
+// ConfigFile mutates the provided v1.Image to have the provided v1.ConfigFile
+func ConfigFile(base v1.Image, cfg *v1.ConfigFile) (v1.Image, error) {
+	m, err := base.Manifest()
+	if err != nil {
+		return nil, err
+	}
+
+	image := &image{
+		Image:      base,
+		manifest:   m.DeepCopy(),
+		configFile: cfg,
 		digestMap:  make(map[v1.Hash]v1.Layer),
 	}
 
@@ -394,55 +422,63 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 	return false
 }
 
+//CREATED is a constant timestamp, set to the 0 time.
+var CREATED = time.Time{}
+
 // StripConfig strips out any timestamp from the layers and config of an image.
 func StripConfig(img v1.Image) (v1.Image, error) {
-	manifest, err := img.Manifest()
-	if err != nil {
-		return nil, err
-	}
+	newImage := empty.Image
 
 	layers, err := img.Layers()
 	if err != nil {
 		return nil, err
 	}
 
-	var newLayers []v1.Descriptor
-	var newDiffIDs []string
+	// Strip away all timestamps from layers
+	var newLayers []v1.Layer
 	for _, layer := range layers {
 		newLayer, err := stripLayer(layer)
 		if err != nil {
 			return nil, err
 		}
-		newLayerName, err := newLayer.Digest()
-		if err != nil {
-			return nil, err
-		}
-
-		layerDescriptor := &v1.Descriptor{
-			MediaType: types.DockerLayer,
-		}
-		newLayers = append(newLayers, *layerDescriptor)
-
-		newDiffID, err := newLayer.DiffID()
-		if err != nil {
-			return nil, err
-		}
-
-		newDiffIDs = append(newDiffIDs, newDiffID.String())
+		newLayers = append(newLayers, newLayer)
 	}
 
-	manifest.Layers = newLayers
+	newImage, err = AppendLayers(newImage, newLayers...)
+
+	// Strip away timestamps and base container info from the config file
+	cf, err := newImage.ConfigFile()
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := cf.DeepCopy()
+	cfg.Created = v1.Time{Time: CREATED}
+
+	cfg.Container = ""
+	cfg.Config.Hostname = ""
+	cfg.ContainerConfig.Hostname = ""
+	cfg.DockerVersion = ""
+
+	for _, h := range cfg.History {
+		h.Created = v1.Time{Time: CREATED}
+	}
+
+	newImage, err = ConfigFile(newImage, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return newImage, nil
 
 }
-
-var constantTime = time.Time{}
 
 func stripLayer(layer v1.Layer) (v1.Layer, error) {
 	layerReader, err := layer.Uncompressed()
 	if err != nil {
 		return nil, err
 	}
-	_, w := io.Pipe()
+	r, w := io.Pipe()
 	tarWriter := tar.NewWriter(w)
 	defer tarWriter.Close()
 
@@ -456,9 +492,13 @@ func stripLayer(layer v1.Layer) (v1.Layer, error) {
 			return nil, err
 		}
 
-		header.ModTime = constantTime
+		header.ModTime = CREATED
 		if err := tarWriter.WriteHeader(header); err != nil {
 			return nil, err
+		}
+
+		if header.Typeflag == tar.TypeReg {
+			tarWriter.Write(tarReader.Read())
 		}
 
 	}
