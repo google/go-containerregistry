@@ -23,6 +23,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -391,4 +392,74 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 		file = dirname
 	}
 	return false
+}
+
+// StripConfig strips out any timestamp from the layers and config of an image.
+func StripConfig(img v1.Image) (v1.Image, error) {
+	manifest, err := img.Manifest()
+	if err != nil {
+		return nil, err
+	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		return nil, err
+	}
+
+	var newLayers []v1.Descriptor
+	var newDiffIDs []string
+	for _, layer := range layers {
+		newLayer, err := stripLayer(layer)
+		if err != nil {
+			return nil, err
+		}
+		newLayerName, err := newLayer.Digest()
+		if err != nil {
+			return nil, err
+		}
+
+		layerDescriptor := &v1.Descriptor{
+			MediaType: types.DockerLayer,
+		}
+		newLayers = append(newLayers, *layerDescriptor)
+
+		newDiffID, err := newLayer.DiffID()
+		if err != nil {
+			return nil, err
+		}
+
+		newDiffIDs = append(newDiffIDs, newDiffID.String())
+	}
+
+	manifest.Layers = newLayers
+
+}
+
+var constantTime = time.Time{}
+
+func stripLayer(layer v1.Layer) (v1.Layer, error) {
+	layerReader, err := layer.Uncompressed()
+	if err != nil {
+		return nil, err
+	}
+	_, w := io.Pipe()
+	tarWriter := tar.NewWriter(w)
+	defer tarWriter.Close()
+
+	tarReader := tar.NewReader(layerReader)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		header.ModTime = constantTime
+		if err := tarWriter.WriteHeader(header); err != nil {
+			return nil, err
+		}
+
+	}
 }
