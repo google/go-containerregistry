@@ -387,11 +387,8 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 	return false
 }
 
-//CREATED is a constant timestamp, set to the 0 time.
-var CREATED = time.Time{}
-
-// Reproducibilify strips out any timestamp from the layers and config of an image.
-func Reproducibilify(img v1.Image) (v1.Image, error) {
+// Time sets all timestamps in an image to the give timestamp.
+func Time(img v1.Image, t time.Time) (v1.Image, error) {
 	newImage := empty.Image
 
 	layers, err := img.Layers()
@@ -402,7 +399,7 @@ func Reproducibilify(img v1.Image) (v1.Image, error) {
 	// Strip away all timestamps from layers
 	var newLayers []v1.Layer
 	for _, layer := range layers {
-		newLayer, err := stripLayer(layer)
+		newLayer, err := layerTime(layer, t)
 		if err != nil {
 			return nil, err
 		}
@@ -421,15 +418,10 @@ func Reproducibilify(img v1.Image) (v1.Image, error) {
 	}
 
 	cfg := cf.DeepCopy()
-	cfg.Created = v1.Time{Time: CREATED}
-
-	cfg.Container = ""
-	cfg.Config.Hostname = ""
-	cfg.ContainerConfig.Hostname = ""
-	cfg.DockerVersion = ""
+	cfg.Created = v1.Time{Time: t}
 
 	for _, h := range cfg.History {
-		h.Created = v1.Time{Time: CREATED}
+		h.Created = v1.Time{Time: t}
 	}
 
 	newImage, err = ConfigFile(newImage, cfg)
@@ -441,7 +433,7 @@ func Reproducibilify(img v1.Image) (v1.Image, error) {
 
 }
 
-func stripLayer(layer v1.Layer) (v1.Layer, error) {
+func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 	layerReader, err := layer.Uncompressed()
 	if err != nil {
 		return nil, err
@@ -460,7 +452,7 @@ func stripLayer(layer v1.Layer) (v1.Layer, error) {
 			return nil, err
 		}
 
-		header.ModTime = CREATED
+		header.ModTime = t
 		if err := tarWriter.WriteHeader(header); err != nil {
 			return nil, err
 		}
@@ -488,4 +480,29 @@ func stripLayer(layer v1.Layer) (v1.Layer, error) {
 	}
 
 	return layer, nil
+}
+
+//Canonical is a helper function to combine Time and ConfigFile to make a reproducible image
+func Canonical(img v1.Image) (v1.Image, error) {
+	// Set all timestamps to 0
+	created := time.Time{}
+	img, err := Time(img, created)
+	if err != nil {
+		return nil, err
+	}
+
+	cf, err := img.ConfigFile()
+	if err != nil {
+		return nil, err
+	}
+
+	// Get rid of useless random config
+	cfg := cf.DeepCopy()
+
+	cfg.Container = ""
+	cfg.Config.Hostname = ""
+	cfg.ContainerConfig.Hostname = ""
+	cfg.DockerVersion = ""
+
+	return ConfigFile(img, cfg)
 }
