@@ -387,7 +387,7 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 	return false
 }
 
-// Time sets all timestamps in an image to the give timestamp.
+// Time sets all timestamps in an image to the given timestamp.
 func Time(img v1.Image, t time.Time) (v1.Image, error) {
 	newImage := empty.Image
 
@@ -411,7 +411,7 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 		return nil, err
 	}
 
-	// Strip away timestamps and base container info from the config file
+	// Strip away timestamps from the config file
 	cf, err := newImage.ConfigFile()
 	if err != nil {
 		return nil, err
@@ -424,13 +424,7 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 		h.Created = v1.Time{Time: t}
 	}
 
-	newImage, err = ConfigFile(newImage, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	return newImage, nil
-
+	return ConfigFile(newImage, cfg)
 }
 
 func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
@@ -482,7 +476,7 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 	return layer, nil
 }
 
-//Canonical is a helper function to combine Time and ConfigFile to make a reproducible image
+// Canonical is a helper function to combine Time and ConfigFile to make a reproducible image
 func Canonical(img v1.Image) (v1.Image, error) {
 	// Set all timestamps to 0
 	created := time.Time{}
@@ -496,7 +490,7 @@ func Canonical(img v1.Image) (v1.Image, error) {
 		return nil, err
 	}
 
-	// Get rid of useless random config
+	// Get rid of host-dependent random config
 	cfg := cf.DeepCopy()
 
 	cfg.Container = ""
