@@ -446,6 +446,9 @@ func Reproducibilify(img v1.Image) (v1.Image, error) {
 	}
 
 	newImage, err = AppendLayers(newImage, newLayers...)
+	if err != nil {
+		return nil, err
+	}
 
 	// Strip away timestamps and base container info from the config file
 	cf, err := newImage.ConfigFile()
