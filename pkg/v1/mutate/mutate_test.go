@@ -263,7 +263,7 @@ func TestMutateCreatedAt(t *testing.T) {
 
 	got := getConfigFile(t, result).Created.Time
 	if got != want {
-		t.Fatal("mutating the created time MUST mutate the time from %v to %v", got, want)
+		t.Fatalf("mutating the created time MUST mutate the time from %v to %v", got, want)
 	}
 }
 

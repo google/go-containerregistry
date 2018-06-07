@@ -17,7 +17,6 @@ package mutate
 import (
 	"archive/tar"
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -134,11 +133,6 @@ func Append(base v1.Image, adds ...Addendum) (v1.Image, error) {
 
 // Config mutates the provided v1.Image to have the provided v1.Config
 func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
-	m, err := base.Manifest()
-	if err != nil {
-		return nil, err
-	}
-
 	cf, err := base.ConfigFile()
 	if err != nil {
 		return nil, err
@@ -146,24 +140,7 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 
 	cf.Config = cfg
 
-	image := &image{
-		Image:      base,
-		manifest:   m.DeepCopy(),
-		configFile: cf.DeepCopy(),
-		digestMap:  make(map[v1.Hash]v1.Layer),
-	}
-
-	rcfg, err := image.RawConfigFile()
-	if err != nil {
-		return nil, err
-	}
-	d, sz, err := v1.SHA256(bytes.NewBuffer(rcfg))
-	if err != nil {
-		return nil, err
-	}
-	image.manifest.Config.Digest = d
-	image.manifest.Config.Size = sz
-	return image, nil
+	return ConfigFile(base, cf)
 }
 
 // ConfigFile mutates the provided v1.Image to have the provided v1.ConfigFile
@@ -195,11 +172,6 @@ func ConfigFile(base v1.Image, cfg *v1.ConfigFile) (v1.Image, error) {
 
 // CreatedAt mutates the provided v1.Image to have the provided v1.Time
 func CreatedAt(base v1.Image, created v1.Time) (v1.Image, error) {
-	m, err := base.Manifest()
-	if err != nil {
-		return nil, err
-	}
-
 	cf, err := base.ConfigFile()
 	if err != nil {
 		return nil, err
@@ -208,18 +180,7 @@ func CreatedAt(base v1.Image, created v1.Time) (v1.Image, error) {
 	cfg := cf.DeepCopy()
 	cfg.Created = created
 
-	image := &image{
-		Image:      base,
-		manifest:   m.DeepCopy(),
-		configFile: cfg,
-		digestMap:  make(map[v1.Hash]v1.Layer),
-	}
-
-	image.manifest.Config.Digest, err = image.ConfigName()
-	if err != nil {
-		return nil, err
-	}
-	return image, nil
+	return ConfigFile(base, cfg)
 }
 
 type image struct {
