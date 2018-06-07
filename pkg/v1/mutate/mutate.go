@@ -17,6 +17,7 @@ package mutate
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -189,7 +190,7 @@ func ConfigFile(base v1.Image, cfg *v1.ConfigFile) (v1.Image, error) {
 	return image, nil
 }
 
-// Created mutates the provided v1.Image to have the provided v1.Time
+// CreatedAt mutates the provided v1.Image to have the provided v1.Time
 func CreatedAt(base v1.Image, created v1.Time) (v1.Image, error) {
 	m, err := base.Manifest()
 	if err != nil {
@@ -425,8 +426,8 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 //CREATED is a constant timestamp, set to the 0 time.
 var CREATED = time.Time{}
 
-// StripConfig strips out any timestamp from the layers and config of an image.
-func StripConfig(img v1.Image) (v1.Image, error) {
+// Reproducibilify strips out any timestamp from the layers and config of an image.
+func Reproducibilify(img v1.Image) (v1.Image, error) {
 	newImage := empty.Image
 
 	layers, err := img.Layers()
@@ -478,7 +479,7 @@ func stripLayer(layer v1.Layer) (v1.Layer, error) {
 	if err != nil {
 		return nil, err
 	}
-	r, w := io.Pipe()
+	w := new(bytes.Buffer)
 	tarWriter := tar.NewWriter(w)
 	defer tarWriter.Close()
 
@@ -498,8 +499,29 @@ func stripLayer(layer v1.Layer) (v1.Layer, error) {
 		}
 
 		if header.Typeflag == tar.TypeReg {
-			tarWriter.Write(tarReader.Read())
+			_, err = io.Copy(tarWriter, tarReader)
+			if err != nil {
+				return nil, err
+			}
 		}
-
 	}
+
+	diffid, _, err := v1.SHA256(w)
+	if err != nil {
+		return nil, err
+	}
+
+	g, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		return nil, err
+	}
+	digest, size, err := v1.SHA256(g)
+
+	return v1.Layer{
+		Digest:       digest,
+		DiffID:       diffid,
+		Compressed:   g,
+		Uncompressed: w,
+		Size:         size,
+	}, nil
 }
