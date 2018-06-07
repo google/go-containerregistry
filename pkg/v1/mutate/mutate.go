@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"time"
@@ -29,7 +30,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 const whiteoutPrefix = ".wh."
@@ -509,22 +512,19 @@ func stripLayer(layer v1.Layer) (v1.Layer, error) {
 		}
 	}
 
-	diffid, _, err := v1.SHA256(w)
+	// gzip the contents, then create the layer
+	g, err := v1util.GzipReadCloser(ioutil.NopCloser(w))
 	if err != nil {
 		return nil, err
 	}
 
-	g, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	opener := func() (io.ReadCloser, error) {
+		return g, nil
+	}
+	layer, err = tarball.LayerFromOpener(opener)
 	if err != nil {
 		return nil, err
 	}
-	digest, size, err := v1.SHA256(g)
 
-	return v1.Layer{
-		Digest:       digest,
-		DiffID:       diffid,
-		Compressed:   g,
-		Uncompressed: w,
-		Size:         size,
-	}, nil
+	return layer, nil
 }
