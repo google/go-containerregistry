@@ -31,7 +31,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
+	//"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 const whiteoutPrefix = ".wh."
@@ -140,11 +140,10 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 
 	cf.Config = cfg
 
-	return ConfigFile(base, cf)
+	return configFile(base, cf)
 }
 
-// ConfigFile mutates the provided v1.Image to have the provided v1.ConfigFile
-func ConfigFile(base v1.Image, cfg *v1.ConfigFile) (v1.Image, error) {
+func configFile(base v1.Image, cfg *v1.ConfigFile) (v1.Image, error) {
 	m, err := base.Manifest()
 	if err != nil {
 		return nil, err
@@ -180,7 +179,7 @@ func CreatedAt(base v1.Image, created v1.Time) (v1.Image, error) {
 	cfg := cf.DeepCopy()
 	cfg.Created = created
 
-	return ConfigFile(base, cfg)
+	return configFile(base, cfg)
 }
 
 type image struct {
@@ -393,7 +392,8 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 
 	layers, err := img.Layers()
 	if err != nil {
-		return nil, err
+
+		return nil, fmt.Errorf("Error getting image layers: %v", err)
 	}
 
 	// Strip away all timestamps from layers
@@ -401,20 +401,20 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 	for _, layer := range layers {
 		newLayer, err := layerTime(layer, t)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error setting layer times: %v", err)
 		}
 		newLayers = append(newLayers, newLayer)
 	}
 
 	newImage, err = AppendLayers(newImage, newLayers...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error appending layers: %v", err)
 	}
 
 	// Strip away timestamps from the config file
 	cf, err := newImage.ConfigFile()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error setting config file: %v", err)
 	}
 
 	cfg := cf.DeepCopy()
@@ -424,13 +424,13 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 		h.Created = v1.Time{Time: t}
 	}
 
-	return ConfigFile(newImage, cfg)
+	return configFile(newImage, cfg)
 }
 
 func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 	layerReader, err := layer.Uncompressed()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error getting layer: %v", err)
 	}
 	w := new(bytes.Buffer)
 	tarWriter := tar.NewWriter(w)
@@ -443,40 +443,40 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error reading layer: %v", err)
 		}
 
 		header.ModTime = t
 		if err := tarWriter.WriteHeader(header); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Error writing tar header: %v", err)
 		}
 
 		if header.Typeflag == tar.TypeReg {
-			_, err = io.Copy(tarWriter, tarReader)
-			if err != nil {
-				return nil, err
+			if _, err = io.Copy(tarWriter, tarReader); err != nil {
+				return nil, fmt.Errorf("Error writing layer file: %v", err)
 			}
 		}
 	}
 
 	// gzip the contents, then create the layer
-	g, err := v1util.GzipReadCloser(ioutil.NopCloser(w))
+	/*g, err := v1util.GzipReadCloser(ioutil.NopCloser(w))
 	if err != nil {
-		return nil, err
-	}
+		return nil, fmt.Errorf("Error compressing layer: %v", err)
+	}*/
 
 	opener := func() (io.ReadCloser, error) {
-		return g, nil
+		return ioutil.NopCloser(w), nil
 	}
 	layer, err = tarball.LayerFromOpener(opener)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error creating layer: %v", err)
 	}
 
 	return layer, nil
 }
 
-// Canonical is a helper function to combine Time and ConfigFile to make a reproducible image
+// Canonical is a helper function to combine Time and configFile
+// to remove any randomness during a docker build.
 func Canonical(img v1.Image) (v1.Image, error) {
 	// Set all timestamps to 0
 	created := time.Time{}
@@ -498,5 +498,5 @@ func Canonical(img v1.Image) (v1.Image, error) {
 	cfg.ContainerConfig.Hostname = ""
 	cfg.DockerVersion = ""
 
-	return ConfigFile(img, cfg)
+	return configFile(img, cfg)
 }

@@ -267,6 +267,24 @@ func TestMutateCreatedAt(t *testing.T) {
 	}
 }
 
+func TestMutateTime(t *testing.T) {
+	source := sourceImage(t)
+	want := time.Time{}
+	result, err := Time(source, want)
+	if err != nil {
+		t.Fatalf("failed to mutate a config: %v", err)
+	}
+
+	if configDigestsAreEqual(t, source, result) {
+		t.Fatal("mutating the created time MUST mutate the config digest")
+	}
+
+	got := getConfigFile(t, result).Created.Time
+	if got != want {
+		t.Fatalf("mutating the created time MUST mutate the time from %v to %v", got, want)
+	}
+}
+
 func assertQueryingForLayerSucceeds(t *testing.T, image v1.Image, layer v1.Layer) {
 	t.Helper()
 
