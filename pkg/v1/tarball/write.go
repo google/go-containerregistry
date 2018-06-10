@@ -26,9 +26,15 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1"
 )
 
+// LayerFilter defines a function for filtering layers.
+//  True - indicates the layer should be kept,
+//  False - indicates the layer should be excluded.
+type LayerFilter func(v1.Layer) (bool, error)
+
 // WriteOptions are used to expose optional information to guide or
 // control the image write.
 type WriteOptions struct {
+	LayerFilter LayerFilter
 	// TODO(mattmoor): Whether to store things compressed?
 }
 
@@ -66,6 +72,16 @@ func Write(tag name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
 		return err
 	}
 
+	// Default filter function
+	filter := func(_ v1.Layer) (bool, error) {
+		return true, nil
+	}
+	if wo != nil {
+		if wo.LayerFilter != nil {
+			filter = wo.LayerFilter
+		}
+	}
+
 	// Write the layers.
 	layers, err := img.Layers()
 	if err != nil {
@@ -88,6 +104,15 @@ func Write(tag name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
 		// gunzip expects certain file extensions:
 		// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
 		layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
+
+		// We filter late because the lenght of layerFiles must match the diff_ids
+		// in config file.  It is ok if the file doesn't exist when the daemon
+		// already has a given layer, since it won't try to read it.
+		if keep, err := filter(l); err != nil {
+			return err
+		} else if !keep {
+			continue
+		}
 
 		r, err := l.Compressed()
 		if err != nil {

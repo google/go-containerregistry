@@ -15,8 +15,11 @@
 package tarball
 
 import (
+	"archive/tar"
+	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -81,6 +84,72 @@ func TestWrite(t *testing.T) {
 	}
 	if _, err := ImageFromPath(fp.Name(), &fakeTag); err == nil {
 		t.Errorf("Expected error loading tag %v from image", fakeTag)
+	}
+}
+
+func TestFilteredWrite(t *testing.T) {
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file.")
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+
+	// Make a random image
+	randImage, err := random.Image(256, 8)
+	if err != nil {
+		t.Fatalf("Error creating random image.")
+	}
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag.")
+	}
+
+	layers, err := randImage.Layers()
+	if err != nil {
+		t.Fatalf("Layers() = %v", err)
+	}
+	rld, err := layers[0].Digest()
+	if err != nil {
+		t.Fatalf("Digest() = %v", err)
+	}
+
+	wo := &WriteOptions{
+		LayerFilter: func(l v1.Layer) (bool, error) {
+			// Filter the first layer in the image.
+			if ld, err := l.Digest(); err != nil {
+				return false, err
+			} else {
+				return ld != rld, nil
+			}
+		},
+	}
+
+	if err := WriteToFile(fp.Name(), tag, randImage, wo); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
+	}
+
+	f, err := os.Open(fp.Name())
+	if err != nil {
+		t.Fatalf("os.Open() = %v", err)
+	}
+	defer f.Close()
+
+	tarReader := tar.NewReader(f)
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("scanning tarfile: %v", err)
+		}
+
+		if strings.Contains(header.Name, rld.Hex) {
+			t.Errorf("Saw file %v in tarball, want %v elided.", header.Name, rld)
+		}
 	}
 }
 
