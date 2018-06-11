@@ -61,8 +61,8 @@ func Image(ref name.Reference, auth authn.Authenticator, t http.RoundTripper) (v
 	// Wrap the v1.Layers returned by this v1.Image in a hint for downstream
 	// remote.Write calls to facilitate cross-repo "mounting".
 	return &mountableImage{
-		Image:      img,
-		Repository: ref.Context(),
+		Image:     img,
+		Reference: ref,
 	}, nil
 }
 

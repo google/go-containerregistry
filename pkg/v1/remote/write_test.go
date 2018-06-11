@@ -266,8 +266,8 @@ func TestInitiateUploadMountsWithMount(t *testing.T) {
 	}.Encode()
 
 	img = &mountableImage{
-		Image:      img,
-		Repository: mustNewTag(t, fmt.Sprintf("gcr.io/%s", expectedMountRepo)).Repository,
+		Image:     img,
+		Reference: mustNewTag(t, fmt.Sprintf("gcr.io/%s", expectedMountRepo)),
 	}
 
 	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
