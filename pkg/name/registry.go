@@ -14,16 +14,26 @@
 
 package name
 
-import "net/url"
+import (
+	"net/url"
+	"regexp"
+	"strings"
+)
 
 const (
 	DefaultRegistry      = "index.docker.io"
 	defaultRegistryAlias = "docker.io"
 )
 
+// Detect more complex forms of local references.
+var reLocal = regexp.MustCompile(`.*\.local(?:host)?(?::\d{1,5})?$`)
+
+// Detect the loopback IP (127.0.0.1)
+var reLoopback = regexp.MustCompile(regexp.QuoteMeta("127.0.0.1"))
+
 // Registry stores a docker registry name in a structured form.
 type Registry struct {
-	Scheme   string
+	insecure bool
 	registry string
 }
 
@@ -48,6 +58,23 @@ func (r Registry) String() string {
 func (r Registry) Scope(string) string {
 	// The only resource under 'registry' is 'catalog'. http://goo.gl/N9cN9Z
 	return "registry:catalog:*"
+}
+
+// Scheme returns https scheme for all the endpoints except localhost or when explicitly defined.
+func (r Registry) Scheme() string {
+	if r.insecure {
+		return "http"
+	}
+	if strings.HasPrefix(r.Name(), "localhost:") {
+		return "http"
+	}
+	if reLocal.MatchString(r.Name()) {
+		return "http"
+	}
+	if reLoopback.MatchString(r.Name()) {
+		return "http"
+	}
+	return "https"
 }
 
 func checkRegistry(name string) error {
@@ -77,4 +104,15 @@ func NewRegistry(name string, strict Strictness) (Registry, error) {
 	}
 
 	return Registry{registry: name}, nil
+}
+
+// NewInsecureRegistry returns an Insecure Registry based on the given name.
+// Strict validation requires explicit, valid RFC 3986 URI authorities to be given.
+func NewInsecureRegistry(name string, strict Strictness) (Registry, error) {
+	reg, err := NewRegistry(name, strict)
+	if err != nil {
+		return Registry{}, err
+	}
+	reg.insecure = true
+	return reg, nil
 }
