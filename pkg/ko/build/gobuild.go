@@ -90,12 +90,14 @@ func (gb *gobuild) IsSupportedReference(s string) bool {
 }
 
 func build(ip string) (string, error) {
-	file, err := ioutil.TempFile(os.TempDir(), "out")
+	tmpDir, err := ioutil.TempDir("", "ko")
 	if err != nil {
 		return "", err
 	}
+	file := path.Join(tmpDir, "out")
+
 	log.Printf("Go building %v", ip)
-	cmd := exec.Command("go", "build", "-o", file.Name(), ip)
+	cmd := exec.Command("go", "build", "-o", file, ip)
 
 	// Last one wins
 	// TODO(mattmoor): GOARCH=amd64
@@ -106,11 +108,11 @@ func build(ip string) (string, error) {
 	cmd.Stdout = &output
 
 	if err := cmd.Run(); err != nil {
-		os.Remove(file.Name())
+		os.RemoveAll(tmpDir)
 		log.Printf("Unexpected error running \"go build\": %v\n%v", err, output.String())
 		return "", err
 	}
-	return file.Name(), nil
+	return file, nil
 }
 
 func tarBinary(binary string) ([]byte, error) {
@@ -159,7 +161,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer os.Remove(file)
+	defer os.RemoveAll(path.Dir(file))
 
 	// Construct a tarball with the binary.
 	layerBytes, err := tarBinary(file)
