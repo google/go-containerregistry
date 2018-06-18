@@ -45,12 +45,7 @@ func doCopy(_ *cobra.Command, args []string) {
 	}
 	log.Printf("Pulling %v", srcRef)
 
-	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
-	if err != nil {
-		log.Fatalf("getting creds for %q: %v", srcRef, err)
-	}
-
-	img, err := remote.Image(srcRef, srcAuth, http.DefaultTransport)
+	img, err := remote.Image(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		log.Fatalf("reading image %q: %v", srcRef, err)
 	}

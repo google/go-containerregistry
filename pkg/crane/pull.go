@@ -16,7 +16,6 @@ package crane
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/spf13/cobra"
 
@@ -46,12 +45,7 @@ func pull(_ *cobra.Command, args []string) {
 	}
 	log.Printf("Pulling %v", t)
 
-	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
-	if err != nil {
-		log.Fatalf("getting creds for %q: %v", t, err)
-	}
-
-	i, err := remote.Image(t, auth, http.DefaultTransport)
+	i, err := remote.Image(t, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		log.Fatalf("reading image %q: %v", t, err)
 	}

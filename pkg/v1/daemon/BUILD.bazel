@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "doc.go",
         "image.go",
+        "options.go",
         "write.go",
     ],
     data = [

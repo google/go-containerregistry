@@ -17,7 +17,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -41,11 +40,7 @@ func getBaseImage(s string) (v1.Image, error) {
 		ref = defaultBaseImage
 	}
 	log.Printf("Using base %s for %s", ref, s)
-	auth, err := authn.DefaultKeychain.Resolve(ref.Context().Registry)
-	if err != nil {
-		return nil, err
-	}
-	return remote.Image(ref, auth, http.DefaultTransport)
+	return remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }
 
 func getCreationTime() (*v1.Time, error) {

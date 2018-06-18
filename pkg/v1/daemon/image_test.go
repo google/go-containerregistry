@@ -54,7 +54,13 @@ func TestImage(t *testing.T) {
 	}
 
 	runTest := func(buffered bool) {
-		daemonImage, err := Image(tag, &ReadOptions{Buffer: buffered})
+		var bufferedOption ImageOption
+		if buffered {
+			bufferedOption = WithBufferedOpener()
+		} else {
+			bufferedOption = WithUnbufferedOpener()
+		}
+		daemonImage, err := Image(tag, bufferedOption)
 		if err != nil {
 			t.Errorf("Error loading daemon image: %s", err)
 		}
