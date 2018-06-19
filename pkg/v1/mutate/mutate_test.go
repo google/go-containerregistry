@@ -285,6 +285,46 @@ func TestMutateTime(t *testing.T) {
 	}
 }
 
+func TestLayerTime(t *testing.T) {
+	source := sourceImage(t)
+	layers := getLayers(t, source)
+	expectedTime := time.Date(1970, time.January, 1, 0, 0, 1, 0, time.UTC)
+	fmt.Printf("expectedTime %v", expectedTime)
+
+	for _, layer := range layers {
+		result, err := layerTime(layer, expectedTime)
+		if err != nil {
+			t.Fatalf("setting layer time failed: %v", err)
+		}
+
+		assertMTime(t, result, expectedTime)
+	}
+}
+
+func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {
+	l, err := layer.Uncompressed()
+
+	if err != nil {
+		t.Fatalf("reading layer failed: %v", err)
+	}
+
+	tr := tar.NewReader(l)
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Error reading layer: %v", err)
+		}
+
+		mtime := header.ModTime
+		if mtime.Equal(expectedTime) == false {
+			t.Errorf("unexpected mod time for layer. expected %v, got %v.", expectedTime, mtime)
+		}
+	}
+
+}
 func assertQueryingForLayerSucceeds(t *testing.T, image v1.Image, layer v1.Layer) {
 	t.Helper()
 
