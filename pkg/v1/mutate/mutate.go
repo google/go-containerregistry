@@ -31,7 +31,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	//"github.com/google/go-containerregistry/pkg/v1/v1util"
+	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 const whiteoutPrefix = ".wh."
@@ -458,14 +458,15 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 		}
 	}
 
+	b := w.Bytes()
 	// gzip the contents, then create the layer
-	/*g, err := v1util.GzipReadCloser(ioutil.NopCloser(w))
-	if err != nil {
-		return nil, fmt.Errorf("Error compressing layer: %v", err)
-	}*/
-
 	opener := func() (io.ReadCloser, error) {
-		return ioutil.NopCloser(w), nil
+		g, err := v1util.GzipReadCloser(ioutil.NopCloser(bytes.NewReader(b)))
+		if err != nil {
+			return nil, fmt.Errorf("Error compressing layer: %v", err)
+		}
+
+		return g, nil
 	}
 	layer, err = tarball.LayerFromOpener(opener)
 	if err != nil {
