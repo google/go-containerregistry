@@ -28,8 +28,9 @@ import (
 
 func TestLayerFromFile(t *testing.T) {
 	setupFixtures(t)
+	defer teardownFixtures(t)
 
-	tarLayer, err := LayerFromFile("content.tar")
+	tarLayer, err := LayerFromFile("testdata/content.tar")
 	if err != nil {
 		t.Fatalf("Unable to create layer from tar file: %v", err)
 	}
@@ -48,8 +49,9 @@ func TestLayerFromFile(t *testing.T) {
 
 func TestLayerFromReader(t *testing.T) {
 	setupFixtures(t)
+	defer teardownFixtures(t)
 
-	ucBytes, err := ioutil.ReadFile("content.tar")
+	ucBytes, err := ioutil.ReadFile("testdata/content.tar")
 	if err != nil {
 		t.Fatalf("Unable to read tar file: %v", err)
 	}
@@ -199,7 +201,7 @@ func assertSizesAreEqual(t *testing.T, a, b v1.Layer) {
 func setupFixtures(t *testing.T) {
 	t.Helper()
 
-	in, err := os.Open("content.tar")
+	in, err := os.Open("testdata/content.tar")
 	if err != nil {
 		t.Errorf("Error setting up fixtures: %v", err)
 	}
@@ -219,5 +221,11 @@ func setupFixtures(t *testing.T) {
 	_, err = io.Copy(gw, in)
 	if err != nil {
 		t.Errorf("Error setting up fixtures: %v", err)
+	}
+}
+
+func teardownFixtures(t *testing.T) {
+	if err := os.Remove("gzip_content.tgz"); err != nil {
+		t.Errorf("Error tearing down fixtures: %v", err)
 	}
 }

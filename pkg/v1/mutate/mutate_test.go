@@ -34,7 +34,7 @@ import (
 )
 
 func TestExtractWhiteout(t *testing.T) {
-	img, err := tarball.ImageFromPath("whiteout_image.tar", nil)
+	img, err := tarball.ImageFromPath("testdata/whiteout_image.tar", nil)
 	if err != nil {
 		t.Errorf("Error loading image: %v", err)
 	}
@@ -56,7 +56,7 @@ func TestExtractWhiteout(t *testing.T) {
 }
 
 func TestExtractOverwrittenFile(t *testing.T) {
-	img, err := tarball.ImageFromPath("overwritten_file.tar", nil)
+	img, err := tarball.ImageFromPath("testdata/overwritten_file.tar", nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}
@@ -361,7 +361,7 @@ func assertQueryingForLayerSucceeds(t *testing.T, image v1.Image, layer v1.Layer
 func sourceImage(t *testing.T) v1.Image {
 	t.Helper()
 
-	image, err := tarball.ImageFromPath("source_image.tar", nil)
+	image, err := tarball.ImageFromPath("testdata/source_image.tar", nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}

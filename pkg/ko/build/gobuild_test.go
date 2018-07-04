@@ -37,7 +37,9 @@ func (tc *testContext) Enter(t *testing.T) {
 	// Track the original state, so that we can restore it.
 	ogp := os.Getenv("GOPATH")
 	// Change the current state for the test.
-	os.Setenv("GOPATH", tc.gopath)
+	if err := os.Setenv("GOPATH", tc.gopath); err != nil {
+		t.Fatal(err)
+	}
 	getwd = func() (string, error) {
 		return tc.workdir, nil
 	}
@@ -47,7 +49,9 @@ func (tc *testContext) Enter(t *testing.T) {
 
 func (tc *testContext) Exit(t *testing.T) {
 	// Restore the original state.
-	os.Setenv("GOPATH", tc.gopath)
+	if err := os.Setenv("GOPATH", tc.gopath); err != nil {
+		t.Fatal(err)
+	}
 	getwd = os.Getwd
 }
 

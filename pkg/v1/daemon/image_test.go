@@ -26,7 +26,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-var imagePath = "../tarball/test_image_1.tar"
+var imagePath = "../tarball/testdata/test_image_1.tar"
 
 type MockImageSaver struct {
 	path string
