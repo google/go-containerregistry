@@ -129,6 +129,10 @@ func mustConfigName(t *testing.T, img v1.Image) v1.Hash {
 
 func setupWriter(repo string, img v1.Image, handler http.HandlerFunc) (*writer, closer, error) {
 	server := httptest.NewServer(handler)
+	return setupWriterWithServer(server, repo, img)
+}
+
+func setupWriterWithServer(server *httptest.Server, repo string, img v1.Image) (*writer, closer, error) {
 	u, err := url.Parse(server.URL)
 	if err != nil {
 		server.Close()
@@ -254,7 +258,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 	}
 }
 
-func TestInitiateUploadMountsWithMount(t *testing.T) {
+func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	img := setupImage(t)
 	h := mustConfigName(t, img)
 	expectedMountRepo := "a/different/repo"
@@ -262,7 +266,6 @@ func TestInitiateUploadMountsWithMount(t *testing.T) {
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
 		"mount": []string{h.String()},
-		"from":  []string{expectedMountRepo},
 	}.Encode()
 
 	img = &mountableImage{
@@ -284,6 +287,56 @@ func TestInitiateUploadMountsWithMount(t *testing.T) {
 	}))
 	if err != nil {
 		t.Fatalf("setupWriter() = %v", err)
+	}
+	defer closer.Close()
+
+	_, mounted, err := w.initiateUpload(h)
+	if err != nil {
+		t.Errorf("intiateUpload() = %v", err)
+	}
+	if !mounted {
+		t.Error("initiateUpload() = !mounted, want mounted")
+	}
+}
+
+func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
+	img := setupImage(t)
+	h := mustConfigName(t, img)
+	expectedMountRepo := "a/different/repo"
+	expectedRepo := "yet/again"
+	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	expectedQuery := url.Values{
+		"mount": []string{h.String()},
+		"from":  []string{expectedMountRepo},
+	}.Encode()
+
+	serverHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+		}
+		if r.URL.Path != expectedPath {
+			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+		}
+		if r.URL.RawQuery != expectedQuery {
+			t.Errorf("RawQuery; got %v, want %v", r.URL.RawQuery, expectedQuery)
+		}
+		http.Error(w, "Mounted", http.StatusCreated)
+	})
+	server := httptest.NewServer(serverHandler)
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		server.Close()
+		t.Fatalf("httptest.NewServer() = %v", err)
+	}
+
+	img = &mountableImage{
+		Image:     img,
+		Reference: mustNewTag(t, fmt.Sprintf("%s/%s", u.Host, expectedMountRepo)),
+	}
+
+	w, closer, err := setupWriterWithServer(server, expectedRepo, img)
+	if err != nil {
+		t.Fatalf("setupWriterWitghServer() = %v", err)
 	}
 	defer closer.Close()
 
