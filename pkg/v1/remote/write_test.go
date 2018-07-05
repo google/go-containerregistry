@@ -336,7 +336,7 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 
 	w, closer, err := setupWriterWithServer(server, expectedRepo, img)
 	if err != nil {
-		t.Fatalf("setupWriterWitghServer() = %v", err)
+		t.Fatalf("setupWriterWithServer() = %v", err)
 	}
 	defer closer.Close()
 
