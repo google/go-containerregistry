@@ -24,7 +24,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/v1"
@@ -64,7 +64,7 @@ func computeImportpath() (string, error) {
 	if gopath == "" {
 		gopath = gb.Default.GOPATH
 	}
-	src := path.Join(gopath, "src")
+	src := filepath.Join(gopath, "src")
 	if !strings.HasPrefix(wd, src) {
 		return "", fmt.Errorf("working directory %q must be on GOPATH %q", wd, src)
 	}
@@ -94,7 +94,7 @@ func build(ip string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	file := path.Join(tmpDir, "out")
+	file := filepath.Join(tmpDir, "out")
 
 	log.Printf("Go building %v", ip)
 	cmd := exec.Command("go", "build", "-o", file, ip)
@@ -161,7 +161,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(path.Dir(file))
+	defer os.RemoveAll(filepath.Dir(file))
 
 	// Construct a tarball with the binary.
 	layerBytes, err := tarBinary(file)
