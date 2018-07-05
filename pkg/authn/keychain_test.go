@@ -108,11 +108,15 @@ func setupConfigDir(t *testing.T) string {
 	return p
 }
 
-func setupConfigFile(t *testing.T, content string) {
-	p := filepath.Join(setupConfigDir(t), "config.json")
+func setupConfigFile(t *testing.T, content string) string {
+	cd := setupConfigDir(t)
+	p := filepath.Join(cd, "config.json")
 	if err := ioutil.WriteFile(p, []byte(content), 0600); err != nil {
 		t.Fatalf("write %q: %v", p, err)
 	}
+
+	// return the config dir so we can clean up
+	return cd
 }
 
 func checkOutput(t *testing.T, want string) {
@@ -158,7 +162,8 @@ func checkHelper(t *testing.T) {
 }
 
 func TestNoConfig(t *testing.T) {
-	setupConfigDir(t)
+	cd := setupConfigDir(t)
+	defer os.RemoveAll(filepath.Dir(cd))
 
 	checkAnonymousFallback(t)
 }
@@ -188,7 +193,9 @@ func TestVariousPaths(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		setupConfigFile(t, test.content)
+		cd := setupConfigFile(t, test.content)
+		// For some reason, these tempdirs don't get cleaned up.
+		defer os.RemoveAll(filepath.Dir(cd))
 
 		test.check(t)
 	}
