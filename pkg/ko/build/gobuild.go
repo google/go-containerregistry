@@ -65,10 +65,11 @@ func computeImportpath() (string, error) {
 		gopath = gb.Default.GOPATH
 	}
 	src := filepath.Join(gopath, "src")
-	if !strings.HasPrefix(wd, src) {
-		return "", fmt.Errorf("working directory %q must be on GOPATH %q", wd, src)
+	relpath, err := filepath.Rel(src, wd)
+	if err != nil {
+		return "", fmt.Errorf("working directory %q must be on GOPATH %q (%v)", wd, src, err)
 	}
-	return strings.Trim(strings.TrimPrefix(wd, src), "/"), nil
+	return filepath.ToSlash(relpath), nil
 }
 
 // NewGo returns a build.Interface implementation that:
