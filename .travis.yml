@@ -7,7 +7,6 @@ language:
 
 go:
   - "1.10"
-  - tip
 
 git:
   depth: 1
