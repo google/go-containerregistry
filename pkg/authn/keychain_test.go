@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -27,7 +27,7 @@ import (
 
 func TestConfigDir(t *testing.T) {
 	clearEnv := func() {
-		for _, e := range []string{"HOME", "DOCKER_CONFIG", "HOMEDRIVE", "HOMEPATH"} {
+		for _, e := range []string{"HOME", "DOCKER_CONFIG", "HOMEDRIVE", "HOMEPATH", "USERPROFILE"} {
 			os.Unsetenv(e)
 		}
 	}
@@ -38,27 +38,32 @@ func TestConfigDir(t *testing.T) {
 		want             string
 		wantErr          bool
 		skipOnNonWindows bool
+		skipOnWindows    bool
 	}{{
 		desc:    "no env set",
 		env:     map[string]string{},
 		wantErr: true,
 	}, {
 		desc: "DOCKER_CONFIG",
-		env:  map[string]string{"DOCKER_CONFIG": "/path/to/.docker"},
-		want: "/path/to/.docker",
+		env:  map[string]string{"DOCKER_CONFIG": filepath.FromSlash("/path/to/.docker")},
+		want: filepath.FromSlash("/path/to/.docker"),
 	}, {
-		desc: "HOME",
-		env:  map[string]string{"HOME": "/my/home"},
-		want: "/my/home/.docker",
+		desc:          "HOME",
+		skipOnWindows: true,
+		env:           map[string]string{"HOME": filepath.FromSlash("/my/home")},
+		want:          filepath.FromSlash("/my/home/.docker"),
 	}, {
 		desc:             "USERPROFILE",
 		skipOnNonWindows: true,
-		env:              map[string]string{"USERPROFILE": "/user/profile"},
-		want:             "/user/profile/.docker",
+		env:              map[string]string{"USERPROFILE": filepath.FromSlash("/user/profile")},
+		want:             filepath.FromSlash("/user/profile/.docker"),
 	}} {
 		t.Run(c.desc, func(t *testing.T) {
 			if c.skipOnNonWindows && runtime.GOOS != "windows" {
 				t.Skip("Skipping on non-Windows")
+			}
+			if c.skipOnWindows && runtime.GOOS == "windows" {
+				t.Skip("Skipping on Windows")
 			}
 			clearEnv()
 			for k, v := range c.env {
@@ -104,7 +109,7 @@ func setupConfigDir(t *testing.T) string {
 }
 
 func setupConfigFile(t *testing.T, content string) {
-	p := path.Join(setupConfigDir(t), "config.json")
+	p := filepath.Join(setupConfigDir(t), "config.json")
 	if err := ioutil.WriteFile(p, []byte(content), 0600); err != nil {
 		t.Fatalf("write %q: %v", p, err)
 	}

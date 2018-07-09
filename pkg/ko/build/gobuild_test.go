@@ -18,6 +18,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
+	"runtime"
 	"time"
 
 	"testing"
@@ -78,6 +80,13 @@ func TestComputeImportPath(t *testing.T) {
 		expectErr: true,
 	}}
 
+	if runtime.GOOS == "windows" {
+		for i := range tests {
+			tests[i].ctx.gopath = "C:" + filepath.FromSlash(tests[i].ctx.gopath)
+			tests[i].ctx.workdir = "C:" + filepath.FromSlash(tests[i].ctx.workdir)
+		}
+	}
+
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			// Set the context for our test.
@@ -132,9 +141,9 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 
 	unsupportedTests := []string{
 		"simple string",
-		"k8s.io/client-go/pkg/foo",
-		"github.com/google/secret/cmd/sauce",
-		path.Join("vendor", importpath, "pkg", "foo"),
+		filepath.FromSlash("k8s.io/client-go/pkg/foo"),
+		filepath.FromSlash("github.com/google/secret/cmd/sauce"),
+		filepath.Join("vendor", importpath, "pkg", "foo"),
 	}
 
 	for _, test := range unsupportedTests {
@@ -153,7 +162,7 @@ func writeTempFile(s string) (string, error) {
 		return "", err
 	}
 	defer file.Close()
-	if _, err := file.WriteString(s); err != nil {
+	if _, err := file.WriteString(filepath.ToSlash(s)); err != nil {
 		return "", err
 	}
 	return file.Name(), nil
@@ -189,7 +198,7 @@ func TestGoBuild(t *testing.T) {
 	}
 	ng.(*gobuild).build = writeTempFile
 
-	img, err := ng.Build(path.Join(importpath, "cmd", "crane"))
+	img, err := ng.Build(filepath.Join(importpath, "cmd", "crane"))
 	if err != nil {
 		t.Errorf("Build() = %v", err)
 	}
@@ -211,7 +220,7 @@ func TestGoBuild(t *testing.T) {
 	t.Run("check determinism", func(t *testing.T) {
 		expectedHash := v1.Hash{
 			Algorithm: "sha256",
-			Hex:       "b0780391d7e0cc1f43dc4531e73ee7493309ce446c2eeb9afe8866b623fcf3c2",
+			Hex:       "a7be3daf6084d1ec81ca903599d23a514903c9e875d60414ff8009994615bd70",
 		}
 		appLayer := ls[baseLayers]
 
