@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -39,6 +40,9 @@ func NewDefault(base name.Repository, t http.RoundTripper) Interface {
 
 // Publish implements publish.Interface
 func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
+	// https://github.com/google/go-containerregistry/issues/212
+	s = strings.ToLower(s)
+
 	auth, err := authn.DefaultKeychain.Resolve(d.base.Registry)
 	if err != nil {
 		return nil, err
