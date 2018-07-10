@@ -24,7 +24,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/v1"
@@ -64,11 +64,15 @@ func computeImportpath() (string, error) {
 	if gopath == "" {
 		gopath = gb.Default.GOPATH
 	}
-	src := path.Join(gopath, "src")
-	if !strings.HasPrefix(wd, src) {
+	src := filepath.Join(gopath, "src")
+	relpath, err := filepath.Rel(src, wd)
+	if err != nil {
+		return "", fmt.Errorf("Unable to determine relative path from %q to %q: %v", wd, src, err)
+	}
+	if strings.HasPrefix(relpath, "..") {
 		return "", fmt.Errorf("working directory %q must be on GOPATH %q", wd, src)
 	}
-	return strings.Trim(strings.TrimPrefix(wd, src), "/"), nil
+	return filepath.ToSlash(relpath), nil
 }
 
 // NewGo returns a build.Interface implementation that:
@@ -94,9 +98,8 @@ func build(ip string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	file := path.Join(tmpDir, "out")
+	file := filepath.Join(tmpDir, "out")
 
-	log.Printf("Go building %v", ip)
 	cmd := exec.Command("go", "build", "-o", file, ip)
 
 	// Last one wins
@@ -132,9 +135,10 @@ func tarBinary(binary string) ([]byte, error) {
 	header := &tar.Header{
 		Name: appPath,
 		Size: stat.Size(),
-		// TODO(mattmoor): Consider a fixed Mode, so that this isn't sensitive
-		// to the directory in which it was created.
-		Mode: int64(stat.Mode()),
+		// Use a fixed Mode, so that this isn't sensitive to the directory and umask
+		// under which it was created. Additionally, windows can only set 0222,
+		// 0444, or 0666, none of which be executable.
+		Mode: 0555,
 	}
 	// write the header to the tarball archive
 	if err := tw.WriteHeader(header); err != nil {
@@ -161,7 +165,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer os.RemoveAll(path.Dir(file))
+	defer os.RemoveAll(filepath.Dir(file))
 
 	// Construct a tarball with the binary.
 	layerBytes, err := tarBinary(file)
