@@ -6,7 +6,7 @@ go_library(
         "main.go",
     ],
     importpath = "github.com/google/go-containerregistry/cmd/crane",
-    visibility = ["//visibility:private"],
+    visibility = ["//visibility:public"],
     deps = ["//pkg/crane:go_default_library"],
 )
 
