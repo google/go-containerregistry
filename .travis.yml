@@ -1,4 +1,4 @@
-sudo: required
+sudo: false
 
 dist: trusty
 
@@ -7,32 +7,18 @@ language:
 
 go:
   - "1.10"
-  - tip
 
-before_install:
-  # Bazel requires JDK8
-  - sudo apt-get install oracle-java8-installer
+git:
+  depth: 1
 
-services:
-  - docker
-
-addons:
-  apt:
-    sources:
-      - sourceline: 'deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8'
-        key_url: 'https://storage.googleapis.com/bazel-apt/doc/apt-key.pub.gpg'
-    packages:
-      - bazel
+install: true
 
 script:
-  - bazel clean && bazel build //...
-  - bazel clean && bazel test --test_output=errors //...
-
   # Verify that all source files are correctly formatted.
   - find . -name "*.go" | grep -v vendor/ | xargs gofmt -d -e -l
 
   - go clean -i
-  - go build -a -v -race ./...
+  - go test -v -race ./...
 
   # Verify that generated crane docs are up-to-date.
   - mkdir -p /tmp/gendoc && go run cmd/crane/help/main.go --dir /tmp/gendoc && diff -Naur /tmp/gendoc/ cmd/crane/doc/

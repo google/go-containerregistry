@@ -41,7 +41,7 @@ func init() {
 }
 
 func TestWriteImage(t *testing.T) {
-	image, err := tarball.ImageFromPath("../tarball/test_image_1.tar", nil)
+	image, err := tarball.ImageFromPath("../tarball/testdata/test_image_1.tar", nil)
 	if err != nil {
 		t.Errorf("Error loading image: %v", err.Error())
 	}

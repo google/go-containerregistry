@@ -34,21 +34,11 @@ type testContext struct {
 }
 
 func (tc *testContext) Enter(t *testing.T) {
-	// Track the original state, so that we can restore it.
-	ogp := os.Getenv("GOPATH")
 	// Change the current state for the test.
 	os.Setenv("GOPATH", tc.gopath)
 	getwd = func() (string, error) {
 		return tc.workdir, nil
 	}
-	// Record the original state for restoration.
-	tc.gopath = ogp
-}
-
-func (tc *testContext) Exit(t *testing.T) {
-	// Restore the original state.
-	os.Setenv("GOPATH", tc.gopath)
-	getwd = os.Getwd
 }
 
 func TestComputeImportPath(t *testing.T) {
@@ -91,7 +81,6 @@ func TestComputeImportPath(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			// Set the context for our test.
 			test.ctx.Enter(t)
-			defer test.ctx.Exit(t)
 
 			ip, err := computeImportpath()
 			if err != nil && !test.expectErr {
@@ -118,7 +107,6 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 		workdir: "/go/src/" + importpath,
 	}
 	tc.Enter(t)
-	defer tc.Exit(t)
 	ng, err := NewGo(Options{GetBase: func(string) (v1.Image, error) {
 		return img, nil
 	}})
@@ -157,7 +145,12 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 
 // A helper method we use to substitute for the default "build" method.
 func writeTempFile(s string) (string, error) {
-	file, err := ioutil.TempFile(os.TempDir(), "out")
+	tmpDir, err := ioutil.TempDir("", "ko")
+	if err != nil {
+		return "", err
+	}
+
+	file, err := ioutil.TempFile(tmpDir, "out")
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +173,6 @@ func TestGoBuild(t *testing.T) {
 		workdir: "/go/src/" + importpath,
 	}
 	tc.Enter(t)
-	defer tc.Exit(t)
 
 	creationTime := func() (*v1.Time, error) {
 		return &v1.Time{time.Unix(5000, 0)}, nil
