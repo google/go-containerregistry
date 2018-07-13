@@ -17,6 +17,7 @@ package publish
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
@@ -39,6 +40,9 @@ func NewDaemon(wo daemon.WriteOptions) Interface {
 
 // Publish implements publish.Interface
 func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
+	// https://github.com/google/go-containerregistry/issues/212
+	s = strings.ToLower(s)
+
 	h, err := img.Digest()
 	if err != nil {
 		return nil, err
