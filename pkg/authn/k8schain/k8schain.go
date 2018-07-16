@@ -118,11 +118,11 @@ func NewInCluster(opt Options) (authn.Keychain, error) {
 	return New(client, opt)
 }
 
-// NewNoClient returns a new authn.Keychain that supports the portion of the K8s keychain
+// NewNoClient returns a new authn.Keychain that supports the portions of the K8s keychain
 // that don't read ImagePullSecrets.  This limits it to roughly the Node-identity-based
 // authentication schemes in Kubernetes pkg/credentialprovider.  This version of the
 // k8schain drops the requirement that we run as a K8s serviceaccount with access to all
-// of the on-cluster secrets.  This drop in fidelity also diminishes its value as a standin
+// of the on-cluster secrets.  This drop in fidelity also diminishes its value as a stand-in
 // for Kubernetes authentication, but this actually targets a different use-case.  What
 // remains is an interesting sweet spot: this variant can serve as a credential provider
 // for all of the major public clouds, but in library form (vs. an executable you exec).
