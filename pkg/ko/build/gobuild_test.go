@@ -38,7 +38,6 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 	} {
 		t.Run(importpath, func(t *testing.T) {
 			// TODO(jasonhall): Figure this out.
-			t.Skip("IsSupportedReference always returns false in bazel tests")
 			if !ng.IsSupportedReference(importpath) {
 				t.Errorf("IsSupportedReference(%q) = false, want true", importpath)
 			}
