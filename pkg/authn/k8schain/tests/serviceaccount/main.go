@@ -32,6 +32,7 @@ func main() {
 	kc, err := k8schain.NewInCluster(k8schain.Options{
 		Namespace:          "serviceaccount-namespace",
 		ServiceAccountName: "serviceaccount",
+		// This is the name of the imagePullSecrets attached to this service account.
 		// ImagePullSecrets: []string{
 		// 	"serviceaccount-secret",
 		// },
