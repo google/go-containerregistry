@@ -1,12 +1,6 @@
 steps:
-- name: 'gcr.io/cloud-builders/bazel'
-  args: ['build', '--spawn_strategy=standalone', '//...']
-
-# Build image and retag to this project's repo.
-- name: 'gcr.io/cloud-builders/bazel'
-  args: ['run', '--spawn_strategy=standalone', '//cmd/crane:builder', '--', '--norun']
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['tag', 'bazel/cmd/crane:builder', 'gcr.io/$PROJECT_ID/crane']
+# This test assumes that gcr.io/$PROJECT_ID/crane exists, as built according to
+# this repo's cloudbuild.yaml
 
 # Run a simple example that builds two base images and an image based on one,
 # then rebases it on the other.
@@ -59,6 +53,3 @@ steps:
   args:
   - -c
   - docker run gcr.io/$PROJECT_ID/rebase-test:rebased | grep bar
-
-# Push the crane image.
-images: ['gcr.io/$PROJECT_ID/crane']
