@@ -15,9 +15,13 @@
 package main
 
 import (
+	"fmt"
+	gb "go/build"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/ko/build"
 	"github.com/google/go-containerregistry/pkg/ko/publish"
@@ -25,12 +29,36 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
 )
 
+func qualifyLocalImport(importpath, gopathsrc, pwd string) (string, error) {
+	if !strings.HasPrefix(pwd, gopathsrc) {
+		return "", fmt.Errorf("pwd (%q) must be on $GOPATH/src (%q) to support local imports", pwd, gopathsrc)
+	}
+	// Given $GOPATH/src and $PWD (which must be within $GOPATH/src), trim
+	// off $GOPATH/src/ from $PWD and append local importpath to get the
+	// fully-qualified importpath.
+	return filepath.Join(strings.TrimPrefix(pwd, gopathsrc+string(filepath.Separator)), importpath), nil
+}
+
 func publishImages(importpaths []string, lo *LocalOptions) {
 	b, err := build.NewGo(gobuildOptions())
 	if err != nil {
 		log.Fatalf("error creating go builder: %v", err)
 	}
 	for _, importpath := range importpaths {
+		if gb.IsLocalImport(importpath) {
+			// Interpret `ko publish ./cmd/foo` as `ko publish $GOPATH/cmd/foo`
+			// $PWD must be within $GOPATH/src
+			gopathsrc := filepath.Join(gb.Default.GOPATH, "src")
+			pwd, err := os.Getwd()
+			if err != nil {
+				log.Fatalf("error getting current working directory: %v", err)
+			}
+			importpath, err = qualifyLocalImport(importpath, gopathsrc, pwd)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
 		if !b.IsSupportedReference(importpath) {
 			log.Fatalf("importpath %q is not supported", importpath)
 		}
