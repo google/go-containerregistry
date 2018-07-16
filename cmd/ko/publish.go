@@ -46,8 +46,8 @@ func publishImages(importpaths []string, lo *LocalOptions) {
 	}
 	for _, importpath := range importpaths {
 		if gb.IsLocalImport(importpath) {
-			// Interpret `ko publish ./cmd/foo` as `ko publish $GOPATH/cmd/foo`
-			// $PWD must be within $GOPATH/src
+			// Qualify relative imports to their fully-qualified
+			// import path, assuming $PWD is within $GOPATH/src.
 			gopathsrc := filepath.Join(gb.Default.GOPATH, "src")
 			pwd, err := os.Getwd()
 			if err != nil {
