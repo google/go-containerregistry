@@ -16,10 +16,7 @@ package build
 
 import (
 	"io/ioutil"
-	"os"
-	"path"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"testing"
@@ -27,7 +24,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 )
-
 
 func TestGoBuildIsSupportedRef(t *testing.T) {
 	ng, err := NewGo(Options{})
@@ -37,8 +33,8 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 
 	// Supported import paths.
 	for _, importpath := range []string{
-		"github.com/google/go-containerregistry/cmd/crane",
-		"github.com/google/go-containerregistry/cmd/ko",
+		filepath.FromSlash("github.com/google/go-containerregistry/cmd/crane"),
+		filepath.FromSlash("github.com/google/go-containerregistry/cmd/ko"),
 	} {
 		t.Run(importpath, func(t *testing.T) {
 			// TODO(jasonhall): Figure this out.
@@ -51,15 +47,12 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 
 	// Unsupported import paths.
 	for _, importpath := range []string{
-		"github.com/google/go-containerregistry/v1/remote", // not a command.
-		"github.com/google/go-containerregistry/pkg/foo",   // does not exist.
-		"simple string",
-	}
-
-	for _, test := range unsupportedTests {
-		t.Run(test, func(t *testing.T) {
-			if ng.IsSupportedReference(test) {
-				t.Errorf("IsSupportedReference(%v) = true, want false", test)
+		filepath.FromSlash("github.com/google/go-containerregistry/v1/remote"), // not a command.
+		filepath.FromSlash("github.com/google/go-containerregistry/pkg/foo"),   // does not exist.
+	} {
+		t.Run(importpath, func(t *testing.T) {
+			if ng.IsSupportedReference(importpath) {
+				t.Errorf("IsSupportedReference(%v) = true, want false", importpath)
 			}
 		})
 	}
