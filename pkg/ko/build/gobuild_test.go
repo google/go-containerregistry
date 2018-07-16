@@ -37,7 +37,6 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 		filepath.FromSlash("github.com/google/go-containerregistry/cmd/ko"),
 	} {
 		t.Run(importpath, func(t *testing.T) {
-			// TODO(jasonhall): Figure this out.
 			if !ng.IsSupportedReference(importpath) {
 				t.Errorf("IsSupportedReference(%q) = false, want true", importpath)
 			}
