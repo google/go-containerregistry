@@ -18,11 +18,11 @@ import (
 	"fmt"
 	gb "go/build"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/ko/build"
 	"github.com/google/go-containerregistry/pkg/ko/publish"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -76,7 +76,10 @@ func publishImages(importpaths []string, lo *LocalOptions) {
 			if err != nil {
 				log.Fatalf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
 			}
-			pub = publish.NewDefault(repo, http.DefaultTransport)
+			pub, err = publish.NewDefault(repo, publish.WithAuthFromKeychain(authn.DefaultKeychain))
+			if err != nil {
+				log.Fatalf("error setting up default image publisher: %v", err)
+			}
 		}
 		if _, err := pub.Publish(img, importpath); err != nil {
 			log.Fatalf("error publishing %s: %v", importpath, err)
