@@ -35,6 +35,7 @@ func TestGoBuildIsSupportedRef(t *testing.T) {
 	for _, importpath := range []string{
 		filepath.FromSlash("github.com/google/go-containerregistry/cmd/crane"),
 		filepath.FromSlash("github.com/google/go-containerregistry/cmd/ko"),
+		filepath.FromSlash("github.com/google/go-containerregistry/vendor/k8s.io/code-generator/cmd/deepcopy-gen"), // vendored commands work too.
 	} {
 		t.Run(importpath, func(t *testing.T) {
 			if !ng.IsSupportedReference(importpath) {
