@@ -23,8 +23,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/go-containerregistry/pkg/ko/build"
-	"github.com/google/go-containerregistry/pkg/ko/publish"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -40,7 +38,7 @@ var (
 	bazRef      = "github.com/awesomesauce/baz"
 	baz         = mustRandom()
 	bazHash     = mustDigest(baz)
-	testBuilder = build.NewFixed(map[string]v1.Image{
+	testBuilder = newFixedBuild(map[string]v1.Image{
 		fooRef: foo,
 		barRef: bar,
 		bazRef: baz,
@@ -88,7 +86,7 @@ func TestYAMLArrays(t *testing.T) {
 				t.Fatalf("yaml.Marshal(%v) = %v", inputStructured, err)
 			}
 
-			outYAML, err := ImageReferences(inputYAML, testBuilder, publish.NewFixed(test.base, testHashes))
+			outYAML, err := ImageReferences(inputYAML, testBuilder, newFixedPublish(test.base, testHashes))
 			if err != nil {
 				t.Fatalf("ImageReferences(%v) = %v", string(inputYAML), err)
 			}
@@ -161,7 +159,7 @@ func TestYAMLMaps(t *testing.T) {
 				t.Fatalf("yaml.Marshal(%v) = %v", inputStructured, err)
 			}
 
-			outYAML, err := ImageReferences(inputYAML, testBuilder, publish.NewFixed(base, testHashes))
+			outYAML, err := ImageReferences(inputYAML, testBuilder, newFixedPublish(base, testHashes))
 			if err != nil {
 				t.Fatalf("ImageReferences(%v) = %v", string(inputYAML), err)
 			}
@@ -229,7 +227,7 @@ func TestYAMLObject(t *testing.T) {
 				t.Fatalf("yaml.Marshal(%v) = %v", inputStructured, err)
 			}
 
-			outYAML, err := ImageReferences(inputYAML, testBuilder, publish.NewFixed(base, testHashes))
+			outYAML, err := ImageReferences(inputYAML, testBuilder, newFixedPublish(base, testHashes))
 			if err != nil {
 				t.Fatalf("ImageReferences(%v) = %v", string(inputYAML), err)
 			}
@@ -269,7 +267,7 @@ func TestMultiDocumentYAMLs(t *testing.T) {
 			}
 			inputYAML := buf.Bytes()
 
-			outYAML, err := ImageReferences(inputYAML, testBuilder, publish.NewFixed(test.base, testHashes))
+			outYAML, err := ImageReferences(inputYAML, testBuilder, newFixedPublish(test.base, testHashes))
 			if err != nil {
 				t.Fatalf("ImageReferences(%v) = %v", string(inputYAML), err)
 			}
@@ -335,7 +333,7 @@ func mustDigest(img v1.Image) v1.Hash {
 }
 
 func computeDigest(base name.Repository, ref string, h v1.Hash) string {
-	d, err := publish.NewFixed(base, map[string]v1.Hash{ref: h}).Publish(nil, ref)
+	d, err := newFixedPublish(base, map[string]v1.Hash{ref: h}).Publish(nil, ref)
 	if err != nil {
 		panic(err)
 	}
