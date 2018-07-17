@@ -24,7 +24,8 @@ import (
 // on a default publisher.
 func WithTransport(t http.RoundTripper) Option {
 	return func(i *defaultOpener) error {
-		return i.setTransport(t)
+		i.setTransport(t)
+		return nil
 	}
 }
 
@@ -32,7 +33,8 @@ func WithTransport(t http.RoundTripper) Option {
 // on a default publisher.
 func WithAuth(auth authn.Authenticator) Option {
 	return func(i *defaultOpener) error {
-		return i.setAuth(auth)
+		i.setAuth(auth)
+		return nil
 	}
 }
 
@@ -44,18 +46,17 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 		if err != nil {
 			return err
 		}
-		return i.setAuth(auth)
+		i.setAuth(auth)
+		return nil
 	}
 }
 
 // Set client on image using provided transport, and the default authenticator
-func (i *defaultOpener) setTransport(t http.RoundTripper) error {
+func (i *defaultOpener) setTransport(t http.RoundTripper) {
 	i.t = t
-	return nil
 }
 
 // Set client on image using provided authenticator, and the default transport
-func (i *defaultOpener) setAuth(auth authn.Authenticator) error {
+func (i *defaultOpener) setAuth(auth authn.Authenticator) {
 	i.auth = auth
-	return nil
 }
