@@ -40,7 +40,11 @@ func qualifyLocalImport(importpath, gopathsrc, pwd string) (string, error) {
 }
 
 func publishImages(importpaths []string, lo *LocalOptions) {
-	b, err := build.NewGo(gobuildOptions())
+	opt, err := gobuildOptions()
+	if err != nil {
+		log.Fatalf("error setting up builder options: %v", err)
+	}
+	b, err := build.NewGo(opt...)
 	if err != nil {
 		log.Fatalf("error creating go builder: %v", err)
 	}
