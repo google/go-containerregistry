@@ -19,10 +19,10 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"sync"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/ko/build"
 	"github.com/google/go-containerregistry/pkg/ko/publish"
 	"github.com/google/go-containerregistry/pkg/ko/resolve"
@@ -86,7 +86,10 @@ func resolveFile(f string, lo *LocalOptions, opt build.Options) ([]byte, error) 
 			return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
 		}
 
-		pub = publish.NewDefault(repo, http.DefaultTransport)
+		pub, err = publish.NewDefault(repo, publish.WithAuthFromKeychain(authn.DefaultKeychain))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	b, err := ioutil.ReadFile(f)

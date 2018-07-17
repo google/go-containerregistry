@@ -30,12 +30,40 @@ import (
 type defalt struct {
 	base name.Repository
 	t    http.RoundTripper
+	auth authn.Authenticator
+}
+
+type Option func(*defaultOpener) error
+
+type defaultOpener struct {
+	base name.Repository
+	t    http.RoundTripper
+	auth authn.Authenticator
+}
+
+func (do *defaultOpener) Open() (Interface, error) {
+	return &defalt{
+		base: do.base,
+		t:    do.t,
+		auth: do.auth,
+	}, nil
 }
 
 // NewDefault returns a new publish.Interface that publishes references under the provided base
 // repository using the default keychain to authenticate and the default naming scheme.
-func NewDefault(base name.Repository, t http.RoundTripper) Interface {
-	return &defalt{base, t}
+func NewDefault(base name.Repository, options ...Option) (Interface, error) {
+	do := &defaultOpener{
+		base: base,
+		t:    http.DefaultTransport,
+		auth: authn.Anonymous,
+	}
+
+	for _, option := range options {
+		if err := option(do); err != nil {
+			return nil, err
+		}
+	}
+	return do.Open()
 }
 
 // Publish implements publish.Interface
@@ -43,10 +71,6 @@ func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
 	// https://github.com/google/go-containerregistry/issues/212
 	s = strings.ToLower(s)
 
-	auth, err := authn.DefaultKeychain.Resolve(d.base.Registry)
-	if err != nil {
-		return nil, err
-	}
 	// We push via tag (always latest) and then produce a digest because some registries do
 	// not support publishing by digest.
 	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", d.base, s), name.WeakValidation)
@@ -54,7 +78,7 @@ func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
 		return nil, err
 	}
 	log.Printf("Publishing %v", tag)
-	if err := remote.Write(tag, img, auth, d.t, remote.WriteOptions{}); err != nil {
+	if err := remote.Write(tag, img, d.auth, d.t, remote.WriteOptions{}); err != nil {
 		return nil, err
 	}
 	h, err := img.Digest()

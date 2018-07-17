@@ -70,7 +70,10 @@ func TestDefault(t *testing.T) {
 		t.Fatalf("NewRepository() = %v", err)
 	}
 
-	def := NewDefault(baseRepo, http.DefaultTransport)
+	def, err := NewDefault(baseRepo)
+	if err != nil {
+		t.Errorf("NewDefault() = %v", err)
+	}
 	if d, err := def.Publish(img, importpath); err != nil {
 		t.Errorf("Publish() = %v", err)
 	} else if !strings.HasPrefix(d.String(), tag.Repository.String()) {
