@@ -45,5 +45,4 @@ func TestQualifyLocalImport(t *testing.T) {
 			t.Fatalf("qualifyLocalImport(%q, %q, %q): got %q, want %q", c.importpath, c.gopathsrc, c.pwd, got, c.want)
 		}
 	}
-
 }
