@@ -20,7 +20,7 @@
 #   version = "2.4.0"
 #
 
-# Used for deep copy code generation
+# Used for deep copy code generation and ko publish tests.
 required = [
   "k8s.io/code-generator/cmd/deepcopy-gen",
 ]

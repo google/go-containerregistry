@@ -16,10 +16,7 @@ package build
 
 import (
 	"io/ioutil"
-	"os"
-	"path"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"testing"
@@ -28,116 +25,33 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/random"
 )
 
-type testContext struct {
-	gopath  string
-	workdir string
-}
-
-func (tc *testContext) Enter(t *testing.T) {
-	// Change the current state for the test.
-	os.Setenv("GOPATH", tc.gopath)
-	getwd = func() (string, error) {
-		return tc.workdir, nil
-	}
-}
-
-func TestComputeImportPath(t *testing.T) {
-	tests := []struct {
-		desc             string
-		ctx              testContext
-		expectErr        bool
-		expectImportpath string
-	}{{
-		desc: "simple gopath",
-		ctx: testContext{
-			gopath:  "/go",
-			workdir: "/go/src/github.com/foo/bar",
-		},
-		expectImportpath: "github.com/foo/bar",
-	}, {
-		desc: "trailing slashes",
-		ctx: testContext{
-			gopath:  "/go/",
-			workdir: "/go/src/github.com/foo/bar/",
-		},
-		expectImportpath: "github.com/foo/bar",
-	}, {
-		desc: "not on gopath",
-		ctx: testContext{
-			gopath:  "/go",
-			workdir: "/rust/src/github.com/foo/bar",
-		},
-		expectErr: true,
-	}}
-
-	if runtime.GOOS == "windows" {
-		for i := range tests {
-			tests[i].ctx.gopath = "C:" + filepath.FromSlash(tests[i].ctx.gopath)
-			tests[i].ctx.workdir = "C:" + filepath.FromSlash(tests[i].ctx.workdir)
-		}
-	}
-
-	for _, test := range tests {
-		t.Run(test.desc, func(t *testing.T) {
-			// Set the context for our test.
-			test.ctx.Enter(t)
-
-			ip, err := computeImportpath()
-			if err != nil && !test.expectErr {
-				t.Errorf("computeImportpath() = %v, want %v", err, test.expectImportpath)
-			} else if err == nil && test.expectErr {
-				t.Errorf("computeImportpath() = %v, want error", ip)
-			} else if err == nil && !test.expectErr {
-				if got, want := ip, test.expectImportpath; want != got {
-					t.Errorf("computeImportpath() = %v, want %v", got, want)
-				}
-			}
-		})
-	}
-}
-
 func TestGoBuildIsSupportedRef(t *testing.T) {
-	img, err := random.Image(1024, 1)
-	if err != nil {
-		t.Fatalf("random.Image() = %v", err)
-	}
-	importpath := "github.com/google/go-containerregistry"
-	tc := testContext{
-		gopath:  "/go",
-		workdir: "/go/src/" + importpath,
-	}
-	tc.Enter(t)
-	ng, err := NewGo(Options{GetBase: func(string) (v1.Image, error) {
-		return img, nil
-	}})
+	ng, err := NewGo(Options{})
 	if err != nil {
 		t.Fatalf("NewGo() = %v", err)
 	}
 
-	supportedTests := []string{
-		path.Join(importpath, "pkg", "foo"),
-		path.Join(importpath, "cmd", "crane"),
-	}
-
-	for _, test := range supportedTests {
-		t.Run(test, func(t *testing.T) {
-			if !ng.IsSupportedReference(test) {
-				t.Errorf("IsSupportedReference(%v) = false, want true", test)
+	// Supported import paths.
+	for _, importpath := range []string{
+		filepath.FromSlash("github.com/google/go-containerregistry/cmd/crane"),
+		filepath.FromSlash("github.com/google/go-containerregistry/cmd/ko"),
+		filepath.FromSlash("github.com/google/go-containerregistry/vendor/k8s.io/code-generator/cmd/deepcopy-gen"), // vendored commands work too.
+	} {
+		t.Run(importpath, func(t *testing.T) {
+			if !ng.IsSupportedReference(importpath) {
+				t.Errorf("IsSupportedReference(%q) = false, want true", importpath)
 			}
 		})
 	}
 
-	unsupportedTests := []string{
-		"simple string",
-		filepath.FromSlash("k8s.io/client-go/pkg/foo"),
-		filepath.FromSlash("github.com/google/secret/cmd/sauce"),
-		filepath.Join("vendor", importpath, "pkg", "foo"),
-	}
-
-	for _, test := range unsupportedTests {
-		t.Run(test, func(t *testing.T) {
-			if ng.IsSupportedReference(test) {
-				t.Errorf("IsSupportedReference(%v) = true, want false", test)
+	// Unsupported import paths.
+	for _, importpath := range []string{
+		filepath.FromSlash("github.com/google/go-containerregistry/v1/remote"), // not a command.
+		filepath.FromSlash("github.com/google/go-containerregistry/pkg/foo"),   // does not exist.
+	} {
+		t.Run(importpath, func(t *testing.T) {
+			if ng.IsSupportedReference(importpath) {
+				t.Errorf("IsSupportedReference(%v) = true, want false", importpath)
 			}
 		})
 	}
@@ -168,23 +82,15 @@ func TestGoBuild(t *testing.T) {
 		t.Fatalf("random.Image() = %v", err)
 	}
 	importpath := "github.com/google/go-containerregistry"
-	tc := testContext{
-		gopath:  "/go",
-		workdir: "/go/src/" + importpath,
-	}
-	tc.Enter(t)
 
 	creationTime := func() (*v1.Time, error) {
 		return &v1.Time{time.Unix(5000, 0)}, nil
 	}
 
-	ng, err := NewGo(
-		Options{
-			GetCreationTime: creationTime,
-			GetBase: func(string) (v1.Image, error) {
-				return base, nil
-			},
-		})
+	ng, err := NewGo(Options{
+		GetCreationTime: creationTime,
+		GetBase:         func(string) (v1.Image, error) { return base, nil },
+	})
 	if err != nil {
 		t.Fatalf("NewGo() = %v", err)
 	}
