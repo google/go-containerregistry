@@ -17,6 +17,7 @@ package build
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	gb "go/build"
 	"io"
 	"io/ioutil"
@@ -33,22 +34,48 @@ import (
 
 const appPath = "/ko-app"
 
-type Options struct {
-	// TODO(mattmoor): Architectures?
-	GetBase         func(string) (v1.Image, error)
-	GetCreationTime func() (*v1.Time, error)
-}
+type GetBase func(string) (v1.Image, error)
+type builder func(string) (string, error)
 
 type gobuild struct {
-	opt   Options
-	build func(string) (string, error)
+	getBase      GetBase
+	creationTime v1.Time
+	build        builder
+}
+
+type Option func(*gobuildOpener) error
+
+type gobuildOpener struct {
+	getBase      GetBase
+	creationTime v1.Time
+	build        builder
+}
+
+func (gbo *gobuildOpener) Open() (Interface, error) {
+	if gbo.getBase == nil {
+		return nil, errors.New("a way of providing base images must be specified, see build.WithBaseImages.")
+	}
+	return &gobuild{
+		getBase:      gbo.getBase,
+		creationTime: gbo.creationTime,
+		build:        gbo.build,
+	}, nil
 }
 
 // NewGo returns a build.Interface implementation that:
 //  1. builds go binaries named by importpath,
 //  2. containerizes the binary on a suitable base,
-func NewGo(opt Options) (Interface, error) {
-	return &gobuild{opt, build}, nil
+func NewGo(options ...Option) (Interface, error) {
+	gbo := &gobuildOpener{
+		build: build,
+	}
+
+	for _, option := range options {
+		if err := option(gbo); err != nil {
+			return nil, err
+		}
+	}
+	return gbo.Open()
 }
 
 // IsSupportedReference implements build.Interface
@@ -124,12 +151,6 @@ func tarBinary(binary string) ([]byte, error) {
 
 // Build implements build.Interface
 func (gb *gobuild) Build(s string) (v1.Image, error) {
-	// Get the CreationTime
-	creationTime, err := gb.opt.GetCreationTime()
-	if err != nil {
-		return nil, err
-	}
-
 	// Do the build into a temporary file.
 	file, err := gb.build(s)
 	if err != nil {
@@ -152,7 +173,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	}
 
 	// Determine the appropriate base image for this import path.
-	base, err := gb.opt.GetBase(s)
+	base, err := gb.getBase(s)
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +197,9 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 		return nil, err
 	}
 
-	if creationTime != nil {
-		return mutate.CreatedAt(image, *creationTime)
+	empty := v1.Time{}
+	if gb.creationTime != empty {
+		return mutate.CreatedAt(image, gb.creationTime)
 	}
 
 	return image, nil

@@ -26,7 +26,12 @@ import (
 )
 
 func TestGoBuildIsSupportedRef(t *testing.T) {
-	ng, err := NewGo(Options{})
+	base, err := random.Image(1024, 3)
+	if err != nil {
+		t.Fatalf("random.Image() = %v", err)
+	}
+
+	ng, err := NewGo(WithBaseImages(func(string) (v1.Image, error) { return base, nil }))
 	if err != nil {
 		t.Fatalf("NewGo() = %v", err)
 	}
@@ -83,18 +88,12 @@ func TestGoBuild(t *testing.T) {
 	}
 	importpath := "github.com/google/go-containerregistry"
 
-	creationTime := func() (*v1.Time, error) {
-		return &v1.Time{time.Unix(5000, 0)}, nil
-	}
-
-	ng, err := NewGo(Options{
-		GetCreationTime: creationTime,
-		GetBase:         func(string) (v1.Image, error) { return base, nil },
-	})
-	if err != nil {
-		t.Fatalf("NewGo() = %v", err)
-	}
-	ng.(*gobuild).build = writeTempFile
+	creationTime := v1.Time{time.Unix(5000, 0)}
+	ng, err := NewGo(
+		WithCreationTime(creationTime),
+		WithBaseImages(func(string) (v1.Image, error) { return base, nil }),
+		withBuilder(writeTempFile),
+	)
 
 	img, err := ng.Build(filepath.Join(importpath, "cmd", "crane"))
 	if err != nil {
@@ -152,13 +151,8 @@ func TestGoBuild(t *testing.T) {
 		}
 
 		actual := cfg.Created
-		want, err := creationTime()
-		if err != nil {
-			t.Errorf("CreationTime() = %v", err)
-		}
-
-		if actual.Time != want.Time {
-			t.Errorf("created = %v, want %v", actual, want)
+		if actual.Time != creationTime.Time {
+			t.Errorf("created = %v, want %v", actual, creationTime)
 		}
 	})
 }
