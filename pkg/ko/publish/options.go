@@ -15,6 +15,7 @@
 package publish
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -24,7 +25,7 @@ import (
 // on a default publisher.
 func WithTransport(t http.RoundTripper) Option {
 	return func(i *defaultOpener) error {
-		i.setTransport(t)
+		i.t = t
 		return nil
 	}
 }
@@ -33,7 +34,7 @@ func WithTransport(t http.RoundTripper) Option {
 // on a default publisher.
 func WithAuth(auth authn.Authenticator) Option {
 	return func(i *defaultOpener) error {
-		i.setAuth(auth)
+		i.auth = auth
 		return nil
 	}
 }
@@ -46,17 +47,10 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 		if err != nil {
 			return err
 		}
-		i.setAuth(auth)
+		if auth == authn.Anonymous {
+			log.Println("No matching credentials were found, falling back on anonymous")
+		}
+		i.auth = auth
 		return nil
 	}
-}
-
-// Set client on image using provided transport, and the default authenticator
-func (i *defaultOpener) setTransport(t http.RoundTripper) {
-	i.t = t
-}
-
-// Set client on image using provided authenticator, and the default transport
-func (i *defaultOpener) setAuth(auth authn.Authenticator) {
-	i.auth = auth
 }
