@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -99,16 +100,19 @@ var (
 func (dk *defaultKeychain) Resolve(reg name.Registry) (Authenticator, error) {
 	dir, err := configDir()
 	if err != nil {
+		log.Printf("Unable to determine config dir: %v", err)
 		return Anonymous, nil
 	}
 	file := filepath.Join(dir, "config.json")
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
+		log.Printf("Unable to read %q: %v", file, err)
 		return Anonymous, nil
 	}
 
 	var cf cfg
 	if err := json.Unmarshal(content, &cf); err != nil {
+		log.Printf("Unable to parse %q: %v", file, err)
 		return Anonymous, nil
 	}
 
