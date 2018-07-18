@@ -25,7 +25,7 @@ import (
 // on a remote image
 func WithTransport(t http.RoundTripper) ImageOption {
 	return func(i *imageOpener) error {
-		return i.setTransport(t)
+		i.transport = t
 		return nil
 	}
 }
