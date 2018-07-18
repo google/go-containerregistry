@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -30,6 +32,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -603,5 +607,141 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)
 	} else if diff := cmp.Diff(expectedError, se); diff != "" {
 		t.Errorf("Write(); (-want +got) = %s", diff)
+	}
+}
+
+func TestScopesForUploadingImage(t *testing.T) {
+	serverHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	})
+	server := httptest.NewServer(serverHandler)
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		server.Close()
+		t.Fatalf("httptest.NewServer() = %v", err)
+	}
+
+	referenceToUpload, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, "sample/sample"), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag() = %v", err)
+	}
+
+	anotherRepo1, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, "sample/another_repo1"), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag() = %v", err)
+	}
+
+	anotherRepo2, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, "sample/another_repo2"), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag() = %v", err)
+	}
+
+	img := setupImage(t)
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("img.Layers() = %v", err)
+	}
+	dummyLayer := layers[0]
+
+	testCases := []struct {
+		name      string
+		reference name.Reference
+		layers    []v1.Layer
+		expected  []string
+	}{
+		{
+			name:      "empty layers",
+			reference: referenceToUpload,
+			layers:    []v1.Layer{},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+			},
+		},
+		{
+			name:      "mountable layers with single reference with no duplicate",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+				anotherRepo1.Scope(transport.PullScope),
+			},
+		},
+		{
+			name:      "mountable layers with single reference with duplicate",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+				anotherRepo1.Scope(transport.PullScope),
+			},
+		},
+		{
+			name:      "mountable layers with multiple references with no-duplicates",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo2,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+				anotherRepo1.Scope(transport.PullScope),
+				anotherRepo2.Scope(transport.PullScope),
+			},
+		},
+		{
+			name:      "mountable layers with multiple references with duplicates",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo2,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo2,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+				anotherRepo1.Scope(transport.PullScope),
+				anotherRepo2.Scope(transport.PullScope),
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		actual := scopesForUploadingImage(testCase.reference, testCase.layers)
+		if !reflect.DeepEqual(sort.StringsAreSorted(actual), sort.StringsAreSorted(testCase.expected)) {
+			t.Errorf("TestScopesForUploadingImage() %s: (want, got) = (%v, %v)", testCase.name, testCase.expected, actual)
+		}
 	}
 }

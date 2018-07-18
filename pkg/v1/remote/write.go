@@ -42,13 +42,8 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 	if err != nil {
 		return err
 	}
-	scopes := []string{ref.Scope(transport.PushScope)}
-	for _, l := range ls {
-		if ml, ok := l.(*MountableLayer); ok {
-			scopes = append(scopes, ml.Reference.Context().Scope(transport.PullScope))
-		}
-	}
 
+	scopes := scopesForUploadingImage(ref, ls)
 	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
 	if err != nil {
 		return err
@@ -294,6 +289,24 @@ func (w *writer) commitImage() error {
 	// The image was successfully pushed!
 	log.Printf("%v: digest: %v size: %d", w.ref, digest, len(raw))
 	return nil
+}
+
+func scopesForUploadingImage(ref name.Reference, layers []v1.Layer) []string {
+	// use a map as set to remove duplicates scope strings
+	scopeSet := map[string]struct{}{ref.Scope(transport.PushScope): {}}
+
+	for _, l := range layers {
+		if ml, ok := l.(*MountableLayer); ok {
+			scopeSet[ml.Reference.Context().Scope(transport.PullScope)] = struct{}{}
+		}
+	}
+
+	scopes := make([]string, 0)
+	for scope, _ := range scopeSet {
+		scopes = append(scopes, scope)
+	}
+
+	return scopes
 }
 
 // TODO(mattmoor): WriteIndex
