@@ -44,7 +44,7 @@ func gobuildOptions() ([]build.Option, error) {
 	return opts, nil
 }
 
-func resolveFilesToWriter(fo *FilenameOptions, lo *LocalOptions, out io.Writer) {
+func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, out io.Writer) {
 	fs, err := enumerateFiles(fo)
 	if err != nil {
 		log.Fatalf("error enumerating files: %v", err)
@@ -61,7 +61,7 @@ func resolveFilesToWriter(fo *FilenameOptions, lo *LocalOptions, out io.Writer) 
 		go func(f string) {
 			defer wg.Done()
 
-			b, err := resolveFile(f, lo, opt...)
+			b, err := resolveFile(f, no, lo, opt...)
 			if err != nil {
 				log.Fatalf("error processing import paths in %q: %v", f, err)
 			}
@@ -85,18 +85,25 @@ func resolveFilesToWriter(fo *FilenameOptions, lo *LocalOptions, out io.Writer) 
 	}
 }
 
-func resolveFile(f string, lo *LocalOptions, opt ...build.Option) ([]byte, error) {
+func resolveFile(f string, no *NameOptions, lo *LocalOptions, opt ...build.Option) ([]byte, error) {
 	var pub publish.Interface
 	repoName := os.Getenv("KO_DOCKER_REPO")
 	if lo.Local || repoName == publish.LocalDomain {
 		pub = publish.NewDaemon(daemon.WriteOptions{})
 	} else {
-		repo, err := name.NewRepository(repoName, name.WeakValidation)
+		_, err := name.NewRepository(repoName, name.WeakValidation)
 		if err != nil {
 			return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
 		}
 
-		pub, err = publish.NewDefault(repo, publish.WithAuthFromKeychain(authn.DefaultKeychain))
+		opts := []publish.Option{publish.WithAuthFromKeychain(authn.DefaultKeychain)}
+		if no.PreserveImportPaths {
+			opts = append(opts, publish.WithNamer(preserveImportPath))
+		} else {
+			opts = append(opts, publish.WithNamer(packageWithMD5))
+		}
+
+		pub, err = publish.NewDefault(repoName, opts...)
 		if err != nil {
 			return nil, err
 		}

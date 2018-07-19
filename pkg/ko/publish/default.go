@@ -28,34 +28,48 @@ import (
 
 // defalt is intentionally misspelled to avoid keyword collision (and drive Jon nuts).
 type defalt struct {
-	base name.Repository
-	t    http.RoundTripper
-	auth authn.Authenticator
+	base  string
+	t     http.RoundTripper
+	auth  authn.Authenticator
+	namer Namer
 }
 
 type Option func(*defaultOpener) error
 
 type defaultOpener struct {
-	base name.Repository
-	t    http.RoundTripper
-	auth authn.Authenticator
+	base  string
+	t     http.RoundTripper
+	auth  authn.Authenticator
+	namer Namer
 }
+
+// Namer is a function from a supported import path to the portion of the resulting
+// image name that follows the "base" repository name.
+type Namer func(string) string
+
+// identity is the default namer, so import paths are affixed as-is under the repository
+// name for maximum clarity, e.g.
+//   gcr.io/foo/github.com/bar/baz/cmd/blah
+//   ^--base--^ ^-------import path-------^
+func identity(in string) string { return in }
 
 func (do *defaultOpener) Open() (Interface, error) {
 	return &defalt{
-		base: do.base,
-		t:    do.t,
-		auth: do.auth,
+		base:  do.base,
+		t:     do.t,
+		auth:  do.auth,
+		namer: do.namer,
 	}, nil
 }
 
 // NewDefault returns a new publish.Interface that publishes references under the provided base
 // repository using the default keychain to authenticate and the default naming scheme.
-func NewDefault(base name.Repository, options ...Option) (Interface, error) {
+func NewDefault(base string, options ...Option) (Interface, error) {
 	do := &defaultOpener{
-		base: base,
-		t:    http.DefaultTransport,
-		auth: authn.Anonymous,
+		base:  base,
+		t:     http.DefaultTransport,
+		auth:  authn.Anonymous,
+		namer: identity,
 	}
 
 	for _, option := range options {
@@ -73,7 +87,7 @@ func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
 
 	// We push via tag (always latest) and then produce a digest because some registries do
 	// not support publishing by digest.
-	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", d.base, s), name.WeakValidation)
+	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", d.base, d.namer(s)), name.WeakValidation)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +99,7 @@ func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	dig, err := name.NewDigest(fmt.Sprintf("%s/%s@%s", d.base, s, h), name.WeakValidation)
+	dig, err := name.NewDigest(fmt.Sprintf("%s/%s@%s", d.base, d.namer(s), h), name.WeakValidation)
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,7 @@ import (
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
 )
 
 // WithTransport is a functional option for overriding the default transport
@@ -43,7 +44,15 @@ func WithAuth(auth authn.Authenticator) Option {
 // authenticator on a default publisher using an authn.Keychain
 func WithAuthFromKeychain(keys authn.Keychain) Option {
 	return func(i *defaultOpener) error {
-		auth, err := keys.Resolve(i.base.Registry)
+		// We parse this lazily because it is a repository prefix, which
+		// means that docker.io/mattmoor actually gets interpreted as
+		// docker.io/library/mattmoor, which gets tricky when we start
+		// appending things to it in the publisher.
+		repo, err := name.NewRepository(i.base, name.WeakValidation)
+		if err != nil {
+			return err
+		}
+		auth, err := keys.Resolve(repo.Registry)
 		if err != nil {
 			return err
 		}
@@ -51,6 +60,15 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 			log.Println("No matching credentials were found, falling back on anonymous")
 		}
 		i.auth = auth
+		return nil
+	}
+}
+
+// WithNamer is a functional option for overriding the image naming behavior
+// in our default publisher.
+func WithNamer(n Namer) Option {
+	return func(i *defaultOpener) error {
+		i.namer = n
 		return nil
 	}
 }

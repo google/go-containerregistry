@@ -39,7 +39,7 @@ func qualifyLocalImport(importpath, gopathsrc, pwd string) (string, error) {
 	return filepath.Join(strings.TrimPrefix(pwd, gopathsrc+string(filepath.Separator)), importpath), nil
 }
 
-func publishImages(importpaths []string, lo *LocalOptions) {
+func publishImages(importpaths []string, no *NameOptions, lo *LocalOptions) {
 	opt, err := gobuildOptions()
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)
@@ -76,11 +76,16 @@ func publishImages(importpaths []string, lo *LocalOptions) {
 		if lo.Local || repoName == publish.LocalDomain {
 			pub = publish.NewDaemon(daemon.WriteOptions{})
 		} else {
-			repo, err := name.NewRepository(repoName, name.WeakValidation)
-			if err != nil {
+			if _, err := name.NewRepository(repoName, name.WeakValidation); err != nil {
 				log.Fatalf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
 			}
-			pub, err = publish.NewDefault(repo, publish.WithAuthFromKeychain(authn.DefaultKeychain))
+			opts := []publish.Option{publish.WithAuthFromKeychain(authn.DefaultKeychain)}
+			if no.PreserveImportPaths {
+				opts = append(opts, publish.WithNamer(preserveImportPath))
+			} else {
+				opts = append(opts, publish.WithNamer(packageWithMD5))
+			}
+			pub, err = publish.NewDefault(repoName, opts...)
 			if err != nil {
 				log.Fatalf("error setting up default image publisher: %v", err)
 			}
