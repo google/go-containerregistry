@@ -52,54 +52,17 @@ var origKeyRing = credentialprovider.NewDockerKeyring()
 // New returns a new authn.Keychain suitable for resolving image references as
 // scoped by the provided Options.  It speaks to Kubernetes through the provided
 // client interface.
-func New(client kubernetes.Interface, opt Options) (authn.Keychain, error) {
+func New(client kubernetes.Interface, opt Options) authn.Keychain {
 	if opt.Namespace == "" {
 		opt.Namespace = "default"
 	}
 	if opt.ServiceAccountName == "" {
 		opt.ServiceAccountName = "default"
 	}
-
-	// Implement a Kubernetes-style authentication keychain.
-	// This needs to support roughly the following kinds of authentication:
-	//  1) The implicit authentication from k8s.io/kubernetes/pkg/credentialprovider
-	//  2) The explicit authentication from imagePullSecrets on Pod
-	//  3) The semi-implicit authentication where imagePullSecrets are on the
-	//    Pod's service account.
-
-	// First, fetch all of the explicitly declared pull secrets
-	var pullSecrets []v1.Secret
-	if client != nil {
-		for _, name := range opt.ImagePullSecrets {
-			ps, err := client.CoreV1().Secrets(opt.Namespace).Get(name, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			pullSecrets = append(pullSecrets, *ps)
-		}
-
-		// Second, fetch all of the pull secrets attached to our service account.
-		sa, err := client.CoreV1().ServiceAccounts(opt.Namespace).Get(opt.ServiceAccountName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		for _, localObj := range sa.ImagePullSecrets {
-			ps, err := client.CoreV1().Secrets(opt.Namespace).Get(localObj.Name, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			pullSecrets = append(pullSecrets, *ps)
-		}
-	}
-
-	// Third, extend the default keyring with the pull secrets.
-	kr, err := credentialprovidersecrets.MakeDockerKeyring(pullSecrets, origKeyRing)
-	if err != nil {
-		return nil, err
-	}
 	return &keychain{
-		keyring: kr,
-	}, nil
+		client: client,
+		opt:    opt,
+	}
 }
 
 // NewInCluster returns a new authn.Keychain suitable for resolving image references as
@@ -115,7 +78,7 @@ func NewInCluster(opt Options) (authn.Keychain, error) {
 	if err != nil {
 		return nil, err
 	}
-	return New(client, opt)
+	return New(client, opt), nil
 }
 
 // NewNoClient returns a new authn.Keychain that supports the portions of the K8s keychain
@@ -126,7 +89,7 @@ func NewInCluster(opt Options) (authn.Keychain, error) {
 // for Kubernetes authentication, but this actually targets a different use-case.  What
 // remains is an interesting sweet spot: this variant can serve as a credential provider
 // for all of the major public clouds, but in library form (vs. an executable you exec).
-func NewNoClient() (authn.Keychain, error) {
+func NewNoClient() authn.Keychain {
 	return New(nil, Options{})
 }
 
@@ -149,11 +112,59 @@ func (lp lazyProvider) Authorization() (string, error) {
 }
 
 type keychain struct {
+	client  kubernetes.Interface
+	opt     Options
 	keyring credentialprovider.DockerKeyring
+}
+
+func (kc *keychain) createKeyring() error {
+	// Implement a Kubernetes-style authentication keychain.
+	// This needs to support roughly the following kinds of authentication:
+	//  1) The implicit authentication from k8s.io/kubernetes/pkg/credentialprovider
+	//  2) The explicit authentication from imagePullSecrets on Pod
+	//  3) The semi-implicit authentication where imagePullSecrets are on the
+	//    Pod's service account.
+
+	// First, fetch all of the explicitly declared pull secrets
+	var pullSecrets []v1.Secret
+	for _, name := range kc.opt.ImagePullSecrets {
+		ps, err := kc.client.CoreV1().Secrets(kc.opt.Namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		pullSecrets = append(pullSecrets, *ps)
+	}
+
+	// Second, fetch all of the pull secrets attached to our service account.
+	sa, err := kc.client.CoreV1().ServiceAccounts(kc.opt.Namespace).Get(kc.opt.ServiceAccountName, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	for _, localObj := range sa.ImagePullSecrets {
+		ps, err := kc.client.CoreV1().Secrets(kc.opt.Namespace).Get(localObj.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		pullSecrets = append(pullSecrets, *ps)
+	}
+
+	// Third, extend the default keyring with the pull secrets.
+	kr, err := credentialprovidersecrets.MakeDockerKeyring(pullSecrets, origKeyRing)
+	if err != nil {
+		return err
+	}
+	kc.keyring = kr
+	return nil
 }
 
 // Resolve implements authn.Keychain
 func (kc *keychain) Resolve(reg name.Registry) (authn.Authenticator, error) {
+	if kc.client != nil && kc.keyring == nil {
+		if err := kc.createKeyring(); err != nil {
+			return nil, err
+		}
+	}
+
 	// TODO(mattmoor): Lookup expects an image reference and we only have a registry,
 	// find something better than this.
 	creds, found := kc.keyring.Lookup(reg.String() + "/foo/bar")

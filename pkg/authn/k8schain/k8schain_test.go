@@ -34,22 +34,19 @@ func TestAnonymousFallback(t *testing.T) {
 		},
 	})
 
-	kc, err := New(client, Options{})
-	if err != nil {
-		t.Errorf("New() = %v", err)
-	}
+	kc := New(client, Options{})
 
 	reg, err := name.NewRegistry("fake.registry.io", name.WeakValidation)
 	if err != nil {
-		t.Errorf("NewRegistry() = %v", err)
+		t.Fatalf("NewRegistry() = %v", err)
 	}
 
 	auth, err := kc.Resolve(reg)
 	if err != nil {
-		t.Errorf("Resolve(%v) = %v", reg, err)
+		t.Fatalf("Resolve(%v) = %v", reg, err)
 	}
 	if got, want := auth, authn.Anonymous; got != want {
-		t.Errorf("Resolve() = %v, want %v", got, want)
+		t.Fatalf("Resolve() = %v, want %v", got, want)
 	}
 }
 
@@ -77,33 +74,30 @@ func TestAttachedServiceAccount(t *testing.T) {
 		},
 	})
 
-	kc, err := New(client, Options{
+	kc := New(client, Options{
 		Namespace:          "ns",
 		ServiceAccountName: "svcacct",
 	})
-	if err != nil {
-		t.Fatalf("New() = %v", err)
-	}
 
 	reg, err := name.NewRegistry("fake.registry.io", name.WeakValidation)
 	if err != nil {
-		t.Errorf("NewRegistry() = %v", err)
+		t.Fatalf("NewRegistry() = %v", err)
 	}
 
 	auth, err := kc.Resolve(reg)
 	if err != nil {
-		t.Errorf("Resolve(%v) = %v", reg, err)
+		t.Fatalf("Resolve(%v) = %v", reg, err)
 	}
 	got, err := auth.Authorization()
 	if err != nil {
-		t.Errorf("Authorization() = %v", err)
+		t.Fatalf("Authorization() = %v", err)
 	}
 	want, err := (&authn.Basic{Username: username, Password: password}).Authorization()
 	if err != nil {
-		t.Errorf("Authorization() = %v", err)
+		t.Fatalf("Authorization() = %v", err)
 	}
 	if got != want {
-		t.Errorf("Resolve() = %v, want %v", got, want)
+		t.Fatalf("Resolve() = %v, want %v", got, want)
 	}
 }
 
@@ -128,32 +122,29 @@ func TestImagePullSecrets(t *testing.T) {
 		},
 	})
 
-	kc, err := New(client, Options{
+	kc := New(client, Options{
 		Namespace:        "ns",
 		ImagePullSecrets: []string{"secret"},
 	})
-	if err != nil {
-		t.Fatalf("New() = %v", err)
-	}
 
 	reg, err := name.NewRegistry("fake.registry.io", name.WeakValidation)
 	if err != nil {
-		t.Errorf("NewRegistry() = %v", err)
+		t.Fatalf("NewRegistry() = %v", err)
 	}
 
 	auth, err := kc.Resolve(reg)
 	if err != nil {
-		t.Errorf("Resolve(%v) = %v", reg, err)
+		t.Fatalf("Resolve(%v) = %v", reg, err)
 	}
 	got, err := auth.Authorization()
 	if err != nil {
-		t.Errorf("Authorization() = %v", err)
+		t.Fatalf("Authorization() = %v", err)
 	}
 	want, err := (&authn.Basic{Username: username, Password: password}).Authorization()
 	if err != nil {
-		t.Errorf("Authorization() = %v", err)
+		t.Fatalf("Authorization() = %v", err)
 	}
 	if got != want {
-		t.Errorf("Resolve() = %v, want %v", got, want)
+		t.Fatalf("Resolve() = %v, want %v", got, want)
 	}
 }
