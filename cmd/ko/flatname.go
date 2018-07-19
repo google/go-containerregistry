@@ -23,16 +23,20 @@ import (
 )
 
 type NameOptions struct {
-	Flatten bool
+	PreserveImportPaths bool
 }
 
 func addNamingArgs(cmd *cobra.Command, no *NameOptions) {
-	cmd.Flags().BoolVarP(&no.Flatten, "flat", "F", no.Flatten,
-		"Whether to flatten import paths to a single path segment.")
+	cmd.Flags().BoolVarP(&no.PreserveImportPaths, "preserve-import-paths", "P", no.PreserveImportPaths,
+		"Whether to preserve the full import path after KO_DOCKER_REPO.")
 }
 
 func packageWithMD5(importpath string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(importpath))
 	return filepath.Base(importpath) + "-" + hex.EncodeToString(hasher.Sum(nil))
+}
+
+func preserveImportPath(importpath string) string {
+	return importpath
 }

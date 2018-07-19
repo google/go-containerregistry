@@ -97,7 +97,9 @@ func resolveFile(f string, no *NameOptions, lo *LocalOptions, opt ...build.Optio
 		}
 
 		opts := []publish.Option{publish.WithAuthFromKeychain(authn.DefaultKeychain)}
-		if no.Flatten {
+		if no.PreserveImportPaths {
+			opts = append(opts, publish.WithNamer(preserveImportPath))
+		} else {
 			opts = append(opts, publish.WithNamer(packageWithMD5))
 		}
 

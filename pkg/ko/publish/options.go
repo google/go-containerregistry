@@ -46,7 +46,7 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 	return func(i *defaultOpener) error {
 		// We parse this lazily because it is a repository prefix, which
 		// means that docker.io/mattmoor actually gets interpreted as
-		// dockerio/library/mattmoor, which gets tricky when we start
+		// docker.io/library/mattmoor, which gets tricky when we start
 		// appending things to it in the publisher.
 		repo, err := name.NewRepository(i.base, name.WeakValidation)
 		if err != nil {

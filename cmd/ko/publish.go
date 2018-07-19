@@ -80,7 +80,9 @@ func publishImages(importpaths []string, no *NameOptions, lo *LocalOptions) {
 				log.Fatalf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
 			}
 			opts := []publish.Option{publish.WithAuthFromKeychain(authn.DefaultKeychain)}
-			if no.Flatten {
+			if no.PreserveImportPaths {
+				opts = append(opts, publish.WithNamer(preserveImportPath))
+			} else {
 				opts = append(opts, publish.WithNamer(packageWithMD5))
 			}
 			pub, err = publish.NewDefault(repoName, opts...)

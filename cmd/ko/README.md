@@ -1,6 +1,6 @@
 # `ko`
 
-`ko` is an **experimental** CLI to support rapid development of Go containers
+`ko` is a CLI to support rapid development of Go containers
 with Kubernetes and minimal configuration.
 
 ## Installation
@@ -74,38 +74,35 @@ For example, any of the following would be matched:
 * `github.com/mattmoor/examples/cmd/foo`
 * `github.com/mattmoor/examples/bar`
 
-`ko` does not (currently) support `vendor`d binaries, or building other
-binaries from `GOPATH` (outside of the current scope).
-
 ### Results
 
 Employing this convention enables `ko` to have effectively zero configuration
 and enable very fast development iteration. For
 [warm-image](https://github.com/mattmoor/warm-image), `ko` is able to
 build, containerize, and redeploy a non-trivial Kubernetes controller app in
-roughly 10 seconds (dominated by two `go build`s).
+seconds (dominated by two `go build`s).
 
 ```shell
-~/go/src/github.com/mattmoor/warm-image$ ko apply -f config/
-2018/04/25 17:11:28 Go building github.com/mattmoor/warm-image/cmd/sleeper
-2018/04/25 17:11:28 Go building github.com/mattmoor/warm-image/cmd/controller
-2018/04/25 17:11:29 Publishing gcr.io/my-project/github.com/mattmoor/warm-image/cmd/sleeper:latest
-2018/04/25 17:11:30 mounted sha256:eb05f3dbdb543cc610527248690575bacbbcebabe6ecf665b189cf18b541e3ca
-2018/04/25 17:11:30 mounted sha256:3ca7d60fa89dc8a1faea3046fd3516f23dab93489f3888ae539df4abc0973e52
-2018/04/25 17:11:30 mounted sha256:e2cc7c829942a768015dbcfdad7205c104cb85b84a79573555a8f4381b98110c
-2018/04/25 17:11:30 pushed gcr.io/my-project/github.com/mattmoor/warm-image/cmd/sleeper:latest
-2018/04/25 17:11:30 Published gcr.io/my-project/github.com/mattmoor/warm-image/cmd/sleeper@sha256:193acdbeff1ea9f105f49d97a6ceb7adbd30b3d64a8b9949382f4be9569cd06d
-2018/04/25 17:11:37 Publishing gcr.io/my-project/github.com/mattmoor/warm-image/cmd/controller:latest
-2018/04/25 17:11:37 mounted sha256:dc0dd55edef1443e976c835825479c3dc713bb689547f8a170f8a0d14f9ff734
-2018/04/25 17:11:37 mounted sha256:eb05f3dbdb543cc610527248690575bacbbcebabe6ecf665b189cf18b541e3ca
-2018/04/25 17:11:37 mounted sha256:fbc44e14a1d848ed485b5c3f03611c3e21aaa197fcba579255e5f8416a1b7172
-2018/04/25 17:11:38 pushed gcr.io/my-project/github.com/mattmoor/warm-image/cmd/controller:latest
-2018/04/25 17:11:38 Published gcr.io/my-project/github.com/mattmoor/warm-image/cmd/controller@sha256:78794915fca48d0c4b339dc1df91a72f1e4bc6a7b33beaeef8aecda0947d5d31
-clusterrolebinding "warmimage-controller-admin" configured
-deployment "warmimage-controller" unchanged
-namespace "warmimage-system" configured
-serviceaccount "warmimage-controller" unchanged
-customresourcedefinition "warmimages.mattmoor.io" configured
+$ ko apply -f config/
+2018/07/19 14:56:41 Using base gcr.io/distroless/base:latest for github.com/mattmoor/warm-image/cmd/sleeper
+2018/07/19 14:56:42 Publishing us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37:latest
+2018/07/19 14:56:43 mounted blob: sha256:57752e7f9593cbfb7101af994b136a369ecc8174332866622db32a264f3fbefd
+2018/07/19 14:56:43 mounted blob: sha256:59df9d5b488aea2753ab7774ae41a9a3e96903f87ac699f3505960e744f36f7d
+2018/07/19 14:56:43 mounted blob: sha256:739b3deec2edb17c512f507894c55c2681f9724191d820cdc01f668330724ca7
+2018/07/19 14:56:44 us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37:latest: digest: sha256:6c7b96a294cad3ce613aac23c8aca5f9dd12a894354ab276c157fb5c1c2e3326 size: 592
+2018/07/19 14:56:44 Published us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37@sha256:6c7b96a294cad3ce613aac23c8aca5f9dd12a894354ab276c157fb5c1c2e3326
+2018/07/19 14:56:45 Using base gcr.io/distroless/base:latest for github.com/mattmoor/warm-image/cmd/controller
+2018/07/19 14:56:46 Publishing us.gcr.io/my-project/controller-9e91872fd7c48124dbe6ea83944b87e9:latest
+2018/07/19 14:56:46 mounted blob: sha256:007782ba6738188a59bf21b4d8e974f218615ee948c6357535d07e7248b2a560
+2018/07/19 14:56:46 mounted blob: sha256:57752e7f9593cbfb7101af994b136a369ecc8174332866622db32a264f3fbefd
+2018/07/19 14:56:46 mounted blob: sha256:7fec050f965d7fba3de4bd19739746dce5a5125331b7845bf02185ff5d4cc374
+2018/07/19 14:56:47 us.gcr.io/my-project/controller-9e91872fd7c48124dbe6ea83944b87e9:latest: digest: sha256:5a81029bb0cfd519c321aeeea2bc1b7dc6488b6c72003d3613442b4d5e4ed14d size: 593
+2018/07/19 14:56:47 Published us.gcr.io/my-project/controller-9e91872fd7c48124dbe6ea83944b87e9@sha256:5a81029bb0cfd519c321aeeea2bc1b7dc6488b6c72003d3613442b4d5e4ed14d
+namespace/warmimage-system configured
+clusterrolebinding.rbac.authorization.k8s.io/warmimage-controller-admin configured
+deployment.apps/warmimage-controller unchanged
+serviceaccount/warmimage-controller unchanged
+customresourcedefinition.apiextensions.k8s.io/warmimages.mattmoor.io configured
 ```
 
 ## Usage
@@ -126,13 +123,26 @@ an argument. It prints the images' published digests after each image is publish
 
 ```shell
 $ ko publish github.com/mattmoor/warm-image/cmd/sleeper
-2018/04/25 17:11:28 Go building github.com/mattmoor/warm-image/cmd/sleeper
-2018/04/25 17:11:29 Publishing gcr.io/my-project/github.com/mattmoor/warm-image/cmd/sleeper:latest
-2018/04/25 17:11:30 mounted sha256:eb05f3dbdb543cc610527248690575bacbbcebabe6ecf665b189cf18b541e3ca
-2018/04/25 17:11:30 mounted sha256:3ca7d60fa89dc8a1faea3046fd3516f23dab93489f3888ae539df4abc0973e52
-2018/04/25 17:11:30 mounted sha256:e2cc7c829942a768015dbcfdad7205c104cb85b84a79573555a8f4381b98110c
-2018/04/25 17:11:30 pushed gcr.io/my-project/github.com/mattmoor/warm-image/cmd/sleeper:latest
-2018/04/25 17:11:30 Published gcr.io/my-project/github.com/mattmoor/warm-image/cmd/sleeper@sha256:193acdbeff1ea9f105f49d97a6ceb7adbd30b3d64a8b9949382f4be9569cd06d
+2018/07/19 14:57:34 Using base gcr.io/distroless/base:latest for github.com/mattmoor/warm-image/cmd/sleeper
+2018/07/19 14:57:35 Publishing us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37:latest
+2018/07/19 14:57:35 mounted blob: sha256:739b3deec2edb17c512f507894c55c2681f9724191d820cdc01f668330724ca7
+2018/07/19 14:57:35 mounted blob: sha256:57752e7f9593cbfb7101af994b136a369ecc8174332866622db32a264f3fbefd
+2018/07/19 14:57:35 mounted blob: sha256:59df9d5b488aea2753ab7774ae41a9a3e96903f87ac699f3505960e744f36f7d
+2018/07/19 14:57:36 us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37:latest: digest: sha256:6c7b96a294cad3ce613aac23c8aca5f9dd12a894354ab276c157fb5c1c2e3326 size: 592
+2018/07/19 14:57:36 Published us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37@sha256:6c7b96a294cad3ce613aac23c8aca5f9dd12a894354ab276c157fb5c1c2e3326
+```
+
+`ko publish` also supports relative import paths, when in the context of a repo on `GOPATH`.
+
+```shell
+$ ko publish ./cmd/sleeper
+2018/07/19 14:58:16 Using base gcr.io/distroless/base:latest for github.com/mattmoor/warm-image/cmd/sleeper
+2018/07/19 14:58:16 Publishing us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37:latest
+2018/07/19 14:58:17 mounted blob: sha256:59df9d5b488aea2753ab7774ae41a9a3e96903f87ac699f3505960e744f36f7d
+2018/07/19 14:58:17 mounted blob: sha256:739b3deec2edb17c512f507894c55c2681f9724191d820cdc01f668330724ca7
+2018/07/19 14:58:17 mounted blob: sha256:57752e7f9593cbfb7101af994b136a369ecc8174332866622db32a264f3fbefd
+2018/07/19 14:58:18 us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37:latest: digest: sha256:6c7b96a294cad3ce613aac23c8aca5f9dd12a894354ab276c157fb5c1c2e3326 size: 592
+2018/07/19 14:58:18 Published us.gcr.io/my-project/sleeper-ebdb8b8b13d4bbe1d3592de055016d37@sha256:6c7b96a294cad3ce613aac23c8aca5f9dd12a894354ab276c157fb5c1c2e3326
 ```
 
 ### `ko resolve`
@@ -162,12 +172,43 @@ spec:
     spec:
       containers:
       - name: hello-world
+        # This is the digest of the published image containing the go binary.
+        image: gcr.io/your-project/helloworld-badf00d@sha256:deadbeef
+        ports:
+        - containerPort: 8080
+```
+
+Some Docker Registries (e.g. gcr.io) support multi-level repository names.  For
+these registries, it is often useful for discoverability and provenance to
+preserve the full import path, for this we expose `--preserve-import-paths`,
+or `-P` for short.
+
+```shell
+# Command
+export PROJECT_ID=$(gcloud config get-value core/project)
+export KO_DOCKER_REPO="gcr.io/${PROJECT_ID}"
+ko resolve -P -f deployment.yaml
+
+# Output
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: hello-world
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: hello-world
         # This is the digest of the published image containing the go binary
         # at the embedded import path.
         image: gcr.io/your-project/github.com/mattmoor/examples/http/cmd/helloworld@sha256:deadbeef
         ports:
         - containerPort: 8080
 ```
+
+It is notable that this is not the default (anymore) because certain popular
+registries (including Docker Hub) do not support multi-level repository names.
 
 ### `ko apply`
 
@@ -184,31 +225,6 @@ to whatever `kubectl` context is active.
 
 `ko delete` simply passes through to `kubectl delete`. It is exposed purely out
 of convenience for cleaning up resources created through `ko apply`.
-
-
-## With DockerHub
-
-Unfortunately, DockerHub does not support this sort of multi-level names, so you may see an error like:
-
-```shell
-$ KO_DOCKER_REPO=docker.io/mattmoor ko publish ./cmd/crane
-2018/07/19 03:25:56 Using base gcr.io/distroless/base:latest for github.com/google/go-containerregistry/cmd/crane
-2018/07/19 03:25:56 Publishing index.docker.io/mattmoor/github.com/google/go-containerregistry/cmd/crane:latest
-2018/07/19 03:25:57 error publishing github.com/google/go-containerregistry/cmd/crane: UNAUTHORIZED: "authentication required"
-```
-
-To support this, we have a flag that will flatten the import path to `{package}-{hash of import path}`:
-
-```shell
-$ KO_DOCKER_REPO=docker.io/mattmoor ko publish --flat ./cmd/crane
-2018/07/19 03:27:50 Using base gcr.io/distroless/base:latest for github.com/google/go-containerregistry/cmd/crane
-2018/07/19 03:27:51 Publishing index.docker.io/mattmoor/crane-5b4c7912e1f3680ea9ead8164184577f:latest
-2018/07/19 03:27:53 pushed blob sha256:edb0321a975b7d1ab56e0318449734cf66b1eb840fe8d4e3d731ebfdbadc77b7
-2018/07/19 03:27:54 pushed blob sha256:ea67e6e9b37c7641c0af30e7c3a1c121a98bedc81de5248f0ffa32a762b41844
-2018/07/19 03:27:55 pushed blob sha256:57752e7f9593cbfb7101af994b136a369ecc8174332866622db32a264f3fbefd
-2018/07/19 03:27:55 index.docker.io/mattmoor/crane-5b4c7912e1f3680ea9ead8164184577f:latest: digest: sha256:fae03fbb07136f37a0991629201ec6862ca232502dd2bee9ed6ce85cdb26296c size: 592
-2018/07/19 03:27:55 Published index.docker.io/mattmoor/crane-5b4c7912e1f3680ea9ead8164184577f@sha256:fae03fbb07136f37a0991629201ec6862ca232502dd2bee9ed6ce85cdb26296c
-```
 
 
 ## With `minikube`
@@ -242,6 +258,7 @@ use `imagePullPolicy: IfNotPresent`, which should work well with `ko` in
 all contexts.
 
 Images will appear in the Docker daemon as `ko.local/import.path.com/foo/cmd/bar`.
+With `--local` import paths are always preserved (see `--preserve-import-paths`).
 
 ## Configuration via `.ko.yaml`
 
@@ -303,6 +320,10 @@ export PROJECT_ID=<YOUR RELEASE PROJECT>
 export KO_DOCKER_REPO="gcr.io/${PROJECT_ID}"
 ko resolve -f config/ > release.yaml
 ```
+
+> Note that in this context it is recommended that you also provide `-P`, if
+> supported by your Docker registry. This improves users' ability to tie release
+> binaries back to their source.
 
 This will publish all of the binary components as container images to
 `gcr.io/my-releases/...` and create a `release.yaml` file containing all of the
