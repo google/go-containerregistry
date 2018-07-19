@@ -169,10 +169,6 @@ spec:
         - containerPort: 8080
 ```
 
-*Note that DockerHub does not currently support these multi-level names. We may
-employ alternate naming strategies in the future to broaden support, but this
-would sacrifice some amount of identifiability.*
-
 ### `ko apply`
 
 `ko apply` is intended to parallel `kubectl apply`, but acts on the same
@@ -188,6 +184,31 @@ to whatever `kubectl` context is active.
 
 `ko delete` simply passes through to `kubectl delete`. It is exposed purely out
 of convenience for cleaning up resources created through `ko apply`.
+
+
+## With DockerHub
+
+Unfortunately, DockerHub does not support this sort of multi-level names, so you may see an error like:
+
+```shell
+$ KO_DOCKER_REPO=docker.io/mattmoor ko publish ./cmd/crane
+2018/07/19 03:25:56 Using base gcr.io/distroless/base:latest for github.com/google/go-containerregistry/cmd/crane
+2018/07/19 03:25:56 Publishing index.docker.io/mattmoor/github.com/google/go-containerregistry/cmd/crane:latest
+2018/07/19 03:25:57 error publishing github.com/google/go-containerregistry/cmd/crane: UNAUTHORIZED: "authentication required"
+```
+
+To support this, we have a flag that will flatten the import path to `{package}-{hash of import path}`:
+
+```shell
+$ KO_DOCKER_REPO=docker.io/mattmoor ko publish --flat ./cmd/crane
+2018/07/19 03:27:50 Using base gcr.io/distroless/base:latest for github.com/google/go-containerregistry/cmd/crane
+2018/07/19 03:27:51 Publishing index.docker.io/mattmoor/crane-5b4c7912e1f3680ea9ead8164184577f:latest
+2018/07/19 03:27:53 pushed blob sha256:edb0321a975b7d1ab56e0318449734cf66b1eb840fe8d4e3d731ebfdbadc77b7
+2018/07/19 03:27:54 pushed blob sha256:ea67e6e9b37c7641c0af30e7c3a1c121a98bedc81de5248f0ffa32a762b41844
+2018/07/19 03:27:55 pushed blob sha256:57752e7f9593cbfb7101af994b136a369ecc8174332866622db32a264f3fbefd
+2018/07/19 03:27:55 index.docker.io/mattmoor/crane-5b4c7912e1f3680ea9ead8164184577f:latest: digest: sha256:fae03fbb07136f37a0991629201ec6862ca232502dd2bee9ed6ce85cdb26296c size: 592
+2018/07/19 03:27:55 Published index.docker.io/mattmoor/crane-5b4c7912e1f3680ea9ead8164184577f@sha256:fae03fbb07136f37a0991629201ec6862ca232502dd2bee9ed6ce85cdb26296c
+```
 
 
 ## With `minikube`

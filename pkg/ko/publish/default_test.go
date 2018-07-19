@@ -15,6 +15,8 @@
 package publish
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -65,12 +67,8 @@ func TestDefault(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	baseRepo, err := name.NewRepository(fmt.Sprintf("%s/%s", u.Host, base), name.WeakValidation)
-	if err != nil {
-		t.Fatalf("NewRepository() = %v", err)
-	}
-
-	def, err := NewDefault(baseRepo)
+	repoName := fmt.Sprintf("%s/%s", u.Host, base)
+	def, err := NewDefault(repoName)
 	if err != nil {
 		t.Errorf("NewDefault() = %v", err)
 	}
@@ -78,5 +76,66 @@ func TestDefault(t *testing.T) {
 		t.Errorf("Publish() = %v", err)
 	} else if !strings.HasPrefix(d.String(), tag.Repository.String()) {
 		t.Errorf("Publish() = %v, wanted prefix %v", d, tag.Repository)
+	}
+}
+
+func md5Hash(s string) string {
+	// md5 as hex.
+	hasher := md5.New()
+	hasher.Write([]byte(s))
+	return hex.EncodeToString(hasher.Sum(nil))
+}
+
+func TestDefaultWithCustomNamer(t *testing.T) {
+	img, err := random.Image(1024, 1)
+	if err != nil {
+		t.Fatalf("random.Image() = %v", err)
+	}
+	base := "blah"
+	importpath := "github.com/Google/go-containerregistry/cmd/crane"
+	expectedRepo := fmt.Sprintf("%s/%s", base, md5Hash(strings.ToLower(importpath)))
+	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case initiatePath:
+			if r.Method != http.MethodPost {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+			}
+			http.Error(w, "Mounted", http.StatusCreated)
+		case manifestPath:
+			if r.Method != http.MethodPut {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
+			}
+			http.Error(w, "Created", http.StatusCreated)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewTag() = %v", err)
+	}
+
+	repoName := fmt.Sprintf("%s/%s", u.Host, base)
+
+	def, err := NewDefault(repoName, WithNamer(md5Hash))
+	if err != nil {
+		t.Errorf("NewDefault() = %v", err)
+	}
+	if d, err := def.Publish(img, importpath); err != nil {
+		t.Errorf("Publish() = %v", err)
+	} else if !strings.HasPrefix(d.String(), repoName) {
+		t.Errorf("Publish() = %v, wanted prefix %v", d, tag.Repository)
+	} else if !strings.HasSuffix(d.Context().String(), md5Hash(strings.ToLower(importpath))) {
+		t.Errorf("Publish() = %v, wanted suffix %v", d.Context(), md5Hash(importpath))
 	}
 }

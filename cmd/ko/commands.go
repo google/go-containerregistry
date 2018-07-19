@@ -64,6 +64,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	})
 
 	lo := &LocalOptions{}
+	no := &NameOptions{}
 	fo := &FilenameOptions{}
 	apply := &cobra.Command{
 		Use:   "apply -f FILENAME",
@@ -86,7 +87,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 		Run: func(cmd *cobra.Command, args []string) {
 			// TODO(mattmoor): Use io.Pipe to avoid buffering the whole thing.
 			buf := bytes.NewBuffer(nil)
-			resolveFilesToWriter(fo, lo, buf)
+			resolveFilesToWriter(fo, no, lo, buf)
 
 			// Issue a "kubectl apply" command reading from stdin,
 			// to which we will pipe the resolved files.
@@ -106,6 +107,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 		},
 	}
 	addLocalArg(apply, lo)
+	addNamingArgs(apply, no)
 	addFileArg(apply, fo)
 	topLevel.AddCommand(apply)
 
@@ -126,10 +128,11 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko resolve -L -f config/`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			resolveFilesToWriter(fo, lo, os.Stdout)
+			resolveFilesToWriter(fo, no, lo, os.Stdout)
 		},
 	}
 	addLocalArg(resolve, lo)
+	addNamingArgs(resolve, no)
 	addFileArg(resolve, fo)
 	topLevel.AddCommand(resolve)
 
@@ -150,9 +153,10 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko publish -L github.com/foo/bar/cmd/baz github.com/foo/bar/cmd/blah`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			publishImages(args, lo)
+			publishImages(args, no, lo)
 		},
 	}
 	addLocalArg(publish, lo)
+	addNamingArgs(publish, no)
 	topLevel.AddCommand(publish)
 }
