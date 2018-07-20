@@ -20,32 +20,23 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/gcr"
-	"github.com/spf13/cobra"
 )
 
-var cmds = &cobra.Command{
-	Use:   "gcr",
-	Short: "gcr is a tool for managing container images on gcr.io",
-	Run:   func(cmd *cobra.Command, _ []string) { cmd.Usage() },
-}
-
 func main() {
-	// Use google-specific implementations for listing and gc.
-	cmds.AddCommand(gcr.NewCmdGc())
-	cmds.AddCommand(gcr.NewCmdList())
+	// Maintain a map of google-specific commands that we "override".
+	gcrCmds := make(map[string]bool)
+	for _, cmd := range gcr.Root.Commands() {
+		gcrCmds[cmd.Use] = true
+	}
 
 	// Use crane for everthing else so that this can be a drop-in replacement.
-	cmds.AddCommand(crane.NewCmdAppend())
-	cmds.AddCommand(crane.NewCmdConfig())
-	cmds.AddCommand(crane.NewCmdCopy())
-	cmds.AddCommand(crane.NewCmdDelete())
-	cmds.AddCommand(crane.NewCmdDigest())
-	cmds.AddCommand(crane.NewCmdManifest())
-	cmds.AddCommand(crane.NewCmdPull())
-	cmds.AddCommand(crane.NewCmdPush())
-	cmds.AddCommand(crane.NewCmdRebase())
+	for _, cmd := range crane.Root.Commands() {
+		if _, ok := gcrCmds[cmd.Use]; !ok {
+			gcr.Root.AddCommand(cmd)
+		}
+	}
 
-	if err := cmds.Execute(); err != nil {
+	if err := gcr.Root.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

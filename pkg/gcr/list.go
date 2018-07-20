@@ -26,6 +26,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func init() { Root.AddCommand(NewCmdList()) }
+
 func NewCmdList() *cobra.Command {
 	return &cobra.Command{
 		Use:   "ls",
