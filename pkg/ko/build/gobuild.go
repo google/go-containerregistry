@@ -134,7 +134,7 @@ func tarBinary(binary string) ([]byte, error) {
 		Size: stat.Size(),
 		// Use a fixed Mode, so that this isn't sensitive to the directory and umask
 		// under which it was created. Additionally, windows can only set 0222,
-		// 0444, or 0666, none of which be executable.
+		// 0444, or 0666, none of which are executable.
 		Mode: 0555,
 	}
 	// write the header to the tarball archive
@@ -143,6 +143,81 @@ func tarBinary(binary string) ([]byte, error) {
 	}
 	// copy the file data to the tarball
 	if _, err := io.Copy(tw, file); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func kodataPath(s string) (string, error) {
+	p, err := gb.Import(s, gb.Default.GOPATH, gb.ImportComment)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(p.Dir, "kodata"), nil
+}
+
+// Where kodata lives in the image.
+const kodataRoot = "/var/run/ko"
+
+func tarKoData(importpath string) ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	tw := tar.NewWriter(buf)
+	defer tw.Close()
+
+	root, err := kodataPath(importpath)
+	if err != nil {
+		return nil, err
+	}
+
+	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if path == root {
+			// Add an entry for /var/run/ko
+			header := &tar.Header{
+				Name:     kodataRoot,
+				Typeflag: tar.TypeDir,
+			}
+			// write the header to the tarball archive
+			return tw.WriteHeader(header)
+		}
+		if err != nil {
+			return err
+		}
+		// Skip other directories.
+		if info.Mode().IsDir() {
+			return nil
+		}
+
+		// Chase symlinks.
+		info, err = os.Stat(path)
+		if err != nil {
+			return err
+		}
+
+		// Open the file to copy it into the tarball.
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+
+		// Copy the file into the image tarball.
+		newPath := filepath.Join(kodataRoot, path[len(root):])
+		header := &tar.Header{
+			Name: newPath,
+			Size: info.Size(),
+			// Use a fixed Mode, so that this isn't sensitive to the directory and umask
+			// under which it was created. Additionally, windows can only set 0222,
+			// 0444, or 0666, none of which are executable.
+			Mode: 0555,
+		}
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		_, err = io.Copy(tw, file)
+		return err
+	})
+	if err != nil {
 		return nil, err
 	}
 
@@ -158,19 +233,32 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	}
 	defer os.RemoveAll(filepath.Dir(file))
 
-	// Construct a tarball with the binary.
-	layerBytes, err := tarBinary(file)
+	var layers []v1.Layer
+	// Create a layer from the kodata directory under this import path.
+	dataLayerBytes, err := tarKoData(s)
 	if err != nil {
 		return nil, err
 	}
-
-	// Create a layer from that tarball.
-	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return v1util.NopReadCloser(bytes.NewBuffer(layerBytes)), nil
+	dataLayer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return v1util.NopReadCloser(bytes.NewBuffer(dataLayerBytes)), nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	layers = append(layers, dataLayer)
+
+	// Construct a tarball with the binary and produce a layer.
+	binaryLayerBytes, err := tarBinary(file)
+	if err != nil {
+		return nil, err
+	}
+	binaryLayer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return v1util.NopReadCloser(bytes.NewBuffer(binaryLayerBytes)), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	layers = append(layers, binaryLayer)
 
 	// Determine the appropriate base image for this import path.
 	base, err := gb.getBase(s)
@@ -179,7 +267,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	}
 
 	// Augment the base image with our application layer.
-	withApp, err := mutate.AppendLayers(base, layer)
+	withApp, err := mutate.AppendLayers(base, layers...)
 	if err != nil {
 		return nil, err
 	}
@@ -190,8 +278,11 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	cfg = cfg.DeepCopy()
 	cfg.Config.Entrypoint = []string{appPath}
+	cfg.Config.Env = append(cfg.Config.Env, "KO_DATA_PATH="+kodataRoot)
+
 	image, err := mutate.Config(withApp, cfg.Config)
 	if err != nil {
 		return nil, err
@@ -201,6 +292,5 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if gb.creationTime != empty {
 		return mutate.CreatedAt(image, gb.creationTime)
 	}
-
 	return image, nil
 }

@@ -308,6 +308,54 @@ for `KO_DOCKER_REPO` is actually undesireable because each developer is (likely)
 using their own docker repository and cluster.
 
 
+## Including static assets
+
+A question that often comes up after using `ko` for a while is: "How do I
+include static assets in images produced with `ko`?".
+
+For this, `ko` builds around an idiom similar to `go test` and `testdata/`.
+`ko` will include all of the data under `<import path>/kodata/...` in the
+images it produces.
+
+These files are placed under `/var/run/ko/...`, but the appropriate mechanism
+for referencing them should be through the `KO_DATA_PATH` environment variable.
+The intent of this is to enable users to test things outside of `ko` as follows:
+
+```shell
+KO_DATA_PATH=$PWD/cmd/ko/test/kodata go run ./cmd/ko/test/*.go
+2018/07/19 23:35:20 Hello there
+```
+
+This produces identical output to being run within the container locally:
+
+```shell
+ko publish -L ./cmd/ko/test
+2018/07/19 23:36:11 Using base gcr.io/distroless/base:latest for github.com/google/go-containerregistry/cmd/ko/test
+2018/07/19 23:36:12 Loading ko.local/github.com/google/go-containerregistry/cmd/ko/test:703c205bf2f405af520b40536b87aafadcf181562b8faa6690fd2992084c8577
+2018/07/19 23:36:13 Loaded ko.local/github.com/google/go-containerregistry/cmd/ko/test:703c205bf2f405af520b40536b87aafadcf181562b8faa6690fd2992084c8577
+
+docker run -ti --rm ko.local/github.com/google/go-containerregistry/cmd/ko/test:703c205bf2f405af520b40536b87aafadcf181562b8faa6690fd2992084c8577
+2018/07/19 23:36:25 Hello there
+```
+
+... or on cluster:
+
+```shell
+ko apply -f cmd/ko/test/test.yaml
+2018/07/19 23:38:24 Using base gcr.io/distroless/base:latest for github.com/google/go-containerregistry/cmd/ko/test
+2018/07/19 23:38:25 Publishing us.gcr.io/my-project/test-294a7bdc57d85dc6ddeef5ba38a59fe9:latest
+2018/07/19 23:38:26 mounted blob: sha256:988abcba36b5948da8baa1e3616b94c0b56da814b8f6ff3ae3ac316e375e093a
+2018/07/19 23:38:26 mounted blob: sha256:57752e7f9593cbfb7101af994b136a369ecc8174332866622db32a264f3fbefd
+2018/07/19 23:38:26 mounted blob: sha256:f24d43c24e22298ed99ea125af6c1b828ae07716968f78cb6d09d4291a13f2d3
+2018/07/19 23:38:26 mounted blob: sha256:7a7bafbc2ae1bf844c47b33025dd459913a3fece0a94b1f3ced860675be2b79c
+2018/07/19 23:38:27 us.gcr.io/my-project/test-294a7bdc57d85dc6ddeef5ba38a59fe9:latest: digest: sha256:703c205bf2f405af520b40536b87aafadcf181562b8faa6690fd2992084c8577 size: 751
+2018/07/19 23:38:27 Published us.gcr.io/my-project/test-294a7bdc57d85dc6ddeef5ba38a59fe9@sha256:703c205bf2f405af520b40536b87aafadcf181562b8faa6690fd2992084c8577
+pod/kodata created
+
+kubectl logs kodata
+2018/07/19 23:38:29 Hello there
+```
+
 ## Relevance to Release Management
 
 `ko` is also useful for helping manage releases. For example, if your project
