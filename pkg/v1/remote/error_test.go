@@ -37,8 +37,8 @@ func TestCheckErrorNil(t *testing.T) {
 	for _, code := range tests {
 		resp := &http.Response{StatusCode: code}
 
-		if err := checkError(resp, code); err != nil {
-			t.Errorf("checkError(%d) = %v", code, err)
+		if err := CheckError(resp, code); err != nil {
+			t.Errorf("CheckError(%d) = %v", code, err)
 		}
 	}
 }
@@ -61,10 +61,10 @@ func TestCheckErrorNotError(t *testing.T) {
 			Body:       v1util.NopReadCloser(bytes.NewBufferString(test.body)),
 		}
 
-		if err := checkError(resp, http.StatusOK); err == nil {
-			t.Errorf("checkError(%d, %s) = nil, wanted error", test.code, test.body)
+		if err := CheckError(resp, http.StatusOK); err == nil {
+			t.Errorf("CheckError(%d, %s) = nil, wanted error", test.code, test.body)
 		} else if se, ok := err.(*Error); ok {
-			t.Errorf("checkError(%d, %s) = %v, wanted another type", test.code, test.body, se)
+			t.Errorf("CheckError(%d, %s) = %v, wanted another type", test.code, test.body, se)
 		}
 	}
 }
@@ -107,12 +107,12 @@ func TestCheckErrorWithError(t *testing.T) {
 			Body:       v1util.NopReadCloser(bytes.NewBuffer(b)),
 		}
 
-		if err := checkError(resp, http.StatusOK); err == nil {
-			t.Errorf("checkError(%d, %s) = nil, wanted error", test.code, string(b))
+		if err := CheckError(resp, http.StatusOK); err == nil {
+			t.Errorf("CheckError(%d, %s) = nil, wanted error", test.code, string(b))
 		} else if se, ok := err.(*Error); !ok {
-			t.Errorf("checkError(%d, %s) = %T, wanted *remote.Error", test.code, string(b), se)
+			t.Errorf("CheckError(%d, %s) = %T, wanted *remote.Error", test.code, string(b), se)
 		} else if diff := cmp.Diff(test.error, se); diff != "" {
-			t.Errorf("checkError(%d, %s); (-want +got) %s", test.code, string(b), diff)
+			t.Errorf("CheckError(%d, %s); (-want +got) %s", test.code, string(b), diff)
 		}
 	}
 }

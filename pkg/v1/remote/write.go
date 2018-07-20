@@ -158,7 +158,7 @@ func (w *writer) initiateUpload(h v1.Hash) (location string, mounted bool, err e
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp, http.StatusCreated, http.StatusAccepted); err != nil {
+	if err := CheckError(resp, http.StatusCreated, http.StatusAccepted); err != nil {
 		return "", false, err
 	}
 
@@ -201,7 +201,7 @@ func (w *writer) streamBlob(h v1.Hash, streamLocation string) (commitLocation st
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp, http.StatusNoContent, http.StatusAccepted, http.StatusCreated); err != nil {
+	if err := CheckError(resp, http.StatusNoContent, http.StatusAccepted, http.StatusCreated); err != nil {
 		return "", err
 	}
 
@@ -231,7 +231,7 @@ func (w *writer) commitBlob(h v1.Hash, location string) (err error) {
 	}
 	defer resp.Body.Close()
 
-	return checkError(resp, http.StatusCreated)
+	return CheckError(resp, http.StatusCreated)
 }
 
 // uploadOne performs a complete upload of a single layer.
@@ -282,7 +282,7 @@ func (w *writer) commitImage() error {
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
+	if err := CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
 		return err
 	}
 

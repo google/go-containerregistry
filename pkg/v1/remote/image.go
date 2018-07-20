@@ -125,7 +125,7 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp, http.StatusOK); err != nil {
+	if err := CheckError(resp, http.StatusOK); err != nil {
 		return nil, err
 	}
 
@@ -206,7 +206,7 @@ func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	if err := checkError(resp, http.StatusOK); err != nil {
+	if err := CheckError(resp, http.StatusOK); err != nil {
 		resp.Body.Close()
 		return nil, err
 	}
