@@ -134,7 +134,7 @@ func tarBinary(binary string) ([]byte, error) {
 		Size: stat.Size(),
 		// Use a fixed Mode, so that this isn't sensitive to the directory and umask
 		// under which it was created. Additionally, windows can only set 0222,
-		// 0444, or 0666, none of which be executable.
+		// 0444, or 0666, none of which are executable.
 		Mode: 0555,
 	}
 	// write the header to the tarball archive
@@ -208,7 +208,7 @@ func tarKoData(importpath string) ([]byte, error) {
 			Size: info.Size(),
 			// Use a fixed Mode, so that this isn't sensitive to the directory and umask
 			// under which it was created. Additionally, windows can only set 0222,
-			// 0444, or 0666, none of which be executable.
+			// 0444, or 0666, none of which are executable.
 			Mode: 0555,
 		}
 		if err := tw.WriteHeader(header); err != nil {
@@ -247,7 +247,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	}
 	layers = append(layers, dataLayer)
 
-	// Construct a tarball with the binary, and produce a layer.
+	// Construct a tarball with the binary and produce a layer.
 	binaryLayerBytes, err := tarBinary(file)
 	if err != nil {
 		return nil, err
