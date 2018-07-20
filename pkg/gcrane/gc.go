@@ -29,17 +29,23 @@ import (
 func init() { Root.AddCommand(NewCmdGc()) }
 
 func NewCmdGc() *cobra.Command {
-	return &cobra.Command{
+	recursive := false
+	cmd := &cobra.Command{
 		Use:   "gc",
 		Short: "List images that are not tagged",
 		Args:  cobra.ExactArgs(1),
-		Run:   gc,
+		Run: func(_ *cobra.Command, args []string) {
+			gc(args[0], recursive)
+		},
 	}
+
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
+
+	return cmd
 }
 
-func gc(_ *cobra.Command, args []string) {
-	r := args[0]
-	repo, err := name.NewRepository(r, name.WeakValidation)
+func gc(root string, recursive bool) {
+	repo, err := name.NewRepository(root, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -47,6 +53,14 @@ func gc(_ *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	if recursive {
+		if err := google.Walk(repo, auth, http.DefaultTransport, printUntaggedImages); err != nil {
+			log.Fatalln(err)
+		}
+		return
+	}
+
 	tags, err := google.List(repo, auth, http.DefaultTransport)
 	if err != nil {
 		log.Fatalln(err)
@@ -57,4 +71,18 @@ func gc(_ *cobra.Command, args []string) {
 			fmt.Printf("%s@%s\n", repo, digest)
 		}
 	}
+}
+
+func printUntaggedImages(repo name.Repository, tags *google.Tags, err error) error {
+	if err != nil {
+		return err
+	}
+
+	for digest, manifest := range tags.Manifests {
+		if len(manifest.Tags) == 0 {
+			fmt.Printf("%s@%s\n", repo, digest)
+		}
+	}
+
+	return nil
 }

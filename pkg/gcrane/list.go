@@ -29,17 +29,23 @@ import (
 func init() { Root.AddCommand(NewCmdList()) }
 
 func NewCmdList() *cobra.Command {
-	return &cobra.Command{
+	recursive := false
+	cmd := &cobra.Command{
 		Use:   "ls",
 		Short: "List the contents of a repo",
 		Args:  cobra.ExactArgs(1),
-		Run:   ls,
+		Run: func(_ *cobra.Command, args []string) {
+			ls(args[0], recursive)
+		},
 	}
+
+	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
+
+	return cmd
 }
 
-func ls(_ *cobra.Command, args []string) {
-	r := args[0]
-	repo, err := name.NewRepository(r, name.WeakValidation)
+func ls(root string, recursive bool) {
+	repo, err := name.NewRepository(root, name.WeakValidation)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -47,32 +53,45 @@ func ls(_ *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	if recursive {
+		if err := google.Walk(repo, auth, http.DefaultTransport, printImages); err != nil {
+			log.Fatalln(err)
+		}
+	}
+
 	tags, err := google.List(repo, auth, http.DefaultTransport)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	// Track what we saw in the response so we can fall back to non-GCR behavior.
-	gcrSpecific := false
+	if len(tags.Manifests) == 0 && len(tags.Children) == 0 {
+		// If we didn't see any GCR extensions, just list the tags like normal.
+		for _, tag := range tags.Tags {
+			fmt.Printf("%s:%s\n", repo, tag)
+		}
+		return
+	}
 
 	for _, child := range tags.Children {
 		fmt.Printf("%s/%s\n", repo, child)
 	}
 
+	_ = printImages(repo, tags, err)
+}
+
+func printImages(repo name.Repository, tags *google.Tags, err error) error {
+	if err != nil {
+		return err
+	}
+
 	for digest, manifest := range tags.Manifests {
-		gcrSpecific = true
 		fmt.Printf("%s@%s\n", repo, digest)
 
-		// For GCR, print the tags immediately after the digests they point to.
 		for _, tag := range manifest.Tags {
 			fmt.Printf("%s:%s\n", repo, tag)
 		}
 	}
 
-	if !gcrSpecific {
-		// If we didn't see any GCR extensions, just list the tags like normal.
-		for _, tag := range tags.Tags {
-			fmt.Printf("%s:%s\n", repo, tag)
-		}
-	}
+	return nil
 }

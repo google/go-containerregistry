@@ -125,3 +125,58 @@ func List(repo name.Repository, auth authn.Authenticator, t http.RoundTripper) (
 
 	return &tags, nil
 }
+
+// WalkFunc is the type of the function called for each repository visited by
+// Walk. This implements a simliar API to filepath.Walk.
+//
+// The repo argument contains the argument to Walk as a prefix; that is, if Walk
+// is called with "gcr.io/foo", which is a repository containing the repository
+// "bar", the walk function will be called with argument "gcr.io/foo/bar".
+// The tags and error arguments are the result of calling List on repo.
+//
+// TODO: Do we want a SkipDir error, as in filepath.WalkFunc?
+type WalkFunc func(repo name.Repository, tags *Tags, err error) error
+
+func walk(repo name.Repository, auth authn.Authenticator, t http.RoundTripper, tags *Tags, walkFn WalkFunc) error {
+	if tags == nil {
+		// This shouldn't happen.
+		return fmt.Errorf("tags nil for %q", repo)
+	}
+
+	if err := walkFn(repo, tags, nil); err != nil {
+		return err
+	}
+
+	for _, path := range tags.Children {
+		child, err := name.NewRepository(fmt.Sprintf("%s/%s", repo, path), name.StrictValidation)
+		if err != nil {
+			// We don't expect this ever, so don't pass it through to walkFn.
+			return fmt.Errorf("unexpected path failure: %v", err)
+		}
+
+		childTags, err := List(child, auth, t)
+		if err != nil {
+			if err := walkFn(repo, nil, err); err != nil {
+				return err
+			}
+		} else {
+			if err := walk(child, auth, t, childTags, walkFn); err != nil {
+				return err
+			}
+		}
+	}
+
+	// We made it!
+	return nil
+}
+
+// Walk recursively descends repositories, calling walkFn.
+// TODO: Do we need a keychain since this can take a while?
+func Walk(root name.Repository, auth authn.Authenticator, t http.RoundTripper, walkFn WalkFunc) error {
+	tags, err := List(root, auth, t)
+	if err != nil {
+		return walkFn(root, nil, err)
+	}
+
+	return walk(root, auth, t, tags, walkFn)
+}
