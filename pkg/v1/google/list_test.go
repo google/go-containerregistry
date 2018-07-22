@@ -20,12 +20,21 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 )
+
+func mustParseDuration(t *testing.T, d string) time.Duration {
+	dur, err := time.ParseDuration(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dur
+}
 
 func TestList(t *testing.T) {
 	cases := []struct {
@@ -40,21 +49,27 @@ func TestList(t *testing.T) {
 		wantTags:     &Tags{Tags: []string{"foo", "bar"}},
 	}, {
 		name:         "gcr success",
-		responseBody: []byte(`{"child":["hello", "world"],"manifest":{"digest1":{"imageSizeBytes":"1","tag":["foo"]},"digest2":{"imageSizeBytes":"2","tag":["bar"]}},"tags":["foo","bar"]}`),
+		responseBody: []byte(`{"child":["hello", "world"],"manifest":{"digest1":{"imageSizeBytes":"1","mediaType":"mainstream","timeCreatedms":"1","timeUploadedMs":"2","tag":["foo"]},"digest2":{"imageSizeBytes":"2","mediaType":"indie","timeCreatedMs":"3","timeUploadedMs":"4","tag":["bar","baz"]}},"tags":["foo","bar","baz"]}`),
 		wantErr:      false,
 		wantTags: &Tags{
 			Children: []string{"hello", "world"},
 			Manifests: map[string]ManifestInfo{
 				"digest1": {
-					Size: "1",
-					Tags: []string{"foo"},
+					Size:      1,
+					MediaType: "mainstream",
+					Created:   time.Unix(0, 0).Add(mustParseDuration(t, "1ms")),
+					Uploaded:  time.Unix(0, 0).Add(mustParseDuration(t, "2ms")),
+					Tags:      []string{"foo"},
 				},
 				"digest2": {
-					Size: "2",
-					Tags: []string{"bar"},
+					Size:      2,
+					MediaType: "indie",
+					Created:   time.Unix(0, 0).Add(mustParseDuration(t, "3ms")),
+					Uploaded:  time.Unix(0, 0).Add(mustParseDuration(t, "4ms")),
+					Tags:      []string{"bar", "baz"},
 				},
 			},
-			Tags: []string{"foo", "bar"},
+			Tags: []string{"foo", "bar", "baz"},
 		},
 	}, {
 		name:         "not json",

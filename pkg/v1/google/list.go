@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -26,16 +28,63 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
-type ManifestInfo struct {
-	// TODO: int64?
-	Size string `json:"imageSizeBytes"`
-	// TODO: types.MediaType?
+type rawManifestInfo struct {
+	Size      string   `json:"imageSizeBytes"`
 	MediaType string   `json:"mediaType"`
+	Created   string   `json:"timeCreatedMs"`
+	Uploaded  string   `json:"timeUploadedMs"`
 	Tags      []string `json:"tag"`
-	// TODO: time?
-	Created string `json:"timeCreatedMs"`
-	// TODO: time?
-	Uploaded string `json:"timeUploadedMs"`
+}
+
+type ManifestInfo struct {
+	Size      uint64    `json:"imageSizeBytes"`
+	MediaType string    `json:"mediaType"`
+	Created   time.Time `json:"timeCreatedMs"`
+	Uploaded  time.Time `json:"timeUploadedMs"`
+	Tags      []string  `json:"tag"`
+}
+
+func fromUnixMs(ms int64) time.Time {
+	sec := ms / 1000
+	ns := (ms % 1000) * 1000000
+	return time.Unix(sec, ns)
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (m *ManifestInfo) UnmarshalJSON(data []byte) error {
+	raw := rawManifestInfo{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	if raw.Size != "" {
+		size, err := strconv.ParseUint(string(raw.Size), 10, 64)
+		if err != nil {
+			return err
+		}
+		m.Size = size
+	}
+
+	if raw.Created != "" {
+		created, err := strconv.ParseInt(string(raw.Created), 10, 64)
+		if err != nil {
+			return err
+		}
+		m.Created = fromUnixMs(created)
+	}
+
+	if raw.Uploaded != "" {
+		uploaded, err := strconv.ParseInt(string(raw.Uploaded), 10, 64)
+		if err != nil {
+			return err
+		}
+		m.Uploaded = fromUnixMs(uploaded)
+	}
+
+	m.MediaType = raw.MediaType
+	m.Tags = raw.Tags
+
+	return nil
 }
 
 type Tags struct {
