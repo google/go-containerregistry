@@ -12,12 +12,17 @@ This is a golang library for working with container registries. It's largely bas
 
 ## Tools
 
-This repo hosts two tools built on top of the library.
+This repo hosts three tools built on top of the library.
+
+### ko
+
+[`ko`](cmd/ko/README.md) is a tool for building and deploying golang applications to kubernetes.
 
 ### crane
 
 [`crane`](cmd/crane/doc/crane.md) is a tool for interacting with remote images and registries.
 
-### ko
+### gcrane
 
-[`ko`](cmd/ko/README.md) is a tool for building and deploying golang applications to kubernetes.
+[`gcrane`](cmd/gcrane/README.md) is a variant of `crane` that has richer output for
+the `ls` subcommand and some basic garbage collection support.

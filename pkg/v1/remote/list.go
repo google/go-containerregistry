@@ -51,7 +51,7 @@ func List(repo name.Repository, auth authn.Authenticator, t http.RoundTripper) (
 	}
 	defer resp.Body.Close()
 
-	if err := checkError(resp, http.StatusOK); err != nil {
+	if err := CheckError(resp, http.StatusOK); err != nil {
 		return nil, err
 	}
 
