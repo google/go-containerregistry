@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcr
+package gcrane
 
 import (
 	"net/http"
@@ -26,18 +26,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdGc()) }
+func init() { Root.AddCommand(NewCmdList()) }
 
-func NewCmdGc() *cobra.Command {
+func NewCmdList() *cobra.Command {
 	return &cobra.Command{
-		Use:   "gc",
-		Short: "List images that are not tagged",
+		Use:   "ls",
+		Short: "List the contents of a repo",
 		Args:  cobra.ExactArgs(1),
-		Run:   gc,
+		Run:   ls,
 	}
 }
 
-func gc(_ *cobra.Command, args []string) {
+func ls(_ *cobra.Command, args []string) {
 	r := args[0]
 	repo, err := name.NewRepository(r, name.WeakValidation)
 	if err != nil {
@@ -52,9 +52,27 @@ func gc(_ *cobra.Command, args []string) {
 		log.Fatalln(err)
 	}
 
+	// Track what we saw in the response so we can fall back to non-GCR behavior.
+	gcrSpecific := false
+
+	for _, child := range tags.Children {
+		fmt.Printf("%s/%s\n", repo, child)
+	}
+
 	for digest, manifest := range tags.Manifests {
-		if len(manifest.Tags) == 0 {
-			fmt.Printf("%s@%s\n", repo, digest)
+		gcrSpecific = true
+		fmt.Printf("%s@%s\n", repo, digest)
+
+		// For GCR, print the tags immediately after the digests they point to.
+		for _, tag := range manifest.Tags {
+			fmt.Printf("%s:%s\n", repo, tag)
+		}
+	}
+
+	if !gcrSpecific {
+		// If we didn't see any GCR extensions, just list the tags like normal.
+		for _, tag := range tags.Tags {
+			fmt.Printf("%s:%s\n", repo, tag)
 		}
 	}
 }

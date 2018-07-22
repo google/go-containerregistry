@@ -10,13 +10,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcr
+package gcrane
 
 import "github.com/spf13/cobra"
 
 var Root = &cobra.Command{
-	Use:               "gcr",
-	Short:             "gcr is a tool for managing container images on gcr.io",
+	Use:               "gcrane",
+	Short:             "gcrane is a tool for managing container images on gcr.io",
 	Run:               func(cmd *cobra.Command, _ []string) { cmd.Usage() },
 	DisableAutoGenTag: true,
 }

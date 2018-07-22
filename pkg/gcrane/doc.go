@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gcr holds libraries used to implement the gcr CLI.
-package gcr
+// Package gcrane holds libraries used to implement the gcrane CLI.
+package gcrane

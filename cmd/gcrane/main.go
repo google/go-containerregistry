@@ -19,24 +19,24 @@ import (
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/gcr"
+	"github.com/google/go-containerregistry/pkg/gcrane"
 )
 
 func main() {
 	// Maintain a map of google-specific commands that we "override".
 	gcrCmds := make(map[string]bool)
-	for _, cmd := range gcr.Root.Commands() {
+	for _, cmd := range gcrane.Root.Commands() {
 		gcrCmds[cmd.Use] = true
 	}
 
 	// Use crane for everthing else so that this can be a drop-in replacement.
 	for _, cmd := range crane.Root.Commands() {
 		if _, ok := gcrCmds[cmd.Use]; !ok {
-			gcr.Root.AddCommand(cmd)
+			gcrane.Root.AddCommand(cmd)
 		}
 	}
 
-	if err := gcr.Root.Execute(); err != nil {
+	if err := gcrane.Root.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

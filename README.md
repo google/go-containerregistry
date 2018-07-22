@@ -22,7 +22,7 @@ This repo hosts three tools built on top of the library.
 
 [`crane`](cmd/crane/doc/crane.md) is a tool for interacting with remote images and registries.
 
-### gcr
+### gcrane
 
-[`gcr`](cmd/gcr/README.md) is a variant of `crane` that has richer output for
+[`gcrane`](cmd/gcrane/README.md) is a variant of `crane` that has richer output for
 the `ls` subcommand and some basic garbage collection support.

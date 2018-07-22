@@ -1,4 +1,4 @@
-# gcr
+# gcrane
 
 This tool implements a superset of the commands under [`cmd/crane`](), with
 additional commands that are specific to [gcr.io](https://gcr.io).
@@ -9,17 +9,17 @@ so this may break in the future.
 
 ## ls
 
-`gcr ls` exposes a more complex form of `ls` than `crane`, which allows for listing
+`gcrane ls` exposes a more complex form of `ls` than `crane`, which allows for listing
 tags, manifests, and sub-repositories.
 
 ## gc
 
-`gcr gc` will calculate images that can be garbage-collected.
+`gcrane gc` will calculate images that can be garbage-collected.
 By default, it will print any images that do not have tags pointing to them.
 
-This can be composed with `gcr delete` to actually garbage collect them:
+This can be composed with `gcrane delete` to actually garbage collect them:
 ```shell
-gcr gc gcr.io/${PROJECT_ID}/repo | xargs -n1 gcr delete
+gcrane gc gcr.io/${PROJECT_ID}/repo | xargs -n1 gcrane delete
 ```
 
 <!--
