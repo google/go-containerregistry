@@ -159,6 +159,9 @@ func TestRegistryScheme(t *testing.T) {
 	}, {
 		domain: "index.docker.io",
 		scheme: "https",
+	}, {
+		domain: "::1",
+		scheme: "http",
 	}}
 
 	for _, test := range tests {

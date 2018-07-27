@@ -31,6 +31,9 @@ var reLocal = regexp.MustCompile(`.*\.local(?:host)?(?::\d{1,5})?$`)
 // Detect the loopback IP (127.0.0.1)
 var reLoopback = regexp.MustCompile(regexp.QuoteMeta("127.0.0.1"))
 
+// Detect the loopback IPV6 (::1)
+var reipv6Loopback = regexp.MustCompile(regexp.QuoteMeta("::1"))
+
 // Registry stores a docker registry name in a structured form.
 type Registry struct {
 	insecure bool
@@ -72,6 +75,9 @@ func (r Registry) Scheme() string {
 		return "http"
 	}
 	if reLoopback.MatchString(r.Name()) {
+		return "http"
+	}
+	if reipv6Loopback.MatchString(r.Name()) {
 		return "http"
 	}
 	return "https"
