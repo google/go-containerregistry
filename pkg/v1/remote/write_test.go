@@ -30,7 +30,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
-	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -90,7 +89,7 @@ func TestNextLocation(t *testing.T) {
 			},
 			Request: &http.Request{
 				URL: &url.URL{
-					Scheme: transport.Scheme(ref.Registry),
+					Scheme: ref.Registry.Scheme(),
 					Host:   ref.RegistryStr(),
 				},
 			},
