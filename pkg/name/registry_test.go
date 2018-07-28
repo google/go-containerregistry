@@ -71,6 +71,22 @@ func TestNewRegistry(t *testing.T) {
 	}
 }
 
+func TestNewInsecureRegistry(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range append(goodStrictValidationRegistryNames, goodWeakValidationRegistryNames...) {
+		if _, err := NewInsecureRegistry(name, WeakValidation); err != nil {
+			t.Errorf("`%s` should be a valid Registry name, got error: %v", name, err)
+		}
+	}
+
+	for _, name := range badRegistryNames {
+		if repo, err := NewInsecureRegistry(name, WeakValidation); err == nil {
+			t.Errorf("`%s` should be an invalid Registry name, got Registry: %#v", name, repo)
+		}
+	}
+}
+
 func TestDefaultRegistryNames(t *testing.T) {
 	testRegistries := []string{"docker.io", ""}
 
@@ -117,5 +133,58 @@ func TestRegistryScopes(t *testing.T) {
 	actualScope := registry.Scope(testAction)
 	if actualScope != expectedScope {
 		t.Errorf("scope was incorrect for %v. Wanted: `%s` Got: `%s`", registry, expectedScope, actualScope)
+	}
+}
+
+func TestRegistryScheme(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		domain string
+		scheme string
+	}{{
+		domain: "foo.svc.local:1234",
+		scheme: "http",
+	}, {
+		domain: "127.0.0.1:1234",
+		scheme: "http",
+	}, {
+		domain: "127.0.0.1",
+		scheme: "http",
+	}, {
+		domain: "localhost:8080",
+		scheme: "http",
+	}, {
+		domain: "gcr.io",
+		scheme: "https",
+	}, {
+		domain: "index.docker.io",
+		scheme: "https",
+	}, {
+		domain: "::1",
+		scheme: "http",
+	}}
+
+	for _, test := range tests {
+		reg, err := NewRegistry(test.domain, WeakValidation)
+		if err != nil {
+			t.Errorf("NewRegistry(%s) = %v", test.domain, err)
+		}
+		if got, want := reg.Scheme(), test.scheme; got != want {
+			t.Errorf("scheme(%v); got %v, want %v", reg, got, want)
+		}
+	}
+}
+
+func TestRegistryInsecureScheme(t *testing.T) {
+	t.Parallel()
+	domain := "gcr.io"
+
+	reg, err := NewInsecureRegistry(domain, WeakValidation)
+	if err != nil {
+		t.Errorf("NewRegistry(%s) = %v", domain, err)
+	}
+
+	if got := reg.Scheme(); got != "http" {
+		t.Errorf("scheme(%v); got %v, want http", reg, got)
 	}
 }

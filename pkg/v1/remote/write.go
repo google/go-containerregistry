@@ -103,7 +103,7 @@ type writer struct {
 // url returns a url.Url for the specified path in the context of this remote image reference.
 func (w *writer) url(path string) url.URL {
 	return url.URL{
-		Scheme: transport.Scheme(w.ref.Context().Registry),
+		Scheme: w.ref.Context().Registry.Scheme(),
 		Host:   w.ref.Context().RegistryStr(),
 		Path:   path,
 	}

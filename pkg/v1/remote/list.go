@@ -39,7 +39,7 @@ func List(repo name.Repository, auth authn.Authenticator, t http.RoundTripper) (
 	}
 
 	uri := url.URL{
-		Scheme: transport.Scheme(repo.Registry),
+		Scheme: repo.Registry.Scheme(),
 		Host:   repo.Registry.RegistryStr(),
 		Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
 	}
