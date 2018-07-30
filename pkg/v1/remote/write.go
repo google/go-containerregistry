@@ -293,15 +293,21 @@ func (w *writer) commitImage() error {
 
 func scopesForUploadingImage(ref name.Reference, layers []v1.Layer) []string {
 	// use a map as set to remove duplicates scope strings
-	scopeSet := map[string]struct{}{ref.Scope(transport.PushScope): {}}
+	scopeSet := map[string]struct{}{}
 
 	for _, l := range layers {
 		if ml, ok := l.(*MountableLayer); ok {
-			scopeSet[ml.Reference.Context().Scope(transport.PullScope)] = struct{}{}
+			// we add push scope for ref.Context() after the loop
+			if ml.Reference.Context() != ref.Context() {
+				scopeSet[ml.Reference.Context().Scope(transport.PullScope)] = struct{}{}
+			}
 		}
 	}
 
 	scopes := make([]string, 0)
+	// Push scope should be the first element because a few registries just look at the first scope to determine access.
+	scopes = append(scopes, ref.Scope(transport.PushScope))
+
 	for scope, _ := range scopeSet {
 		scopes = append(scopes, scope)
 	}
