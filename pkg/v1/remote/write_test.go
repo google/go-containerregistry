@@ -611,28 +611,18 @@ func TestWriteWithErrors(t *testing.T) {
 }
 
 func TestScopesForUploadingImage(t *testing.T) {
-	serverHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-		w.Write([]byte("ok"))
-	})
-	server := httptest.NewServer(serverHandler)
-	u, err := url.Parse(server.URL)
-	if err != nil {
-		server.Close()
-		t.Fatalf("httptest.NewServer() = %v", err)
-	}
 
-	referenceToUpload, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, "sample/sample"), name.WeakValidation)
+	referenceToUpload, err := name.NewTag("example.com/sample/sample:latest", name.WeakValidation)
 	if err != nil {
 		t.Fatalf("name.NewTag() = %v", err)
 	}
 
-	anotherRepo1, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, "sample/another_repo1"), name.WeakValidation)
+	anotherRepo1, err := name.NewTag("example.com/sample/another_repo1:latest", name.WeakValidation)
 	if err != nil {
 		t.Fatalf("name.NewTag() = %v", err)
 	}
 
-	anotherRepo2, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, "sample/another_repo2"), name.WeakValidation)
+	anotherRepo2, err := name.NewTag("example.com/sample/another_repo2:latest", name.WeakValidation)
 	if err != nil {
 		t.Fatalf("name.NewTag() = %v", err)
 	}
@@ -741,7 +731,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 	for _, testCase := range testCases {
 		actual := scopesForUploadingImage(testCase.reference, testCase.layers)
 		if !reflect.DeepEqual(sort.StringsAreSorted(actual), sort.StringsAreSorted(testCase.expected)) {
-			t.Errorf("TestScopesForUploadingImage() %s: (want, got) = (%v, %v)", testCase.name, testCase.expected, actual)
+			t.Errorf("TestScopesForUploadingImage() %s: (want, got) = (%v, %v)", testCase.name, sort.StringsAreSorted(testCase.expected), sort.StringsAreSorted(actual))
 		}
 	}
 }
