@@ -22,11 +22,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"reflect"
-	"sort"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -649,7 +649,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 			},
 		},
 		{
-			name:      "mountable layers with single reference with no duplicate",
+			name:      "mountable layers with single reference with no-duplicate",
 			reference: referenceToUpload,
 			layers: []v1.Layer{
 				&MountableLayer{
@@ -728,10 +728,18 @@ func TestScopesForUploadingImage(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range testCases {
-		actual := scopesForUploadingImage(testCase.reference, testCase.layers)
-		if !reflect.DeepEqual(sort.StringsAreSorted(actual), sort.StringsAreSorted(testCase.expected)) {
-			t.Errorf("TestScopesForUploadingImage() %s: (want, got) = (%v, %v)", testCase.name, sort.StringsAreSorted(testCase.expected), sort.StringsAreSorted(actual))
+	for _, tc := range testCases {
+		actual := scopesForUploadingImage(tc.reference, tc.layers)
+
+		if want, got := tc.expected[0], actual[0]; want != got {
+			t.Errorf("TestScopesForUploadingImage() %s: Wrong first scope; want %v, got %v", tc.name, want, got)
+		}
+
+		less := func(a, b string) bool {
+			return strings.Compare(a, b) <= -1
+		}
+		if diff := cmp.Diff(tc.expected[1:], actual[1:], cmpopts.SortSlices(less)); diff != "" {
+			t.Errorf("TestScopesForUploadingImage() %s: Wrong scopes (-want +got) = %v", tc.name, diff)
 		}
 	}
 }
