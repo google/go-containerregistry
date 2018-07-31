@@ -22,14 +22,18 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -603,5 +607,139 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)
 	} else if diff := cmp.Diff(expectedError, se); diff != "" {
 		t.Errorf("Write(); (-want +got) = %s", diff)
+	}
+}
+
+func TestScopesForUploadingImage(t *testing.T) {
+
+	referenceToUpload, err := name.NewTag("example.com/sample/sample:latest", name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag() = %v", err)
+	}
+
+	anotherRepo1, err := name.NewTag("example.com/sample/another_repo1:latest", name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag() = %v", err)
+	}
+
+	anotherRepo2, err := name.NewTag("example.com/sample/another_repo2:latest", name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag() = %v", err)
+	}
+
+	img := setupImage(t)
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("img.Layers() = %v", err)
+	}
+	dummyLayer := layers[0]
+
+	testCases := []struct {
+		name      string
+		reference name.Reference
+		layers    []v1.Layer
+		expected  []string
+	}{
+		{
+			name:      "empty layers",
+			reference: referenceToUpload,
+			layers:    []v1.Layer{},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+			},
+		},
+		{
+			name:      "mountable layers with single reference with no-duplicate",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+				anotherRepo1.Scope(transport.PullScope),
+			},
+		},
+		{
+			name:      "mountable layers with single reference with duplicate",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+				anotherRepo1.Scope(transport.PullScope),
+			},
+		},
+		{
+			name:      "mountable layers with multiple references with no-duplicates",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo2,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+				anotherRepo1.Scope(transport.PullScope),
+				anotherRepo2.Scope(transport.PullScope),
+			},
+		},
+		{
+			name:      "mountable layers with multiple references with duplicates",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo2,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo1,
+				},
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: anotherRepo2,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+				anotherRepo1.Scope(transport.PullScope),
+				anotherRepo2.Scope(transport.PullScope),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		actual := scopesForUploadingImage(tc.reference, tc.layers)
+
+		if want, got := tc.expected[0], actual[0]; want != got {
+			t.Errorf("TestScopesForUploadingImage() %s: Wrong first scope; want %v, got %v", tc.name, want, got)
+		}
+
+		less := func(a, b string) bool {
+			return strings.Compare(a, b) <= -1
+		}
+		if diff := cmp.Diff(tc.expected[1:], actual[1:], cmpopts.SortSlices(less)); diff != "" {
+			t.Errorf("TestScopesForUploadingImage() %s: Wrong scopes (-want +got) = %v", tc.name, diff)
+		}
 	}
 }
