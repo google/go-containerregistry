@@ -154,6 +154,90 @@ func setupWriterWithServer(server *httptest.Server, repo string, img v1.Image) (
 	}, server, nil
 }
 
+func TestCheckExistingFound(t *testing.T) {
+	img := setupImage(t)
+	h := mustConfigName(t, img)
+	expectedRepo := "foo/bar"
+	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
+
+	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodHead {
+			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+		}
+		if r.URL.Path != expectedPath {
+			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+		}
+		http.Error(w, "Found", http.StatusOK)
+	}))
+	if err != nil {
+		t.Fatalf("setupWriter() = %v", err)
+	}
+	defer closer.Close()
+
+	existing, err := w.checkExisting(h)
+	if err != nil {
+		t.Errorf("checkExisting() = %v", err)
+	}
+	if !existing {
+		t.Error("checkExisting() = !existing, want existing")
+	}
+}
+
+func TestCheckExistingNotFound(t *testing.T) {
+	img := setupImage(t)
+	h := mustConfigName(t, img)
+	expectedRepo := "foo/bar"
+	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
+
+	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodHead {
+			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+		}
+		if r.URL.Path != expectedPath {
+			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+		}
+		http.Error(w, "NotFound", http.StatusNotFound)
+	}))
+	if err != nil {
+		t.Fatalf("setupWriter() = %v", err)
+	}
+	defer closer.Close()
+
+	existing, err := w.checkExisting(h)
+	if err != nil {
+		t.Errorf("checkExisting() = %v", err)
+	}
+	if existing {
+		t.Error("checkExisting() = existing, want !existing")
+	}
+}
+
+func TestCheckExistingError(t *testing.T) {
+	img := setupImage(t)
+	h := mustConfigName(t, img)
+	expectedRepo := "foo/bar"
+	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
+
+	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodHead {
+			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+		}
+		if r.URL.Path != expectedPath {
+			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+		}
+		http.Error(w, "Found - Error", http.StatusBadRequest)
+	}))
+	if err != nil {
+		t.Fatalf("setupWriter() = %v", err)
+	}
+	defer closer.Close()
+
+	existing, err := w.checkExisting(h)
+	if err == nil {
+		t.Errorf("checkExisting() = %v; wanted error", existing)
+	}
+}
+
 func TestInitiateUploadNoMountsExists(t *testing.T) {
 	img := setupImage(t)
 	h := mustConfigName(t, img)
@@ -431,12 +515,18 @@ func TestUploadOne(t *testing.T) {
 	img := setupImage(t)
 	h := mustConfigName(t, img)
 	expectedRepo := "baz/blah"
+	headPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	streamPath := "/path/to/upload"
 	commitPath := "/path/to/commit"
 
 	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case headPath:
+			if r.Method != http.MethodHead {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+			}
+			http.Error(w, "NotFound", http.StatusNotFound)
 		case initiatePath:
 			if r.Method != http.MethodPost {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
@@ -525,10 +615,15 @@ func TestCommitImage(t *testing.T) {
 func TestWrite(t *testing.T) {
 	img := setupImage(t)
 	expectedRepo := "write/time"
+	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
 		switch r.URL.Path {
 		case "/v2/":
 			w.WriteHeader(http.StatusOK)
@@ -564,6 +659,7 @@ func TestWrite(t *testing.T) {
 func TestWriteWithErrors(t *testing.T) {
 	img := setupImage(t)
 	expectedRepo := "write/time"
+	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 
 	expectedError := &Error{
@@ -574,6 +670,10 @@ func TestWriteWithErrors(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
 		switch r.URL.Path {
 		case "/v2/":
 			w.WriteHeader(http.StatusOK)
