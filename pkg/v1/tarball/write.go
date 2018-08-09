@@ -32,24 +32,35 @@ type WriteOptions struct {
 	// TODO(mattmoor): Whether to store things compressed?
 }
 
-// WriteToFile writes in the compressed format to a tarball, on disk.
-// This is just syntactic sugar wrapping tarball.Write with a new file.
+// WriteToFile is a wrapper for WriteContentsToFile for a single tag.
 func WriteToFile(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
+	return WriteContentsToFile(p, []name.Tag{tag}, img, wo)
+}
+
+// WriteContentsToFile writes in the compressed format to a tarball, on disk.
+// This is just syntactic sugar wrapping tarball.Write with a new file.
+func WriteContentsToFile(p string, tags []name.Tag, img v1.Image, wo *WriteOptions) error {
 	w, err := os.Create(p)
 	if err != nil {
 		return err
 	}
 	defer w.Close()
 
-	return Write(tag, img, wo, w)
+	return WriteContents(tags, img, wo, w)
 }
 
-// Write the contents of the image to the provided reader, in the compressed format.
+// Write is a wrapper for WriteContents that takes in a single tag.
+// This is mainly for backwards compatibility.
+func Write(tag name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
+	return WriteContents([]name.Tag{tag}, img, wo, w)
+}
+
+// WriteContents the contents of the image to the provided reader, in the compressed format.
 // The contents are written in the following format:
 // One manifest.json file at the top level containing information about several images.
 // One file for each layer, named after the layer's SHA.
 // One file for the config blob, named after its SHA.
-func Write(tag name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
+func WriteContents(tags []name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
@@ -103,11 +114,15 @@ func Write(tag name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
 		}
 	}
 
+	repotags := []string{}
+	for _, tag := range tags {
+		repotags = append(repotags, tag.String())
+	}
 	// Generate the tar descriptor and write it.
 	td := tarDescriptor{
 		singleImageTarDescriptor{
 			Config:   cfgName.String(),
-			RepoTags: []string{tag.String()},
+			RepoTags: repotags,
 			Layers:   layerFiles,
 		},
 	}
