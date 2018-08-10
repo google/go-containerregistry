@@ -115,7 +115,7 @@ func build(ip string) (string, error) {
 	return file, nil
 }
 
-func tarBinary(binary string) (io.Reader, error) {
+func tarBinary(binary string) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 	tw := tar.NewWriter(buf)
 	defer tw.Close()
@@ -160,7 +160,7 @@ func kodataPath(s string) (string, error) {
 // Where kodata lives in the image.
 const kodataRoot = "/var/run/ko"
 
-func tarKoData(importpath string) (io.Reader, error) {
+func tarKoData(importpath string) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 	tw := tar.NewWriter(buf)
 	defer tw.Close()
@@ -239,8 +239,9 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
+	dataLayerBytes := dataLayerBuf.Bytes()
 	dataLayer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return v1util.NopReadCloser(dataLayerBuf), nil
+		return v1util.NopReadCloser(bytes.NewBuffer(dataLayerBytes)), nil
 	})
 	if err != nil {
 		return nil, err
@@ -252,8 +253,9 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
+	binaryLayerBytes := binaryLayerBuf.Bytes()
 	binaryLayer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return v1util.NopReadCloser(binaryLayerBuf), nil
+		return v1util.NopReadCloser(bytes.NewBuffer(binaryLayerBytes)), nil
 	})
 	if err != nil {
 		return nil, err
