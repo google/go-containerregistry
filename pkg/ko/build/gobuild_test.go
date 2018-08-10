@@ -99,12 +99,17 @@ func TestGoBuildNoKoData(t *testing.T) {
 
 	img, err := ng.Build(filepath.Join(importpath, "cmd", "crane"))
 	if err != nil {
-		t.Errorf("Build() = %v", err)
+		t.Fatalf("Build() = %v", err)
 	}
 
 	ls, err := img.Layers()
 	if err != nil {
-		t.Errorf("Layers() = %v", err)
+		t.Fatalf("Layers() = %v", err)
+	}
+
+	dig, err := img.Digest()
+	if err != nil {
+		t.Fatalf("Digest() = %v", err)
 	}
 
 	// Check that we have the expected number of layers.
@@ -115,19 +120,17 @@ func TestGoBuildNoKoData(t *testing.T) {
 		}
 	})
 
-	// While we have a randomized base image, the application layer should be completely deterministic.
-	// Check that when given fixed build outputs we get a fixed layer hash.
+	// Check that rebuilding the image again results in the same image digest.
 	t.Run("check determinism", func(t *testing.T) {
-		expectedHash := v1.Hash{
-			Algorithm: "sha256",
-			Hex:       "a688c9bc444d0a34cbc24abd62aa2fa263f61f2060963bb7a4fc3fa92075a2bf",
+		img2, err := ng.Build(filepath.Join(importpath, "cmd", "crane"))
+		if err != nil {
+			t.Fatalf("Build() = %v", err)
 		}
-		appLayer := ls[baseLayers+1]
 
-		if got, err := appLayer.Digest(); err != nil {
-			t.Errorf("Digest() = %v", err)
-		} else if got != expectedHash {
-			t.Errorf("Digest() = %v, want %v", got, expectedHash)
+		if got, err := img2.Digest(); err != nil {
+			t.Fatalf("Digest() = %v", err)
+		} else if got != dig {
+			t.Errorf("Digest() = %v, want %v", got, dig)
 		}
 	})
 
@@ -177,12 +180,17 @@ func TestGoBuild(t *testing.T) {
 
 	img, err := ng.Build(filepath.Join(importpath, "cmd", "ko", "test"))
 	if err != nil {
-		t.Errorf("Build() = %v", err)
+		t.Fatalf("Build() = %v", err)
 	}
 
 	ls, err := img.Layers()
 	if err != nil {
-		t.Errorf("Layers() = %v", err)
+		t.Fatalf("Layers() = %v", err)
+	}
+
+	dig, err := img.Digest()
+	if err != nil {
+		t.Fatalf("Digest() = %v", err)
 	}
 
 	// Check that we have the expected number of layers.
@@ -193,19 +201,17 @@ func TestGoBuild(t *testing.T) {
 		}
 	})
 
-	// While we have a randomized base image, the application layer should be completely deterministic.
-	// Check that when given fixed build outputs we get a fixed layer hash.
+	// Check that rebuilding the image again results in the same image digest.
 	t.Run("check determinism", func(t *testing.T) {
-		expectedHash := v1.Hash{
-			Algorithm: "sha256",
-			Hex:       "71912d718600c5a2b8db3a127a14073bba61dded0dac8e1a6ebdeb4a37f2ce8d",
+		img2, err := ng.Build(filepath.Join(importpath, "cmd", "ko", "test"))
+		if err != nil {
+			t.Fatalf("Build() = %v", err)
 		}
-		appLayer := ls[baseLayers+1]
 
-		if got, err := appLayer.Digest(); err != nil {
-			t.Errorf("Digest() = %v", err)
-		} else if got != expectedHash {
-			t.Errorf("Digest() = %v, want %v", got, expectedHash)
+		if got, err := img2.Digest(); err != nil {
+			t.Fatalf("Digest() = %v", err)
+		} else if got != dig {
+			t.Errorf("Digest() = %v, want %v", got, dig)
 		}
 	})
 
@@ -221,34 +227,11 @@ func TestGoBuild(t *testing.T) {
 			t.Errorf("Layer contained no files")
 		}
 	})
-	t.Run("check data layer contents", func(t *testing.T) {
-		dataLayer := ls[baseLayers+1]
-		r, err := dataLayer.Uncompressed()
-		if err != nil {
-			t.Errorf("Uncompressed() = %v", err)
-		}
-		defer r.Close()
-		tr := tar.NewReader(r)
-		if _, err := tr.Next(); err == io.EOF {
-			t.Errorf("Layer contained no files")
-		}
-	})
 
 	// Check that the kodata layer contains the expected data (even though it was a symlink
 	// outside kodata).
 	t.Run("check kodata", func(t *testing.T) {
-		expectedHash := v1.Hash{
-			Algorithm: "sha256",
-			Hex:       "63b6e090921b79b61e7f5fba44d2ea0f81215d9abac3d005dda7cb9a1f8a025d",
-		}
 		dataLayer := ls[baseLayers]
-
-		if got, err := dataLayer.Digest(); err != nil {
-			t.Errorf("Digest() = %v", err)
-		} else if got != expectedHash {
-			t.Errorf("Digest() = %v, want %v", got, expectedHash)
-		}
-
 		r, err := dataLayer.Uncompressed()
 		if err != nil {
 			t.Errorf("Uncompressed() = %v", err)
