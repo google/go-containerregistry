@@ -37,6 +37,7 @@ type Descriptor struct {
 	Digest      Hash              `json:"digest"`
 	URLs        []string          `json:"urls,omitempty"`
 	Annotations map[string]string `json:"annotations,omitempty"`
+	Platform    *Platform         `json:"platform,omitempty"`
 }
 
 // ParseManifest parses the io.Reader's contents into a Manifest.
