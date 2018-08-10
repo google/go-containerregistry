@@ -130,8 +130,9 @@ func tarBinary(binary string) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	header := &tar.Header{
-		Name: appPath,
-		Size: stat.Size(),
+		Name:     appPath,
+		Size:     stat.Size(),
+		Typeflag: tar.TypeReg,
 		// Use a fixed Mode, so that this isn't sensitive to the directory and umask
 		// under which it was created. Additionally, windows can only set 0222,
 		// 0444, or 0666, none of which are executable.
@@ -173,12 +174,10 @@ func tarKoData(importpath string) (*bytes.Buffer, error) {
 	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if path == root {
 			// Add an entry for /var/run/ko
-			header := &tar.Header{
+			return tw.WriteHeader(&tar.Header{
 				Name:     kodataRoot,
 				Typeflag: tar.TypeDir,
-			}
-			// write the header to the tarball archive
-			return tw.WriteHeader(header)
+			})
 		}
 		if err != nil {
 			return err
@@ -203,15 +202,15 @@ func tarKoData(importpath string) (*bytes.Buffer, error) {
 
 		// Copy the file into the image tarball.
 		newPath := filepath.Join(kodataRoot, path[len(root):])
-		header := &tar.Header{
-			Name: newPath,
-			Size: info.Size(),
+		if err := tw.WriteHeader(&tar.Header{
+			Name:     newPath,
+			Size:     info.Size(),
+			Typeflag: tar.TypeReg,
 			// Use a fixed Mode, so that this isn't sensitive to the directory and umask
 			// under which it was created. Additionally, windows can only set 0222,
 			// 0444, or 0666, none of which are executable.
 			Mode: 0555,
-		}
-		if err := tw.WriteHeader(header); err != nil {
+		}); err != nil {
 			return err
 		}
 		_, err = io.Copy(tw, file)

@@ -107,11 +107,6 @@ func TestGoBuildNoKoData(t *testing.T) {
 		t.Fatalf("Layers() = %v", err)
 	}
 
-	dig, err := img.Digest()
-	if err != nil {
-		t.Fatalf("Digest() = %v", err)
-	}
-
 	// Check that we have the expected number of layers.
 	t.Run("check layer count", func(t *testing.T) {
 		// We get a layer for the go binary and a layer for the kodata/
@@ -122,15 +117,16 @@ func TestGoBuildNoKoData(t *testing.T) {
 
 	// Check that rebuilding the image again results in the same image digest.
 	t.Run("check determinism", func(t *testing.T) {
-		img2, err := ng.Build(filepath.Join(importpath, "cmd", "crane"))
-		if err != nil {
-			t.Fatalf("Build() = %v", err)
+		expectedHash := v1.Hash{
+			Algorithm: "sha256",
+			Hex:       "a688c9bc444d0a34cbc24abd62aa2fa263f61f2060963bb7a4fc3fa92075a2bf",
 		}
+		appLayer := ls[baseLayers+1]
 
-		if got, err := img2.Digest(); err != nil {
-			t.Fatalf("Digest() = %v", err)
-		} else if got != dig {
-			t.Errorf("Digest() = %v, want %v", got, dig)
+		if got, err := appLayer.Digest(); err != nil {
+			t.Errorf("Digest() = %v", err)
+		} else if got != expectedHash {
+			t.Errorf("Digest() = %v, want %v", got, expectedHash)
 		}
 	})
 
@@ -188,11 +184,6 @@ func TestGoBuild(t *testing.T) {
 		t.Fatalf("Layers() = %v", err)
 	}
 
-	dig, err := img.Digest()
-	if err != nil {
-		t.Fatalf("Digest() = %v", err)
-	}
-
 	// Check that we have the expected number of layers.
 	t.Run("check layer count", func(t *testing.T) {
 		// We get a layer for the go binary and a layer for the kodata/
@@ -203,20 +194,32 @@ func TestGoBuild(t *testing.T) {
 
 	// Check that rebuilding the image again results in the same image digest.
 	t.Run("check determinism", func(t *testing.T) {
-		img2, err := ng.Build(filepath.Join(importpath, "cmd", "ko", "test"))
-		if err != nil {
-			t.Fatalf("Build() = %v", err)
+		expectedHash := v1.Hash{
+			Algorithm: "sha256",
+			Hex:       "71912d718600c5a2b8db3a127a14073bba61dded0dac8e1a6ebdeb4a37f2ce8d",
 		}
+		appLayer := ls[baseLayers+1]
 
-		if got, err := img2.Digest(); err != nil {
-			t.Fatalf("Digest() = %v", err)
-		} else if got != dig {
-			t.Errorf("Digest() = %v, want %v", got, dig)
+		if got, err := appLayer.Digest(); err != nil {
+			t.Errorf("Digest() = %v", err)
+		} else if got != expectedHash {
+			t.Errorf("Digest() = %v, want %v", got, expectedHash)
 		}
 	})
 
 	t.Run("check app layer contents", func(t *testing.T) {
-		appLayer := ls[baseLayers+1]
+		expectedHash := v1.Hash{
+			Algorithm: "sha256",
+			Hex:       "63b6e090921b79b61e7f5fba44d2ea0f81215d9abac3d005dda7cb9a1f8a025d",
+		}
+		appLayer := ls[baseLayers]
+
+		if got, err := appLayer.Digest(); err != nil {
+			t.Errorf("Digest() = %v", err)
+		} else if got != expectedHash {
+			t.Errorf("Digest() = %v, want %v", got, expectedHash)
+		}
+
 		r, err := appLayer.Uncompressed()
 		if err != nil {
 			t.Errorf("Uncompressed() = %v", err)
