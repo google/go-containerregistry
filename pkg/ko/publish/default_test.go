@@ -36,10 +36,15 @@ func TestDefault(t *testing.T) {
 	base := "blah"
 	importpath := "github.com/Google/go-containerregistry/cmd/crane"
 	expectedRepo := fmt.Sprintf("%s/%s", base, strings.ToLower(importpath))
+	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
 		switch r.URL.Path {
 		case "/v2/":
 			w.WriteHeader(http.StatusOK)
@@ -94,10 +99,15 @@ func TestDefaultWithCustomNamer(t *testing.T) {
 	base := "blah"
 	importpath := "github.com/Google/go-containerregistry/cmd/crane"
 	expectedRepo := fmt.Sprintf("%s/%s", base, md5Hash(strings.ToLower(importpath)))
+	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
 		switch r.URL.Path {
 		case "/v2/":
 			w.WriteHeader(http.StatusOK)
