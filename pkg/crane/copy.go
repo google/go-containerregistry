@@ -30,10 +30,11 @@ func init() { Root.AddCommand(NewCmdCopy()) }
 
 func NewCmdCopy() *cobra.Command {
 	return &cobra.Command{
-		Use:   "copy",
-		Short: "Efficiently copy a remote image from src to dst",
-		Args:  cobra.ExactArgs(2),
-		Run:   doCopy,
+		Use:     "copy",
+		Aliases: []string{"cp"},
+		Short:   "Efficiently copy a remote image from src to dst",
+		Args:    cobra.ExactArgs(2),
+		Run:     doCopy,
 	}
 }
 
