@@ -30,6 +30,14 @@ type Manifest struct {
 	Annotations   map[string]string `json:"annotations,omitempty"`
 }
 
+// IndexManifest represents an OCI image index in a structured way.
+type IndexManifest struct {
+	SchemaVersion int64             `json:"schemaVersion"`
+	MediaType     types.MediaType   `json:"mediaType,omitempty"`
+	Manifests     []Descriptor      `json:"manifests"`
+	Annotations   map[string]string `json:"annotations,omitempty"`
+}
+
 // Descriptor holds a reference from the manifest to one of its constituent elements.
 type Descriptor struct {
 	MediaType   types.MediaType   `json:"mediaType"`
@@ -47,4 +55,13 @@ func ParseManifest(r io.Reader) (*Manifest, error) {
 		return nil, err
 	}
 	return &m, nil
+}
+
+// ParseIndexManifest parses the io.Reader's contents into an IndexManifest.
+func ParseIndexManifest(r io.Reader) (*IndexManifest, error) {
+	im := IndexManifest{}
+	if err := json.NewDecoder(r).Decode(&im); err != nil {
+		return nil, err
+	}
+	return &im, nil
 }

@@ -15,25 +15,19 @@
 package v1
 
 import (
-	"encoding/json"
-	"io"
-
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-// IndexManifest represents an OCI image index in a structured way.
-type IndexManifest struct {
-	SchemaVersion int64             `json:"schemaVersion"`
-	MediaType     types.MediaType   `json:"mediaType,omitempty"`
-	Manifests     []Descriptor      `json:"manifests"`
-	Annotations   map[string]string `json:"annotations,omitempty"`
-}
+type ImageIndex interface {
+	// MediaType of this image's manifest.
+	MediaType() (types.MediaType, error)
 
-// ParseIndex parses the io.Reader's contents into an IndexManifest.
-func ParseIndex(r io.Reader) (*IndexManifest, error) {
-	im := IndexManifest{}
-	if err := json.NewDecoder(r).Decode(&im); err != nil {
-		return nil, err
-	}
-	return &im, nil
+	// Digest returns the sha256 of this index's manifest.
+	Digest() (Hash, error)
+
+	// IndexManifest returns this image index's manifest object.
+	IndexManifest() (*IndexManifest, error)
+
+	// RawIndexManifest returns the serialized bytes of IndexManifest().
+	RawIndexManifest() ([]byte, error)
 }
