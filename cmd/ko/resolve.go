@@ -109,7 +109,13 @@ func resolveFile(f string, no *NameOptions, lo *LocalOptions, opt ...build.Optio
 		}
 	}
 
-	b, err := ioutil.ReadFile(f)
+	var b []byte
+	var err error
+	if f == "-" {
+		b, err = ioutil.ReadAll(os.Stdin)
+	} else {
+		b, err = ioutil.ReadFile(f)
+	}
 	if err != nil {
 		return nil, err
 	}
