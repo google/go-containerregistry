@@ -33,12 +33,13 @@ func NewCmdPush() *cobra.Command {
 		Use:   "push",
 		Short: "Push image contents as a tarball to a remote registry",
 		Args:  cobra.ExactArgs(2),
-		Run:   push,
+		Run: func(_ *cobra.Command, args []string) {
+			push(args[0], args[1])
+		},
 	}
 }
 
-func push(_ *cobra.Command, args []string) {
-	src, dst := args[0], args[1]
+func push(src, dst string) {
 	t, err := name.NewTag(dst, name.WeakValidation)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", dst, err)

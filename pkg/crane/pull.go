@@ -20,7 +20,6 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/cobra"
@@ -35,22 +34,17 @@ func init() { Root.AddCommand(NewCmdPull()) }
 
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull() *cobra.Command {
-	var oci bool
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "pull",
 		Short: "Pull a remote image by reference and store its contents in a tarball",
 		Args:  cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
-			pull(args[0], args[1], oci)
+			pull(args[0], args[1])
 		},
 	}
-
-	cmd.Flags().BoolVarP(&oci, "oci", "", false, "Whether to write image as OCI image layout")
-
-	return cmd
 }
 
-func pull(src, dst string, oci bool) {
+func pull(src, dst string) {
 	ref, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", src, err)
@@ -79,13 +73,7 @@ func pull(src, dst string, oci bool) {
 		}
 	}
 
-	if oci {
-		if _, err := layout.AppendImage(dst, i); err != nil {
-			log.Fatalf("writing image %q: %v", dst, err)
-		}
-	} else {
-		if err := tarball.WriteToFile(dst, tag, i); err != nil {
-			log.Fatalf("writing image %q: %v", dst, err)
-		}
+	if err := tarball.WriteToFile(dst, tag, i); err != nil {
+		log.Fatalf("writing image %q: %v", dst, err)
 	}
 }
