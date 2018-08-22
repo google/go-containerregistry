@@ -44,78 +44,106 @@ func WriteToFile(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	return Write(tag, img, wo, w)
 }
 
+// MultiWrite writes the contents each image in the tagToImage map to its
+// corresponding tag. Essentially a wrapper around Write to write multiple
+// images at once.
+func MultiWriteToFile(p string, tagToImage map[name.Tag]v1.Image, wo *WriteOptions) error {
+	w, err := os.Create(p)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	return MultiWrite(tagToImage, wo, w)
+}
+
+func Write(tag name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
+	return MultiWrite(map[name.Tag]v1.Image{tag: img}, wo, w)
+}
+
 // Write the contents of the image to the provided reader, in the compressed format.
 // The contents are written in the following format:
 // One manifest.json file at the top level containing information about several images.
 // One file for each layer, named after the layer's SHA.
 // One file for the config blob, named after its SHA.
-func Write(tag name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
+func MultiWrite(tagToImage map[name.Tag]v1.Image, wo *WriteOptions, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
-	// Write the config.
-	cfgName, err := img.ConfigName()
-	if err != nil {
-		return err
-	}
-	cfgBlob, err := img.RawConfigFile()
-	if err != nil {
-		return err
-	}
-	if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
-		return err
-	}
+	var td tarDescriptor
 
-	// Write the layers.
-	layers, err := img.Layers()
-	if err != nil {
-		return err
-	}
-	layerFiles := make([]string, len(layers))
-	for i, l := range layers {
-		d, err := l.Digest()
+	for tag, img := range tagToImage {
+		// Write the config.
+		cfgName, err := img.ConfigName()
 		if err != nil {
 			return err
 		}
-
-		// Munge the file name to appease ancient technology.
-		//
-		// tar assumes anything with a colon is a remote tape drive:
-		// https://www.gnu.org/software/tar/manual/html_section/tar_45.html
-		// Drop the algorithm prefix, e.g. "sha256:"
-		hex := d.Hex
-
-		// gunzip expects certain file extensions:
-		// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
-		layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
-
-		r, err := l.Compressed()
+		cfgBlob, err := img.RawConfigFile()
 		if err != nil {
 			return err
 		}
-		blobSize, err := l.Size()
+		if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+			return err
+		}
+
+		// Write the layers.
+		layers, err := img.Layers()
 		if err != nil {
 			return err
 		}
+		layerFiles := make([]string, len(layers))
+		for i, l := range layers {
+			d, err := l.Digest()
+			if err != nil {
+				return err
+			}
 
-		if err := writeTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
-			return err
+			// Munge the file name to appease ancient technology.
+			//
+			// tar assumes anything with a colon is a remote tape drive:
+			// https://www.gnu.org/software/tar/manual/html_section/tar_45.html
+			// Drop the algorithm prefix, e.g. "sha256:"
+			hex := d.Hex
+
+			// gunzip expects certain file extensions:
+			// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
+			layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
+
+			r, err := l.Compressed()
+			if err != nil {
+				return err
+			}
+			blobSize, err := l.Size()
+			if err != nil {
+				return err
+			}
+
+			if err := writeTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
+				return err
+			}
 		}
-	}
 
-	// Generate the tar descriptor and write it.
-	td := tarDescriptor{
-		singleImageTarDescriptor{
+		// Generate the tar descriptor and write it.
+
+		sitd := singleImageTarDescriptor{
 			Config:   cfgName.String(),
 			RepoTags: []string{tag.String()},
 			Layers:   layerFiles,
-		},
+		}
+
+		td = append(td, sitd)
 	}
+
 	tdBytes, err := json.Marshal(td)
 	if err != nil {
 		return err
 	}
-	return writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
+	err = writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // write a file to the provided writer with a corresponding tar header
