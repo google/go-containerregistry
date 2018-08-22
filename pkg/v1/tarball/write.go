@@ -44,9 +44,8 @@ func WriteToFile(p string, tag name.Tag, img v1.Image, wo *WriteOptions) error {
 	return Write(tag, img, wo, w)
 }
 
-// MultiWrite writes the contents each image in the tagToImage map to its
-// corresponding tag. Essentially a wrapper around Write to write multiple
-// images at once.
+// MultiWriteToFile writes in the compressed format to a tarball, on disk.
+// This is just syntactic sugar wrapping tarball.MultiWrite with a new file.
 func MultiWriteToFile(p string, tagToImage map[name.Tag]v1.Image, wo *WriteOptions) error {
 	w, err := os.Create(p)
 	if err != nil {
@@ -57,11 +56,12 @@ func MultiWriteToFile(p string, tagToImage map[name.Tag]v1.Image, wo *WriteOptio
 	return MultiWrite(tagToImage, wo, w)
 }
 
+// Write is a wrapper to write a single image and tag to a tarball.
 func Write(tag name.Tag, img v1.Image, wo *WriteOptions, w io.Writer) error {
 	return MultiWrite(map[name.Tag]v1.Image{tag: img}, wo, w)
 }
 
-// Write the contents of the image to the provided reader, in the compressed format.
+// MultiWrite writes the contents of each image to the provided reader, in the compressed format.
 // The contents are written in the following format:
 // One manifest.json file at the top level containing information about several images.
 // One file for each layer, named after the layer's SHA.
@@ -124,7 +124,6 @@ func MultiWrite(tagToImage map[name.Tag]v1.Image, wo *WriteOptions, w io.Writer)
 		}
 
 		// Generate the tar descriptor and write it.
-
 		sitd := singleImageTarDescriptor{
 			Config:   cfgName.String(),
 			RepoTags: []string{tag.String()},
