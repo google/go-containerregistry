@@ -137,12 +137,7 @@ func MultiWrite(tagToImage map[name.Tag]v1.Image, wo *WriteOptions, w io.Writer)
 	if err != nil {
 		return err
 	}
-	err = writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
 }
 
 // write a file to the provided writer with a corresponding tar header
