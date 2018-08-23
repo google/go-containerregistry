@@ -146,8 +146,12 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		}
 	} else if checksum := resp.Header.Get("Docker-Content-Digest"); checksum != "" && checksum != digest.String() {
 		err := fmt.Errorf("manifest digest: %q does not match Docker-Content-Digest: %q for %q", digest, checksum, r.ref)
+
+		// Wall of registry shame:
 		if r.ref.Context().RegistryStr() == name.DefaultRegistry {
 			// TODO(docker/distribution#2395): Remove this check.
+		} else if "sha256:"+checksum == digest.String() {
+			// Assume sha256 if algo is missing, see GoogleContainerTools/kaniko#298.
 		} else {
 			// When pulling by tag, we can only validate that the digest matches what the registry told us it should be.
 			return nil, err

@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -106,6 +107,12 @@ func TestRawManifestDigests(t *testing.T) {
 		ref:           "latest",
 		responseBody:  mustRawManifest(t, img),
 		contentDigest: mustDigest(t, img).String(),
+		wantErr:       false,
+	}, {
+		name:          "normal pull, by tag, missing algo in digest",
+		ref:           "latest",
+		responseBody:  mustRawManifest(t, img),
+		contentDigest: strings.Split(mustDigest(t, img).String(), ":")[1],
 		wantErr:       false,
 	}, {
 		name:          "normal pull, by digest",
