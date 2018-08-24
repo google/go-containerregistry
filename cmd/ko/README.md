@@ -47,8 +47,14 @@ kind: Deployment
 metadata:
   name: hello-world
 spec:
+  selector:
+    matchLabels:
+      foo: bar
   replicas: 1
   template:
+    metadata:
+      labels:
+        foo: bar
     spec:
       containers:
       - name: hello-world
