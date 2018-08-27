@@ -70,9 +70,10 @@ func MultiWrite(tagToImage map[name.Tag]v1.Image, wo *WriteOptions, w io.Writer)
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
+	imageToTags := dedupTagToImage(tagToImage)
 	var td tarDescriptor
 
-	for tag, img := range tagToImage {
+	for img, tags := range imageToTags {
 		// Write the config.
 		cfgName, err := img.ConfigName()
 		if err != nil {
@@ -126,7 +127,7 @@ func MultiWrite(tagToImage map[name.Tag]v1.Image, wo *WriteOptions, w io.Writer)
 		// Generate the tar descriptor and write it.
 		sitd := singleImageTarDescriptor{
 			Config:   cfgName.String(),
-			RepoTags: []string{tag.String()},
+			RepoTags: tags,
 			Layers:   layerFiles,
 		}
 
@@ -138,6 +139,20 @@ func MultiWrite(tagToImage map[name.Tag]v1.Image, wo *WriteOptions, w io.Writer)
 		return err
 	}
 	return writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
+}
+
+func dedupTagToImage(tagToImage map[name.Tag]v1.Image) map[v1.Image][]string {
+	imageToTags := make(map[v1.Image][]string)
+
+	for tag, img := range tagToImage {
+		if tags, ok := imageToTags[img]; ok {
+			imageToTags[img] = append(tags, tag.String())
+		} else {
+			imageToTags[img] = []string{tag.String()}
+		}
+	}
+
+	return imageToTags
 }
 
 // write a file to the provided writer with a corresponding tar header
