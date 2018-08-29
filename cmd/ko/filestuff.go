@@ -39,6 +39,10 @@ func addFileArg(cmd *cobra.Command, fo *FilenameOptions) {
 func enumerateFiles(fo *FilenameOptions) ([]string, error) {
 	var files []string
 	for _, paths := range fo.Filenames {
+		if paths == "-" {
+			files = append(files, paths)
+			continue
+		}
 		err := filepath.Walk(paths, func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return err
