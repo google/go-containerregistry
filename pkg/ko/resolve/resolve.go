@@ -60,17 +60,17 @@ func ImageReferences(input []byte, builder build.Interface, publisher publish.In
 	var sm sync.Map
 	var errg errgroup.Group
 	for ref := range refs {
-		ref := ref
+		cpyRef := ref
 		errg.Go(func() error {
-			img, err := builder.Build(ref)
+			img, err := builder.Build(cpyRef)
 			if err != nil {
 				return err
 			}
-			digest, err := publisher.Publish(img, ref)
+			digest, err := publisher.Publish(img, cpyRef)
 			if err != nil {
 				return err
 			}
-			sm.Store(ref, digest.String())
+			sm.Store(cpyRef, digest.String())
 			return nil
 		})
 	}
