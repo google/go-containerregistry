@@ -37,8 +37,11 @@ type UncompressedLayer interface {
 // uncompressedLayerExtender implements v1.Image using the uncompressed base properties.
 type uncompressedLayerExtender struct {
 	UncompressedLayer
-	// TODO(mattmoor): Memoize size/hash so that the methods aren't twice as
+	// Memoize size/hash so that the methods aren't twice as
 	// expensive as doing this manually.
+	hash v1.Hash
+	size int64
+	lock sync.Mutex
 }
 
 // Compressed implements v1.Layer
@@ -52,29 +55,40 @@ func (ule *uncompressedLayerExtender) Compressed() (io.ReadCloser, error) {
 
 // Digest implements v1.Layer
 func (ule *uncompressedLayerExtender) Digest() (v1.Hash, error) {
-	r, err := ule.Compressed()
-	if err != nil {
-		return v1.Hash{}, err
-	}
-	defer r.Close()
-	h, _, err := v1.SHA256(r)
-	return h, err
+	err := ule.calcSizeHash()
+	return ule.hash, err
 }
 
 // Size implements v1.Layer
 func (ule *uncompressedLayerExtender) Size() (int64, error) {
+	err := ule.calcSizeHash()
+	return ule.size, err
+}
+
+func (ule *uncompressedLayerExtender) calcSizeHash() error {
+	ule.lock.Lock()
+	defer ule.lock.Unlock()
+
+	if ule.size > 0 {
+		return nil
+	}
+
 	r, err := ule.Compressed()
 	if err != nil {
-		return -1, err
+		return err
 	}
 	defer r.Close()
-	_, i, err := v1.SHA256(r)
-	return i, err
+	h, s, err := v1.SHA256(r)
+	if err == nil {
+		ule.hash = h
+		ule.size = s
+	}
+	return err
 }
 
 // UncompressedToLayer fills in the missing methods from an UncompressedLayer so that it implements v1.Layer
 func UncompressedToLayer(ul UncompressedLayer) (v1.Layer, error) {
-	return &uncompressedLayerExtender{ul}, nil
+	return &uncompressedLayerExtender{UncompressedLayer: ul}, nil
 }
 
 // UncompressedImageCore represents the bare minimum interface a natively
