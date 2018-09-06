@@ -39,9 +39,10 @@ type uncompressedLayerExtender struct {
 	UncompressedLayer
 	// Memoize size/hash so that the methods aren't twice as
 	// expensive as doing this manually.
-	hash v1.Hash
-	size int64
-	lock sync.Mutex
+	hash          v1.Hash
+	size          int64
+	hashSizeError error
+	once          sync.Once
 }
 
 // Compressed implements v1.Layer
@@ -55,35 +56,26 @@ func (ule *uncompressedLayerExtender) Compressed() (io.ReadCloser, error) {
 
 // Digest implements v1.Layer
 func (ule *uncompressedLayerExtender) Digest() (v1.Hash, error) {
-	err := ule.calcSizeHash()
-	return ule.hash, err
+	ule.calcSizeHash()
+	return ule.hash, ule.hashSizeError
 }
 
 // Size implements v1.Layer
 func (ule *uncompressedLayerExtender) Size() (int64, error) {
-	err := ule.calcSizeHash()
-	return ule.size, err
+	ule.calcSizeHash()
+	return ule.size, ule.hashSizeError
 }
 
-func (ule *uncompressedLayerExtender) calcSizeHash() error {
-	ule.lock.Lock()
-	defer ule.lock.Unlock()
-
-	if ule.size > 0 {
-		return nil
-	}
-
-	r, err := ule.Compressed()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-	h, s, err := v1.SHA256(r)
-	if err == nil {
-		ule.hash = h
-		ule.size = s
-	}
-	return err
+func (ule *uncompressedLayerExtender) calcSizeHash() {
+	ule.once.Do(func() {
+		var r io.ReadCloser
+		r, ule.hashSizeError = ule.Compressed()
+		if ule.hashSizeError != nil {
+			return
+		}
+		defer r.Close()
+		ule.hash, ule.size, ule.hashSizeError = v1.SHA256(r)
+	})
 }
 
 // UncompressedToLayer fills in the missing methods from an UncompressedLayer so that it implements v1.Layer
