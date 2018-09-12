@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/ko/build"
@@ -28,19 +29,22 @@ import (
 	"github.com/google/go-containerregistry/pkg/ko/resolve"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
+	"github.com/google/go-containerregistry/pkg/v1"
 )
 
 func gobuildOptions() ([]build.Option, error) {
+	opts := []build.Option{
+		build.WithBaseImages(getBaseImage),
+	}
+
 	creationTime, err := getCreationTime()
 	if err != nil {
 		return nil, err
 	}
-	opts := []build.Option{
-		build.WithBaseImages(getBaseImage),
+	if (creationTime == nil) {
+		creationTime = &v1.Time{time.Now()}
 	}
-	if creationTime != nil {
-		opts = append(opts, build.WithCreationTime(*creationTime))
-	}
+	opts = append(opts, build.WithCreationTime(*creationTime))
 	return opts, nil
 }
 

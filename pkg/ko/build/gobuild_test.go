@@ -311,3 +311,34 @@ func TestGoBuild(t *testing.T) {
 		}
 	})
 }
+
+func TestDefaultCreationTime(t *testing.T) {
+	baseLayers := int64(3)
+	base, err := random.Image(1024, baseLayers)
+	if err != nil {
+		t.Fatalf("random.Image() = %v", err)
+	}
+	importPath := "github.com/google/go-containerregistry"
+
+	ng, err := NewGo(
+		WithBaseImages(func(string) (v1.Image, error) { return base, nil }),
+		withBuilder(writeTempFile),
+	)
+
+	img, err := ng.Build(filepath.Join(importPath, "cmd", "ko", "test"))
+	if err != nil {
+		t.Fatalf("Build() = %v", err)
+	}
+
+	initTime := v1.Time{time.Unix(0, 0)}
+
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		t.Errorf("ConfigFile() = %v", err)
+	}
+
+	actual := cfg.Created
+	if actual.Time == initTime.Time {
+		t.Fatalf("created = %v, want current time", initTime)
+	}
+}
