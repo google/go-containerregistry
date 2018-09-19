@@ -30,12 +30,13 @@ const (
 
 // demon is intentionally misspelled to avoid name collision (and drive Jon nuts).
 type demon struct {
-	wo daemon.WriteOptions
+	wo    daemon.WriteOptions
+	namer Namer
 }
 
 // NewDaemon returns a new publish.Interface that publishes images to a container daemon.
-func NewDaemon(wo daemon.WriteOptions) Interface {
-	return &demon{wo}
+func NewDaemon(wo daemon.WriteOptions, namer Namer) Interface {
+	return &demon{wo, namer}
 }
 
 // Publish implements publish.Interface
@@ -47,7 +48,7 @@ func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, s, h.Hex), name.WeakValidation)
+	tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), h.Hex), name.WeakValidation)
 	if err != nil {
 		return nil, err
 	}

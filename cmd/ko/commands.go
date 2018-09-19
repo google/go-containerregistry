@@ -76,7 +76,7 @@ func addKubeCommands(topLevel *cobra.Command) {
   #   ${KO_DOCKER_REPO}/<package name>-<hash of import path>
   # Then, feed the resulting yaml into "kubectl apply".
   # When KO_DOCKER_REPO is ko.local, it is the same as if
-  # --local and --preserve-import-paths were passed.
+  # --local was passed.
   ko apply -f config/
 
   # Build and publish import path references to a Docker
@@ -89,9 +89,8 @@ func addKubeCommands(topLevel *cobra.Command) {
   # daemon as:
   #   ko.local/<import path>
   # Then, feed the resulting yaml into "kubectl apply".
-  # This always preserves import paths.
   ko apply --local -f config/
-  
+
   # Apply from stdin:
   cat config.yaml | ko apply -f -`,
 		Args: cobra.NoArgs,
