@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package publish
+package main
 
 import (
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1"
+	"github.com/spf13/cobra"
 )
 
-// Interface abstracts different methods for publishing images.
-type Interface interface {
-	// Publish uploads the given v1.Image to a registry incorporating the
-	// provided string into the image's repository name.  Returns the digest
-	// of the published image.
-	Publish(v1.Image, string, []string) (name.Reference, error)
+type TagsOptions struct {
+	Tags []string
+}
+
+func addTagsArg(cmd *cobra.Command, ta *TagsOptions) {
+	cmd.Flags().StringSliceVar(&ta.Tags, "tags", ta.Tags,
+		"Which tags to use for the produced image in addition to the digest.")
 }

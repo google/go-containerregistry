@@ -66,7 +66,7 @@ func ImageReferences(input []byte, builder build.Interface, publisher publish.In
 			if err != nil {
 				return err
 			}
-			digest, err := publisher.Publish(img, ref)
+			digest, err := publisher.Publish(img, ref, []string{})
 			if err != nil {
 				return err
 			}

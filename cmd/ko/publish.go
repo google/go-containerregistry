@@ -39,7 +39,7 @@ func qualifyLocalImport(importpath, gopathsrc, pwd string) (string, error) {
 	return filepath.Join(strings.TrimPrefix(pwd, gopathsrc+string(filepath.Separator)), importpath), nil
 }
 
-func publishImages(importpaths []string, no *NameOptions, lo *LocalOptions) {
+func publishImages(importpaths []string, no *NameOptions, lo *LocalOptions, ta *TagsOptions) {
 	opt, err := gobuildOptions()
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)
@@ -48,6 +48,7 @@ func publishImages(importpaths []string, no *NameOptions, lo *LocalOptions) {
 	if err != nil {
 		log.Fatalf("error creating go builder: %v", err)
 	}
+
 	for _, importpath := range importpaths {
 		if gb.IsLocalImport(importpath) {
 			// Qualify relative imports to their fully-qualified
@@ -93,7 +94,7 @@ func publishImages(importpaths []string, no *NameOptions, lo *LocalOptions) {
 				log.Fatalf("error setting up default image publisher: %v", err)
 			}
 		}
-		if _, err := pub.Publish(img, importpath); err != nil {
+		if _, err := pub.Publish(img, importpath, ta.Tags); err != nil {
 			log.Fatalf("error publishing %s: %v", importpath, err)
 		}
 	}

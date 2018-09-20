@@ -40,7 +40,7 @@ func NewDaemon(wo daemon.WriteOptions, namer Namer) Interface {
 }
 
 // Publish implements publish.Interface
-func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
+func (d *demon) Publish(img v1.Image, s string, additionalTags []string) (name.Reference, error) {
 	// https://github.com/google/go-containerregistry/issues/212
 	s = strings.ToLower(s)
 
@@ -48,14 +48,23 @@ func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), h.Hex), name.WeakValidation)
+
+	tags := append(additionalTags, h.Hex)
+	for _, tagName := range tags {
+		tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), tagName), name.WeakValidation)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("Loading %v", tag)
+		if _, err := daemon.Write(tag, img, d.wo); err != nil {
+			return nil, err
+		}
+		log.Printf("Loaded %v", tag)
+	}
+
+	digestTag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), h.Hex), name.WeakValidation)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Loading %v", tag)
-	if _, err := daemon.Write(tag, img, d.wo); err != nil {
-		return nil, err
-	}
-	log.Printf("Loaded %v", tag)
-	return &tag, nil
+	return &digestTag, nil
 }

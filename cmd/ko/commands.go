@@ -66,6 +66,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	lo := &LocalOptions{}
 	no := &NameOptions{}
 	fo := &FilenameOptions{}
+	ta := &TagsOptions{}
 	apply := &cobra.Command{
 		Use:   "apply -f FILENAME",
 		Short: "Apply the input files with image references resolved to built/pushed image digests.",
@@ -186,10 +187,11 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko publish --local github.com/foo/bar/cmd/baz github.com/foo/bar/cmd/blah`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			publishImages(args, no, lo)
+			publishImages(args, no, lo, ta)
 		},
 	}
 	addLocalArg(publish, lo)
 	addNamingArgs(publish, no)
+	addTagsArg(publish, ta)
 	topLevel.AddCommand(publish)
 }
