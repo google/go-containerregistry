@@ -72,3 +72,11 @@ func WithNamer(n Namer) Option {
 		return nil
 	}
 }
+
+// WithAdditionalTags is a functional option to provide additional tags to publish.
+func WithAdditionalTags(tags []string) Option {
+	return func(i *defaultOpener) error {
+		i.additionalTags = tags
+		return nil
+	}
+}

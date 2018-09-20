@@ -30,17 +30,18 @@ const (
 
 // demon is intentionally misspelled to avoid name collision (and drive Jon nuts).
 type demon struct {
-	wo    daemon.WriteOptions
-	namer Namer
+	wo             daemon.WriteOptions
+	namer          Namer
+	additionalTags []string
 }
 
 // NewDaemon returns a new publish.Interface that publishes images to a container daemon.
-func NewDaemon(wo daemon.WriteOptions, namer Namer) Interface {
-	return &demon{wo, namer}
+func NewDaemon(wo daemon.WriteOptions, namer Namer, additionalTags []string) Interface {
+	return &demon{wo, namer, additionalTags}
 }
 
 // Publish implements publish.Interface
-func (d *demon) Publish(img v1.Image, s string, additionalTags []string) (name.Reference, error) {
+func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
 	// https://github.com/google/go-containerregistry/issues/212
 	s = strings.ToLower(s)
 
@@ -49,8 +50,8 @@ func (d *demon) Publish(img v1.Image, s string, additionalTags []string) (name.R
 		return nil, err
 	}
 
-	tags := append(additionalTags, h.Hex)
-	for _, tagName := range tags {
+	tagNames := append(d.additionalTags, h.Hex)
+	for _, tagName := range tagNames {
 		tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), tagName), name.WeakValidation)
 		if err != nil {
 			return nil, err

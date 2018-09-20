@@ -28,19 +28,21 @@ import (
 
 // defalt is intentionally misspelled to avoid keyword collision (and drive Jon nuts).
 type defalt struct {
-	base  string
-	t     http.RoundTripper
-	auth  authn.Authenticator
-	namer Namer
+	base           string
+	t              http.RoundTripper
+	auth           authn.Authenticator
+	namer          Namer
+	additionalTags []string
 }
 
 type Option func(*defaultOpener) error
 
 type defaultOpener struct {
-	base  string
-	t     http.RoundTripper
-	auth  authn.Authenticator
-	namer Namer
+	base           string
+	t              http.RoundTripper
+	auth           authn.Authenticator
+	namer          Namer
+	additionalTags []string
 }
 
 // Namer is a function from a supported import path to the portion of the resulting
@@ -55,10 +57,11 @@ func identity(in string) string { return in }
 
 func (do *defaultOpener) Open() (Interface, error) {
 	return &defalt{
-		base:  do.base,
-		t:     do.t,
-		auth:  do.auth,
-		namer: do.namer,
+		base:           do.base,
+		t:              do.t,
+		auth:           do.auth,
+		namer:          do.namer,
+		additionalTags: do.additionalTags,
 	}, nil
 }
 
@@ -81,13 +84,13 @@ func NewDefault(base string, options ...Option) (Interface, error) {
 }
 
 // Publish implements publish.Interface
-func (d *defalt) Publish(img v1.Image, s string, additionalTags []string) (name.Reference, error) {
+func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
 	// https://github.com/google/go-containerregistry/issues/212
 	s = strings.ToLower(s)
 
 	// We push via tags (always latest) and then produce a digest because some registries do
 	// not support publishing by digest.
-	tags := append(additionalTags, "latest")
+	tags := append(d.additionalTags, "latest")
 	for _, tagName := range tags {
 		tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", d.base, d.namer(s), tagName), name.WeakValidation)
 		if err != nil {

@@ -23,6 +23,6 @@ type TagsOptions struct {
 }
 
 func addTagsArg(cmd *cobra.Command, ta *TagsOptions) {
-	cmd.Flags().StringSliceVar(&ta.Tags, "tags", ta.Tags,
-		"Which tags to use for the produced image in addition to the digest.")
+	cmd.Flags().StringSliceVar(&ta.Tags, "extra_tags", ta.Tags,
+		"Which tags to use for the produced image in addition to the default.")
 }
