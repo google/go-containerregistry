@@ -55,7 +55,7 @@ func push(_ *cobra.Command, args []string) {
 		log.Fatalf("reading image %q: %v", src, err)
 	}
 
-	if err := remote.Write(t, i, auth, http.DefaultTransport, remote.WriteOptions{}); err != nil {
+	if err := remote.Write(t, i, auth, http.DefaultTransport); err != nil {
 		log.Fatalf("writing image %q: %v", t, err)
 	}
 }

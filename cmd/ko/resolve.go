@@ -27,7 +27,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/ko/publish"
 	"github.com/google/go-containerregistry/pkg/ko/resolve"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/daemon"
 )
 
 func gobuildOptions() ([]build.Option, error) {
@@ -97,7 +96,7 @@ func resolveFile(f string, no *NameOptions, lo *LocalOptions, opt ...build.Optio
 	}
 
 	if lo.Local || repoName == publish.LocalDomain {
-		pub = publish.NewDaemon(daemon.WriteOptions{}, namer)
+		pub = publish.NewDaemon(namer)
 	} else {
 		_, err := name.NewRepository(repoName, name.WeakValidation)
 		if err != nil {

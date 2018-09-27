@@ -28,7 +28,7 @@ import (
 
 type MockImageLoader struct{}
 
-func (m *MockImageLoader) ImageLoad(_ context.Context, _ io.Reader, _ bool) (types.ImageLoadResponse, error) {
+func (m *MockImageLoader) ImageLoad(context.Context, io.Reader, bool) (types.ImageLoadResponse, error) {
 	return types.ImageLoadResponse{
 		Body: ioutil.NopCloser(strings.NewReader("Loaded")),
 	}, nil
@@ -49,7 +49,7 @@ func TestWriteImage(t *testing.T) {
 	if err != nil {
 		t.Errorf(err.Error())
 	}
-	response, err := Write(tag, image, WriteOptions{})
+	response, err := Write(tag, image)
 	if err != nil {
 		t.Errorf("Error writing image tar: %s", err.Error())
 	}

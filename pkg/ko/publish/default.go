@@ -92,7 +92,7 @@ func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
 		return nil, err
 	}
 	log.Printf("Publishing %v", tag)
-	if err := remote.Write(tag, img, d.auth, d.t, remote.WriteOptions{}); err != nil {
+	if err := remote.Write(tag, img, d.auth, d.t); err != nil {
 		return nil, err
 	}
 	h, err := img.Digest()

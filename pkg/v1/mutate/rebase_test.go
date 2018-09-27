@@ -85,7 +85,7 @@ func TestRebase(t *testing.T) {
 	newBaseLayerDigests := layerDigests(t, newBase)
 
 	// Rebase original image onto new base.
-	rebased, err := Rebase(orig, oldBase, newBase, nil)
+	rebased, err := Rebase(orig, oldBase, newBase)
 	if err != nil {
 		t.Fatalf("Rebase: %v", err)
 	}

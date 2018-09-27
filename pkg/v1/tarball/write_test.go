@@ -45,7 +45,7 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating test tag.")
 	}
-	if err := WriteToFile(fp.Name(), tag, randImage, nil); err != nil {
+	if err := WriteToFile(fp.Name(), tag, randImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 
@@ -114,7 +114,7 @@ func TestMultiWriteSameImage(t *testing.T) {
 	tagToImage[tag2] = randImage
 
 	// Write the images with both tags to the tarball
-	if err := MultiWriteToFile(fp.Name(), tagToImage, nil); err != nil {
+	if err := MultiWriteToFile(fp.Name(), tagToImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 	for tag := range tagToImage {
@@ -177,7 +177,7 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 	tagToImage[tag2] = randImage2
 
 	// Write both images to the tarball.
-	if err := MultiWriteToFile(fp.Name(), tagToImage, nil); err != nil {
+	if err := MultiWriteToFile(fp.Name(), tagToImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 	for tag, img := range tagToImage {
