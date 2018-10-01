@@ -50,7 +50,7 @@ func pull(_ *cobra.Command, args []string) {
 		log.Fatalf("reading image %q: %v", t, err)
 	}
 
-	if err := tarball.WriteToFile(dst, t, i, &tarball.WriteOptions{}); err != nil {
+	if err := tarball.WriteToFile(dst, t, i); err != nil {
 		log.Fatalf("writing image %q: %v", dst, err)
 	}
 }

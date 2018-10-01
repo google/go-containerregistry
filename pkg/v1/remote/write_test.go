@@ -651,7 +651,7 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport, WriteOptions{}); err != nil {
+	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport); err != nil {
 		t.Errorf("Write() = %v", err)
 	}
 }
@@ -701,7 +701,7 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport, WriteOptions{}); err == nil {
+	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport); err == nil {
 		t.Error("Write() = nil; wanted error")
 	} else if se, ok := err.(*Error); !ok {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)

@@ -26,7 +26,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/ko/build"
 	"github.com/google/go-containerregistry/pkg/ko/publish"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/daemon"
 )
 
 func qualifyLocalImport(importpath, gopathsrc, pwd string) (string, error) {
@@ -82,7 +81,7 @@ func publishImages(importpaths []string, no *NameOptions, lo *LocalOptions) {
 		}
 
 		if lo.Local || repoName == publish.LocalDomain {
-			pub = publish.NewDaemon(daemon.WriteOptions{}, namer)
+			pub = publish.NewDaemon(namer)
 		} else {
 			if _, err := name.NewRepository(repoName, name.WeakValidation); err != nil {
 				log.Fatalf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)

@@ -52,7 +52,7 @@ func TestDelete(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Delete(tag, authn.Anonymous, http.DefaultTransport, DeleteOptions{}); err != nil {
+	if err := Delete(tag, authn.Anonymous, http.DefaultTransport); err != nil {
 		t.Errorf("Delete() = %v", err)
 	}
 }
@@ -84,7 +84,7 @@ func TestDeleteBadStatus(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Delete(tag, authn.Anonymous, http.DefaultTransport, DeleteOptions{}); err == nil {
+	if err := Delete(tag, authn.Anonymous, http.DefaultTransport); err == nil {
 		t.Error("Delete() = nil; wanted error")
 	}
 }
