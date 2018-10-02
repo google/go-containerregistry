@@ -15,8 +15,6 @@
 package gcrane
 
 import (
-	"net/http"
-
 	"fmt"
 	"log"
 
@@ -49,18 +47,16 @@ func ls(root string, recursive bool) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	auth, err := authn.DefaultKeychain.Resolve(repo.Registry)
-	if err != nil {
-		log.Fatalln(err)
-	}
+
+	auth := google.WithAuthFromKeychain(authn.DefaultKeychain)
 
 	if recursive {
-		if err := google.Walk(repo, auth, http.DefaultTransport, printImages); err != nil {
+		if err := google.Walk(repo, printImages, auth); err != nil {
 			log.Fatalln(err)
 		}
 	}
 
-	tags, err := google.List(repo, auth, http.DefaultTransport)
+	tags, err := google.List(repo, auth)
 	if err != nil {
 		log.Fatalln(err)
 	}

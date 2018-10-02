@@ -28,6 +28,65 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
+// TODO: Can we somehow reuse the remote options here?
+type ListerOption func(*lister) error
+
+type lister struct {
+	auth      authn.Authenticator
+	transport http.RoundTripper
+	repo      name.Repository
+	client    *http.Client
+}
+
+func newLister(repo name.Repository, options ...ListerOption) (*lister, error) {
+	l := &lister{
+		auth:      authn.Anonymous,
+		transport: http.DefaultTransport,
+		repo:      repo,
+	}
+
+	for _, option := range options {
+		if err := option(l); err != nil {
+			return nil, err
+		}
+	}
+
+	scopes := []string{repo.Scope(transport.PullScope)}
+	tr, err := transport.New(repo.Registry, l.auth, l.transport, scopes)
+	if err != nil {
+		return nil, err
+	}
+
+	l.client = &http.Client{Transport: tr}
+
+	return l, nil
+}
+
+func (l *lister) list(repo name.Repository) (*Tags, error) {
+	uri := url.URL{
+		Scheme: repo.Registry.Scheme(),
+		Host:   repo.Registry.RegistryStr(),
+		Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
+	}
+
+	resp, err := l.client.Get(uri.String())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := remote.CheckError(resp, http.StatusOK); err != nil {
+		return nil, err
+	}
+
+	tags := Tags{}
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
+		return nil, err
+	}
+
+	return &tags, nil
+}
+
 type rawManifestInfo struct {
 	Size      string   `json:"imageSizeBytes"`
 	MediaType string   `json:"mediaType"`
@@ -94,36 +153,13 @@ type Tags struct {
 	Tags      []string                `json:"tags"`
 }
 
-func List(repo name.Repository, auth authn.Authenticator, t http.RoundTripper) (*Tags, error) {
-	scopes := []string{repo.Scope(transport.PullScope)}
-	tr, err := transport.New(repo.Registry, auth, t, scopes)
+func List(repo name.Repository, options ...ListerOption) (*Tags, error) {
+	l, err := newLister(repo, options...)
 	if err != nil {
 		return nil, err
 	}
 
-	uri := url.URL{
-		Scheme: repo.Registry.Scheme(),
-		Host:   repo.Registry.RegistryStr(),
-		Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
-	}
-
-	client := http.Client{Transport: tr}
-	resp, err := client.Get(uri.String())
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if err := remote.CheckError(resp, http.StatusOK); err != nil {
-		return nil, err
-	}
-
-	tags := Tags{}
-	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
-		return nil, err
-	}
-
-	return &tags, nil
+	return l.list(repo)
 }
 
 // WalkFunc is the type of the function called for each repository visited by
@@ -137,7 +173,7 @@ func List(repo name.Repository, auth authn.Authenticator, t http.RoundTripper) (
 // TODO: Do we want a SkipDir error, as in filepath.WalkFunc?
 type WalkFunc func(repo name.Repository, tags *Tags, err error) error
 
-func walk(repo name.Repository, auth authn.Authenticator, t http.RoundTripper, tags *Tags, walkFn WalkFunc) error {
+func walk(repo name.Repository, tags *Tags, walkFn WalkFunc, options ...ListerOption) error {
 	if tags == nil {
 		// This shouldn't happen.
 		return fmt.Errorf("tags nil for %q", repo)
@@ -154,13 +190,13 @@ func walk(repo name.Repository, auth authn.Authenticator, t http.RoundTripper, t
 			return fmt.Errorf("unexpected path failure: %v", err)
 		}
 
-		childTags, err := List(child, auth, t)
+		childTags, err := List(child, options...)
 		if err != nil {
 			if err := walkFn(repo, nil, err); err != nil {
 				return err
 			}
 		} else {
-			if err := walk(child, auth, t, childTags, walkFn); err != nil {
+			if err := walk(child, childTags, walkFn, options...); err != nil {
 				return err
 			}
 		}
@@ -171,12 +207,11 @@ func walk(repo name.Repository, auth authn.Authenticator, t http.RoundTripper, t
 }
 
 // Walk recursively descends repositories, calling walkFn.
-// TODO: Do we need a keychain since this can take a while?
-func Walk(root name.Repository, auth authn.Authenticator, t http.RoundTripper, walkFn WalkFunc) error {
-	tags, err := List(root, auth, t)
+func Walk(root name.Repository, walkFn WalkFunc, options ...ListerOption) error {
+	tags, err := List(root, options...)
 	if err != nil {
 		return walkFn(root, nil, err)
 	}
 
-	return walk(root, auth, t, tags, walkFn)
+	return walk(root, tags, walkFn, options...)
 }
