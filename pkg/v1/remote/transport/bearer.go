@@ -60,8 +60,27 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	}
 	in.Header.Set("User-Agent", transportName)
 
-	// TODO(mattmoor): On 401s perform a single refresh() and retry.
-	return bt.inner.RoundTrip(in)
+	res, err := bt.inner.RoundTrip(in)
+
+	// Perform a token refresh() and retry the request in case the token has expired
+	if err == nil && res.StatusCode == http.StatusUnauthorized {
+		if err = bt.refresh(); err != nil {
+			return nil, err
+		}
+		hdr, err = bt.bearer.Authorization()
+		if err != nil {
+			return nil, err
+		}
+
+		if in.Host == bt.registry.RegistryStr() {
+			in.Header.Set("Authorization", hdr)
+		}
+		in.Header.Set("User-Agent", transportName)
+
+		res, err = bt.inner.RoundTrip(in)
+	}
+
+	return res, err
 }
 
 func (bt *bearerTransport) refresh() error {
