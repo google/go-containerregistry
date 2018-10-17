@@ -15,6 +15,7 @@
 package crane
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -24,6 +25,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
+
+// Tag applied to images that were pulled by digest. This denotes that the
+// image was (probably) never tagged with this, but lets us avoid applying the
+// ":latest" tag which might be misleading.
+const iWasADigestTag = "i-was-a-digest"
 
 func init() { Root.AddCommand(NewCmdPull()) }
 
@@ -60,7 +66,7 @@ func pull(_ *cobra.Command, args []string) {
 		if !ok {
 			log.Fatal("ref wasn't a tag or digest")
 		}
-		s := d.Repository.Name()
+		s := fmt.Sprintf("%s:%s", d.Repository.Name(), iWasADigestTag)
 		tag, err = name.NewTag(s, name.WeakValidation)
 		if err != nil {
 			log.Fatalf("parsing digest as tag (%s): %v", s, err)
