@@ -13,7 +13,8 @@ crane config [flags]
 ### Options
 
 ```
-  -h, --help   help for config
+  -h, --help     help for config
+  -p, --pretty   If true, pretty-print JSON
 ```
 
 ### SEE ALSO
