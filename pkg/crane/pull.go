@@ -59,7 +59,7 @@ func pull(_ *cobra.Command, args []string) {
 	// WriteToFile wants a tag to write to the tarball, but we might have
 	// been given a digest.
 	// If the original ref was a tag, use that. Otherwise, if it was a
-	// digest, remove the digest from the ref instead.
+	// digest, tag the image with :i-was-a-digest instead.
 	tag, ok := ref.(name.Tag)
 	if !ok {
 		d, ok := ref.(name.Digest)
