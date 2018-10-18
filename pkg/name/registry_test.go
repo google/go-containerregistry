@@ -136,6 +136,42 @@ func TestRegistryScopes(t *testing.T) {
 	}
 }
 
+func TestIsRFC1918(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		reg    string
+		result bool
+	}{{
+		reg:    "index.docker.io",
+		result: false,
+	}, {
+		reg:    "10.2.3.4:5000",
+		result: true,
+	}, {
+		reg:    "8.8.8.8",
+		result: false,
+	}, {
+		reg:    "172.16.3.4:3000",
+		result: true,
+	}, {
+		reg:    "192.168.3.4",
+		result: true,
+	}, {
+		reg:    "10.256.0.0:5000",
+		result: false,
+	}}
+	for _, test := range tests {
+		reg, err := NewRegistry(test.reg, WeakValidation)
+		if err != nil {
+			t.Errorf("NewRegistry(%s) = %v", test.reg, err)
+		}
+		got := reg.isRFC1918()
+		if got != test.result {
+			t.Errorf("isRFC1918(); got %v, want %v", got, test.result)
+		}
+	}
+}
+
 func TestRegistryScheme(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -161,6 +197,9 @@ func TestRegistryScheme(t *testing.T) {
 		scheme: "https",
 	}, {
 		domain: "::1",
+		scheme: "http",
+	}, {
+		domain: "10.2.3.4:5000",
 		scheme: "http",
 	}}
 
