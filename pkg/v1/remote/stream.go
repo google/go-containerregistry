@@ -15,32 +15,102 @@
 package remote
 
 import (
-	"errors"
+	"compress/gzip"
+	"crypto/sha256"
+	"encoding/hex"
+	"hash"
 	"io"
 
 	"github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 type StreamableLayer struct {
-	Blob io.ReadCloser
+	blob io.ReadCloser
+
+	digest, diffID v1.Hash
+	size           int64
 }
 
 var _ v1.Layer = (*StreamableLayer)(nil)
 
-func (s *StreamableLayer) Digest() (v1.Hash, error) {
-	return v1.Hash{}, errors.New("don't know digest of streamed layer")
-}
-
-func (s *StreamableLayer) DiffID() (v1.Hash, error) {
-	return v1.Hash{}, errors.New("don't know digest of streamed layer")
-}
+func (s *StreamableLayer) Digest() (v1.Hash, error) { return s.digest, nil }
+func (s *StreamableLayer) DiffID() (v1.Hash, error) { return s.diffID, nil }
+func (s *StreamableLayer) Size() (int64, error)     { return s.size, nil }
 
 func (s *StreamableLayer) Uncompressed() (io.ReadCloser, error) {
-	return nil, errors.New("refusing to decompress streamed layer")
+	return newCollectReader(s, s.blob), nil
 }
 
-func (s *StreamableLayer) Compressed() (io.ReadCloser, error) { return s.Blob, nil }
+func (s *StreamableLayer) Compressed() (io.ReadCloser, error) {
+	u, err := s.Uncompressed()
+	if err != nil {
+		return nil, err
+	}
+	return v1util.GzipReadCloser(u)
+}
 
-func (s *StreamableLayer) Size() (int64, error) {
-	return 0, errors.New("don't know size of streamed layer")
+// NewStreamableLayer returns a StreamableLayer backed by the ReadCloser, which
+// is assumed to contain the layer's uncompressed data.
+//
+// If called, the streamable layer's Compressed method will return the
+// compressed view of the data.
+//
+// Whether through Uncompressed or Compressed, closing the returned ReadCloser
+// will close the underlying original ReadCloser, and will populate the layer's
+// Digest, DiffID and Size; until the stream is consumed, these will return
+// zero values.
+func NewStreamableLayer(rc io.ReadCloser) *StreamableLayer { return &StreamableLayer{blob: rc} }
+
+type collectReader struct {
+	closer io.Closer
+
+	tee   io.Reader
+	h, zh hash.Hash
+	zw    io.Closer // gzip closer
+	n     int64
+
+	// StreamableLayer to update upon Close.
+	sl *StreamableLayer
+}
+
+func newCollectReader(sl *StreamableLayer, rc io.ReadCloser) io.ReadCloser {
+	h := sha256.New()
+	zh := sha256.New()
+	zw := gzip.NewWriter(zh)
+
+	return &collectReader{
+		closer: rc,
+		tee:    io.TeeReader(rc, io.MultiWriter(h, zw)),
+		h:      h,
+		zh:     zh,
+		zw:     zw,
+		sl:     sl,
+	}
+}
+
+func (on *collectReader) Read(b []byte) (int, error) {
+	n, err := on.tee.Read(b)
+	on.n += int64(n)
+	return n, err
+}
+
+func (on *collectReader) Close() error {
+	// Finish flushing gzipped content to the compressed hasher.
+	if err := on.zw.Close(); err != nil {
+		return err
+	}
+
+	var err error
+	on.sl.diffID, err = v1.NewHash("sha256:" + hex.EncodeToString(on.h.Sum(nil)))
+	if err != nil {
+		return err
+	}
+	on.sl.digest, err = v1.NewHash("sha256:" + hex.EncodeToString(on.zh.Sum(nil)))
+	if err != nil {
+		return err
+	}
+	on.sl.size = on.n
+
+	return on.closer.Close()
 }

@@ -515,7 +515,7 @@ func TestCommitBlob(t *testing.T) {
 
 	commitLocation := w.url(expectedPath)
 
-	if _, err := w.commitBlob(commitLocation.String(), h.String()); err != nil {
+	if err := w.commitBlob(commitLocation.String(), h.String()); err != nil {
 		t.Errorf("commitBlob() = %v", err)
 	}
 }
@@ -579,6 +579,81 @@ func TestUploadOne(t *testing.T) {
 	}
 	if err := w.uploadOne(l); err != nil {
 		t.Errorf("uploadOne() = %v", err)
+	}
+}
+
+func TestUploadOneStreamable(t *testing.T) {
+	expectedRepo := "baz/blah"
+	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	streamPath := "/path/to/upload"
+	commitPath := "/path/to/commit"
+
+	w, closer, err := setupWriter(expectedRepo, nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case initiatePath:
+			if r.Method != http.MethodPost {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+			}
+			w.Header().Set("Location", streamPath)
+			http.Error(w, "Initiated", http.StatusAccepted)
+		case streamPath:
+			if r.Method != http.MethodPatch {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
+			}
+			/*
+				got, err := ioutil.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("ReadAll(Body) = %v", err)
+				}
+				want, err := img.RawConfigFile()
+				if err != nil {
+					t.Errorf("RawConfigFile() = %v", err)
+				}
+				if bytes.Compare(got, want) != 0 {
+					t.Errorf("bytes.Compare(); got %v, want %v", got, want)
+				}
+			*/
+			w.Header().Set("Location", commitPath)
+			http.Error(w, "Initiated", http.StatusAccepted)
+		case commitPath:
+			if r.Method != http.MethodPut {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
+			}
+			http.Error(w, "Created", http.StatusCreated)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	if err != nil {
+		t.Fatalf("setupWriter() = %v", err)
+	}
+	defer closer.Close()
+
+	n := 10000
+	sl := NewStreamableLayer(ioutil.NopCloser(bytes.NewBufferString(strings.Repeat("a", n))))
+	if err := w.uploadOne(sl); err != nil {
+		t.Fatalf("uploadOne: %v", err)
+	}
+
+	// Check sl.Digest, sl.DiffID, sl.Size
+
+	// Now that the stream has been consumed, data should be available.
+	wantDigest := "sha256:4aaecd841543b43d8815fa086939ee183462c1fea721a16fd28c825aa1af571f"
+	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
+	if dig, err := sl.Digest(); err != nil {
+		t.Errorf("Digest: %v", err)
+	} else if dig.String() != wantDigest {
+		t.Errorf("Digest got %q, want %q", dig, wantDigest)
+	}
+	if diffID, err := sl.DiffID(); err != nil {
+		t.Errorf("DiffID: %v", err)
+	} else if diffID.String() != wantDiffID {
+		t.Errorf("DiffID got %q, want %q", diffID, wantDiffID)
+	}
+	if size, err := sl.Size(); err != nil {
+		t.Errorf("Size: %v", err)
+	} else if size != int64(n) {
+		t.Errorf("Size got %d, want %d", size, n)
 	}
 }
 

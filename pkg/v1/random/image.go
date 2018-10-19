@@ -48,9 +48,9 @@ func (ul *uncompressedLayer) Uncompressed() (io.ReadCloser, error) {
 var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)
 
 // Image returns a pseudo-randomly generated Image.
-func Image(byteSize, layers int64) (v1.Image, error) {
-	layerz := make(map[v1.Hash]partial.UncompressedLayer)
-	for i := int64(0); i < layers; i++ {
+func Image(byteSize, numLayers int64) (v1.Image, error) {
+	layers := make(map[v1.Hash]partial.UncompressedLayer)
+	for i := int64(0); i < numLayers; i++ {
 		var b bytes.Buffer
 		tw := tar.NewWriter(&b)
 		if err := tw.WriteHeader(&tar.Header{
@@ -67,7 +67,7 @@ func Image(byteSize, layers int64) (v1.Image, error) {
 		if err != nil {
 			return nil, err
 		}
-		layerz[h] = &uncompressedLayer{
+		layers[h] = &uncompressedLayer{
 			diffID:  h,
 			content: bts,
 		}
@@ -76,11 +76,11 @@ func Image(byteSize, layers int64) (v1.Image, error) {
 	cfg := &v1.ConfigFile{}
 
 	// It is ok that iteration order is random in Go, because this is the random image anyways.
-	for k := range layerz {
+	for k := range layers {
 		cfg.RootFS.DiffIDs = append(cfg.RootFS.DiffIDs, k)
 	}
 
-	for i := int64(0); i < layers; i++ {
+	for i := int64(0); i < numLayers; i++ {
 		cfg.History = append(cfg.History, v1.History{
 			Author:    "random.Image",
 			Comment:   fmt.Sprintf("this is a random history %d", i),
@@ -91,7 +91,7 @@ func Image(byteSize, layers int64) (v1.Image, error) {
 
 	return partial.UncompressedToImage(&image{
 		config: cfg,
-		layers: layerz,
+		layers: layers,
 	})
 }
 

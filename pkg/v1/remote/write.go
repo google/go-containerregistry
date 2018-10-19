@@ -188,12 +188,10 @@ func (w *writer) streamBlob(blob io.ReadCloser, streamLocation string) (commitLo
 
 // commitBlob commits this blob by sending a PUT to the location returned from
 // streaming the blob.
-//
-// It returns the digest of the blob as reported by the registry.
-func (w *writer) commitBlob(location, digest string) (string, error) {
+func (w *writer) commitBlob(location, digest string) error {
 	u, err := url.Parse(location)
 	if err != nil {
-		return "", err
+		return err
 	}
 	v := u.Query()
 	if digest != "" {
@@ -203,16 +201,16 @@ func (w *writer) commitBlob(location, digest string) (string, error) {
 
 	req, err := http.NewRequest(http.MethodPut, u.String(), nil)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	resp, err := w.client.Do(req)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer resp.Body.Close()
 
-	return resp.Header.Get("Docker-Content-Digest"), CheckError(resp, http.StatusCreated)
+	return CheckError(resp, http.StatusCreated)
 }
 
 // uploadOne performs a complete upload of a single layer.
@@ -248,7 +246,11 @@ func (w *writer) uploadOne(l v1.Layer) error {
 	if err != nil {
 		return err
 	} else if mounted {
-		log.Printf("mounted blob: %v", "TODO") // TODO
+		h, err := l.Digest()
+		if err != nil {
+			return err
+		}
+		log.Printf("mounted blob: %s", h.String())
 		return nil
 	}
 
@@ -261,11 +263,11 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		return err
 	}
 
-	digest, err = w.commitBlob(location, digest)
-	if err != nil {
+	if err := w.commitBlob(location, digest); err != nil {
 		return err
 	}
 	log.Printf("pushed blob %v", digest)
+
 	return nil
 }
 
