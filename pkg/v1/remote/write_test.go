@@ -264,7 +264,7 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(h)
+	_, mounted, err := w.initiateUpload("", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -301,7 +301,7 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload(h)
+	location, mounted, err := w.initiateUpload("", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -339,7 +339,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload(h)
+	location, mounted, err := w.initiateUpload("", h.String())
 	if err == nil {
 		t.Errorf("intiateUpload() = %v, %v; wanted error", location, mounted)
 	}
@@ -377,7 +377,7 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(h)
+	_, mounted, err := w.initiateUpload("", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -427,7 +427,7 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(h)
+	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -470,7 +470,16 @@ func TestStreamBlob(t *testing.T) {
 
 	streamLocation := w.url(expectedPath)
 
-	commitLocation, err := w.streamBlob(h, streamLocation.String())
+	l, err := img.LayerByDigest(h)
+	if err != nil {
+		t.Fatalf("LayerByDigest: %v", err)
+	}
+	blob, err := l.Compressed()
+	if err != nil {
+		t.Fatalf("layer.Compressed: %v", err)
+	}
+
+	commitLocation, err := w.streamBlob(blob, streamLocation.String())
 	if err != nil {
 		t.Errorf("streamBlob() = %v", err)
 	}
@@ -506,7 +515,7 @@ func TestCommitBlob(t *testing.T) {
 
 	commitLocation := w.url(expectedPath)
 
-	if err := w.commitBlob(h, commitLocation.String()); err != nil {
+	if _, err := w.commitBlob(commitLocation.String(), h.String()); err != nil {
 		t.Errorf("commitBlob() = %v", err)
 	}
 }
@@ -564,7 +573,11 @@ func TestUploadOne(t *testing.T) {
 	}
 	defer closer.Close()
 
-	if err := w.uploadOne(h); err != nil {
+	l, err := img.LayerByDigest(h)
+	if err != nil {
+		t.Fatalf("LayerByDigest: %v", err)
+	}
+	if err := w.uploadOne(l); err != nil {
 		t.Errorf("uploadOne() = %v", err)
 	}
 }
