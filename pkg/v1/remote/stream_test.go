@@ -161,9 +161,10 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 				name := fmt.Sprintf("file-%d.txt", i)
 				body := fmt.Sprintf("i am file number %d", i)
 				if err := tw.WriteHeader(&tar.Header{
-					Name: name,
-					Mode: 0600,
-					Size: int64(len(body)),
+					Name:     name,
+					Mode:     0600,
+					Size:     int64(len(body)),
+					Typeflag: tar.TypeReg,
 				}); err != nil {
 					return err
 				}
