@@ -18,6 +18,7 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"hash"
 	"io"
 
@@ -28,15 +29,31 @@ import (
 type StreamableLayer struct {
 	blob io.ReadCloser
 
-	digest, diffID v1.Hash
+	digest, diffID *v1.Hash
 	size           int64
 }
 
 var _ v1.Layer = (*StreamableLayer)(nil)
 
-func (s *StreamableLayer) Digest() (v1.Hash, error) { return s.digest, nil }
-func (s *StreamableLayer) DiffID() (v1.Hash, error) { return s.diffID, nil }
-func (s *StreamableLayer) Size() (int64, error)     { return s.size, nil }
+func (s *StreamableLayer) Digest() (v1.Hash, error) {
+	if s.digest == nil {
+		return v1.Hash{}, errors.New("digest not yet computed")
+	}
+	return *s.digest, nil
+}
+
+func (s *StreamableLayer) DiffID() (v1.Hash, error) {
+	if s.diffID == nil {
+		return v1.Hash{}, errors.New("diffID not yet computed")
+	}
+	return *s.diffID, nil
+}
+func (s *StreamableLayer) Size() (int64, error) {
+	if s.size == 0 {
+		return 0, errors.New("size not yet computed")
+	}
+	return s.size, nil
+}
 
 func (s *StreamableLayer) Uncompressed() (io.ReadCloser, error) {
 	return newCollectReader(s, s.blob), nil
@@ -101,15 +118,16 @@ func (on *collectReader) Close() error {
 		return err
 	}
 
-	var err error
-	on.sl.diffID, err = v1.NewHash("sha256:" + hex.EncodeToString(on.h.Sum(nil)))
+	diffID, err := v1.NewHash("sha256:" + hex.EncodeToString(on.h.Sum(nil)))
 	if err != nil {
 		return err
 	}
-	on.sl.digest, err = v1.NewHash("sha256:" + hex.EncodeToString(on.zh.Sum(nil)))
+	on.sl.diffID = &diffID
+	digest, err := v1.NewHash("sha256:" + hex.EncodeToString(on.zh.Sum(nil)))
 	if err != nil {
 		return err
 	}
+	on.sl.digest = &digest
 	on.sl.size = on.n
 
 	return on.closer.Close()

@@ -27,12 +27,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
-
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
@@ -582,7 +580,7 @@ func TestUploadOne(t *testing.T) {
 	}
 }
 
-func TestUploadOneStreamable(t *testing.T) {
+func TestUploadOneStreamableLayer(t *testing.T) {
 	expectedRepo := "baz/blah"
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	streamPath := "/path/to/upload"
@@ -601,17 +599,16 @@ func TestUploadOneStreamable(t *testing.T) {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
 			}
 			/*
-				got, err := ioutil.ReadAll(r.Body)
-				if err != nil {
-					t.Errorf("ReadAll(Body) = %v", err)
+				if got, err := ioutil.ReadAll(r.Body); err != nil {
+					t.Errorf("ReadAll: %v", err)
 				}
-				want, err := img.RawConfigFile()
-				if err != nil {
-					t.Errorf("RawConfigFile() = %v", err)
-				}
-				if bytes.Compare(got, want) != 0 {
-					t.Errorf("bytes.Compare(); got %v, want %v", got, want)
-				}
+					want, err := img.RawConfigFile()
+					if err != nil {
+						t.Errorf("RawConfigFile() = %v", err)
+					}
+					if bytes.Compare(got, want) != 0 {
+						t.Errorf("bytes.Compare(); got %v, want %v", got, want)
+					}
 			*/
 			w.Header().Set("Location", commitPath)
 			http.Error(w, "Initiated", http.StatusAccepted)
@@ -799,7 +796,6 @@ func TestWriteWithErrors(t *testing.T) {
 }
 
 func TestScopesForUploadingImage(t *testing.T) {
-
 	referenceToUpload, err := name.NewTag("example.com/sample/sample:latest", name.WeakValidation)
 	if err != nil {
 		t.Fatalf("name.NewTag() = %v", err)
