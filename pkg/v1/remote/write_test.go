@@ -598,18 +598,7 @@ func TestUploadOneStreamableLayer(t *testing.T) {
 			if r.Method != http.MethodPatch {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
 			}
-			/*
-				if got, err := ioutil.ReadAll(r.Body); err != nil {
-					t.Errorf("ReadAll: %v", err)
-				}
-					want, err := img.RawConfigFile()
-					if err != nil {
-						t.Errorf("RawConfigFile() = %v", err)
-					}
-					if bytes.Compare(got, want) != 0 {
-						t.Errorf("bytes.Compare(); got %v, want %v", got, want)
-					}
-			*/
+			// TODO(jasonhall): What should we check here?
 			w.Header().Set("Location", commitPath)
 			http.Error(w, "Initiated", http.StatusAccepted)
 		case commitPath:

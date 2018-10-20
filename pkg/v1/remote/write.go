@@ -23,11 +23,12 @@ import (
 	"net/http"
 	"net/url"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
-	"golang.org/x/sync/errgroup"
 )
 
 // Write pushes the provided img to the specified image reference.
@@ -219,6 +220,9 @@ func (w *writer) uploadOne(l v1.Layer) error {
 	if _, ok := l.(*StreamableLayer); !ok {
 		// Layer isn't streamable, we should take advantage of that to
 		// skip uploading if possible.
+		// By sending ?digest= in the request, we'll also check that
+		// our computed digest matches the one computed by the
+		// registry.
 		h, err := l.Digest()
 		if err != nil {
 			return err
