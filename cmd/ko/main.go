@@ -17,21 +17,13 @@ package main
 import (
 	"log"
 
-	"github.com/spf13/cobra"
+	"github.com/google/go-containerregistry/pkg/ko/cmd"
 )
 
 func main() {
-	// Parent command to which all subcommands are added.
-	cmds := &cobra.Command{
-		Use:   "ko",
-		Short: "Rapidly iterate with Go, Containers, and Kubernetes.",
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
-		},
-	}
-	addKubeCommands(cmds)
+	command := cmd.NewDefaultKoCommand()
 
-	if err := cmds.Execute(); err != nil {
+	if err := command.Execute(); err != nil {
 		log.Fatalf("error during command execution: %v", err)
 	}
 }

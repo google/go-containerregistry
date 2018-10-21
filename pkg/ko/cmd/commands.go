@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package cmd
 
 import (
 	"bytes"
+	"io"
 	"log"
-	"os"
 	"os/exec"
 
 	"github.com/spf13/cobra"
@@ -28,22 +28,22 @@ type runCmd func(*cobra.Command, []string)
 
 // passthru returns a runCmd that simply passes our CLI arguments
 // through to a binary named command.
-func passthru(command string) runCmd {
+func passthru(command string, env, args []string, in io.Reader, out, errout io.Writer) runCmd {
 	return func(_ *cobra.Command, _ []string) {
 		// Start building a command line invocation by passing
 		// through our arguments to command's CLI.
-		cmd := exec.Command(command, os.Args[1:]...)
+		cmd := exec.Command(command, args[1:]...)
 
 		// Pass through our environment
-		cmd.Env = os.Environ()
+		cmd.Env = env
 		// Pass through our stdfoo
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
-		cmd.Stdin = os.Stdin
+		cmd.Stderr = errout
+		cmd.Stdout = out
+		cmd.Stdin = in
 
 		// Run it.
 		if err := cmd.Run(); err != nil {
-			log.Fatalf("error executing %q command with args: %v; %v", command, os.Args[1:], err)
+			log.Fatalf("error executing %q command with args: %v; %v", command, args[1:], err)
 		}
 	}
 }
@@ -51,11 +51,11 @@ func passthru(command string) runCmd {
 // addKubeCommands augments our CLI surface with a passthru delete command, and an apply
 // command that realizes the promise of ko, as outlined here:
 //    https://github.com/google/go-containerregistry/issues/80
-func addKubeCommands(topLevel *cobra.Command) {
+func addKubeCommands(topLevel *cobra.Command, env, args []string, in io.Reader, out, errout io.Writer) {
 	topLevel.AddCommand(&cobra.Command{
 		Use:   "delete",
 		Short: `See "kubectl help delete" for detailed usage.`,
-		Run:   passthru("kubectl"),
+		Run:   passthru("kubectl", env, args, in, out, errout),
 		// We ignore unknown flags to avoid importing everything Go exposes
 		// from our commands.
 		FParseErrWhitelist: cobra.FParseErrWhitelist{
@@ -104,10 +104,10 @@ func addKubeCommands(topLevel *cobra.Command) {
 			kubectlCmd := exec.Command("kubectl", "apply", "-f", "-")
 
 			// Pass through our environment
-			kubectlCmd.Env = os.Environ()
+			kubectlCmd.Env = env
 			// Pass through our std{out,err} and make our resolved buffer stdin.
-			kubectlCmd.Stderr = os.Stderr
-			kubectlCmd.Stdout = os.Stdout
+			kubectlCmd.Stderr = errout
+			kubectlCmd.Stdout = out
 			kubectlCmd.Stdin = buf
 
 			// Run it.
@@ -147,7 +147,7 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko resolve --local -f config/`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			resolveFilesToWriter(fo, no, lo, os.Stdout)
+			resolveFilesToWriter(fo, no, lo, out)
 		},
 	}
 	addLocalArg(resolve, lo)
