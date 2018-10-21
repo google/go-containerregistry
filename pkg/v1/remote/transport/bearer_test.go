@@ -103,7 +103,10 @@ func TestBearerTransport(t *testing.T) {
 			if got, want := r.Header.Get("Authorization"), "Bearer "+expectedToken; got != want {
 				t.Errorf("Header.Get(Authorization); got %v, want %v", got, want)
 			}
-
+			if r.URL.Path == "/v2/auth" {
+				http.Redirect(w, r, "/redirect", http.StatusMovedPermanently)
+				return
+			}
 			if strings.Contains(r.URL.Path, "blobs") {
 				http.Redirect(w, r, blobServer.URL, http.StatusFound)
 				return
