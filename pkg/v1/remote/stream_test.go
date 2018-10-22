@@ -36,15 +36,16 @@ const (
 func TestStreamableLayerZero(t *testing.T) {
 	sl := NewStreamableLayer(ioutil.NopCloser(bytes.NewBufferString(strings.Repeat("a", n))))
 
-	// All methods should return errors until the stream has been consumed and closed.
-	if _, err := sl.Size(); err == nil {
-		t.Error("Size: got nil error, wanted error")
+	// All methods should return ErrNotComputed until the stream has been
+	// consumed and closed.
+	if _, err := sl.Size(); err != ErrNotComputed {
+		t.Errorf("Size: got %v, want %v", err, ErrNotComputed)
 	}
 	if _, err := sl.Digest(); err == nil {
-		t.Error("Digest: got nil error, wanted error")
+		t.Errorf("Digest: got %v, want %v", err, ErrNotComputed)
 	}
 	if _, err := sl.DiffID(); err == nil {
-		t.Error("DiffID: got nil error, wanted error")
+		t.Errorf("DiffID: got %v, want %v", err, ErrNotComputed)
 	}
 }
 

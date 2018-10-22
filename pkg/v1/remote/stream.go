@@ -35,22 +35,26 @@ type StreamableLayer struct {
 
 var _ v1.Layer = (*StreamableLayer)(nil)
 
+// ErrNotComputed is returned when the requested value is not yet computed
+// because the stream has not been consumed yet.
+var ErrNotComputed = errors.New("value not computed until stream is consumed")
+
 func (s *StreamableLayer) Digest() (v1.Hash, error) {
 	if s.digest == nil {
-		return v1.Hash{}, errors.New("digest not yet computed")
+		return v1.Hash{}, ErrNotComputed
 	}
 	return *s.digest, nil
 }
 
 func (s *StreamableLayer) DiffID() (v1.Hash, error) {
 	if s.diffID == nil {
-		return v1.Hash{}, errors.New("diffID not yet computed")
+		return v1.Hash{}, ErrNotComputed
 	}
 	return *s.diffID, nil
 }
 func (s *StreamableLayer) Size() (int64, error) {
 	if s.size == 0 {
-		return 0, errors.New("size not yet computed")
+		return 0, ErrNotComputed
 	}
 	return s.size, nil
 }
