@@ -271,8 +271,10 @@ With `--local` import paths are always preserved (see `--preserve-import-paths`)
 While `ko` aims to have zero configuration, there are certain scenarios where
 you will want to override `ko`'s default behavior. This is done via `.ko.yaml`.
 
-`.ko.yaml` is put into the directory from which `ko` will be invoked. If it
-is not present, then `ko` will rely on its default behaviors.
+`.ko.yaml` is put into the directory from which `ko` will be invoked. One can
+override the directory with the `KO_CONFIG_PATH` environment variable.
+
+If either is not present, then `ko` will rely on its default behaviors.
 
 ### Overriding the default base image
 
