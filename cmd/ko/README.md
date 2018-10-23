@@ -274,7 +274,7 @@ you will want to override `ko`'s default behavior. This is done via `.ko.yaml`.
 `.ko.yaml` is put into the directory from which `ko` will be invoked. One can
 override the directory with the `KO_CONFIG_PATH` environment variable.
 
-If either is not present, then `ko` will rely on its default behaviors.
+If neither is present, then `ko` will rely on its default behaviors.
 
 ### Overriding the default base image
 
