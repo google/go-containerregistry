@@ -25,11 +25,21 @@ import (
 )
 
 func TestBasicTransport(t *testing.T) {
+	username := "foo"
+	password := "bar"
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			hdr := r.Header.Get("Authorization")
 			if !strings.HasPrefix(hdr, "Basic ") {
 				t.Errorf("Header.Get(Authorization); got %v, want Basic prefix", hdr)
+			}
+			user, pass, _ := r.BasicAuth()
+			if user != username || pass != password {
+				t.Error("Invalid credentials.")
+			}
+			if r.URL.Path == "/v2/auth" {
+				http.Redirect(w, r, "/redirect", http.StatusMovedPermanently)
+				return
 			}
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -41,7 +51,7 @@ func TestBasicTransport(t *testing.T) {
 		},
 	}
 
-	basic := &authn.Basic{Username: "foo", Password: "bar"}
+	basic := &authn.Basic{Username: username, Password: password}
 	client := http.Client{Transport: &basicTransport{inner: inner, auth: basic, target: "gcr.io"}}
 
 	_, err := client.Get("http://gcr.io/v2/auth")
