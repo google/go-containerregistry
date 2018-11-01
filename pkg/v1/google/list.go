@@ -192,7 +192,7 @@ func walk(repo name.Repository, tags *Tags, walkFn WalkFunc, options ...ListerOp
 
 		childTags, err := List(child, options...)
 		if err != nil {
-			if err := walkFn(repo, nil, err); err != nil {
+			if err := walkFn(child, nil, err); err != nil {
 				return err
 			}
 		} else {
