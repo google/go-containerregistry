@@ -164,6 +164,14 @@
   version = "v0.3.3"
 
 [[projects]]
+  digest = "1:32598368f409bbee79deb9d43569fcd92b9fb27f39155f5e166b3371217f051f"
+  name = "github.com/evanphx/json-patch"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "72bf35d0ff611848c1dc9df0f976c81192392fa5"
+  version = "v4.1.0"
+
+[[projects]]
   digest = "1:1b91ae0dc69a41d4c2ed23ea5cffb721ea63f5037ca4b81e6d6771fbb8f45129"
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
@@ -291,6 +299,14 @@
   ]
   pruneopts = "NUT"
   revision = "ef8a98b0bbce4a65b5aa4c368430a80ddc533168"
+
+[[projects]]
+  digest = "1:9a52adf44086cead3b384e5d0dbf7a1c1cce65e67552ee3383a8561c42a18cd3"
+  name = "github.com/imdario/mergo"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "9f23e2d6bd2a77f959b2bf6acdbefd708a83a4a4"
+  version = "v0.3.6"
 
 [[projects]]
   digest = "1:406338ad39ab2e37b7f4452906442a3dbf0eb3379dd1f06aafb5c07e769a5fbb"
@@ -522,17 +538,23 @@
   revision = "bd9dbc187b6e1dacfdd2722a87e83093c2d7bd6e"
 
 [[projects]]
-  digest = "1:e7071ed636b5422cc51c0e3a6cebc229d6c9fffc528814b519a980641422d619"
+  digest = "1:f9bea942c292a95e0ed958678f84a13b9424067693f44c095e7e3d25f6402892"
   name = "golang.org/x/text"
   packages = [
     "collate",
     "collate/build",
+    "encoding",
+    "encoding/internal",
+    "encoding/internal/identifier",
+    "encoding/unicode",
     "internal/colltab",
     "internal/gen",
     "internal/tag",
     "internal/triegen",
     "internal/ucd",
+    "internal/utf8internal",
     "language",
+    "runes",
     "secure/bidirule",
     "transform",
     "unicode/bidi",
@@ -638,7 +660,7 @@
   version = "kubernetes-1.11.0"
 
 [[projects]]
-  digest = "1:a20e293fab86a640f5cd1e730c24909d9940ed936e25242031395fea9e317de2"
+  digest = "1:049663db73a9d9c964d5d1279d81627d94928470ebed75ab93f03af468d37e63"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -646,6 +668,7 @@
     "pkg/api/resource",
     "pkg/apis/meta/v1",
     "pkg/apis/meta/v1/unstructured",
+    "pkg/apis/meta/v1/unstructured/unstructuredscheme",
     "pkg/apis/meta/v1beta1",
     "pkg/conversion",
     "pkg/conversion/queryparams",
@@ -685,7 +708,7 @@
   version = "kubernetes-1.11.0"
 
 [[projects]]
-  digest = "1:fcb972ddce7f2814aecea94d1fa2fcb13afdc83ed7606e927de1f1ed9147bf32"
+  digest = "1:fe5d325bfa6eeed7eed19a6bec4637f064cecfb0eae3d019973decfe335318ae"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -758,15 +781,23 @@
     "plugin/pkg/client/auth/exec",
     "rest",
     "rest/watch",
+    "restmapper",
     "testing",
+    "third_party/forked/golang/template",
+    "tools/auth",
+    "tools/clientcmd",
     "tools/clientcmd/api",
+    "tools/clientcmd/api/latest",
+    "tools/clientcmd/api/v1",
     "tools/metrics",
     "tools/reference",
     "transport",
     "util/cert",
     "util/connrotation",
     "util/flowcontrol",
+    "util/homedir",
     "util/integer",
+    "util/jsonpath",
   ]
   pruneopts = "NUT"
   revision = "7d04d0e2a0a1a4d4a1cd6baa432a2301492e4e65"
@@ -809,7 +840,7 @@
   revision = "e3762e86a74c878ffed47484592986685639c2cd"
 
 [[projects]]
-  digest = "1:e345c95cf277bb7f650306556904df69e0904395c56959a56002d0140747eda0"
+  digest = "1:648b284c5be42dac6025edeba72633e522e8b66a150f5ee3aa75de5edde72cd4"
   name = "k8s.io/kubernetes"
   packages = [
     "pkg/cloudprovider/providers/azure/auth",
@@ -818,10 +849,13 @@
     "pkg/credentialprovider/azure",
     "pkg/credentialprovider/gcp",
     "pkg/credentialprovider/secrets",
+    "pkg/kubectl/genericclioptions",
+    "pkg/kubectl/genericclioptions/printers",
+    "pkg/kubectl/genericclioptions/resource",
   ]
   pruneopts = "NUT"
-  revision = "b1b29978270dc22fecc592ac55d903350454310a"
-  version = "v1.11.1"
+  revision = "bf9a868e8ea3d3a8fa53cbb22f566771b3f8068b"
+  version = "v1.11.4"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -834,6 +868,7 @@
     "github.com/pkg/errors",
     "github.com/spf13/cobra",
     "github.com/spf13/cobra/doc",
+    "github.com/spf13/pflag",
     "github.com/spf13/viper",
     "golang.org/x/sync/errgroup",
     "gopkg.in/yaml.v2",
@@ -848,6 +883,7 @@
     "k8s.io/kubernetes/pkg/credentialprovider/azure",
     "k8s.io/kubernetes/pkg/credentialprovider/gcp",
     "k8s.io/kubernetes/pkg/credentialprovider/secrets",
+    "k8s.io/kubernetes/pkg/kubectl/genericclioptions",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
