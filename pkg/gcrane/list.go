@@ -69,11 +69,14 @@ func ls(root string, recursive bool) {
 		return
 	}
 
+	// Since we're not recursing, print the subdirectories too.
 	for _, child := range tags.Children {
 		fmt.Printf("%s/%s\n", repo, child)
 	}
 
-	_ = printImages(repo, tags, err)
+	if err := printImages(repo, tags, err); err != nil {
+		log.Fatalln(err)
+	}
 }
 
 func printImages(repo name.Repository, tags *google.Tags, err error) error {

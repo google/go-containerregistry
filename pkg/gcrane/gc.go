@@ -58,14 +58,8 @@ func gc(root string, recursive bool) {
 	}
 
 	tags, err := google.List(repo, auth)
-	if err != nil {
+	if err := printUntaggedImages(repo, tags, err); err != nil {
 		log.Fatalln(err)
-	}
-
-	for digest, manifest := range tags.Manifests {
-		if len(manifest.Tags) == 0 {
-			fmt.Printf("%s@%s\n", repo, digest)
-		}
 	}
 }
 
