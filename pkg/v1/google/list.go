@@ -28,6 +28,65 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
+// TODO: Can we somehow reuse the remote options here?
+type ListerOption func(*lister) error
+
+type lister struct {
+	auth      authn.Authenticator
+	transport http.RoundTripper
+	repo      name.Repository
+	client    *http.Client
+}
+
+func newLister(repo name.Repository, options ...ListerOption) (*lister, error) {
+	l := &lister{
+		auth:      authn.Anonymous,
+		transport: http.DefaultTransport,
+		repo:      repo,
+	}
+
+	for _, option := range options {
+		if err := option(l); err != nil {
+			return nil, err
+		}
+	}
+
+	scopes := []string{repo.Scope(transport.PullScope)}
+	tr, err := transport.New(repo.Registry, l.auth, l.transport, scopes)
+	if err != nil {
+		return nil, err
+	}
+
+	l.client = &http.Client{Transport: tr}
+
+	return l, nil
+}
+
+func (l *lister) list(repo name.Repository) (*Tags, error) {
+	uri := url.URL{
+		Scheme: repo.Registry.Scheme(),
+		Host:   repo.Registry.RegistryStr(),
+		Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
+	}
+
+	resp, err := l.client.Get(uri.String())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := remote.CheckError(resp, http.StatusOK); err != nil {
+		return nil, err
+	}
+
+	tags := Tags{}
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
+		return nil, err
+	}
+
+	return &tags, nil
+}
+
 type rawManifestInfo struct {
 	Size      string   `json:"imageSizeBytes"`
 	MediaType string   `json:"mediaType"`
@@ -94,34 +153,65 @@ type Tags struct {
 	Tags      []string                `json:"tags"`
 }
 
-func List(repo name.Repository, auth authn.Authenticator, t http.RoundTripper) (*Tags, error) {
-	scopes := []string{repo.Scope(transport.PullScope)}
-	tr, err := transport.New(repo.Registry, auth, t, scopes)
+func List(repo name.Repository, options ...ListerOption) (*Tags, error) {
+	l, err := newLister(repo, options...)
 	if err != nil {
 		return nil, err
 	}
 
-	uri := url.URL{
-		Scheme: repo.Registry.Scheme(),
-		Host:   repo.Registry.RegistryStr(),
-		Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
+	return l.list(repo)
+}
+
+// WalkFunc is the type of the function called for each repository visited by
+// Walk. This implements a simliar API to filepath.Walk.
+//
+// The repo argument contains the argument to Walk as a prefix; that is, if Walk
+// is called with "gcr.io/foo", which is a repository containing the repository
+// "bar", the walk function will be called with argument "gcr.io/foo/bar".
+// The tags and error arguments are the result of calling List on repo.
+//
+// TODO: Do we want a SkipDir error, as in filepath.WalkFunc?
+type WalkFunc func(repo name.Repository, tags *Tags, err error) error
+
+func walk(repo name.Repository, tags *Tags, walkFn WalkFunc, options ...ListerOption) error {
+	if tags == nil {
+		// This shouldn't happen.
+		return fmt.Errorf("tags nil for %q", repo)
 	}
 
-	client := http.Client{Transport: tr}
-	resp, err := client.Get(uri.String())
+	if err := walkFn(repo, tags, nil); err != nil {
+		return err
+	}
+
+	for _, path := range tags.Children {
+		child, err := name.NewRepository(fmt.Sprintf("%s/%s", repo, path), name.StrictValidation)
+		if err != nil {
+			// We don't expect this ever, so don't pass it through to walkFn.
+			return fmt.Errorf("unexpected path failure: %v", err)
+		}
+
+		childTags, err := List(child, options...)
+		if err != nil {
+			if err := walkFn(child, nil, err); err != nil {
+				return err
+			}
+		} else {
+			if err := walk(child, childTags, walkFn, options...); err != nil {
+				return err
+			}
+		}
+	}
+
+	// We made it!
+	return nil
+}
+
+// Walk recursively descends repositories, calling walkFn.
+func Walk(root name.Repository, walkFn WalkFunc, options ...ListerOption) error {
+	tags, err := List(root, options...)
 	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if err := remote.CheckError(resp, http.StatusOK); err != nil {
-		return nil, err
+		return walkFn(root, nil, err)
 	}
 
-	tags := Tags{}
-	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
-		return nil, err
-	}
-
-	return &tags, nil
+	return walk(root, tags, walkFn, options...)
 }
