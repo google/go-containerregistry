@@ -47,7 +47,10 @@ func NewCmdGc() *cobra.Command {
 			if err != nil {
 				log.Fatalln(err)
 			}
-			GarbageCollect(args[0], opts)
+
+			if err := GarbageCollect(args[0], opts); err != nil {
+				log.Fatalln(err)
+			}
 		},
 	}
 
@@ -68,20 +71,22 @@ type GCOptions struct {
 	Untagged bool
 	Tags     []string
 
-	// Set version of Tags, for convenience.
-	tagSet map[string]struct{}
-
 	Before *time.Time
 	After  *time.Time
 
 	Recursive bool
 	Delete    bool
+
+	// Private set version of Tags, for convenience.
+	tagSet map[string]struct{}
 }
 
-func GarbageCollect(root string, opts GCOptions) {
+// GarbageCollect iterates over a repository, printing and optionally deleting
+// images that match the criteria in opts.
+func GarbageCollect(root string, opts GCOptions) error {
 	repo, err := name.NewRepository(root, name.WeakValidation)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	auth := google.WithAuthFromKeychain(authn.DefaultKeychain)
@@ -93,16 +98,11 @@ func GarbageCollect(root string, opts GCOptions) {
 	}
 
 	if opts.Recursive {
-		if err := google.Walk(repo, opts.walkFn, auth); err != nil {
-			log.Fatalln(err)
-		}
-		return
+		return google.Walk(repo, opts.walkFn, auth)
 	}
 
 	tags, err := google.List(repo, auth)
-	if err := opts.walkFn(repo, tags, err); err != nil {
-		log.Fatalln(err)
-	}
+	return opts.walkFn(repo, tags, err)
 }
 
 func (o *GCOptions) getMatchingRefs(repo name.Repository, digest string, manifest google.ManifestInfo) ([]name.Reference, error) {
