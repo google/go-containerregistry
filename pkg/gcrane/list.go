@@ -54,6 +54,7 @@ func ls(root string, recursive bool) {
 		if err := google.Walk(repo, printImages, auth); err != nil {
 			log.Fatalln(err)
 		}
+		return
 	}
 
 	tags, err := google.List(repo, auth)
