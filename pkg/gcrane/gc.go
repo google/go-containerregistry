@@ -30,20 +30,19 @@ import (
 func init() { Root.AddCommand(NewCmdGc()) }
 
 func NewCmdGc() *cobra.Command {
-	untagged := true
-	tags := []string{}
 	before := ""
 	after := ""
 
 	recursive := false
 	remove := false
+	untag := false
 
 	cmd := &cobra.Command{
 		Use:   "gc",
-		Short: "List images that are not tagged",
+		Short: "Garbage collect images",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			opts, err := parseOpts(tags, before, after, untagged, recursive, remove)
+			opts, err := parseOpts(before, after, recursive, remove, untag)
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -55,30 +54,24 @@ func NewCmdGc() *cobra.Command {
 	}
 
 	// Filters
-	cmd.Flags().BoolVarP(&untagged, "untagged", "u", true, "Match only untagged images")
-	cmd.Flags().StringSliceVarP(&tags, "tags", "t", []string{}, "Match images with these tags")
 	cmd.Flags().StringVarP(&before, "before", "b", "", "Match images uploaded before this time (RFC3339)")
 	cmd.Flags().StringVarP(&after, "after", "a", "", "Match images uploaded after this time (RFC3339)")
 
 	// Behaviors
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
 	cmd.Flags().BoolVarP(&remove, "delete", "D", false, "Delete images instead of just printing them")
+	cmd.Flags().BoolVarP(&untag, "untag", "U", false, "Also untag matching images")
 
 	return cmd
 }
 
 type GCOptions struct {
-	Untagged bool
-	Tags     []string
-
 	Before *time.Time
 	After  *time.Time
 
 	Recursive bool
 	Delete    bool
-
-	// Private set version of Tags, for convenience.
-	tagSet map[string]struct{}
+	Untag     bool
 }
 
 // GarbageCollect iterates over a repository, printing and optionally deleting
@@ -89,13 +82,8 @@ func GarbageCollect(root string, opts GCOptions) error {
 		return err
 	}
 
+	// TODO: Ideally we would just do the token handshake once (or not at all).
 	auth := google.WithAuthFromKeychain(authn.DefaultKeychain)
-
-	// Turn the Tags list into a string set.
-	opts.tagSet = make(map[string]struct{})
-	for _, tag := range opts.Tags {
-		opts.tagSet[tag] = struct{}{}
-	}
 
 	if opts.Recursive {
 		return google.Walk(repo, opts.walkFn, auth)
@@ -107,42 +95,34 @@ func GarbageCollect(root string, opts GCOptions) error {
 
 func (o *GCOptions) getMatchingRefs(repo name.Repository, digest string, manifest google.ManifestInfo) ([]name.Reference, error) {
 	// Evaluate all the filters for this image.
-	untagged := len(manifest.Tags) == 0
 	before := o.Before == nil || o.Before.After(manifest.Uploaded)
 	after := o.After == nil || o.After.Before(manifest.Uploaded)
 
-	matchesTags := false
-	if len(o.tagSet) != 0 {
-		for _, tag := range manifest.Tags {
-			if _, ok := o.tagSet[tag]; ok {
-				matchesTags = true
-				break
-			}
-		}
+	refs := []name.Reference{}
+	digestRef, err := name.ParseReference(fmt.Sprintf("%s@%s", repo, digest), name.StrictValidation)
+	if err != nil {
+		return nil, err
 	}
 
-	refs := []name.Reference{}
-
 	// Determine if this image matches the filters.
-	if ((o.Untagged && untagged) || matchesTags) && before && after {
-		// Add tags first if they need to be deleted.
-		if !o.Untagged {
+	if before && after {
+		// If --untag is set, also delete any image tags.
+		if o.Untag {
 			for _, tag := range manifest.Tags {
 				tagRef, err := name.ParseReference(fmt.Sprintf("%s:%s", repo, tag), name.StrictValidation)
 				if err != nil {
-					// Not expected since this is gcr.io specific.
 					return nil, err
 				}
 				refs = append(refs, tagRef)
 			}
 		}
 
-		digestRef, err := name.ParseReference(fmt.Sprintf("%s@%s", repo, digest), name.StrictValidation)
-		if err != nil {
-			// Not expected since this is gcr.io specific.
-			return nil, err
+		// Don't bother adding the digest unless we can delete it.
+		if o.Untag || len(manifest.Tags) == 0 {
+			refs = append(refs, digestRef)
+		} else if o.Delete {
+			log.Printf("Skipping %s because it is pinned by tags: %v", digestRef, manifest.Tags)
 		}
-		refs = append(refs, digestRef)
 	}
 
 	return refs, nil
@@ -153,10 +133,10 @@ func (o *GCOptions) walkFn(repo name.Repository, tags *google.Tags, err error) e
 		return err
 	}
 
-	// Just get creds once per repo (should be once per invocation).
+	// Just get creds once per repo.
 	auth, err := authn.DefaultKeychain.Resolve(repo.Registry)
 	if err != nil {
-		return fmt.Errorf("getting creds for %q: %v", repo, err)
+		return fmt.Errorf("error getting creds for %q: %v", repo, err)
 	}
 
 	for digest, manifest := range tags.Manifests {
@@ -171,7 +151,8 @@ func (o *GCOptions) walkFn(repo name.Repository, tags *google.Tags, err error) e
 			if o.Delete {
 				log.Printf("Deleting %s", ref)
 				if err := remote.Delete(ref, auth, http.DefaultTransport); err != nil {
-					return fmt.Errorf("deleting image %q: %v", ref, err)
+					// Just log the error instead of failing.
+					log.Printf("error deleting %q: %v", ref, err)
 				}
 			} else {
 				fmt.Printf("%s\n", ref)
@@ -182,12 +163,7 @@ func (o *GCOptions) walkFn(repo name.Repository, tags *google.Tags, err error) e
 	return nil
 }
 
-func parseOpts(tags []string, before, after string, untagged, recursive, remove bool) (GCOptions, error) {
-	if len(tags) != 0 {
-		// Overrides untagged
-		untagged = false
-	}
-
+func parseOpts(before, after string, recursive, remove, untag bool) (GCOptions, error) {
 	var a, b *time.Time
 
 	if after != "" {
@@ -215,8 +191,7 @@ func parseOpts(tags []string, before, after string, untagged, recursive, remove 
 	return GCOptions{
 		Recursive: recursive,
 		Delete:    remove,
-		Untagged:  untagged,
-		Tags:      tags,
+		Untag:     untag,
 		After:     a,
 		Before:    b,
 	}, nil
