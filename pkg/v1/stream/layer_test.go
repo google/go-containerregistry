@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/v1"
@@ -82,24 +83,6 @@ func TestStreamVsBuffer(t *testing.T) {
 		t.Errorf("Size: %v", err)
 	} else if s != wantSize {
 		t.Errorf("stream Size got %d, want %d", s, wantSize)
-	}
-}
-
-// TestStreamZero tests that Digest/DiffID/Size return ErrNotComputed before
-// the stream has been consumed.
-func TestStreamZero(t *testing.T) {
-	l := NewLayer(ioutil.NopCloser(bytes.NewBufferString("hi")))
-
-	// All methods should return ErrNotComputed until the stream has been
-	// consumed and closed.
-	if _, err := l.Size(); err != ErrNotComputed {
-		t.Errorf("Size: got %v, want %v", err, ErrNotComputed)
-	}
-	if _, err := l.Digest(); err == nil {
-		t.Errorf("Digest: got %v, want %v", err, ErrNotComputed)
-	}
-	if _, err := l.DiffID(); err == nil {
-		t.Errorf("DiffID: got %v, want %v", err, ErrNotComputed)
 	}
 }
 
@@ -176,5 +159,43 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 		t.Errorf("Digest: %v", err)
 	} else if got.String() != wantDigest {
 		t.Errorf("Digest: got %q, want %q", got.String(), wantDigest)
+	}
+}
+
+// TestNotComputed tests that Digest/DiffID/Size return ErrNotComputed before
+// the stream has been consumed.
+func TestNotComputed(t *testing.T) {
+	l := NewLayer(ioutil.NopCloser(bytes.NewBufferString("hi")))
+
+	// All methods should return ErrNotComputed until the stream has been
+	// consumed and closed.
+	if _, err := l.Size(); err != ErrNotComputed {
+		t.Errorf("Size: got %v, want %v", err, ErrNotComputed)
+	}
+	if _, err := l.Digest(); err == nil {
+		t.Errorf("Digest: got %v, want %v", err, ErrNotComputed)
+	}
+	if _, err := l.DiffID(); err == nil {
+		t.Errorf("DiffID: got %v, want %v", err, ErrNotComputed)
+	}
+}
+
+// TestConsumed tests that Compressed returns ErrConsumed when the stream has
+// already been consumed.
+func TestConsumed(t *testing.T) {
+	l := NewLayer(ioutil.NopCloser(strings.NewReader("hello")))
+	rc, err := l.Compressed()
+	if err != nil {
+		t.Errorf("Compressed: %v", err)
+	}
+	if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+		t.Errorf("Error reading contents: %v", err)
+	}
+	if err := rc.Close(); err != nil {
+		t.Errorf("Close: %v", err)
+	}
+
+	if _, err := l.Compressed(); err != ErrConsumed {
+		t.Errorf("Compressed() after consuming; got %v, want %v", err, ErrConsumed)
 	}
 }

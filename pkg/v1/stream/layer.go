@@ -25,12 +25,19 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1"
 )
 
-// ErrNotComputed is returned when the requested value is not yet computed
-// because the stream has not been consumed yet.
-var ErrNotComputed = errors.New("value not computed until stream is consumed")
+var (
+	// ErrNotComputed is returned when the requested value is not yet
+	// computed because the stream has not been consumed yet.
+	ErrNotComputed = errors.New("value not computed until stream is consumed")
+
+	// ErrConsumed is returned by Compressed when the underlying stream has
+	// already been consumed and closed.
+	ErrConsumed = errors.New("stream was already consumed")
+)
 
 type Layer struct {
-	blob io.ReadCloser
+	blob     io.ReadCloser
+	consumed bool
 
 	digest, diffID *v1.Hash
 	size           int64
@@ -65,7 +72,12 @@ func (l *Layer) Uncompressed() (io.ReadCloser, error) {
 	return nil, errors.New("NYI: stream.Layer.Uncompressed is not implemented")
 }
 
-func (l *Layer) Compressed() (io.ReadCloser, error) { return newCompressedReader(l) }
+func (l *Layer) Compressed() (io.ReadCloser, error) {
+	if l.consumed {
+		return nil, ErrConsumed
+	}
+	return newCompressedReader(l)
+}
 
 type compressedReader struct {
 	closer io.Closer // original blob's Closer.
@@ -144,6 +156,7 @@ func (cr *compressedReader) Close() error {
 	cr.l.digest = &digest
 
 	cr.l.size = cr.count.n
+	cr.l.consumed = true
 	return nil
 }
 
