@@ -491,9 +491,9 @@ func TestStreamBlob(t *testing.T) {
 }
 
 func TestStreamLayer(t *testing.T) {
-	var n int64 = 10000
+	var n, wantSize int64 = 10000, 49
 	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
-	wantDigest := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
+	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
 
 	expectedPath := "/vWhatever/I/decide"
 	expectedCommitLocation := "https://commit.io/v12/blob"
@@ -510,8 +510,8 @@ func TestStreamLayer(t *testing.T) {
 		if err != nil {
 			t.Errorf("Reading body: %v", err)
 		}
-		if s != n {
-			t.Errorf("Received %d bytes, want %d", s, n)
+		if s != wantSize {
+			t.Errorf("Received %d bytes, want %d", s, wantSize)
 		}
 		gotDigest := "sha256:" + hex.EncodeToString(h.Sum(nil))
 		if gotDigest != wantDigest {
@@ -636,7 +636,7 @@ func TestUploadOne(t *testing.T) {
 	}
 }
 
-func TestUploadOneStreamingLayer(t *testing.T) {
+func TestUploadOneStreamedLayer(t *testing.T) {
 	expectedRepo := "baz/blah"
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	streamPath := "/path/to/upload"
@@ -671,11 +671,10 @@ func TestUploadOneStreamingLayer(t *testing.T) {
 	}
 	defer closer.Close()
 
-	n := 10000
-	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, n))) }
+	var n, wantSize int64 = 10000, 49
+	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
 	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
 	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
-	var wantSize int64 = 49
 	l := stream.NewLayer(newBlob())
 	if err := w.uploadOne(l); err != nil {
 		t.Fatalf("uploadOne: %v", err)

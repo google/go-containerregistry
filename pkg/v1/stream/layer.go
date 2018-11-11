@@ -94,45 +94,36 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 	zh := sha256.New()
 	count := &countWriter{}
 
-	// gzip.Writer writes to the output stream, a hash calculator to
+	// gzip.Writer writes to the output stream via pipe, a hasher to
 	// capture compressed digest, and a countWriter to capture compressed
 	// size.
-	zw, err := gzip.NewWriterLevel(io.MultiWriter(zh, count), gzip.BestSpeed)
+	pr, pw := io.Pipe()
+	zw, err := gzip.NewWriterLevel(io.MultiWriter(pw, zh, count), gzip.BestSpeed)
 	if err != nil {
 		return nil, err
 	}
 
-	// Pipe the contents of rc through
-	pr, pw := io.Pipe()
-	go func() {
-		_, err := io.Copy(pw, io.TeeReader(l.blob, io.MultiWriter(h, zw)))
-		pw.CloseWithError(err)
-	}()
-
-	return &compressedReader{
+	cr := &compressedReader{
 		closer: newMultiCloser(zw, l.blob),
 		pr:     pr,
 		h:      h,
 		zh:     zh,
 		count:  count,
 		l:      l,
-	}, nil
-}
-
-// multiCloser is a Closer that collects multiple Closers and Closes them in order.
-type multiCloser []io.Closer
-
-var _ io.Closer = (multiCloser)(nil)
-
-func newMultiCloser(c ...io.Closer) multiCloser { return multiCloser(c) }
-
-func (m multiCloser) Close() error {
-	for _, c := range m {
-		if err := c.Close(); err != nil {
-			return err
-		}
 	}
-	return nil
+	go func() {
+		if _, err := io.Copy(io.MultiWriter(h, zw), l.blob); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		// Now close the compressed reader, to flush the gzip stream
+		// and calculate digest/diffID/size. This will cause pr to
+		// return EOF which will cause readers of the Compressed stream
+		// to finish reading.
+		pw.CloseWithError(cr.Close())
+	}()
+
+	return cr, nil
 }
 
 func (cr *compressedReader) Read(b []byte) (int, error) { return cr.pr.Read(b) }
@@ -166,4 +157,20 @@ type countWriter struct{ n int64 }
 func (c *countWriter) Write(p []byte) (int, error) {
 	c.n += int64(len(p))
 	return len(p), nil
+}
+
+// multiCloser is a Closer that collects multiple Closers and Closes them in order.
+type multiCloser []io.Closer
+
+var _ io.Closer = (multiCloser)(nil)
+
+func newMultiCloser(c ...io.Closer) multiCloser { return multiCloser(c) }
+
+func (m multiCloser) Close() error {
+	for _, c := range m {
+		if err := c.Close(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

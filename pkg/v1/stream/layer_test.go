@@ -29,11 +29,10 @@ import (
 )
 
 func TestStreamVsBuffer(t *testing.T) {
-	n := 10000
-	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, n))) }
+	var n, wantSize int64 = 10000, 49
+	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
 	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
 	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
-	var wantSize int64 = 49
 
 	// Check that streaming some content results in the expected digest/diffID/size.
 	l := NewLayer(newBlob())
