@@ -292,6 +292,9 @@ func (i *image) Manifest() (*v1.Manifest, error) {
 
 // RawManifest returns the serialized bytes of Manifest()
 func (i *image) RawManifest() ([]byte, error) {
+	if err := i.compute(); err != nil {
+		return nil, err
+	}
 	return json.Marshal(i.manifest)
 }
 
