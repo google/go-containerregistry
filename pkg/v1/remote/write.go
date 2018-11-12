@@ -26,6 +26,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"golang.org/x/sync/errgroup"
@@ -49,8 +50,7 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 		img:    img,
 	}
 
-	// Spin up go routines to publish each of the members of BlobSet(),
-	// and use an error channel to collect their results.
+	// Upload individual layers in goroutines and collect any errors.
 	var g errgroup.Group
 	for _, l := range ls {
 		l := l
@@ -59,6 +59,16 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 		})
 	}
 	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	// Now that all the layers are uploaded, upload the config file blob.
+	// This must be done last because some layers may have been streamed.
+	l, err := partial.ConfigLayer(img)
+	if err != nil {
+		return err
+	}
+	if err := w.uploadOne(l); err != nil {
 		return err
 	}
 
