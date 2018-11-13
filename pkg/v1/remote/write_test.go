@@ -441,7 +441,6 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 
 func TestStreamBlob(t *testing.T) {
 	img := setupImage(t)
-	_ = mustConfigName(t, img) // TODO
 	expectedPath := "/vWhatever/I/decide"
 	expectedCommitLocation := "https://commit.io/v12/blob"
 
