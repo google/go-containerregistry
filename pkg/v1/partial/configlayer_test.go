@@ -30,7 +30,7 @@ func (t testCIC) RawConfigFile() ([]byte, error) {
 	return t.configFile, nil
 }
 
-func TestConfigLayersByDigest(t *testing.T) {
+func TestConfigLayer(t *testing.T) {
 	cases := []v1.Image{
 		&compressedImageExtender{
 			CompressedImageCore: testCIC{
@@ -50,11 +50,14 @@ func TestConfigLayersByDigest(t *testing.T) {
 			t.Fatalf("Error getting config name: %v", err)
 		}
 
-		layer, err := image.LayerByDigest(hash)
-		if err != nil {
-			t.Fatalf("Error getting layer by digest: %v", err)
+		if _, err := image.LayerByDigest(hash); err == nil {
+			t.Error("LayerByDigest(config hash) returned nil error, wanted error")
 		}
 
+		layer, err := ConfigLayer(image)
+		if err != nil {
+			t.Errorf("ConfigLayer: %v", err)
+		}
 		lr, err := layer.Uncompressed()
 		if err != nil {
 			t.Fatalf("Error getting uncompressed layer: %v", err)
