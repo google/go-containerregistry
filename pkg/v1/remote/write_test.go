@@ -16,8 +16,11 @@ package remote
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -27,13 +30,12 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
-
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/go-containerregistry/pkg/v1/stream"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -264,7 +266,7 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(h)
+	_, mounted, err := w.initiateUpload("", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -301,7 +303,7 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload(h)
+	location, mounted, err := w.initiateUpload("", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -339,7 +341,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload(h)
+	location, mounted, err := w.initiateUpload("", h.String())
 	if err == nil {
 		t.Errorf("intiateUpload() = %v, %v; wanted error", location, mounted)
 	}
@@ -377,7 +379,7 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(h)
+	_, mounted, err := w.initiateUpload("", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -427,7 +429,7 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(h)
+	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -470,9 +472,70 @@ func TestStreamBlob(t *testing.T) {
 
 	streamLocation := w.url(expectedPath)
 
-	commitLocation, err := w.streamBlob(h, streamLocation.String())
+	l, err := img.LayerByDigest(h)
+	if err != nil {
+		t.Fatalf("LayerByDigest: %v", err)
+	}
+	blob, err := l.Compressed()
+	if err != nil {
+		t.Fatalf("layer.Compressed: %v", err)
+	}
+
+	commitLocation, err := w.streamBlob(blob, streamLocation.String())
 	if err != nil {
 		t.Errorf("streamBlob() = %v", err)
+	}
+	if commitLocation != expectedCommitLocation {
+		t.Errorf("streamBlob(); got %v, want %v", commitLocation, expectedCommitLocation)
+	}
+}
+
+func TestStreamLayer(t *testing.T) {
+	var n, wantSize int64 = 10000, 49
+	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
+	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
+
+	expectedPath := "/vWhatever/I/decide"
+	expectedCommitLocation := "https://commit.io/v12/blob"
+	w, closer, err := setupWriter("what/ever", nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPatch {
+			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
+		}
+		if r.URL.Path != expectedPath {
+			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+		}
+
+		h := sha256.New()
+		s, err := io.Copy(h, r.Body)
+		if err != nil {
+			t.Errorf("Reading body: %v", err)
+		}
+		if s != wantSize {
+			t.Errorf("Received %d bytes, want %d", s, wantSize)
+		}
+		gotDigest := "sha256:" + hex.EncodeToString(h.Sum(nil))
+		if gotDigest != wantDigest {
+			t.Errorf("Received bytes with digest %q, want %q", gotDigest, wantDigest)
+		}
+
+		w.Header().Set("Location", expectedCommitLocation)
+		http.Error(w, "Created", http.StatusCreated)
+	}))
+	if err != nil {
+		t.Fatalf("setupWriter() = %v", err)
+	}
+	defer closer.Close()
+
+	streamLocation := w.url(expectedPath)
+	sl := stream.NewLayer(newBlob())
+	blob, err := sl.Compressed()
+	if err != nil {
+		t.Fatalf("layer.Compressed: %v", err)
+	}
+
+	commitLocation, err := w.streamBlob(blob, streamLocation.String())
+	if err != nil {
+		t.Errorf("streamBlob: %v", err)
 	}
 	if commitLocation != expectedCommitLocation {
 		t.Errorf("streamBlob(); got %v, want %v", commitLocation, expectedCommitLocation)
@@ -506,7 +569,7 @@ func TestCommitBlob(t *testing.T) {
 
 	commitLocation := w.url(expectedPath)
 
-	if err := w.commitBlob(h, commitLocation.String()); err != nil {
+	if err := w.commitBlob(commitLocation.String(), h.String()); err != nil {
 		t.Errorf("commitBlob() = %v", err)
 	}
 }
@@ -564,8 +627,73 @@ func TestUploadOne(t *testing.T) {
 	}
 	defer closer.Close()
 
-	if err := w.uploadOne(h); err != nil {
+	l, err := img.LayerByDigest(h)
+	if err != nil {
+		t.Fatalf("LayerByDigest: %v", err)
+	}
+	if err := w.uploadOne(l); err != nil {
 		t.Errorf("uploadOne() = %v", err)
+	}
+}
+
+func TestUploadOneStreamedLayer(t *testing.T) {
+	expectedRepo := "baz/blah"
+	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	streamPath := "/path/to/upload"
+	commitPath := "/path/to/commit"
+
+	w, closer, err := setupWriter(expectedRepo, nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case initiatePath:
+			if r.Method != http.MethodPost {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+			}
+			w.Header().Set("Location", streamPath)
+			http.Error(w, "Initiated", http.StatusAccepted)
+		case streamPath:
+			if r.Method != http.MethodPatch {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
+			}
+			// TODO(jasonhall): What should we check here?
+			w.Header().Set("Location", commitPath)
+			http.Error(w, "Initiated", http.StatusAccepted)
+		case commitPath:
+			if r.Method != http.MethodPut {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
+			}
+			http.Error(w, "Created", http.StatusCreated)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	if err != nil {
+		t.Fatalf("setupWriter() = %v", err)
+	}
+	defer closer.Close()
+
+	var n, wantSize int64 = 10000, 49
+	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
+	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
+	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
+	l := stream.NewLayer(newBlob())
+	if err := w.uploadOne(l); err != nil {
+		t.Fatalf("uploadOne: %v", err)
+	}
+
+	if dig, err := l.Digest(); err != nil {
+		t.Errorf("Digest: %v", err)
+	} else if dig.String() != wantDigest {
+		t.Errorf("Digest got %q, want %q", dig, wantDigest)
+	}
+	if diffID, err := l.DiffID(); err != nil {
+		t.Errorf("DiffID: %v", err)
+	} else if diffID.String() != wantDiffID {
+		t.Errorf("DiffID got %q, want %q", diffID, wantDiffID)
+	}
+	if size, err := l.Size(); err != nil {
+		t.Errorf("Size: %v", err)
+	} else if size != wantSize {
+		t.Errorf("Size got %d, want %d", size, wantSize)
 	}
 }
 
@@ -711,7 +839,6 @@ func TestWriteWithErrors(t *testing.T) {
 }
 
 func TestScopesForUploadingImage(t *testing.T) {
-
 	referenceToUpload, err := name.NewTag("example.com/sample/sample:latest", name.WeakValidation)
 	if err != nil {
 		t.Fatalf("name.NewTag() = %v", err)

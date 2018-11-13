@@ -30,6 +30,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
@@ -233,19 +234,19 @@ func TestMutateConfig(t *testing.T) {
 	}
 
 	if manifestsAreEqual(t, source, result) {
-		t.Fatal("mutating the config MUST mutate the manifest")
+		t.Error("mutating the config MUST mutate the manifest")
 	}
 
 	if configFilesAreEqual(t, source, result) {
-		t.Fatal("mutating the config did not mutate the config file")
+		t.Error("mutating the config did not mutate the config file")
 	}
 
 	if configSizesAreEqual(t, source, result) {
-		t.Fatal("adding an enviornment variable MUST change the config file size")
+		t.Error("adding an environment variable MUST change the config file size")
 	}
 
 	if !reflect.DeepEqual(cfg.Config.Env, newEnv) {
-		t.Fatalf("incorrect environment set %v!=%v", cfg.Config.Env, newEnv)
+		t.Errorf("incorrect environment set %v!=%v", cfg.Config.Env, newEnv)
 	}
 }
 
@@ -254,16 +255,16 @@ func TestMutateCreatedAt(t *testing.T) {
 	want := time.Now().Add(-2 * time.Minute)
 	result, err := CreatedAt(source, v1.Time{want})
 	if err != nil {
-		t.Fatalf("failed to mutate a config: %v", err)
+		t.Fatalf("CreatedAt: %v", err)
 	}
 
 	if configDigestsAreEqual(t, source, result) {
-		t.Fatal("mutating the created time MUST mutate the config digest")
+		t.Errorf("mutating the created time MUST mutate the config digest")
 	}
 
 	got := getConfigFile(t, result).Created.Time
 	if got != want {
-		t.Fatalf("mutating the created time MUST mutate the time from %v to %v", got, want)
+		t.Errorf("mutating the created time MUST mutate the time from %v to %v", got, want)
 	}
 }
 
@@ -299,6 +300,74 @@ func TestLayerTime(t *testing.T) {
 
 		assertMTime(t, result, expectedTime)
 	}
+}
+
+func TestAppendStreamableLayer(t *testing.T) {
+	img, err := AppendLayers(
+		sourceImage(t),
+		stream.NewLayer(ioutil.NopCloser(strings.NewReader(strings.Repeat("a", 100)))),
+		stream.NewLayer(ioutil.NopCloser(strings.NewReader(strings.Repeat("b", 100)))),
+		stream.NewLayer(ioutil.NopCloser(strings.NewReader(strings.Repeat("c", 100)))),
+	)
+	if err != nil {
+		t.Fatalf("AppendLayers: %v", err)
+	}
+
+	// Until the streams are consumed, the image manifest is not yet computed.
+	if _, err := img.Manifest(); err != stream.ErrNotComputed {
+		t.Errorf("Manifest: got %v, want %v", err, stream.ErrNotComputed)
+	}
+
+	// We can still get Layers while some are not yet computed.
+	ls, err := img.Layers()
+	if err != nil {
+		t.Errorf("Layers: %v", err)
+	}
+	wantDigests := []string{
+		"sha256:bfa1c600931132f55789459e2f5a5eb85659ac91bc5a54ce09e3ed14809f8a7f",
+		"sha256:77a52b9a141dcc4d3d277d053193765dca725626f50eaf56b903ac2439cf7fd1",
+		"sha256:b78472d63f6e3d31059819173b56fcb0d9479a2b13c097d4addd84889f6aff06",
+	}
+	for i, l := range ls[1:] {
+		rc, err := l.Compressed()
+		if err != nil {
+			t.Errorf("Layer %d Compressed: %v", i, err)
+		}
+
+		// Consume the layer's stream and close it to compute the
+		// layer's metadata.
+		if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+			t.Errorf("Reading layer %d: %v", i, err)
+		}
+		if err := rc.Close(); err != nil {
+			t.Errorf("Closing layer %d: %v", i, err)
+		}
+
+		// The layer's metadata is now available.
+		h, err := l.Digest()
+		if err != nil {
+			t.Errorf("Digest after consuming layer %d: %v", i, err)
+		}
+		if h.String() != wantDigests[i] {
+			t.Errorf("Layer %d digest got %q, want %q", i, h, wantDigests[i])
+		}
+	}
+
+	// Now that the streamable layers have been consumed, the image's
+	// manifest can be computed.
+	if _, err := img.Manifest(); err != nil {
+		t.Errorf("Manifest: %v", err)
+	}
+
+	h, err := img.Digest()
+	if err != nil {
+		t.Errorf("Digest: %v", err)
+	}
+	wantDigest := "sha256:4138c8f7156b863ae1f6b08726ce020650d5445d43b13ad42d04df98e0ab1fed"
+	if h.String() != wantDigest {
+		t.Errorf("Image digest got %q, want %q", h, wantDigest)
+	}
+
 }
 
 func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {
