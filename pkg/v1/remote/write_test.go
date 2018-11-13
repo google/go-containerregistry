@@ -33,6 +33,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
@@ -440,7 +441,7 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 
 func TestStreamBlob(t *testing.T) {
 	img := setupImage(t)
-	h := mustConfigName(t, img)
+	_ = mustConfigName(t, img) // TODO
 	expectedPath := "/vWhatever/I/decide"
 	expectedCommitLocation := "https://commit.io/v12/blob"
 
@@ -472,9 +473,9 @@ func TestStreamBlob(t *testing.T) {
 
 	streamLocation := w.url(expectedPath)
 
-	l, err := img.LayerByDigest(h)
+	l, err := partial.ConfigLayer(img)
 	if err != nil {
-		t.Fatalf("LayerByDigest: %v", err)
+		t.Fatalf("ConfigLayer: %v", err)
 	}
 	blob, err := l.Compressed()
 	if err != nil {
@@ -627,9 +628,9 @@ func TestUploadOne(t *testing.T) {
 	}
 	defer closer.Close()
 
-	l, err := img.LayerByDigest(h)
+	l, err := partial.ConfigLayer(img)
 	if err != nil {
-		t.Fatalf("LayerByDigest: %v", err)
+		t.Fatalf("ConfigLayer: %v", err)
 	}
 	if err := w.uploadOne(l); err != nil {
 		t.Errorf("uploadOne() = %v", err)

@@ -220,13 +220,6 @@ func (i *uncompressedImageExtender) LayerByDiffID(diffID v1.Hash) (v1.Layer, err
 
 // LayerByDigest implements v1.Image
 func (i *uncompressedImageExtender) LayerByDigest(h v1.Hash) (v1.Layer, error) {
-	// Support returning the ConfigFile when asked for its hash.
-	if cfgName, err := i.ConfigName(); err != nil {
-		return nil, err
-	} else if cfgName == h {
-		return ConfigLayer(i)
-	}
-
 	diffID, err := BlobToDiffID(i, h)
 	if err != nil {
 		return nil, err
