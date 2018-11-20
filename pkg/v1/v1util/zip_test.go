@@ -40,24 +40,3 @@ func TestReader(t *testing.T) {
 		t.Errorf("ReadAll(); got %q, want %q", got, want)
 	}
 }
-
-func TestWriter(t *testing.T) {
-	result := bytes.NewBuffer(nil)
-	unzipper, err := GunzipWriteCloser(NopWriteCloser(result))
-	if err != nil {
-		t.Errorf("GunzipReadCloser() = %v", err)
-	}
-	zipper := GzipWriteCloser(unzipper)
-
-	want := "This is the input string."
-	if _, err := zipper.Write([]byte(want)); err != nil {
-		t.Errorf("Write(%q) = %v", want, err)
-	}
-	if err := zipper.Close(); err != nil {
-		t.Errorf("Close() = %v", err)
-	}
-
-	if got := result.String(); got != want {
-		t.Errorf("String(); got %q, want %q", got, want)
-	}
-}
