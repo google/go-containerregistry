@@ -24,8 +24,3 @@ pushd ${PROJECT_ROOT}
 trap popd EXIT
 
 dep ensure
-
-# These vendored deps include symlinks outside the repo,
-# which confuses "gcloud container builds submit"
-rm vendor/github.com/docker/docker/project/CONTRIBUTORS.md
-rm -r vendor/github.com/docker/docker/hack/make/
