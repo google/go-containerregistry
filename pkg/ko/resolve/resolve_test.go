@@ -203,8 +203,8 @@ func TestYAMLObject(t *testing.T) {
 		expected: &object{S: computeDigest(base, fooRef, fooHash)},
 	}, {
 		desc:     "map field",
-		input:    &object{M: map[string]object{"blah": object{S: fooRef}}},
-		expected: &object{M: map[string]object{"blah": object{S: computeDigest(base, fooRef, fooHash)}}},
+		input:    &object{M: map[string]object{"blah": {S: fooRef}}},
+		expected: &object{M: map[string]object{"blah": {S: computeDigest(base, fooRef, fooHash)}}},
 	}, {
 		desc:     "array field",
 		input:    &object{A: []object{{S: fooRef}}},
@@ -215,8 +215,8 @@ func TestYAMLObject(t *testing.T) {
 		expected: &object{P: &object{S: computeDigest(base, fooRef, fooHash)}},
 	}, {
 		desc:     "deep field",
-		input:    &object{M: map[string]object{"blah": object{A: []object{{P: &object{S: fooRef}}}}}},
-		expected: &object{M: map[string]object{"blah": object{A: []object{{P: &object{S: computeDigest(base, fooRef, fooHash)}}}}}},
+		input:    &object{M: map[string]object{"blah": {A: []object{{P: &object{S: fooRef}}}}}},
+		expected: &object{M: map[string]object{"blah": {A: []object{{P: &object{S: computeDigest(base, fooRef, fooHash)}}}}}},
 	}}
 
 	for _, test := range tests {

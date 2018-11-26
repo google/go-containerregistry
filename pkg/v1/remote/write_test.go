@@ -92,7 +92,7 @@ func TestNextLocation(t *testing.T) {
 	for _, test := range tests {
 		resp := &http.Response{
 			Header: map[string][]string{
-				"Location": []string{test.location},
+				"Location": {test.location},
 			},
 			Request: &http.Request{
 				URL: &url.URL{

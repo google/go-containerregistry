@@ -34,11 +34,11 @@ func TestFixedPublish(t *testing.T) {
 	hex1 := "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	hex2 := "baadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d"
 	f := newFixedPublish(fixedBaseRepo, map[string]v1.Hash{
-		"foo": v1.Hash{
+		"foo": {
 			Algorithm: "sha256",
 			Hex:       hex1,
 		},
-		"bar": v1.Hash{
+		"bar": {
 			Algorithm: "sha256",
 			Hex:       hex2,
 		},
