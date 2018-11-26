@@ -29,7 +29,7 @@ func main() {
 		gcrCmds[cmd.Use] = true
 	}
 
-	// Use crane for everthing else so that this can be a drop-in replacement.
+	// Use crane for everything else so that this can be a drop-in replacement.
 	for _, cmd := range crane.Root.Commands() {
 		if _, ok := gcrCmds[cmd.Use]; !ok {
 			gcrane.Root.AddCommand(cmd)

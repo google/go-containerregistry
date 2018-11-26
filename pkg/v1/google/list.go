@@ -163,7 +163,7 @@ func List(repo name.Repository, options ...ListerOption) (*Tags, error) {
 }
 
 // WalkFunc is the type of the function called for each repository visited by
-// Walk. This implements a simliar API to filepath.Walk.
+// Walk. This implements a similar API to filepath.Walk.
 //
 // The repo argument contains the argument to Walk as a prefix; that is, if Walk
 // is called with "gcr.io/foo", which is a repository containing the repository
