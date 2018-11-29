@@ -35,7 +35,7 @@ func TestVerificationFailure(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
 
-	verified, err := VerifyReadCloser(NopReadCloser(buf), mustHash("not the same", t))
+	verified, err := VerifyReadCloser(ioutil.NopCloser(buf), mustHash("not the same", t))
 	if err != nil {
 		t.Fatalf("VerifyReadCloser() = %v", err)
 	}
@@ -48,7 +48,7 @@ func TestVerification(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
 
-	verified, err := VerifyReadCloser(NopReadCloser(buf), mustHash(want, t))
+	verified, err := VerifyReadCloser(ioutil.NopCloser(buf), mustHash(want, t))
 	if err != nil {
 		t.Fatalf("VerifyReadCloser() = %v", err)
 	}

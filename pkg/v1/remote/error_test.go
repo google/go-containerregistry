@@ -17,12 +17,11 @@ package remote
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 func TestCheckErrorNil(t *testing.T) {
@@ -58,7 +57,7 @@ func TestCheckErrorNotError(t *testing.T) {
 	for _, test := range tests {
 		resp := &http.Response{
 			StatusCode: test.code,
-			Body:       v1util.NopReadCloser(bytes.NewBufferString(test.body)),
+			Body:       ioutil.NopCloser(bytes.NewBufferString(test.body)),
 		}
 
 		if err := CheckError(resp, http.StatusOK); err == nil {
@@ -104,7 +103,7 @@ func TestCheckErrorWithError(t *testing.T) {
 		}
 		resp := &http.Response{
 			StatusCode: test.code,
-			Body:       v1util.NopReadCloser(bytes.NewBuffer(b)),
+			Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
 		}
 
 		if err := CheckError(resp, http.StatusOK); err == nil {
