@@ -20,8 +20,6 @@ import (
 	"io"
 	"sync"
 
-	"gopkg.in/yaml.v2"
-
 	"golang.org/x/sync/errgroup"
 
 	"github.com/google/go-containerregistry/pkg/ko/build"

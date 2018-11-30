@@ -19,8 +19,6 @@ import (
 	"io"
 	"testing"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-containerregistry/pkg/name"
