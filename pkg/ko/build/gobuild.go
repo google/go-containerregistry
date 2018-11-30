@@ -29,7 +29,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 const appPath = "/ko-app"
@@ -240,7 +239,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	}
 	dataLayerBytes := dataLayerBuf.Bytes()
 	dataLayer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return v1util.NopReadCloser(bytes.NewBuffer(dataLayerBytes)), nil
+		return ioutil.NopCloser(bytes.NewBuffer(dataLayerBytes)), nil
 	})
 	if err != nil {
 		return nil, err
@@ -254,7 +253,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	}
 	binaryLayerBytes := binaryLayerBuf.Bytes()
 	binaryLayer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return v1util.NopReadCloser(bytes.NewBuffer(binaryLayerBytes)), nil
+		return ioutil.NopCloser(bytes.NewBuffer(binaryLayerBytes)), nil
 	})
 	if err != nil {
 		return nil, err

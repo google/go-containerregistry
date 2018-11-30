@@ -23,7 +23,7 @@ import (
 func TestReader(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
-	zipped, err := GzipReadCloser(NopReadCloser(buf))
+	zipped, err := GzipReadCloser(ioutil.NopCloser(buf))
 	if err != nil {
 		t.Errorf("GzipReadCloser() = %v", err)
 	}

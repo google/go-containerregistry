@@ -20,12 +20,12 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 // uncompressedLayer implements partial.UncompressedLayer from raw bytes.
@@ -42,7 +42,7 @@ func (ul *uncompressedLayer) DiffID() (v1.Hash, error) {
 
 // Uncompressed implements partial.UncompressedLayer
 func (ul *uncompressedLayer) Uncompressed() (io.ReadCloser, error) {
-	return v1util.NopReadCloser(bytes.NewBuffer(ul.content)), nil
+	return ioutil.NopCloser(bytes.NewBuffer(ul.content)), nil
 }
 
 var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)
