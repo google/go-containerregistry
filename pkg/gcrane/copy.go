@@ -52,17 +52,17 @@ func NewCmdCopy() *cobra.Command {
 func doCopy(args []string, recursive bool) {
 	src, dst := args[0], args[1]
 
-	c, err := newCopier(src, dst)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	if recursive {
-		if err := c.recursiveCopy(src, dst); err != nil {
+		if err := recursiveCopy(src, dst); err != nil {
 			log.Fatalf("failed to copy images: %v", err)
 		}
 	} else {
-		if err := c.singleCopy(src, dst); err != nil {
+		srcAuth, dstAuth, err := parseRefAuths(src, dst)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if err := singleCopy(src, dst, srcAuth, dstAuth); err != nil {
 			log.Fatalf("failed to copy image: %v", err)
 		}
 	}
@@ -90,20 +90,12 @@ type copier struct {
 func newCopier(src, dst string) (*copier, error) {
 	srcRepo, err := name.NewRepository(src, name.WeakValidation)
 	if err != nil {
-		if srcRef, refErr := name.ParseReference(src, name.WeakValidation); refErr == nil {
-			srcRepo = srcRef.Context()
-		} else {
-			return nil, fmt.Errorf("parsing repo %q: %v", src, err)
-		}
+		return nil, fmt.Errorf("parsing repo %q: %v", src, err)
 	}
 
 	dstRepo, err := name.NewRepository(dst, name.WeakValidation)
 	if err != nil {
-		if dstRef, refErr := name.ParseReference(dst, name.WeakValidation); refErr == nil {
-			dstRepo = dstRef.Context()
-		} else {
-			return nil, fmt.Errorf("parsing repo %q: %v", dst, err)
-		}
+		return nil, fmt.Errorf("parsing repo %q: %v", dst, err)
 	}
 
 	srcHelper, err := authn.DefaultKeychain.Resolve(srcRepo.Registry)
@@ -129,7 +121,7 @@ func newCopier(src, dst string) (*copier, error) {
 	return &copier{srcRepo, dstRepo, srcAuth, dstAuth}, nil
 }
 
-func (c *copier) singleCopy(src, dst string) error {
+func singleCopy(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
 	srcRef, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", src, err)
@@ -140,13 +132,13 @@ func (c *copier) singleCopy(src, dst string) error {
 		return fmt.Errorf("parsing reference %q: %v", dst, err)
 	}
 
-	img, err := remote.Image(srcRef, remote.WithAuth(c.srcAuth))
+	img, err := remote.Image(srcRef, remote.WithAuth(srcAuth))
 	if err != nil {
-		return fmt.Errorf("reading image %q: %v", srcRef, err)
+		return fmt.Errorf("reading image %q: %v", src, err)
 	}
 
-	if err := remote.Write(dstRef, img, c.dstAuth, http.DefaultTransport); err != nil {
-		return fmt.Errorf("writing image %q: %v", dstRef, err)
+	if err := remote.Write(dstRef, img, dstAuth, http.DefaultTransport); err != nil {
+		return fmt.Errorf("writing image %q: %v", dst, err)
 	}
 
 	return nil
@@ -167,7 +159,12 @@ func (c *copier) singleCopy(src, dst string) error {
 //			}
 //		}
 //	}
-func (c *copier) recursiveCopy(src, dst string) error {
+func recursiveCopy(src, dst string) error {
+	c, err := newCopier(src, dst)
+	if err != nil {
+		return err
+	}
+
 	g, ctx := errgroup.WithContext(context.Background())
 
 	// Captures c, g, and ctx.
@@ -259,7 +256,7 @@ func (c *copier) copyImages(ctx context.Context, digest string, manifest google.
 		srcImg := fmt.Sprintf("%s@%s", oldRepo, digest)
 		dstImg := fmt.Sprintf("%s@%s", newRepo, digest)
 
-		return c.singleCopy(srcImg, dstImg)
+		return singleCopy(srcImg, dstImg, c.srcAuth, c.dstAuth)
 	}
 
 	// Copy all the tags.
@@ -270,7 +267,7 @@ func (c *copier) copyImages(ctx context.Context, digest string, manifest google.
 			srcImg := fmt.Sprintf("%s:%s", oldRepo, tag)
 			dstImg := fmt.Sprintf("%s:%s", newRepo, tag)
 
-			return c.singleCopy(srcImg, dstImg)
+			return singleCopy(srcImg, dstImg, c.srcAuth, c.dstAuth)
 		})
 	}
 	return g.Wait()
@@ -332,4 +329,28 @@ func toStringSet(slice []string) map[string]struct{} {
 		set[s] = struct{}{}
 	}
 	return set
+}
+
+func parseRefAuths(src, dst string) (authn.Authenticator, authn.Authenticator, error) {
+	srcRef, err := name.ParseReference(src, name.WeakValidation)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing reference %q: %v", src, err)
+	}
+
+	dstRef, err := name.ParseReference(dst, name.WeakValidation)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing reference %q: %v", dst, err)
+	}
+
+	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
+	if err != nil {
+		return nil, nil, fmt.Errorf("getting auth for %q: %v", src, err)
+	}
+
+	dstAuth, err := authn.DefaultKeychain.Resolve(dstRef.Context().Registry)
+	if err != nil {
+		return nil, nil, fmt.Errorf("getting auth for %q: %v", dst, err)
+	}
+
+	return srcAuth, dstAuth, nil
 }
