@@ -21,6 +21,8 @@ import (
 	"os/exec"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"k8s.io/kubernetes/pkg/kubectl/genericclioptions"
 )
 
 // runCmd is suitable for use with cobra.Command's Run field.
@@ -63,6 +65,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 		},
 	})
 
+	koApplyFlags := []string{}
 	lo := &LocalOptions{}
 	no := &NameOptions{}
 	fo := &FilenameOptions{}
@@ -99,9 +102,26 @@ func addKubeCommands(topLevel *cobra.Command) {
 			buf := bytes.NewBuffer(nil)
 			resolveFilesToWriter(fo, no, lo, buf)
 
+			// Create a set of ko-specific flags to ignore when passing through
+			// kubectl global flags.
+			ignoreSet := make(map[string]struct{})
+			for _, s := range koApplyFlags {
+				ignoreSet[s] = struct{}{}
+			}
+
+			// Filter out ko flags from what we will pass through to kubectl.
+			kubectlFlags := []string{}
+			cmd.Flags().Visit(func(flag *pflag.Flag) {
+				if _, ok := ignoreSet[flag.Name]; !ok {
+					kubectlFlags = append(kubectlFlags, "--"+flag.Name, flag.Value.String())
+				}
+			})
+
 			// Issue a "kubectl apply" command reading from stdin,
 			// to which we will pipe the resolved files.
-			kubectlCmd := exec.Command("kubectl", "apply", "-f", "-")
+			argv := []string{"apply", "-f", "-"}
+			argv = append(argv, kubectlFlags...)
+			kubectlCmd := exec.Command("kubectl", argv...)
 
 			// Pass through our environment
 			kubectlCmd.Env = os.Environ()
@@ -119,6 +139,18 @@ func addKubeCommands(topLevel *cobra.Command) {
 	addLocalArg(apply, lo)
 	addNamingArgs(apply, no)
 	addFileArg(apply, fo)
+
+	// Collect the ko-specific apply flags before registering the kubectl global
+	// flags so that we can ignore them when passing kubectl global flags through
+	// to kubectl.
+	apply.Flags().VisitAll(func(flag *pflag.Flag) {
+		koApplyFlags = append(koApplyFlags, flag.Name)
+	})
+
+	// Register the kubectl global flags.
+	kubeConfigFlags := genericclioptions.NewConfigFlags()
+	kubeConfigFlags.AddFlags(apply.Flags())
+
 	topLevel.AddCommand(apply)
 
 	resolve := &cobra.Command{
