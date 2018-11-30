@@ -85,9 +85,6 @@ type copier struct {
 
 	srcAuth authn.Authenticator
 	dstAuth authn.Authenticator
-
-	group *errgroup.Group
-	ctx   context.Context
 }
 
 func newCopier(src, dst string) (*copier, error) {
@@ -129,10 +126,7 @@ func newCopier(src, dst string) (*copier, error) {
 	auth, err = dstHelper.Authorization()
 	dstAuth := staticAuth{auth, err}
 
-	// Used so we can collect errors - one goroutine per repo.
-	group, ctx := errgroup.WithContext(context.Background())
-
-	return &copier{srcRepo, dstRepo, srcAuth, dstAuth, group, ctx}, nil
+	return &copier{srcRepo, dstRepo, srcAuth, dstAuth}, nil
 }
 
 func (c *copier) singleCopy(src, dst string) error {
@@ -158,49 +152,69 @@ func (c *copier) singleCopy(src, dst string) error {
 	return nil
 }
 
+// recursiveCopy copies images from repo src to repo dst, rather quickly. tl;dr:
+//
+//  for each repo in src {
+//		go func {
+//			for each image in repo {
+//				go func {
+//					for each tag in image {
+//						go func {
+//							singleCopy(tag, rename(tag, dst))
+//						}
+//					}
+//				}
+//			}
+//		}
+//	}
 func (c *copier) recursiveCopy(src, dst string) error {
-	if err := google.Walk(c.srcRepo, c.walkFn, google.WithAuth(c.srcAuth)); err != nil {
+	g, ctx := errgroup.WithContext(context.Background())
+
+	// Captures c, g, and ctx.
+	walkFn := func(repo name.Repository, tags *google.Tags, err error) error {
+		if err != nil {
+			return fmt.Errorf("failed walkFn for repo %s: %v", repo, err)
+		}
+
+		g.Go(func() error {
+			return c.copyRepo(ctx, repo, tags)
+		})
+
+		return nil
+	}
+
+	if err := google.Walk(c.srcRepo, walkFn, google.WithAuth(c.srcAuth)); err != nil {
 		return fmt.Errorf("failed to Walk: %v", err)
 	}
 
-	return c.group.Wait()
+	return g.Wait()
 }
 
-func (c *copier) walkFn(oldRepo name.Repository, tags *google.Tags, err error) error {
-	if err != nil {
-		return fmt.Errorf("failed to Walk %s: %v", oldRepo, err)
-	}
-
-	c.group.Go(func() error {
-		return c.copyRepo(oldRepo, tags)
-	})
-
-	return nil
-}
-
-func (c *copier) rename(repo name.Repository) (name.Repository, error) {
-	replaced := strings.Replace(repo.String(), c.srcRepo.String(), c.dstRepo.String(), 1)
-	return name.NewRepository(replaced, name.StrictValidation)
-}
-
-func (c *copier) copyRepo(oldRepo name.Repository, tags *google.Tags) error {
+// copyRepo figures out the name for our destination repo (newRepo), lists the
+// contents of newRepo, calculates the diff of what needs to be copied, then
+// starts a goroutine to copy each image we need, and waits for them to finish.
+func (c *copier) copyRepo(ctx context.Context, oldRepo name.Repository, tags *google.Tags) error {
 	newRepo, err := c.rename(oldRepo)
 	if err != nil {
-		return err
+		return fmt.Errorf("rename failed: %v", err)
 	}
 
+	// Figure out what we actually need to copy.
 	want := tags.Manifests
 	have := make(map[string]google.ManifestInfo)
 	haveTags, err := google.List(newRepo, google.WithAuth(c.dstAuth))
 	if err != nil {
-		// Possibly, we could see a 404.  If we get an error here, assume we need to
-		// copy everything. TODO: refactor remote.Error to expose response code?
+		// Possibly, we could see a 404.  If we get an error here, log it and assume
+		// we just need to copy everything.
+		//
+		// TODO: refactor remote.Error to expose response code?
+		log.Printf("failed to list %s: %v", newRepo, err)
 	} else {
 		have = haveTags.Manifests
 	}
 	need := diffImages(want, have)
 
-	g, ctx := errgroup.WithContext(c.ctx)
+	g, ctx := errgroup.WithContext(ctx)
 
 	// First go through copying just manifests, skipping manifest lists, since
 	// manifest lists might reference them.
@@ -221,7 +235,7 @@ func (c *copier) copyRepo(oldRepo name.Repository, tags *google.Tags) error {
 		return fmt.Errorf("Failed to copy %s: %v", oldRepo, err)
 	}
 
-	// TODO: Uncomment once we've implemented manifests lists.
+	// TODO(#119): Uncomment once we've implemented manifests lists.
 	// Now copy the manifest lists, since it should be safe.
 	// for digest, manifest := range todos {
 	// 	digest, manifest := digest, manifest // https://golang.org/doc/faq#closures_and_goroutines
@@ -237,6 +251,8 @@ func (c *copier) copyRepo(oldRepo name.Repository, tags *google.Tags) error {
 	return nil
 }
 
+// copyImages starts a goroutine for each tag that points to the image
+// oldRepo@digest, or just copies the image by digest if there are no tags.
 func (c *copier) copyImages(ctx context.Context, digest string, manifest google.ManifestInfo, oldRepo, newRepo name.Repository) error {
 	// We only have to explicitly copy by digest if there are no tags pointing to this manifest.
 	if len(manifest.Tags) == 0 {
@@ -260,6 +276,18 @@ func (c *copier) copyImages(ctx context.Context, digest string, manifest google.
 	return g.Wait()
 }
 
+// rename figures out the name of the new repository to copy to, e.g.:
+//
+// $ gcrane cp -r gcr.io/foo gcr.io/baz
+//
+// rename("gcr.io/foo/bar") == "gcr.io/baz/bar"
+func (c *copier) rename(repo name.Repository) (name.Repository, error) {
+	replaced := strings.Replace(repo.String(), c.srcRepo.String(), c.dstRepo.String(), 1)
+	return name.NewRepository(replaced, name.StrictValidation)
+}
+
+// diffImages returns a map of digests to google.ManifestInfos for images or
+// tags that are present in "want" but not in "have".
 func diffImages(want, have map[string]google.ManifestInfo) map[string]google.ManifestInfo {
 	need := make(map[string]google.ManifestInfo)
 
