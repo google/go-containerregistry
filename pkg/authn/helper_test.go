@@ -29,10 +29,16 @@ var (
 // errorRunner implements runner to always return an execution error.
 type errorRunner struct {
 	err error
+	msg string
 }
 
 // Run implements runner
-func (er *errorRunner) Run(*exec.Cmd) error {
+func (er *errorRunner) Run(cmd *exec.Cmd) error {
+	_, err := cmd.Stdout.Write([]byte(er.msg))
+	if err != nil {
+		return err
+	}
+
 	return er.err
 }
 
@@ -64,11 +70,28 @@ func (pr *errorPrintRunner) Run(cmd *exec.Cmd) error {
 }
 
 func TestHelperError(t *testing.T) {
-	want := errors.New("fdhskjdfhkjhsf")
-	h := &helper{name: "test", domain: testDomain, r: &errorRunner{err: want}}
+	cases := []struct {
+		err    string
+		output string
+		want   string
+	}{{
+		// We should show useful output.
+		err:    "i am a useless error",
+		output: "harmless and helpful output",
+		want:   "invoking docker-credential-test: i am a useless error; output: harmless and helpful output",
+	}, {
+		// We should not show credentials.
+		err:    "i am a useless error",
+		output: `{"Username":"AzureDiamond","Password":"hunter2"}`,
+		want:   "invoking docker-credential-test: i am a useless error",
+	}}
 
-	if _, got := h.Authorization(); got != want {
-		t.Errorf("Authorization(); got %v, want %v", got, want)
+	for _, tc := range cases {
+		h := &helper{name: "test", domain: testDomain, r: &errorRunner{err: errors.New(tc.err), msg: tc.output}}
+
+		if _, got := h.Authorization(); got.Error() != tc.want {
+			t.Errorf("Authorization(); got %v, want %s", got, tc.want)
+		}
 	}
 }
 
