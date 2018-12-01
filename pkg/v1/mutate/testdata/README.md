@@ -1,4 +1,4 @@
-# whiteout\_image.tar
+# whiteout_image.tar
 
 Including whiteout files in our source caused [issues](https://github.com/google/go-containerregistry/issues/305)
 when cloning this repo inside a docker build. Removing the whiteout file from

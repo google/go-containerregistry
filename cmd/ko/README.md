@@ -57,11 +57,11 @@ spec:
         foo: bar
     spec:
       containers:
-      - name: hello-world
-        # This is the import path for the Go binary to build and run.
-        image: github.com/mattmoor/examples/http/cmd/helloworld
-        ports:
-        - containerPort: 8080
+        - name: hello-world
+          # This is the import path for the Go binary to build and run.
+          image: github.com/mattmoor/examples/http/cmd/helloworld
+          ports:
+            - containerPort: 8080
 ```
 
 ### Determining supported import paths
@@ -76,9 +76,10 @@ path to be `github.com/mattmoor/examples`, and any references to subpackages
 of this will be built, containerized and published.
 
 For example, any of the following would be matched:
-* `github.com/mattmoor/examples`
-* `github.com/mattmoor/examples/cmd/foo`
-* `github.com/mattmoor/examples/bar`
+
+- `github.com/mattmoor/examples`
+- `github.com/mattmoor/examples/cmd/foo`
+- `github.com/mattmoor/examples/bar`
 
 ### Results
 
@@ -114,13 +115,12 @@ customresourcedefinition.apiextensions.k8s.io/warmimages.mattmoor.io configured
 ## Usage
 
 `ko` has four commands, most of which build and publish images as part of
-their execution.  By default, `ko` publishes images to a Docker Registry
+their execution. By default, `ko` publishes images to a Docker Registry
 specified via `KO_DOCKER_REPO`.
 
 However, these same commands can be directed to operate locally as well via
-the `--local` or `-L` command (or setting `KO_DOCKER_REPO=ko.local`).  See
+the `--local` or `-L` command (or setting `KO_DOCKER_REPO=ko.local`). See
 the [`minikube` section](./README.md#with-minikube) for more detail.
-
 
 ### `ko publish`
 
@@ -184,7 +184,7 @@ spec:
         - containerPort: 8080
 ```
 
-Some Docker Registries (e.g. gcr.io) support multi-level repository names.  For
+Some Docker Registries (e.g. gcr.io) support multi-level repository names. For
 these registries, it is often useful for discoverability and provenance to
 preserve the full import path, for this we expose `--preserve-import-paths`,
 or `-P` for short.
@@ -232,11 +232,10 @@ to whatever `kubectl` context is active.
 `ko delete` simply passes through to `kubectl delete`. It is exposed purely out
 of convenience for cleaning up resources created through `ko apply`.
 
-
 ## With `minikube`
 
 You can use `ko` with `minikube` via a Docker Registry, but this involves
-publishing images only to pull them back down to your machine again.  To avoid
+publishing images only to pull them back down to your machine again. To avoid
 this, `ko` exposes `--local` or `-L` options to instead publish the images to
 the local machine's Docker daemon.
 
@@ -281,9 +280,10 @@ If neither is present, then `ko` will rely on its default behaviors.
 By default, `ko` makes use of `gcr.io/distroless/base:latest` as the base image
 for containers. There are a wide array of scenarios in which overriding this
 makes sense, for example:
+
 1. Pinning to a particular digest of this image for repeatable builds,
 1. Replacing this streamlined base image with another with better debugging
-  tools (e.g. a shell, like `docker.io/library/ubuntu`).
+   tools (e.g. a shell, like `docker.io/library/ubuntu`).
 
 The default base image `ko` uses can be changed by simply adding the following
 line to `.ko.yaml`:
@@ -314,7 +314,6 @@ and get checked in and versioned alongside your source code. This also means
 that the configured values will be shared across developers on a project, which
 for `KO_DOCKER_REPO` is actually undesireable because each developer is (likely)
 using their own docker repository and cluster.
-
 
 ## Including static assets
 
@@ -390,7 +389,6 @@ This resulting configuration may then be installed onto Kubernetes clusters via:
 ```shell
 kubectl apply -f release.yaml
 ```
-
 
 ## Acknowledgements
 
