@@ -36,11 +36,11 @@ const (
 {
   "credential": {
     "access_token": "mytoken",
-    "token_expiry": "2018/12/02"
+    "token_expiry": "most-definitely-not-a-date"
   }
 }`
 
-	// Expires in 6,000 years. Hopefully nobody is using my software then.
+	// Expires in 6,000 years. Hopefully nobody is using software then.
 	success = `
 {
   "credential": {
@@ -103,8 +103,8 @@ func TestGcloudErrors(t *testing.T) {
 		wantPrefix: "failed to parse gcloud token expiry:",
 	}}
 
-	for i, tc := range cases {
-		t.Run(fmt.Sprintf("cases[%d]", i), func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.env, func(t *testing.T) {
 			GetGcloudCmd = newGcloudCmdMock(tc.env)
 
 			if _, err := NewGcloudAuthenticator(); err == nil {
