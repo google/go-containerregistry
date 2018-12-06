@@ -68,17 +68,6 @@ func doCopy(args []string, recursive bool) {
 	}
 }
 
-// Workaround for:
-// https://github.com/GoogleCloudPlatform/docker-credential-gcr/issues/54
-type staticAuth struct {
-	auth string
-	err  error
-}
-
-func (sa staticAuth) Authorization() (string, error) {
-	return sa.auth, sa.err
-}
-
 type copier struct {
 	srcRepo name.Repository
 	dstRepo name.Repository
@@ -98,25 +87,15 @@ func newCopier(src, dst string) (*copier, error) {
 		return nil, fmt.Errorf("parsing repo %q: %v", dst, err)
 	}
 
-	srcHelper, err := authn.DefaultKeychain.Resolve(srcRepo.Registry)
+	srcAuth, err := google.Keychain.Resolve(srcRepo.Registry)
 	if err != nil {
 		return nil, fmt.Errorf("getting auth for %q: %v", src, err)
 	}
 
-	dstHelper, err := authn.DefaultKeychain.Resolve(dstRepo.Registry)
+	dstAuth, err := google.Keychain.Resolve(dstRepo.Registry)
 	if err != nil {
 		return nil, fmt.Errorf("getting auth for %q: %v", dst, err)
 	}
-
-	// TODO(GoogleCloudPlatform/docker-credential-gcr#54): Remove these.
-	// This is pretty stupid, but we can't invoke the cred helper as quickly
-	// as we need to, so we cache the results. Creds are valid for about an hour,
-	// so we'd hit quota issues well before they expired.
-	auth, err := srcHelper.Authorization()
-	srcAuth := staticAuth{auth, err}
-
-	auth, err = dstHelper.Authorization()
-	dstAuth := staticAuth{auth, err}
 
 	return &copier{srcRepo, dstRepo, srcAuth, dstAuth}, nil
 }
