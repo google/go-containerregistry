@@ -22,7 +22,7 @@ import (
 	"hash"
 	"io"
 
-	"github.com/google/go-containerregistry/pkg/v1"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 var (

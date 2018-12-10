@@ -15,7 +15,7 @@
 package build
 
 import (
-	"github.com/google/go-containerregistry/pkg/v1"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 // WithBaseImages is a functional option for overriding the base images

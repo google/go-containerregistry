@@ -20,7 +20,7 @@ import (
 	"io"
 	"sync"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 
 	"golang.org/x/sync/errgroup"
 
