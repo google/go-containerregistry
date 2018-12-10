@@ -21,7 +21,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/google/go-containerregistry/pkg/v1"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
