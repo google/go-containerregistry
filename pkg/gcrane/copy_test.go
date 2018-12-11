@@ -88,12 +88,12 @@ func TestDiffImages(t *testing.T) {
 	}{{
 		// Have everything we need.
 		want: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Tags: []string{"b", "c"},
 			},
 		},
 		have: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Tags: []string{"b", "c"},
 			},
 		},
@@ -101,37 +101,37 @@ func TestDiffImages(t *testing.T) {
 	}, {
 		// Missing image a.
 		want: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Tags: []string{"b", "c", "d"},
 			},
 		},
 		have: map[string]google.ManifestInfo{},
 		need: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Tags: []string{"b", "c", "d"},
 			},
 		},
 	}, {
 		// Missing tags "b" and "d"
 		want: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Tags: []string{"b", "c", "d"},
 			},
 		},
 		have: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Tags: []string{"c"},
 			},
 		},
 		need: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Tags: []string{"b", "d"},
 			},
 		},
 	}, {
 		// Make sure all properties get copied over.
 		want: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Size:      123,
 				MediaType: string(types.DockerManifestSchema2),
 				Created:   time.Date(1992, time.January, 7, 6, 40, 00, 5e8, time.UTC),
@@ -141,7 +141,7 @@ func TestDiffImages(t *testing.T) {
 		},
 		have: map[string]google.ManifestInfo{},
 		need: map[string]google.ManifestInfo{
-			"a": google.ManifestInfo{
+			"a": {
 				Size:      123,
 				MediaType: string(types.DockerManifestSchema2),
 				Created:   time.Date(1992, time.January, 7, 6, 40, 00, 5e8, time.UTC),
