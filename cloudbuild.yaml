@@ -9,7 +9,7 @@ steps:
   env: ['GOPATH=/workspace/gopath', 'KO_DOCKER_REPO=gcr.io/$PROJECT_ID']
   entrypoint: /workspace/gopath/bin/ko
   dir: gopath/src
-  args: ['publish', 'github.com/google/go-containerregistry/cmd/crane']
+  args: ['publish', '-P', 'github.com/google/go-containerregistry/cmd/crane']
 
 # Use the crane builder to retag the crane builder.
 - name: gcr.io/$PROJECT_ID/github.com/google/go-containerregistry/cmd/crane
