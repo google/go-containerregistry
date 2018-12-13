@@ -1,9 +1,0 @@
-# These vendored deps contain symlinks to external repos, which confuses
-# `gcloud builds submit` -- ignoring them has no impact on the repo's ability
-# to build.
-vendor/k8s.io/*
-vendor/github.com/docker/docker/integration-cli/*
-vendor/github.com/docker/docker/project/*
-
-# Need this for kubectl global flags in ko.
-!vendor/k8s.io/kubernetes/pkg/kubectl/genericclioptions/**
