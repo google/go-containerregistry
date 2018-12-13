@@ -24,3 +24,7 @@ pushd ${PROJECT_ROOT}
 trap popd EXIT
 
 dep ensure
+
+# Delete all vendored broken symlinks.
+find vendor/ -type l -exec sh -c 'for x; do [ -e "$x" ] || rm "$x"; done' _ {} +
+
