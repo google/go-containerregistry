@@ -76,6 +76,8 @@ func publishImages(importpaths []string, no *NameOptions, lo *LocalOptions) {
 		var namer publish.Namer
 		if no.PreserveImportPaths {
 			namer = preserveImportPath
+		} else if no.BaseImportPaths {
+			namer = baseImportPaths
 		} else {
 			namer = packageWithMD5
 		}
