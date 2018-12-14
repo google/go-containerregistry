@@ -9,8 +9,13 @@ so this may break in the future.
 
 ## ls
 
-`gcrane ls` exposes a more complex form of `ls` than `crane`, which allows for listing
-tags, manifests, and sub-repositories.
+`gcrane ls` exposes a more complex form of `ls` than `crane`, which allows for
+listing tags, manifests, and sub-repositories.
+
+## cp
+
+`gcrane cp` supports a `-r` flag that copies images recursively, which is useful
+for backing up images, georeplicating images, or renaming images en masse.
 
 ## gc
 
