@@ -59,9 +59,9 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 		})
 	}
 
-	if l, err := partial.ConfigLayer(img); err != nil {
-		// We can't read the ConfigLayer, which probably means that some layers are
-		// streaming layers and the config hasn't been calculated yet.
+	if l, err := partial.ConfigLayer(img); err == stream.ErrNotComputed {
+		// We can't read the ConfigLayer, because of streaming layers, since the
+		// config hasn't been calculated yet.
 		if err := g.Wait(); err != nil {
 			return err
 		}
@@ -74,6 +74,9 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 		if err := w.uploadOne(l); err != nil {
 			return err
 		}
+	} else if err != nil {
+		// This is an actual error, not a streaming error, just return it.
+		return err
 	} else {
 		// We *can* read the ConfigLayer, so upload it concurrently with the layers.
 		g.Go(func() error {
