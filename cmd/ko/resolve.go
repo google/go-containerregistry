@@ -53,6 +53,11 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)
 	}
+	builder, err := build.NewGo(opt...)
+	if err != nil {
+		log.Fatalf("failed to create builder: %v", err)
+	}
+
 	var sm sync.Map
 	wg := sync.WaitGroup{}
 	for _, f := range fs {
@@ -60,7 +65,7 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 		go func(f string) {
 			defer wg.Done()
 
-			b, err := resolveFile(f, no, lo, opt...)
+			b, err := resolveFile(f, builder, no, lo)
 			if err != nil {
 				log.Fatalf("error processing import paths in %q: %v", f, err)
 			}
@@ -84,7 +89,7 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 	}
 }
 
-func resolveFile(f string, no *NameOptions, lo *LocalOptions, opt ...build.Option) ([]byte, error) {
+func resolveFile(f string, builder build.Interface, no *NameOptions, lo *LocalOptions) ([]byte, error) {
 	var pub publish.Interface
 	repoName := os.Getenv("KO_DOCKER_REPO")
 
@@ -118,11 +123,6 @@ func resolveFile(f string, no *NameOptions, lo *LocalOptions, opt ...build.Optio
 	} else {
 		b, err = ioutil.ReadFile(f)
 	}
-	if err != nil {
-		return nil, err
-	}
-
-	builder, err := build.NewGo(opt...)
 	if err != nil {
 		return nil, err
 	}

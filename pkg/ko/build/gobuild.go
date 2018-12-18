@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -37,6 +38,9 @@ type GetBase func(string) (v1.Image, error)
 type builder func(string) (string, error)
 
 type gobuild struct {
+	// Workaround for https://github.com/knative/serving/issues/2479
+	lock sync.Mutex
+
 	getBase      GetBase
 	creationTime v1.Time
 	build        builder
@@ -225,7 +229,9 @@ func tarKoData(importpath string) (*bytes.Buffer, error) {
 // Build implements build.Interface
 func (gb *gobuild) Build(s string) (v1.Image, error) {
 	// Do the build into a temporary file.
+	gb.lock.Lock()
 	file, err := gb.build(s)
+	gb.lock.Unlock()
 	if err != nil {
 		return nil, err
 	}
