@@ -106,6 +106,7 @@ func build(ip string) (string, error) {
 	cmd.Stderr = &output
 	cmd.Stdout = &output
 
+	log.Printf("Building %s", ip)
 	if err := cmd.Run(); err != nil {
 		os.RemoveAll(tmpDir)
 		log.Printf("Unexpected error running \"go build\": %v\n%v", err, output.String())
