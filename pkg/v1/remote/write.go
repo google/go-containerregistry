@@ -58,18 +58,35 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 			return w.uploadOne(l)
 		})
 	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
 
-	// Now that all the layers are uploaded, upload the config file blob.
-	// This must be done last because some layers may have been streamed.
-	l, err := partial.ConfigLayer(img)
-	if err != nil {
+	if l, err := partial.ConfigLayer(img); err == stream.ErrNotComputed {
+		// We can't read the ConfigLayer, because of streaming layers, since the
+		// config hasn't been calculated yet.
+		if err := g.Wait(); err != nil {
+			return err
+		}
+
+		// Now that all the layers are uploaded, upload the config file blob.
+		l, err := partial.ConfigLayer(img)
+		if err != nil {
+			return err
+		}
+		if err := w.uploadOne(l); err != nil {
+			return err
+		}
+	} else if err != nil {
+		// This is an actual error, not a streaming error, just return it.
 		return err
-	}
-	if err := w.uploadOne(l); err != nil {
-		return err
+	} else {
+		// We *can* read the ConfigLayer, so upload it concurrently with the layers.
+		g.Go(func() error {
+			return w.uploadOne(l)
+		})
+
+		// Wait for the layers + config.
+		if err := g.Wait(); err != nil {
+			return err
+		}
 	}
 
 	// With all of the constituent elements uploaded, upload the manifest
