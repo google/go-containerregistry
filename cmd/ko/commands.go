@@ -67,6 +67,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 
 	koApplyFlags := []string{}
 	lo := &LocalOptions{}
+	bo := &BinaryOptions{}
 	no := &NameOptions{}
 	fo := &FilenameOptions{}
 	apply := &cobra.Command{
@@ -224,4 +225,54 @@ func addKubeCommands(topLevel *cobra.Command) {
 	addLocalArg(publish, lo)
 	addNamingArgs(publish, no)
 	topLevel.AddCommand(publish)
+
+	run := &cobra.Command{
+		Use:   "run NAME --image=IMPORTPATH",
+		Short: "A variant of `kubectl run` that containerizes IMPORTPATH first.",
+		Long:  `This sub-command combines "ko publish" and "kubectl run" to support containerizing and running Go binaries on Kubernetes in a single command.`,
+		Example: `
+  # Publish the --image and run it on Kubernetes as:
+  #   ${KO_DOCKER_REPO}/<package name>-<hash of import path>
+  # When KO_DOCKER_REPO is ko.local, it is the same as if
+  # --local and --preserve-import-paths were passed.
+  ko run foo --image=github.com/foo/bar/cmd/baz
+
+  # This supports relative import paths as well.
+  ko run foo --image=./cmd/baz`,
+		Run: func(cmd *cobra.Command, args []string) {
+			imgs := publishImages([]string{bo.Path}, no, lo)
+
+			// There's only one, but this is the simple way to access the
+			// reference since the import path may have been qualified.
+			for k, v := range imgs {
+				log.Printf("Running %q", k)
+				// Issue a "kubectl run" command with our same arguments,
+				// but supply a second --image to override the one we intercepted.
+				argv := append(os.Args[1:], "--image", v.String())
+				kubectlCmd := exec.Command("kubectl", argv...)
+
+				// Pass through our environment
+				kubectlCmd.Env = os.Environ()
+				// Pass through our std*
+				kubectlCmd.Stderr = os.Stderr
+				kubectlCmd.Stdout = os.Stdout
+				kubectlCmd.Stdin = os.Stdin
+
+				// Run it.
+				if err := kubectlCmd.Run(); err != nil {
+					log.Fatalf("error executing \"kubectl run\": %v", err)
+				}
+			}
+		},
+		// We ignore unknown flags to avoid importing everything Go exposes
+		// from our commands.
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			UnknownFlags: true,
+		},
+	}
+	addLocalArg(run, lo)
+	addNamingArgs(run, no)
+	addImageArg(run, bo)
+
+	topLevel.AddCommand(run)
 }
