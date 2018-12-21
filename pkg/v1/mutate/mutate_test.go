@@ -245,6 +245,12 @@ func TestMutateConfig(t *testing.T) {
 		t.Error("adding an environment variable MUST change the config file size")
 	}
 
+	if configDigestsAreEqual(t, source, result) {
+		t.Errorf("mutating the config MUST mutate the config digest")
+	}
+
+	assertAccurateManifestConfigDigest(t, result)
+
 	if !reflect.DeepEqual(cfg.Config.Env, newEnv) {
 		t.Errorf("incorrect environment set %v!=%v", cfg.Config.Env, newEnv)
 	}
@@ -470,6 +476,26 @@ func getConfigFile(t *testing.T, i v1.Image) *v1.ConfigFile {
 	return c
 }
 
+
+func getRawConfigFile(t *testing.T, i v1.Image) []byte {
+	t.Helper()
+
+	rcfg, err := i.RawConfigFile()
+	if err != nil {
+		t.Fatalf("Unable to fetch layer raw config file: %v", err)
+	}
+	return rcfg
+}
+
+
+func computeDigest( t *testing.T, data []byte) v1.Hash {
+	d, _, err := v1.SHA256(bytes.NewBuffer(data))
+	if err != nil {
+		t.Fatalf("Unable to compute config digest: %v", err)
+	}
+	return d
+}
+
 func configFilesAreEqual(t *testing.T, first, second v1.Image) bool {
 	t.Helper()
 
@@ -551,6 +577,20 @@ func assertLayerOrderMatchesManifest(t *testing.T, i v1.Image) {
 			t.Fatalf("Layer digest (%v) is not at the expected index (%d) in %+v",
 				got, i, mf.Layers)
 		}
+	}
+}
+
+func assertAccurateManifestConfigDigest(t *testing.T, i v1.Image) {
+	t.Helper()
+
+	m := getManifest(t, i)
+	got := m.Config.Digest
+
+	rcfg := getRawConfigFile(t, i)
+	want := computeDigest(t, rcfg)
+
+	if !cmp.Equal(got, want) {
+		t.Fatalf("Manifest config digest (%v) does not match digest of config file (%v)", got, want)
 	}
 }
 
