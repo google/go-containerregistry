@@ -476,7 +476,6 @@ func getConfigFile(t *testing.T, i v1.Image) *v1.ConfigFile {
 	return c
 }
 
-
 func getRawConfigFile(t *testing.T, i v1.Image) []byte {
 	t.Helper()
 
@@ -487,8 +486,7 @@ func getRawConfigFile(t *testing.T, i v1.Image) []byte {
 	return rcfg
 }
 
-
-func computeDigest( t *testing.T, data []byte) v1.Hash {
+func computeDigest(t *testing.T, data []byte) v1.Hash {
 	d, _, err := v1.SHA256(bytes.NewBuffer(data))
 	if err != nil {
 		t.Fatalf("Unable to compute config digest: %v", err)
