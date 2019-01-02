@@ -15,6 +15,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 
@@ -36,40 +37,43 @@ func addFileArg(cmd *cobra.Command, fo *FilenameOptions) {
 }
 
 // Based heavily on pkg/kubectl
-func enumerateFiles(fo *FilenameOptions) ([]string, error) {
-	var files []string
-	for _, paths := range fo.Filenames {
-		if paths == "-" {
-			files = append(files, paths)
-			continue
-		}
-		err := filepath.Walk(paths, func(path string, fi os.FileInfo, err error) error {
-			if err != nil {
-				return err
+func enumerateFiles(fo *FilenameOptions) chan string {
+	files := make(chan string)
+	go func() {
+		defer close(files)
+		for _, paths := range fo.Filenames {
+			if paths == "-" {
+				files <- paths
+				continue
 			}
-
-			if fi.IsDir() {
-				if path != paths && !fo.Recursive {
-					return filepath.SkipDir
+			err := filepath.Walk(paths, func(path string, fi os.FileInfo, err error) error {
+				if err != nil {
+					return err
 				}
-				return nil
-			}
-			// Don't check extension if the filepath was passed explicitly
-			if path != paths {
-				switch filepath.Ext(path) {
-				case ".json", ".yaml":
-					// Process these.
-				default:
+
+				if fi.IsDir() {
+					if path != paths && !fo.Recursive {
+						return filepath.SkipDir
+					}
 					return nil
 				}
-			}
+				// Don't check extension if the filepath was passed explicitly
+				if path != paths {
+					switch filepath.Ext(path) {
+					case ".json", ".yaml":
+						// Process these.
+					default:
+						return nil
+					}
+				}
 
-			files = append(files, path)
-			return nil
-		})
-		if err != nil {
-			return nil, err
+				files <- path
+				return nil
+			})
+			if err != nil {
+				log.Fatalf("Error enumerating files: %v", err)
+			}
 		}
-	}
-	return files, nil
+	}()
+	return files
 }

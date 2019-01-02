@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"sync"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/ko/build"
@@ -43,44 +42,72 @@ func gobuildOptions() ([]build.Option, error) {
 	return opts, nil
 }
 
-func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, out io.Writer) {
-	fs, err := enumerateFiles(fo)
-	if err != nil {
-		log.Fatalf("error enumerating files: %v", err)
-	}
+// resolvedFuture represents a "future" for the bytes of a resolved file.
+type resolvedFuture chan []byte
 
+func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, out io.Writer) {
 	opt, err := gobuildOptions()
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)
 	}
-	var sm sync.Map
-	wg := sync.WaitGroup{}
-	for _, f := range fs {
-		wg.Add(1)
-		go func(f string) {
-			defer wg.Done()
 
-			b, err := resolveFile(f, no, lo, opt...)
-			if err != nil {
-				log.Fatalf("error processing import paths in %q: %v", f, err)
+	// TODO(mattmoor): By having this as a channel, we can hook this up to a filesystem
+	// watcher and leave `fs` open to stream the names of yaml files affected by code
+	// changes (including the modification of existing or creation of new yaml files).
+	fs := enumerateFiles(fo)
+
+	var futures []resolvedFuture
+	for {
+		// Each iteration, if there is anything in the list of futures,
+		// listen to it in addition to the file enumerating channel.
+		// A nil channel is never available to receive on, so if nothing
+		// is available, this will result in us exclusively selecting
+		// on the file enumerating channel.
+		var bf resolvedFuture
+		if len(futures) > 0 {
+			bf = futures[0]
+		} else if fs == nil {
+			// There are no more files to enumerate and the futures
+			// have been drained, so quit.
+			break
+		}
+
+		select {
+		case f, ok := <-fs:
+			if !ok {
+				// a nil channel is never available to receive on.
+				// This allows us to drain the list of in-process
+				// futures without this case of the select winning
+				// each time.
+				fs = nil
+				break
 			}
-			sm.Store(f, b)
-		}(f)
-	}
-	// Wait for all of the go routines to complete.
-	wg.Wait()
-	for _, f := range fs {
-		iface, ok := sm.Load(f)
-		if !ok {
-			log.Fatalf("missing file in resolved map: %v", f)
+
+			// Make a new future to use to ship the bytes back and append
+			// it to the list of futures (see comment below about ordering).
+			ch := make(resolvedFuture)
+			futures = append(futures, ch)
+
+			// Kick off the resolution that will respond with its bytes on
+			// the future.
+			go func(f string) {
+				defer close(ch)
+				b, err := resolveFile(f, no, lo, opt...)
+				if err != nil {
+					log.Fatalf("error processing import paths in %q: %v", f, err)
+				}
+				ch <- b
+			}(f)
+
+		case b := <-bf:
+			// Once the head channel returns something, dequeue it.
+			// We listen to the futures in order to be respectful of
+			// the kubectl apply ordering, which matters!
+			futures = futures[1:]
+
+			// Write a delimiter and the next resolved body.
+			out.Write(append([]byte("---\n"), b...))
 		}
-		b, ok := iface.([]byte)
-		if !ok {
-			log.Fatalf("unsupported type in sync.Map's value: %T", iface)
-		}
-		// Our sole output should be the resolved yamls
-		out.Write([]byte("---\n"))
-		out.Write(b)
 	}
 }
 
