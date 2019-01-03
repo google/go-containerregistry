@@ -45,7 +45,8 @@ func gobuildOptions() ([]build.Option, error) {
 // resolvedFuture represents a "future" for the bytes of a resolved file.
 type resolvedFuture chan []byte
 
-func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, out io.Writer) {
+func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, out io.WriteCloser) {
+	defer out.Close()
 	opt, err := gobuildOptions()
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)

@@ -15,7 +15,6 @@
 package main
 
 import (
-	"bytes"
 	"log"
 	"os"
 	"os/exec"
@@ -99,10 +98,6 @@ func addKubeCommands(topLevel *cobra.Command) {
   cat config.yaml | ko apply -f -`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			// TODO(mattmoor): Use io.Pipe to avoid buffering the whole thing.
-			buf := bytes.NewBuffer(nil)
-			resolveFilesToWriter(fo, no, lo, buf)
-
 			// Create a set of ko-specific flags to ignore when passing through
 			// kubectl global flags.
 			ignoreSet := make(map[string]struct{})
@@ -129,11 +124,17 @@ func addKubeCommands(topLevel *cobra.Command) {
 			// Pass through our std{out,err} and make our resolved buffer stdin.
 			kubectlCmd.Stderr = os.Stderr
 			kubectlCmd.Stdout = os.Stdout
-			kubectlCmd.Stdin = buf
+
+			// Wire up kubectl stdin to resolveFilesToWriter.
+			stdin, err := kubectlCmd.StdinPipe()
+			if err != nil {
+				log.Fatalf("error piping to 'kubectl apply': %v", err)
+			}
+			go resolveFilesToWriter(fo, no, lo, stdin)
 
 			// Run it.
 			if err := kubectlCmd.Run(); err != nil {
-				log.Fatalf("error executing \"kubectl apply\": %v", err)
+				log.Fatalf("error executing 'kubectl apply': %v", err)
 			}
 		},
 	}
