@@ -341,6 +341,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:c355e11e817a8f0cf464c922302f859e6ad922d7f849f42c0594a2a26ec2d806"
+  name = "github.com/mattmoor/dep-notify"
+  packages = ["pkg/graph"]
+  pruneopts = "NUT"
+  revision = "bee9543ee54bd7d7e5cce945cfc651082bb21f34"
+
+[[projects]]
+  branch = "master"
   digest = "1:5fe20cfe4ef484c237cec9f947b2a6fa90bad4b8610fd014f0e4211e13d82d5d"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
@@ -865,6 +873,7 @@
     "github.com/docker/docker/client",
     "github.com/google/go-cmp/cmp",
     "github.com/google/go-cmp/cmp/cmpopts",
+    "github.com/mattmoor/dep-notify/pkg/graph",
     "github.com/pkg/errors",
     "github.com/spf13/cobra",
     "github.com/spf13/cobra/doc",

@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/cobra"
 )
 
@@ -26,6 +27,7 @@ import (
 type FilenameOptions struct {
 	Filenames []string
 	Recursive bool
+	Watch     bool
 }
 
 func addFileArg(cmd *cobra.Command, fo *FilenameOptions) {
@@ -34,6 +36,8 @@ func addFileArg(cmd *cobra.Command, fo *FilenameOptions) {
 		"Filename, directory, or URL to files to use to create the resource")
 	cmd.Flags().BoolVarP(&fo.Recursive, "recursive", "R", fo.Recursive,
 		"Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
+	cmd.Flags().BoolVarP(&fo.Watch, "watch", "W", fo.Watch,
+		"Continuously monitor the transitive dependencies of the passed yaml files, and redeploy whenever anything changes.")
 }
 
 // Based heavily on pkg/kubectl
@@ -41,6 +45,15 @@ func enumerateFiles(fo *FilenameOptions) chan string {
 	files := make(chan string)
 	go func() {
 		defer close(files)
+		var watcher *fsnotify.Watcher
+		if fo.Watch {
+			var err error
+			watcher, err = fsnotify.NewWatcher()
+			if err != nil {
+				log.Fatalf("Unexpected error initializing fsnotify: %v", err)
+			}
+			defer watcher.Close()
+		}
 		for _, paths := range fo.Filenames {
 			if paths == "-" {
 				files <- paths
@@ -55,6 +68,9 @@ func enumerateFiles(fo *FilenameOptions) chan string {
 					if path != paths && !fo.Recursive {
 						return filepath.SkipDir
 					}
+					if watcher != nil {
+						watcher.Add(path)
+					}
 					return nil
 				}
 				// Don't check extension if the filepath was passed explicitly
@@ -65,6 +81,10 @@ func enumerateFiles(fo *FilenameOptions) chan string {
 					default:
 						return nil
 					}
+				} else {
+					if watcher != nil {
+						watcher.Add(path)
+					}
 				}
 
 				files <- path
@@ -72,6 +92,20 @@ func enumerateFiles(fo *FilenameOptions) chan string {
 			})
 			if err != nil {
 				log.Fatalf("Error enumerating files: %v", err)
+			}
+		}
+
+		if watcher != nil {
+			for {
+				select {
+				case event := <-watcher.Events:
+					switch filepath.Ext(event.Name) {
+					case ".json", ".yaml":
+						files <- event.Name
+					}
+				case err := <-watcher.Errors:
+					log.Fatalf("Error watching: %v", err)
+				}
 			}
 		}
 	}()
