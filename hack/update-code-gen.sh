@@ -19,7 +19,7 @@ set -o nounset
 set -o pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export BOILER_PLATE_FILE="${PROJECT_ROOT}/scripts/boilerplate/boilerplate.go.txt"
+export BOILER_PLATE_FILE="${PROJECT_ROOT}/hack/boilerplate/boilerplate.go.txt"
 
 pushd ${PROJECT_ROOT}
 trap popd EXIT
