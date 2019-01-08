@@ -72,6 +72,7 @@ func TestCheckErrorWithError(t *testing.T) {
 	tests := []struct {
 		code  int
 		error *Error
+		msg   string
 	}{{
 		code: http.StatusBadRequest,
 		error: &Error{
@@ -80,9 +81,11 @@ func TestCheckErrorWithError(t *testing.T) {
 				Message: "a message for you",
 			}},
 		},
+		msg: "NAME_INVALID: a message for you",
 	}, {
 		code:  http.StatusBadRequest,
 		error: &Error{},
+		msg:   "<empty transport.Error response>",
 	}, {
 		code: http.StatusBadRequest,
 		error: &Error{
@@ -92,8 +95,10 @@ func TestCheckErrorWithError(t *testing.T) {
 			}, {
 				Code:    SizeInvalidErrorCode,
 				Message: "another message for you",
+				Detail:  "with some details",
 			}},
 		},
+		msg: "multiple errors returned: NAME_INVALID: a message for you;SIZE_INVALID: another message for you; with some details",
 	}}
 
 	for _, test := range tests {
@@ -112,6 +117,8 @@ func TestCheckErrorWithError(t *testing.T) {
 			t.Errorf("CheckError(%d, %s) = %T, wanted *transport.Error", test.code, string(b), se)
 		} else if diff := cmp.Diff(test.error, se); diff != "" {
 			t.Errorf("CheckError(%d, %s); (-want +got) %s", test.code, string(b), diff)
+		} else if diff := cmp.Diff(test.msg, test.error.Error()); diff != "" {
+			t.Errorf("CheckError(%d, %s).Error(); (-want +got) %s", test.code, string(b), diff)
 		}
 	}
 }

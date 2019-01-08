@@ -55,9 +55,13 @@ type Diagnostic struct {
 	Detail  interface{} `json:"detail,omitempty"`
 }
 
-// String stringifies the Diagnostic
+// String stringifies the Diagnostic in the form: $Code: $Message[; $Detail]
 func (d Diagnostic) String() string {
-	return fmt.Sprintf("%s: %s", d.Code, d.Message)
+	msg := fmt.Sprintf("%s: %s", d.Code, d.Message)
+	if d.Detail != nil {
+		msg = fmt.Sprintf("%s; %v", msg, d.Detail)
+	}
+	return msg
 }
 
 // ErrorCode is an enumeration of supported error codes.
