@@ -15,9 +15,8 @@
 package transport
 
 import (
-	"fmt"
-
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -102,6 +101,10 @@ func (bt *bearerTransport) refresh() error {
 		return err
 	}
 	defer resp.Body.Close()
+
+	if err := CheckError(resp, http.StatusOK); err != nil {
+		return err
+	}
 
 	content, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
