@@ -45,18 +45,14 @@ func gobuildOptions() ([]build.Option, error) {
 	return opts, nil
 }
 
-// resolvedFuture represents a "future" for the bytes of a resolved file.
-type resolvedFuture chan []byte
-
-func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, out io.WriteCloser) {
-	defer out.Close()
+func makeBuilder() (*build.Caching, error) {
 	opt, err := gobuildOptions()
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)
 	}
 	innerBuilder, err := build.NewGo(opt...)
 	if err != nil {
-		log.Fatalf("error creating builder: %v", err)
+		return nil, err
 	}
 
 	// tl;dr Wrap builder in a caching builder.
@@ -75,11 +71,10 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 	//    we can elide subsequent builds by blocking on the same image future.
 	// 2. When an affected yaml file has multiple import paths (mostly unaffected)
 	//    we can elide the builds of unchanged import paths.
-	builder, err := build.NewCaching(innerBuilder)
-	if err != nil {
-		log.Fatalf("error wrapping builder in cache: %v", err)
-	}
+	return build.NewCaching(innerBuilder)
+}
 
+func makePublisher(no *NameOptions, lo *LocalOptions) (publish.Interface, error) {
 	// Create the publish.Interface that we will use to publish image references
 	// to either a docker daemon or a container image registry.
 	innerPublisher, err := func() (publish.Interface, error) {
@@ -104,13 +99,27 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 			publish.WithNamer(namer))
 	}()
 	if err != nil {
-		log.Fatalf("error creating publisher: %v", err)
+		return nil, err
 	}
 
 	// Wrap publisher in a memoizing publisher implementation.
-	publisher, err := publish.NewCaching(innerPublisher)
+	return publish.NewCaching(innerPublisher)
+}
+
+// resolvedFuture represents a "future" for the bytes of a resolved file.
+type resolvedFuture chan []byte
+
+func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, out io.WriteCloser) {
+	defer out.Close()
+	builder, err := makeBuilder()
 	if err != nil {
-		log.Fatalf("error wrapping publisher in cache: %v", err)
+		log.Fatalf("error creating builder: %v", err)
+	}
+
+	// Wrap publisher in a memoizing publisher implementation.
+	publisher, err := makePublisher(no, lo)
+	if err != nil {
+		log.Fatalf("error creating publisher: %v", err)
 	}
 
 	// By having this as a channel, we can hook this up to a filesystem
