@@ -54,9 +54,30 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)
 	}
-	builder, err := build.NewGo(opt...)
+	inner, err := build.NewGo(opt...)
 	if err != nil {
 		log.Fatalf("error creating builder: %v", err)
+	}
+
+	// tl;dr Wrap builder in a caching builder.
+	//
+	// The caching builder should on Build calls:
+	//  - Check for a valid Build future
+	//    - if a valid Build future exists at the time of the request,
+	//      then block on it.
+	//    - if it does not, then initiate and record a Build future.
+	//  - When import paths are "affected" by filesystem changes during a
+	//    Watch, then invalidate their build futures *before* we put the
+	//    affected yaml files onto the channel
+	//
+	// This will benefit the following key cases:
+	// 1. When the same import path is referenced across multiple yaml files
+	//    we can elide subsequent builds by blocking on the same image future.
+	// 2. When an affected yaml file has multiple import paths (mostly unaffected)
+	//    we can elide the builds of unchanged import paths.
+	builder, err := build.NewCaching(inner)
+	if err != nil {
+		log.Fatalf("error wrapping builder in cache: %v", err)
 	}
 
 	// By having this as a channel, we can hook this up to a filesystem
@@ -81,6 +102,8 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 
 				for _, ip := range value {
 					if ss.Has(ip) {
+						// See the comment above about how "builder" works.
+						builder.Invalidate(ip)
 						fs <- key
 					}
 				}
@@ -205,6 +228,11 @@ func resolveFile(f string, no *NameOptions, lo *LocalOptions, builder build.Inte
 			return nil, err
 		}
 	}
+
+	// TODO(mattmoor): Wrap pub in a memoizing publisher implementation.
+	// I think having the publisher store map[importpath]v1.Image and
+	// lookup the last published v1.Image and pointer-compare it with
+	// the requested v1.Image.  If the same, then simply return the digest.
 
 	var b []byte
 	var err error
