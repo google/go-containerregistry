@@ -54,7 +54,7 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)
 	}
-	inner, err := build.NewGo(opt...)
+	innerBuilder, err := build.NewGo(opt...)
 	if err != nil {
 		log.Fatalf("error creating builder: %v", err)
 	}
@@ -75,9 +75,42 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 	//    we can elide subsequent builds by blocking on the same image future.
 	// 2. When an affected yaml file has multiple import paths (mostly unaffected)
 	//    we can elide the builds of unchanged import paths.
-	builder, err := build.NewCaching(inner)
+	builder, err := build.NewCaching(innerBuilder)
 	if err != nil {
 		log.Fatalf("error wrapping builder in cache: %v", err)
+	}
+
+	// Create the publish.Interface that we will use to publish image references
+	// to either a docker daemon or a container image registry.
+	innerPublisher, err := func() (publish.Interface, error) {
+		namer := func() publish.Namer {
+			if no.PreserveImportPaths {
+				return preserveImportPath
+			}
+			return packageWithMD5
+		}()
+
+		repoName := os.Getenv("KO_DOCKER_REPO")
+		if lo.Local || repoName == publish.LocalDomain {
+			return publish.NewDaemon(namer), nil
+		}
+		_, err := name.NewRepository(repoName, name.WeakValidation)
+		if err != nil {
+			return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
+		}
+
+		return publish.NewDefault(repoName,
+			publish.WithAuthFromKeychain(authn.DefaultKeychain),
+			publish.WithNamer(namer))
+	}()
+	if err != nil {
+		log.Fatalf("error creating publisher: %v", err)
+	}
+
+	// Wrap publisher in a memoizing publisher implementation.
+	publisher, err := publish.NewCaching(innerPublisher)
+	if err != nil {
+		log.Fatalf("error wrapping publisher in cache: %v", err)
 	}
 
 	// By having this as a channel, we can hook this up to a filesystem
@@ -157,7 +190,7 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 				recordingBuilder := &build.Recorder{
 					Builder: builder,
 				}
-				b, err := resolveFile(f, no, lo, recordingBuilder)
+				b, err := resolveFile(f, recordingBuilder, publisher)
 				if err != nil {
 					// Don't let build errors disrupt the watch.
 					lg := log.Fatalf
@@ -202,40 +235,7 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 	}
 }
 
-func resolveFile(f string, no *NameOptions, lo *LocalOptions, builder build.Interface) ([]byte, error) {
-	var pub publish.Interface
-	repoName := os.Getenv("KO_DOCKER_REPO")
-
-	var namer publish.Namer
-	if no.PreserveImportPaths {
-		namer = preserveImportPath
-	} else {
-		namer = packageWithMD5
-	}
-
-	if lo.Local || repoName == publish.LocalDomain {
-		pub = publish.NewDaemon(namer)
-	} else {
-		_, err := name.NewRepository(repoName, name.WeakValidation)
-		if err != nil {
-			return nil, fmt.Errorf("the environment variable KO_DOCKER_REPO must be set to a valid docker repository, got %v", err)
-		}
-
-		opts := []publish.Option{publish.WithAuthFromKeychain(authn.DefaultKeychain), publish.WithNamer(namer)}
-
-		pub, err = publish.NewDefault(repoName, opts...)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// TODO(mattmoor): Wrap pub in a memoizing publisher implementation.
-	// I think having the publisher store map[importpath]v1.Image and
-	// lookup the last published v1.Image and pointer-compare it with
-	// the requested v1.Image.  If the same, then simply return the digest.
-
-	var b []byte
-	var err error
+func resolveFile(f string, builder build.Interface, pub publish.Interface) (b []byte, err error) {
 	if f == "-" {
 		b, err = ioutil.ReadAll(os.Stdin)
 	} else {
