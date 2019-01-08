@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package remote
+package transport
 
 import (
 	"bytes"
@@ -109,7 +109,7 @@ func TestCheckErrorWithError(t *testing.T) {
 		if err := CheckError(resp, http.StatusOK); err == nil {
 			t.Errorf("CheckError(%d, %s) = nil, wanted error", test.code, string(b))
 		} else if se, ok := err.(*Error); !ok {
-			t.Errorf("CheckError(%d, %s) = %T, wanted *remote.Error", test.code, string(b), se)
+			t.Errorf("CheckError(%d, %s) = %T, wanted *transport.Error", test.code, string(b), se)
 		} else if diff := cmp.Diff(test.error, se); diff != "" {
 			t.Errorf("CheckError(%d, %s); (-want +got) %s", test.code, string(b), diff)
 		}

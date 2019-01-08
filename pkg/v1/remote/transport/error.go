@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package remote
+package transport
 
 import (
 	"encoding/json"
@@ -35,7 +35,7 @@ var _ error = (*Error)(nil)
 func (e *Error) Error() string {
 	switch len(e.Errors) {
 	case 0:
-		return "<empty remote.Error response>"
+		return "<empty transport.Error response>"
 	case 1:
 		return e.Errors[0].String()
 	default:
