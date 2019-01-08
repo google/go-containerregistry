@@ -790,9 +790,9 @@ func TestWriteWithErrors(t *testing.T) {
 	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 
-	expectedError := &Error{
-		Errors: []Diagnostic{{
-			Code:    NameInvalidErrorCode,
+	expectedError := &transport.Error{
+		Errors: []transport.Diagnostic{{
+			Code:    transport.NameInvalidErrorCode,
 			Message: "some explanation of how things were messed up.",
 		}},
 	}
@@ -831,7 +831,7 @@ func TestWriteWithErrors(t *testing.T) {
 
 	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport); err == nil {
 		t.Error("Write() = nil; wanted error")
-	} else if se, ok := err.(*Error); !ok {
+	} else if se, ok := err.(*transport.Error); !ok {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)
 	} else if diff := cmp.Diff(expectedError, se); diff != "" {
 		t.Errorf("Write(); (-want +got) = %s", diff)

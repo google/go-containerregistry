@@ -24,7 +24,6 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
@@ -75,7 +74,7 @@ func (l *lister) list(repo name.Repository) (*Tags, error) {
 	}
 	defer resp.Body.Close()
 
-	if err := remote.CheckError(resp, http.StatusOK); err != nil {
+	if err := transport.CheckError(resp, http.StatusOK); err != nil {
 		return nil, err
 	}
 

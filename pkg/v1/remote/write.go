@@ -139,7 +139,7 @@ func (w *writer) checkExisting(h v1.Hash) (bool, error) {
 	}
 	defer resp.Body.Close()
 
-	if err := CheckError(resp, http.StatusOK, http.StatusNotFound); err != nil {
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusNotFound); err != nil {
 		return false, err
 	}
 
@@ -170,7 +170,7 @@ func (w *writer) initiateUpload(from, mount string) (location string, mounted bo
 	}
 	defer resp.Body.Close()
 
-	if err := CheckError(resp, http.StatusCreated, http.StatusAccepted); err != nil {
+	if err := transport.CheckError(resp, http.StatusCreated, http.StatusAccepted); err != nil {
 		return "", false, err
 	}
 
@@ -205,7 +205,7 @@ func (w *writer) streamBlob(blob io.ReadCloser, streamLocation string) (commitLo
 	}
 	defer resp.Body.Close()
 
-	if err := CheckError(resp, http.StatusNoContent, http.StatusAccepted, http.StatusCreated); err != nil {
+	if err := transport.CheckError(resp, http.StatusNoContent, http.StatusAccepted, http.StatusCreated); err != nil {
 		return "", err
 	}
 
@@ -236,7 +236,7 @@ func (w *writer) commitBlob(location, digest string) error {
 	}
 	defer resp.Body.Close()
 
-	return CheckError(resp, http.StatusCreated)
+	return transport.CheckError(resp, http.StatusCreated)
 }
 
 // uploadOne performs a complete upload of a single layer.
@@ -331,7 +331,7 @@ func (w *writer) commitImage() error {
 	}
 	defer resp.Body.Close()
 
-	if err := CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
 		return err
 	}
 
