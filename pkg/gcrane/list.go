@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/spf13/cobra"
@@ -48,16 +47,19 @@ func ls(root string, recursive bool) {
 		log.Fatalln(err)
 	}
 
-	auth := google.WithAuthFromKeychain(authn.DefaultKeychain)
+	auth, err := google.Keychain.Resolve(repo.Registry)
+	if err != nil {
+		log.Fatalf("getting auth for %q: %v", root, err)
+	}
 
 	if recursive {
-		if err := google.Walk(repo, printImages, auth); err != nil {
+		if err := google.Walk(repo, printImages, google.WithAuth(auth)); err != nil {
 			log.Fatalln(err)
 		}
 		return
 	}
 
-	tags, err := google.List(repo, auth)
+	tags, err := google.List(repo, google.WithAuth(auth))
 	if err != nil {
 		log.Fatalln(err)
 	}
