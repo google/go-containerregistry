@@ -57,7 +57,7 @@ type Diagnostic struct {
 
 // String stringifies the Diagnostic
 func (d Diagnostic) String() string {
-	return fmt.Sprintf("%s: %q", d.Code, d.Message)
+	return fmt.Sprintf("%s: %s", d.Code, d.Message)
 }
 
 // ErrorCode is an enumeration of supported error codes.
