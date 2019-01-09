@@ -231,8 +231,8 @@ to whatever `kubectl` context is active.
 
 The `--watch` flag (`-W` for short) does an initial `apply` as above, but as it
 does, it builds up a dependency graph of your program and starts to continuously
-monitor the filesystem for changes and on-change, it re-applies any yamls that
-are affected.
+monitor the filesystem for changes. When a file changes, it re-applies any yamls
+that are affected.
 
 For example, if I edit `github.com/foo/bar/pkg/baz/blah.go`, the tool sees that
 the `github.com/foo/bar/pkg/baz` package has changed, and perhaps both

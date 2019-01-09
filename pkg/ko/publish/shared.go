@@ -21,9 +21,9 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
-// Caching wraps a publisher implementation in a layer that shares publish results
+// caching wraps a publisher implementation in a layer that shares publish results
 // for the same inputs using a simple "future" implementation.
-type Caching struct {
+type caching struct {
 	inner Interface
 
 	m       sync.Mutex
@@ -37,20 +37,20 @@ type entry struct {
 	f   *future
 }
 
-// Caching implements Interface
-var _ Interface = (*Caching)(nil)
+// caching implements Interface
+var _ Interface = (*caching)(nil)
 
-// NewCaching wraps the provided publish.Interface in an implementation that
+// Newcaching wraps the provided publish.Interface in an implementation that
 // shares publish results for a given path until the passed image object changes.
-func NewCaching(inner Interface) (*Caching, error) {
-	return &Caching{
+func NewCaching(inner Interface) (Interface, error) {
+	return &caching{
 		inner:   inner,
 		results: make(map[string]*entry),
 	}, nil
 }
 
 // Publish implements Interface
-func (c *Caching) Publish(img v1.Image, ref string) (name.Reference, error) {
+func (c *caching) Publish(img v1.Image, ref string) (name.Reference, error) {
 	f := func() *future {
 		// Lock the map of futures.
 		c.m.Lock()

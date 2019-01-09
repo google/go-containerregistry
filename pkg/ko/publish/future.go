@@ -23,7 +23,7 @@ import (
 func newFuture(work func() (name.Reference, error)) *future {
 	// Create a channel on which to send the result.
 	ch := make(chan *result)
-	// Initiate the actual work, sending it's result
+	// Initiate the actual work, sending its result
 	// along the above channel.
 	go func() {
 		ref, err := work()

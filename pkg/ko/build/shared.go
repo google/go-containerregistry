@@ -34,7 +34,7 @@ type Caching struct {
 var _ Interface = (*Caching)(nil)
 
 // NewCaching wraps the provided build.Interface in an implementation that
-// shared build results for a given path until the result has been invalidated.
+// shares build results for a given path until the result has been invalidated.
 func NewCaching(inner Interface) (*Caching, error) {
 	return &Caching{
 		inner:   inner,
