@@ -227,6 +227,25 @@ rebuild, repush, and redeploy their changes.
 `ko apply` will invoke `kubectl apply` under the covers, and therefore apply
 to whatever `kubectl` context is active.
 
+### `ko apply --watch` (EXPERIMENTAL)
+
+The `--watch` flag (`-W` for short) does an initial `apply` as above, but as it
+does, it builds up a dependency graph of your program and starts to continuously
+monitor the filesystem for changes. When a file changes, it re-applies any yamls
+that are affected.
+
+For example, if I edit `github.com/foo/bar/pkg/baz/blah.go`, the tool sees that
+the `github.com/foo/bar/pkg/baz` package has changed, and perhaps both
+`github.com/foo/bar/cmd/one` and `github.com/foo/bar/cmd/two` consume that library
+and were referenced by `config/one-deploy.yaml` and `config/two-deploy.yaml`.
+The edit would effectively result in a re-application of:
+
+```
+ko apply -f config/one-deploy.yaml -f config/two-deploy.yaml
+```
+
+This flag is still experimental, and feedback is very welcome.
+
 ### `ko delete`
 
 `ko delete` simply passes through to `kubectl delete`. It is exposed purely out
