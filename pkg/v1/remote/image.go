@@ -171,6 +171,10 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 		return nil, err
 	}
 
+	if m.Config.Digest.Hex == "" {
+		return nil, fmt.Errorf("missing config digest, image is probably schema 1; manifest body:\n%s", r.manifest)
+	}
+
 	cl, err := r.LayerByDigest(m.Config.Digest)
 	if err != nil {
 		return nil, err
