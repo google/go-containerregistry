@@ -56,7 +56,7 @@ func TestDaemon(t *testing.T) {
 	}
 }
 
-func TestDaemonAdditionalTags(t *testing.T) {
+func TestDaemonTags(t *testing.T) {
 	importpath := "github.com/google/go-containerregistry/cmd/ko"
 	img, err := random.Image(1024, 1)
 	if err != nil {
