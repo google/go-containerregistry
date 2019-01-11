@@ -63,7 +63,7 @@ func TestDaemonTags(t *testing.T) {
 		t.Fatalf("random.Image() = %v", err)
 	}
 
-	def := NewDaemon(md5Hash, []string{"v2.0.0", "v1.2.3", " production"})
+	def := NewDaemon(md5Hash, []string{"v2.0.0", "v1.2.3", "production"})
 	if d, err := def.Publish(img, importpath); err != nil {
 		t.Errorf("Publish() = %v", err)
 	} else if got, want := d.String(), "ko.local/"+md5Hash(importpath); !strings.HasPrefix(got, want) {
