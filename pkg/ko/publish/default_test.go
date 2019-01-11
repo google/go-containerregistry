@@ -18,7 +18,6 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -221,7 +220,4 @@ func TestDefaultWithTags(t *testing.T) {
 	if _, ok := createdTags["v1.2.3"]; !ok {
 		t.Errorf("Tag v1.2.3 was not created.")
 	}
-
-	log.Println(createdTags)
-
 }
