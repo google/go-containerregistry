@@ -69,6 +69,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	bo := &BinaryOptions{}
 	no := &NameOptions{}
 	fo := &FilenameOptions{}
+	ta := &TagsOptions{}
 	apply := &cobra.Command{
 		Use:   "apply -f FILENAME",
 		Short: "Apply the input files with image references resolved to built/pushed image digests.",
@@ -220,11 +221,12 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko publish --local github.com/foo/bar/cmd/baz github.com/foo/bar/cmd/blah`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			publishImages(args, no, lo)
+			publishImages(args, no, lo, ta)
 		},
 	}
 	addLocalArg(publish, lo)
 	addNamingArgs(publish, no)
+	addTagsArg(publish, ta)
 	topLevel.AddCommand(publish)
 
 	run := &cobra.Command{
@@ -241,7 +243,7 @@ func addKubeCommands(topLevel *cobra.Command) {
   # This supports relative import paths as well.
   ko run foo --image=./cmd/baz`,
 		Run: func(cmd *cobra.Command, args []string) {
-			imgs := publishImages([]string{bo.Path}, no, lo)
+			imgs := publishImages([]string{bo.Path}, no, lo, ta)
 
 			// There's only one, but this is the simple way to access the
 			// reference since the import path may have been qualified.

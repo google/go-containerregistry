@@ -72,3 +72,11 @@ func WithNamer(n Namer) Option {
 		return nil
 	}
 }
+
+// WithTags is a functional option for overriding the image tags
+func WithTags(tags []string) Option {
+	return func(i *defaultOpener) error {
+		i.tags = tags
+		return nil
+	}
+}

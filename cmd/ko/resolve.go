@@ -87,7 +87,7 @@ func makePublisher(no *NameOptions, lo *LocalOptions) (publish.Interface, error)
 
 		repoName := os.Getenv("KO_DOCKER_REPO")
 		if lo.Local || repoName == publish.LocalDomain {
-			return publish.NewDaemon(namer), nil
+			return publish.NewDaemon(namer, []string{}), nil
 		}
 		_, err := name.NewRepository(repoName, name.WeakValidation)
 		if err != nil {

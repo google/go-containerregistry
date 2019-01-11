@@ -32,6 +32,7 @@ type defalt struct {
 	t     http.RoundTripper
 	auth  authn.Authenticator
 	namer Namer
+	tags  []string
 }
 
 type Option func(*defaultOpener) error
@@ -41,6 +42,7 @@ type defaultOpener struct {
 	t     http.RoundTripper
 	auth  authn.Authenticator
 	namer Namer
+	tags  []string
 }
 
 // Namer is a function from a supported import path to the portion of the resulting
@@ -53,12 +55,17 @@ type Namer func(string) string
 //   ^--base--^ ^-------import path-------^
 func identity(in string) string { return in }
 
+// As some registries do not support push an image by digest, the default tag for pushing
+// is the 'latest' tag.
+var defaultTags = []string{"latest"}
+
 func (do *defaultOpener) Open() (Interface, error) {
 	return &defalt{
 		base:  do.base,
 		t:     do.t,
 		auth:  do.auth,
 		namer: do.namer,
+		tags:  do.tags,
 	}, nil
 }
 
@@ -70,6 +77,7 @@ func NewDefault(base string, options ...Option) (Interface, error) {
 		t:     http.DefaultTransport,
 		auth:  authn.Anonymous,
 		namer: identity,
+		tags:  defaultTags,
 	}
 
 	for _, option := range options {
@@ -85,16 +93,18 @@ func (d *defalt) Publish(img v1.Image, s string) (name.Reference, error) {
 	// https://github.com/google/go-containerregistry/issues/212
 	s = strings.ToLower(s)
 
-	// We push via tag (always latest) and then produce a digest because some registries do
-	// not support publishing by digest.
-	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", d.base, d.namer(s)), name.WeakValidation)
-	if err != nil {
-		return nil, err
+	for _, tagName := range d.tags {
+		tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", d.base, d.namer(s), tagName), name.WeakValidation)
+		if err != nil {
+			return nil, err
+		}
+
+		log.Printf("Publishing %v", tag)
+		if err := remote.Write(tag, img, d.auth, d.t); err != nil {
+			return nil, err
+		}
 	}
-	log.Printf("Publishing %v", tag)
-	if err := remote.Write(tag, img, d.auth, d.t); err != nil {
-		return nil, err
-	}
+
 	h, err := img.Digest()
 	if err != nil {
 		return nil, err
