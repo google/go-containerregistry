@@ -18,11 +18,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// TagsOptions holds the list of tags to tag the built image
 type TagsOptions struct {
 	Tags []string
 }
 
 func addTagsArg(cmd *cobra.Command, ta *TagsOptions) {
-	cmd.Flags().StringSliceVar(&ta.Tags, "tags", ta.Tags,
+	cmd.Flags().StringSliceVarP(&ta.Tags, "tags", "t", []string{"latest"},
 		"Which tags to use for the produced image instead of the default 'latest' tag.")
 }

@@ -131,7 +131,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 			if err != nil {
 				log.Fatalf("error piping to 'kubectl apply': %v", err)
 			}
-			go resolveFilesToWriter(fo, no, lo, stdin)
+			go resolveFilesToWriter(fo, no, lo, ta, stdin)
 
 			// Run it.
 			if err := kubectlCmd.Run(); err != nil {
@@ -142,6 +142,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	addLocalArg(apply, lo)
 	addNamingArgs(apply, no)
 	addFileArg(apply, fo)
+	addTagsArg(apply, ta)
 
 	// Collect the ko-specific apply flags before registering the kubectl global
 	// flags so that we can ignore them when passing kubectl global flags through
@@ -182,12 +183,13 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko resolve --local -f config/`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			resolveFilesToWriter(fo, no, lo, os.Stdout)
+			resolveFilesToWriter(fo, no, lo, ta, os.Stdout)
 		},
 	}
 	addLocalArg(resolve, lo)
 	addNamingArgs(resolve, no)
 	addFileArg(resolve, fo)
+	addTagsArg(resolve, ta)
 	topLevel.AddCommand(resolve)
 
 	publish := &cobra.Command{
@@ -276,6 +278,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	addLocalArg(run, lo)
 	addNamingArgs(run, no)
 	addImageArg(run, bo)
+	addTagsArg(run, ta)
 
 	topLevel.AddCommand(run)
 }

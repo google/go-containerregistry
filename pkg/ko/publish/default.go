@@ -55,7 +55,7 @@ type Namer func(string) string
 //   ^--base--^ ^-------import path-------^
 func identity(in string) string { return in }
 
-// As some registries do not support push an image by digest, the default tag for pushing
+// As some registries do not support pushing an image by digest, the default tag for pushing
 // is the 'latest' tag.
 var defaultTags = []string{"latest"}
 
