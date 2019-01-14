@@ -49,10 +49,6 @@ func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
 		return nil, err
 	}
 
-	if len(d.tags) == 0 {
-		d.tags = []string{"latest"}
-	}
-
 	for _, tagName := range d.tags {
 		tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), tagName), name.WeakValidation)
 		if err != nil {
