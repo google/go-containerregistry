@@ -16,22 +16,33 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-type MockImageLoader struct{}
+type MockImageLoader struct {
+}
+
+var Tags []string
 
 func (m *MockImageLoader) ImageLoad(context.Context, io.Reader, bool) (types.ImageLoadResponse, error) {
 	return types.ImageLoadResponse{
 		Body: ioutil.NopCloser(strings.NewReader("Loaded")),
 	}, nil
+}
+
+func (m *MockImageLoader) ImageTag(ctx context.Context, source, target string) error {
+	Tags = append(Tags, target)
+	fmt.Println("tagging", source, target)
+	return nil
 }
 
 func init() {
@@ -55,5 +66,36 @@ func TestWriteImage(t *testing.T) {
 	}
 	if !strings.Contains(response, "Loaded") {
 		t.Errorf("Error loading image. Response: %s", response)
+	}
+}
+func TestWriteAndTagImages(t *testing.T) {
+	image, err := tarball.ImageFromPath("../tarball/testdata/test_image_1.tar", nil)
+	if err != nil {
+		t.Errorf("Error loading image: %v", err.Error())
+	}
+	tag, err := name.NewTag("test_image_2:latest", name.WeakValidation)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	tagNotLatest, err := name.NewTag("test_image_2:notlatest", name.WeakValidation)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	response, err := WriteAndTag([]name.Tag{tag, tagNotLatest}, image)
+	if err != nil {
+		t.Errorf("Error writing image tar: %s", err.Error())
+	}
+	if !strings.Contains(response, "Loaded") {
+		t.Errorf("Error loading image. Response: %s", response)
+	}
+
+	if len(Tags) != 1 {
+		t.Error("Image should be tagged exactly once after push")
+	}
+
+	if Tags[0] != tagNotLatest.String() {
+		t.Errorf("Image was tagged with tag %s but was expected to be %s.", Tags[0], tagNotLatest.String())
 	}
 }

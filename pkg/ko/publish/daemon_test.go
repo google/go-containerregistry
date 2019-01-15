@@ -35,6 +35,10 @@ func (m *MockImageLoader) ImageLoad(_ context.Context, _ io.Reader, _ bool) (typ
 	}, nil
 }
 
+func (m *MockImageLoader) ImageTag(ctx context.Context, source, target string) error {
+	return nil
+}
+
 func init() {
 	daemon.GetImageLoader = func() (daemon.ImageLoader, error) {
 		return &MockImageLoader{}, nil

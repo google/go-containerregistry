@@ -19,10 +19,9 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/pkg/errors"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/pkg/errors"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -32,6 +31,7 @@ import (
 // API interface for testing.
 type ImageLoader interface {
 	ImageLoad(context.Context, io.Reader, bool) (types.ImageLoadResponse, error)
+	ImageTag(context.Context, string, string) error
 }
 
 // This is a variable so we can override in tests.
@@ -42,6 +42,36 @@ var GetImageLoader = func() (ImageLoader, error) {
 	}
 	cli.NegotiateAPIVersion(context.Background())
 	return cli, nil
+}
+
+// WriteAndTag writes the image with the first tag and add the others tags with the
+// client.ImageTag function in order to save unnecesary subsequents Writes
+func WriteAndTag(tags []name.Tag, img v1.Image) (string, error) {
+	firstTag := tags[0]
+
+	r, err := Write(firstTag, img)
+
+	if len(tags) <= 1 {
+		return r, err
+	} else if err != nil {
+		return "", err
+	}
+
+	cli, err := GetImageLoader()
+
+	if err != nil {
+		return "", err
+	}
+
+	for _, tag := range tags[1:] {
+		err := cli.ImageTag(context.Background(), firstTag.String(), tag.String())
+
+		if err != nil {
+			return r, nil
+		}
+	}
+
+	return r, nil
 }
 
 // Write saves the image into the daemon as the given tag.
