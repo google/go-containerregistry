@@ -55,6 +55,7 @@ func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
 			return nil, err
 		}
 		log.Printf("Loading %v", tag)
+		// TODO: This is slow because we have to load the image multiple times. We should use client.ImageTag instead
 		if _, err := daemon.Write(tag, img); err != nil {
 			return nil, err
 		}
