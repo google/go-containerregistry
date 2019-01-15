@@ -69,6 +69,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	bo := &BinaryOptions{}
 	no := &NameOptions{}
 	fo := &FilenameOptions{}
+	ta := &TagsOptions{}
 	apply := &cobra.Command{
 		Use:   "apply -f FILENAME",
 		Short: "Apply the input files with image references resolved to built/pushed image digests.",
@@ -130,7 +131,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 			if err != nil {
 				log.Fatalf("error piping to 'kubectl apply': %v", err)
 			}
-			go resolveFilesToWriter(fo, no, lo, stdin)
+			go resolveFilesToWriter(fo, no, lo, ta, stdin)
 
 			// Run it.
 			if err := kubectlCmd.Run(); err != nil {
@@ -141,6 +142,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	addLocalArg(apply, lo)
 	addNamingArgs(apply, no)
 	addFileArg(apply, fo)
+	addTagsArg(apply, ta)
 
 	// Collect the ko-specific apply flags before registering the kubectl global
 	// flags so that we can ignore them when passing kubectl global flags through
@@ -181,12 +183,13 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko resolve --local -f config/`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			resolveFilesToWriter(fo, no, lo, os.Stdout)
+			resolveFilesToWriter(fo, no, lo, ta, os.Stdout)
 		},
 	}
 	addLocalArg(resolve, lo)
 	addNamingArgs(resolve, no)
 	addFileArg(resolve, fo)
+	addTagsArg(resolve, ta)
 	topLevel.AddCommand(resolve)
 
 	publish := &cobra.Command{
@@ -220,11 +223,12 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko publish --local github.com/foo/bar/cmd/baz github.com/foo/bar/cmd/blah`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			publishImages(args, no, lo)
+			publishImages(args, no, lo, ta)
 		},
 	}
 	addLocalArg(publish, lo)
 	addNamingArgs(publish, no)
+	addTagsArg(publish, ta)
 	topLevel.AddCommand(publish)
 
 	run := &cobra.Command{
@@ -241,7 +245,7 @@ func addKubeCommands(topLevel *cobra.Command) {
   # This supports relative import paths as well.
   ko run foo --image=./cmd/baz`,
 		Run: func(cmd *cobra.Command, args []string) {
-			imgs := publishImages([]string{bo.Path}, no, lo)
+			imgs := publishImages([]string{bo.Path}, no, lo, ta)
 
 			// There's only one, but this is the simple way to access the
 			// reference since the import path may have been qualified.
@@ -274,6 +278,7 @@ func addKubeCommands(topLevel *cobra.Command) {
 	addLocalArg(run, lo)
 	addNamingArgs(run, no)
 	addImageArg(run, bo)
+	addTagsArg(run, ta)
 
 	topLevel.AddCommand(run)
 }

@@ -74,7 +74,7 @@ func makeBuilder() (*build.Caching, error) {
 	return build.NewCaching(innerBuilder)
 }
 
-func makePublisher(no *NameOptions, lo *LocalOptions) (publish.Interface, error) {
+func makePublisher(no *NameOptions, lo *LocalOptions, ta *TagsOptions) (publish.Interface, error) {
 	// Create the publish.Interface that we will use to publish image references
 	// to either a docker daemon or a container image registry.
 	innerPublisher, err := func() (publish.Interface, error) {
@@ -87,7 +87,7 @@ func makePublisher(no *NameOptions, lo *LocalOptions) (publish.Interface, error)
 
 		repoName := os.Getenv("KO_DOCKER_REPO")
 		if lo.Local || repoName == publish.LocalDomain {
-			return publish.NewDaemon(namer), nil
+			return publish.NewDaemon(namer, ta.Tags), nil
 		}
 		_, err := name.NewRepository(repoName, name.WeakValidation)
 		if err != nil {
@@ -96,7 +96,8 @@ func makePublisher(no *NameOptions, lo *LocalOptions) (publish.Interface, error)
 
 		return publish.NewDefault(repoName,
 			publish.WithAuthFromKeychain(authn.DefaultKeychain),
-			publish.WithNamer(namer))
+			publish.WithNamer(namer),
+			publish.WithTags(ta.Tags))
 	}()
 	if err != nil {
 		return nil, err
@@ -109,7 +110,7 @@ func makePublisher(no *NameOptions, lo *LocalOptions) (publish.Interface, error)
 // resolvedFuture represents a "future" for the bytes of a resolved file.
 type resolvedFuture chan []byte
 
-func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, out io.WriteCloser) {
+func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, ta *TagsOptions, out io.WriteCloser) {
 	defer out.Close()
 	builder, err := makeBuilder()
 	if err != nil {
@@ -117,7 +118,7 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 	}
 
 	// Wrap publisher in a memoizing publisher implementation.
-	publisher, err := makePublisher(no, lo)
+	publisher, err := makePublisher(no, lo, ta)
 	if err != nil {
 		log.Fatalf("error creating publisher: %v", err)
 	}
