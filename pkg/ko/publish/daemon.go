@@ -72,7 +72,7 @@ func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("Added tagged %v", tagName)
+		log.Printf("Added tag %v", tagName)
 	}
 
 	return &digestTag, nil
