@@ -29,6 +29,8 @@ import (
 
 type MockImageLoader struct{}
 
+var Tags []string
+
 func (m *MockImageLoader) ImageLoad(_ context.Context, _ io.Reader, _ bool) (types.ImageLoadResponse, error) {
 	return types.ImageLoadResponse{
 		Body: ioutil.NopCloser(strings.NewReader("Loaded")),
@@ -36,6 +38,7 @@ func (m *MockImageLoader) ImageLoad(_ context.Context, _ io.Reader, _ bool) (typ
 }
 
 func (m *MockImageLoader) ImageTag(ctx context.Context, source, target string) error {
+	Tags = append(Tags, target)
 	return nil
 }
 
@@ -61,6 +64,8 @@ func TestDaemon(t *testing.T) {
 }
 
 func TestDaemonTags(t *testing.T) {
+	Tags = nil
+
 	importpath := "github.com/google/go-containerregistry/cmd/ko"
 	img, err := random.Image(1024, 1)
 	if err != nil {
@@ -72,5 +77,13 @@ func TestDaemonTags(t *testing.T) {
 		t.Errorf("Publish() = %v", err)
 	} else if got, want := d.String(), "ko.local/"+md5Hash(importpath); !strings.HasPrefix(got, want) {
 		t.Errorf("Publish() = %v, wanted prefix %v", got, want)
+	}
+
+	expected := []string{"ko.local/d502d3a1d9858acbab6106d78a0e05f0:v2.0.0", "ko.local/d502d3a1d9858acbab6106d78a0e05f0:v1.2.3", "ko.local/d502d3a1d9858acbab6106d78a0e05f0:production"}
+
+	for i, v := range expected {
+		if Tags[i] != v {
+			t.Errorf("Expected tag %v got %v", v, Tags[i])
+		}
 	}
 }

@@ -44,34 +44,15 @@ var GetImageLoader = func() (ImageLoader, error) {
 	return cli, nil
 }
 
-// WriteAndTag writes the image with the first tag and add the others tags with the
-// client.ImageTag function in order to save unnecesary subsequents Writes
-func WriteAndTag(tags []name.Tag, img v1.Image) (string, error) {
-	firstTag := tags[0]
-
-	r, err := Write(firstTag, img)
-
-	if len(tags) <= 1 {
-		return r, err
-	} else if err != nil {
-		return "", err
-	}
-
+// Tag adds a tag to an already existent image.
+func Tag(src, dest name.Tag) error {
 	cli, err := GetImageLoader()
 
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	for _, tag := range tags[1:] {
-		err := cli.ImageTag(context.Background(), firstTag.String(), tag.String())
-
-		if err != nil {
-			return r, nil
-		}
-	}
-
-	return r, nil
+	return cli.ImageTag(context.Background(), src.String(), dest.String())
 }
 
 // Write saves the image into the daemon as the given tag.
