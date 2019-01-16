@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
@@ -32,6 +33,10 @@ func (m *MockImageLoader) ImageLoad(context.Context, io.Reader, bool) (types.Ima
 	return types.ImageLoadResponse{
 		Body: ioutil.NopCloser(strings.NewReader("Loaded")),
 	}, nil
+}
+
+func (m *MockImageLoader) ImageTag(ctx context.Context, source, target string) error {
+	return nil
 }
 
 func init() {

@@ -49,26 +49,31 @@ func (d *demon) Publish(img v1.Image, s string) (name.Reference, error) {
 		return nil, err
 	}
 
-	tagsAndDigest := append(d.tags, h.Hex)
-
-	for _, tagName := range tagsAndDigest {
-		tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), tagName), name.WeakValidation)
-		if err != nil {
-			return nil, err
-		}
-		log.Printf("Loading %v", tag)
-		// TODO: This is slow because we have to load the image multiple times.
-		// We should use client.ImageTag instead
-		if _, err := daemon.Write(tag, img); err != nil {
-			return nil, err
-		}
-		log.Printf("Loaded %v", tag)
-	}
-
-	tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), h.Hex), name.WeakValidation)
+	digestTag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), h.Hex), name.WeakValidation)
 	if err != nil {
 		return nil, err
 	}
 
-	return &tag, nil
+	log.Printf("Loading %v", digestTag)
+	if _, err := daemon.Write(digestTag, img); err != nil {
+		return nil, err
+	}
+	log.Printf("Loaded %v", digestTag)
+
+	for _, tagName := range d.tags {
+		log.Printf("Adding tag %v", tagName)
+		tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", LocalDomain, d.namer(s), tagName), name.WeakValidation)
+		if err != nil {
+			return nil, err
+		}
+
+		err = daemon.Tag(digestTag, tag)
+
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("Added tag %v", tagName)
+	}
+
+	return &digestTag, nil
 }
