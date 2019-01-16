@@ -27,8 +27,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-type MockImageLoader struct {
-}
+type MockImageLoader struct{}
 
 func (m *MockImageLoader) ImageLoad(context.Context, io.Reader, bool) (types.ImageLoadResponse, error) {
 	return types.ImageLoadResponse{
