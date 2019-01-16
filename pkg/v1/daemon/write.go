@@ -47,7 +47,6 @@ var GetImageLoader = func() (ImageLoader, error) {
 // Tag adds a tag to an already existent image.
 func Tag(src, dest name.Tag) error {
 	cli, err := GetImageLoader()
-
 	if err != nil {
 		return err
 	}
