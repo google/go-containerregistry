@@ -15,7 +15,6 @@
 package remote
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -46,9 +45,6 @@ func WithAuthFromKeychain(keys authn.Keychain) ImageOption {
 		auth, err := keys.Resolve(i.ref.Context().Registry)
 		if err != nil {
 			return err
-		}
-		if auth == authn.Anonymous {
-			log.Println("No matching credentials were found, falling back on anonymous")
 		}
 		i.auth = auth
 		return nil
