@@ -18,7 +18,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// LocalOptions represents options for the ko binary.
 type LocalOptions struct {
+	// Local publishes images to a local docker daemon.
 	Local bool
 }
 

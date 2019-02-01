@@ -18,15 +18,15 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/spf13/cobra"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/spf13/cobra"
 )
 
 func init() { Root.AddCommand(NewCmdDelete()) }
 
+// NewCmdDelete creates a new cobra.Command for the delete subcommand.
 func NewCmdDelete() *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete",

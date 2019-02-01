@@ -14,6 +14,7 @@ package crane
 
 import "github.com/spf13/cobra"
 
+// Root is the top-level cobra.Command for crane.
 var Root = &cobra.Command{
 	Use:               "crane",
 	Short:             "Crane is a tool for managing container images",

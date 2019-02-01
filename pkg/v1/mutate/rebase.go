@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 )
 
+// Rebase returns a new v1.Image where the oldBase in orig is replaced by newBase.
 func Rebase(orig, oldBase, newBase v1.Image) (v1.Image, error) {
 	// Verify that oldBase's layers are present in orig, otherwise orig is
 	// not based on oldBase at all.

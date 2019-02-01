@@ -30,7 +30,7 @@ import (
 
 const cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
 
-// Exposed so we can test this.
+// GetGcloudCmd is exposed so we can test this.
 var GetGcloudCmd = func() *exec.Cmd {
 	// This is odd, but basically what docker-credential-gcr does.
 	//

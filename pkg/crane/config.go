@@ -23,6 +23,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdConfig()) }
 
+// NewCmdConfig creates a new cobra.Command for the config subcommand.
 func NewCmdConfig() *cobra.Command {
 	return &cobra.Command{
 		Use:   "config",

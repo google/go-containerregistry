@@ -16,18 +16,17 @@ package crane
 
 import (
 	"log"
-
 	"net/http"
-
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
 func init() { Root.AddCommand(NewCmdCopy()) }
 
+// NewCmdCopy creates a new cobra.Command for the copy subcommand.
 func NewCmdCopy() *cobra.Command {
 	return &cobra.Command{
 		Use:     "copy",

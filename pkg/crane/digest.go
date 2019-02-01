@@ -23,6 +23,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdDigest()) }
 
+// NewCmdDigest creates a new cobra.Command for the digest subcommand.
 func NewCmdDigest() *cobra.Command {
 	return &cobra.Command{
 		Use:   "digest",

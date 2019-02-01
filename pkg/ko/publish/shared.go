@@ -40,7 +40,7 @@ type entry struct {
 // caching implements Interface
 var _ Interface = (*caching)(nil)
 
-// Newcaching wraps the provided publish.Interface in an implementation that
+// NewCaching wraps the provided publish.Interface in an implementation that
 // shares publish results for a given path until the passed image object changes.
 func NewCaching(inner Interface) (Interface, error) {
 	return &caching{

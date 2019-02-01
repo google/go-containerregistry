@@ -35,6 +35,7 @@ type defalt struct {
 	tags  []string
 }
 
+// Option is a functional option for NewDefault.
 type Option func(*defaultOpener) error
 
 type defaultOpener struct {

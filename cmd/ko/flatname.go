@@ -22,9 +22,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NameOptions represents options for the ko binary.
 type NameOptions struct {
+	// PreserveImportPaths preserves the full import path after KO_DOCKER_REPO.
 	PreserveImportPaths bool
-	BaseImportPaths     bool
+	// BaseImportPaths uses the base path without MD5 hash after KO_DOCKER_REPO.
+	BaseImportPaths bool
 }
 
 func addNamingArgs(cmd *cobra.Command, no *NameOptions) {

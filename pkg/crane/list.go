@@ -15,10 +15,9 @@
 package crane
 
 import (
-	"net/http"
-
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -28,6 +27,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdList()) }
 
+// NewCmdList creates a new cobra.Command for the ls subcommand.
 func NewCmdList() *cobra.Command {
 	return &cobra.Command{
 		Use:   "ls",

@@ -25,6 +25,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdList()) }
 
+// NewCmdList creates a new cobra.Command for the ls subcommand.
 func NewCmdList() *cobra.Command {
 	recursive := false
 	cmd := &cobra.Command{

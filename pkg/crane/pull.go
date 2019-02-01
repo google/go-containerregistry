@@ -18,12 +18,11 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/spf13/cobra"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/spf13/cobra"
 )
 
 // Tag applied to images that were pulled by digest. This denotes that the
@@ -33,6 +32,7 @@ const iWasADigestTag = "i-was-a-digest"
 
 func init() { Root.AddCommand(NewCmdPull()) }
 
+// NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull() *cobra.Command {
 	return &cobra.Command{
 		Use:   "pull",
