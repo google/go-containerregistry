@@ -28,6 +28,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdRebase()) }
 
+// NewCmdRebase creates a new cobra.Command for the rebase subcommand.
 func NewCmdRebase() *cobra.Command {
 	var orig, oldBase, newBase, rebased string
 	rebaseCmd := &cobra.Command{

@@ -23,6 +23,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdManifest()) }
 
+// NewCmdManifest creates a new cobra.Command for the manifest subcommand.
 func NewCmdManifest() *cobra.Command {
 	return &cobra.Command{
 		Use:   "manifest",

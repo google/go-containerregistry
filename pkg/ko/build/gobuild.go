@@ -33,6 +33,7 @@ import (
 
 const appPath = "/ko-app"
 
+// GetBase takes an importpath and returns a base v1.Image.
 type GetBase func(string) (v1.Image, error)
 type builder func(string) (string, error)
 
@@ -42,6 +43,7 @@ type gobuild struct {
 	build        builder
 }
 
+// Option is a functional option for NewGo.
 type Option func(*gobuildOpener) error
 
 type gobuildOpener struct {
@@ -52,7 +54,7 @@ type gobuildOpener struct {
 
 func (gbo *gobuildOpener) Open() (Interface, error) {
 	if gbo.getBase == nil {
-		return nil, errors.New("a way of providing base images must be specified, see build.WithBaseImages.")
+		return nil, errors.New("a way of providing base images must be specified, see build.WithBaseImages")
 	}
 	return &gobuild{
 		getBase:      gbo.getBase,

@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	// LocalDomain is a sentinel "registry" that represents side-loading images into the daemon.
 	LocalDomain = "ko.local"
 )
 

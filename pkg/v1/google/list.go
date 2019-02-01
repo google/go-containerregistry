@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
+// ListerOption is a functional option for List and Walk.
 // TODO: Can we somehow reuse the remote options here?
 type ListerOption func(*lister) error
 
@@ -94,6 +95,7 @@ type rawManifestInfo struct {
 	Tags      []string `json:"tag"`
 }
 
+// ManifestInfo is a Manifests entry is the output of List and Walk.
 type ManifestInfo struct {
 	Size      uint64    `json:"imageSizeBytes"`
 	MediaType string    `json:"mediaType"`
@@ -145,6 +147,7 @@ func (m *ManifestInfo) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Tags is the result of List and Walk.
 type Tags struct {
 	Children  []string                `json:"child"`
 	Manifests map[string]ManifestInfo `json:"manifest"`
@@ -152,6 +155,7 @@ type Tags struct {
 	Tags      []string                `json:"tags"`
 }
 
+// List calls /tags/list for the given repository.
 func List(repo name.Repository, options ...ListerOption) (*Tags, error) {
 	l, err := newLister(repo, options...)
 	if err != nil {

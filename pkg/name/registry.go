@@ -22,6 +22,7 @@ import (
 )
 
 const (
+	// DefaultRegistry is Docker Hub, assumed when a hostname is omitted.
 	DefaultRegistry      = "index.docker.io"
 	defaultRegistryAlias = "docker.io"
 )

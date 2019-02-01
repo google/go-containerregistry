@@ -32,6 +32,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdCopy()) }
 
+// NewCmdCopy creates a new cobra.Command for the copy subcommand.
 func NewCmdCopy() *cobra.Command {
 	recursive := false
 	cmd := &cobra.Command{

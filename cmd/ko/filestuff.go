@@ -23,7 +23,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// From pkg/kubectl
+// FilenameOptions is from pkg/kubectl.
 type FilenameOptions struct {
 	Filenames []string
 	Recursive bool

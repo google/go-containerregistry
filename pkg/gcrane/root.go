@@ -14,6 +14,7 @@ package gcrane
 
 import "github.com/spf13/cobra"
 
+// Root is the top-level cobra.Command for gcrane.
 var Root = &cobra.Command{
 	Use:               "gcrane",
 	Short:             "gcrane is a tool for managing container images on gcr.io",

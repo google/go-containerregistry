@@ -18,7 +18,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// BinaryOptions represents options for the ko binary.
 type BinaryOptions struct {
+	// Path is the import path of the binary to publish.
 	Path string
 }
 

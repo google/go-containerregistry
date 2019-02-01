@@ -28,6 +28,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdAppend()) }
 
+// NewCmdAppend creates a new cobra.Command for the append subcommand.
 func NewCmdAppend() *cobra.Command {
 	var baseRef, newTag, newLayer, outFile string
 	appendCmd := &cobra.Command{
