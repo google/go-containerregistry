@@ -34,4 +34,7 @@ func TestManifestAndConfig(t *testing.T) {
 	if got, want := len(config.RootFS.DiffIDs), 0; got != want {
 		t.Fatalf("num diff ids; got %v, want %v", got, want)
 	}
+	if got, want := config.RootFS.Type, "layers"; got != want {
+		t.Fatalf("rootfs type; got %v, want %v", got, want)
+	}
 }
