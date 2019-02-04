@@ -280,21 +280,32 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		},
 	}
 
-	for _, p := range c.imgDescriptor.Layers {
-		l, err := extractFileFromTar(c.opener, p)
+	for i, p := range c.imgDescriptor.Layers {
+		cfg, err := partial.ConfigFile(c)
 		if err != nil {
 			return nil, err
 		}
-		defer l.Close()
-		sha, size, err := v1.SHA256(l)
-		if err != nil {
-			return nil, err
+		diffid := cfg.RootFS.DiffIDs[i]
+		if d, ok := c.imgDescriptor.LayerSources[diffid]; ok {
+			// If it's a foreign layer, just append the descriptor so we can avoid
+			// reading the entire file.
+			c.manifest.Layers = append(c.manifest.Layers, d)
+		} else {
+			l, err := extractFileFromTar(c.opener, p)
+			if err != nil {
+				return nil, err
+			}
+			defer l.Close()
+			sha, size, err := v1.SHA256(l)
+			if err != nil {
+				return nil, err
+			}
+			c.manifest.Layers = append(c.manifest.Layers, v1.Descriptor{
+				MediaType: types.DockerLayer,
+				Size:      size,
+				Digest:    sha,
+			})
 		}
-		c.manifest.Layers = append(c.manifest.Layers, v1.Descriptor{
-			MediaType: types.DockerLayer,
-			Size:      size,
-			Digest:    sha,
-		})
 	}
 	return c.manifest, nil
 }
