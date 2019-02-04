@@ -83,3 +83,28 @@ func TestSHA256(t *testing.T) {
 		t.Errorf("n; got %v, want %v", got, want)
 	}
 }
+
+// This tests that you can use Hash as a key in a map (needs to implement both
+// MarshalText and UnmarshalText).
+func TestTextMarshalling(t *testing.T) {
+	foo := make(map[Hash]string)
+	b, err := json.Marshal(foo)
+	if err != nil {
+		t.Fatalf("could not marshal: %v", err)
+	}
+	if err := json.Unmarshal(b, &foo); err != nil {
+		t.Errorf("could not unmarshal: %v", err)
+	}
+
+	h := &Hash{
+		Algorithm: "sha256",
+		Hex:       strings.Repeat("a", 64),
+	}
+	text, err := h.MarshalText()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.UnmarshalText(text); err != nil {
+		t.Fatal(err)
+	}
+}

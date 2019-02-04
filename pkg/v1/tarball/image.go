@@ -105,6 +105,9 @@ type singleImageTarDescriptor struct {
 	Config   string
 	RepoTags []string
 	Layers   []string
+
+	// Tracks foreign layer info. Key is DiffID.
+	LayerSources map[v1.Hash]v1.Descriptor `json:",omitempty"`
 }
 
 // tarDescriptor is the struct used inside the `manifest.json` file of a `docker save` tarball.
