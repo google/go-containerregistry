@@ -18,12 +18,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 // remoteImage accesses an image from a remote registry
@@ -125,7 +129,42 @@ func (rl *remoteImageLayer) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
-	return rl.ri.fetchBlob(rl.digest)
+	urls := []url.URL{rl.ri.url("blobs", rl.digest.String())}
+
+	// Add alternative layer sources from URLs (usually none).
+	d, err := partial.BlobDescriptor(rl, rl.digest)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, s := range d.URLs {
+		u, err := url.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+		urls = append(urls, *u)
+	}
+
+	// The lastErr for most pulls will be the same (the first error), but for
+	// foreign layers we'll want to surface the last one.
+	var lastErr error
+	for _, u := range urls {
+		resp, err := rl.ri.Client.Get(u.String())
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if err := transport.CheckError(resp, http.StatusOK); err != nil {
+			resp.Body.Close()
+			lastErr = err
+			continue
+		}
+
+		return v1util.VerifyReadCloser(resp.Body, rl.digest)
+	}
+
+	return nil, lastErr
 }
 
 // Manifest implements partial.WithManifest so that we can use partial.BlobSize below.
