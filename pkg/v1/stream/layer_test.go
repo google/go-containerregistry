@@ -86,7 +86,7 @@ func TestStreamVsBuffer(t *testing.T) {
 }
 
 func TestLargeStream(t *testing.T) {
-	var n, wantSize int64 = 100000000, 100007653 // "Compressing" n random bytes results in this many bytes.
+	var n, wantSize int64 = 10000000, 10000788 // "Compressing" n random bytes results in this many bytes.
 	sl := NewLayer(ioutil.NopCloser(io.LimitReader(rand.Reader, n)))
 	rc, err := sl.Compressed()
 	if err != nil {
@@ -112,7 +112,7 @@ func TestLargeStream(t *testing.T) {
 	if size, err := sl.Size(); err != nil {
 		t.Errorf("Size: %v", err)
 	} else if size != wantSize {
-		t.Errorf("Size got %d, want %d", size, n)
+		t.Errorf("Size got %d, want %d", size, wantSize)
 	}
 }
 
