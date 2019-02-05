@@ -90,6 +90,9 @@ func TestPingNoChallenge(t *testing.T) {
 	if pr.challenge != anonymous {
 		t.Errorf("ping(); got %v, want %v", pr.challenge, anonymous)
 	}
+	if pr.scheme != "http" {
+		t.Errorf("ping(); got %v, want %v", pr.scheme, "http")
+	}
 }
 
 func TestPingBasicChallengeNoParams(t *testing.T) {
