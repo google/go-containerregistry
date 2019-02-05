@@ -25,6 +25,9 @@ type node struct {
 	// The canonical import path for this node.
 	name string
 
+	// The directory from which we pull this import path.
+	dir string
+
 	// The dependency structure
 	dependencies []*node
 	dependents   []*node
