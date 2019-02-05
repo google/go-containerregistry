@@ -186,6 +186,7 @@ func (m *manager) add(importpath string, dependent *node) (*node, bool, error) {
 		delete(m.packages, importpath)
 		return nil, false, err
 	}
+	newNode.dir = pkg.Dir
 
 	// This is done via go routine so that it can take over the lock.
 	go m.onChange(newNode, empty)
@@ -210,8 +211,8 @@ func (m *manager) enclosingPackage(path string) *node {
 	defer m.m.Unlock()
 
 	dir := filepath.Dir(path)
-	for k, v := range m.packages {
-		if strings.HasSuffix(dir, k) {
+	for _, v := range m.packages {
+		if strings.HasSuffix(dir, v.dir) {
 			return v
 		}
 	}

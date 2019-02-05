@@ -341,11 +341,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c355e11e817a8f0cf464c922302f859e6ad922d7f849f42c0594a2a26ec2d806"
+  digest = "1:3e99bcbbb6f34aeb476bffd6bdb27e3c4db29ea870a7ccfc20834b07a3e191bf"
   name = "github.com/mattmoor/dep-notify"
   packages = ["pkg/graph"]
   pruneopts = "NUT"
-  revision = "bee9543ee54bd7d7e5cce945cfc651082bb21f34"
+  revision = "a45dec370a173f35e57abcf844b43eb1d1f988e7"
 
 [[projects]]
   branch = "master"
