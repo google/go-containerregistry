@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -160,4 +159,62 @@ func TestUnsupportedStatus(t *testing.T) {
 	if err == nil {
 		t.Errorf("ping() = %v", pr)
 	}
+}
+
+func TestPingHttpFallback(t *testing.T) {
+	tests := []struct {
+		reg       name.Registry
+		wantCount int
+	}{{
+		reg:       mustRegistry("gcr.io"),
+		wantCount: 1,
+	}, {
+		reg:       mustRegistry("ko.local"),
+		wantCount: 2,
+	}, {
+		reg:       mustInsecureRegistry("us.gcr.io"),
+		wantCount: 2,
+	}}
+
+	gotCount := 0
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotCount++
+			http.Error(w, "Forbidden", http.StatusForbidden)
+		}))
+	defer server.Close()
+
+	tprt := &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			return url.Parse(server.URL)
+		},
+	}
+
+	for _, test := range tests {
+		pr, err := ping(test.reg, tprt)
+		if err == nil {
+			t.Errorf("ping() = %v", pr)
+		}
+
+		if test.wantCount != gotCount {
+			t.Errorf("%s: got %d requests, wanted %d", test.reg.String(), test.wantCount, gotCount)
+		}
+		gotCount = 0
+	}
+}
+
+func mustRegistry(r string) name.Registry {
+	reg, err := name.NewRegistry(r, name.WeakValidation)
+	if err != nil {
+		panic(err)
+	}
+	return reg
+}
+
+func mustInsecureRegistry(r string) name.Registry {
+	reg, err := name.NewInsecureRegistry(r, name.WeakValidation)
+	if err != nil {
+		panic(err)
+	}
+	return reg
 }

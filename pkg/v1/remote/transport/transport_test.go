@@ -84,9 +84,12 @@ func TestTransportSelectionBearer(t *testing.T) {
 			request = request + 1
 			switch request {
 			case 1:
+				// This is an https request that fails, causing us to fall back to http.
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			case 2:
 				w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			case 2:
+			case 3:
 				hdr := r.Header.Get("Authorization")
 				if !strings.HasPrefix(hdr, "Basic ") {
 					t.Errorf("Header.Get(Authorization); got %v, want Basic prefix", hdr)

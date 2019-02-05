@@ -60,7 +60,25 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 			in.Header.Set("Authorization", hdr)
 		}
 		in.Header.Set("User-Agent", transportName)
-		return bt.inner.RoundTrip(in)
+
+		// Always try https first, falling back to http if we can.
+		schemes := []string{"https"}
+		if bt.registry.Scheme() == "http" {
+			schemes = append(schemes, "http")
+		}
+
+		var connErr error
+		for _, scheme := range schemes {
+			in.URL.Scheme = scheme
+			resp, err := bt.inner.RoundTrip(in)
+			if err != nil {
+				connErr = err
+				// Potentially retry with http.
+				continue
+			}
+			return resp, nil
+		}
+		return nil, connErr
 	}
 
 	res, err := sendRequest()

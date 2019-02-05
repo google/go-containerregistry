@@ -189,3 +189,52 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", bearer.Token, refreshedToken)
 	}
 }
+
+func TestHttpFallback(t *testing.T) {
+	tests := []struct {
+		reg     name.Registry
+		wantErr bool
+	}{{
+		// Should never make it to our test server because https fails and our server is http only.
+		reg:     mustRegistry("gcr.io"),
+		wantErr: true,
+	}, {
+		reg: mustRegistry("ko.local"),
+	}, {
+		reg: mustInsecureRegistry("us.gcr.io"),
+	}}
+
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Errorf("Unexpected error during url.Parse: %v", err)
+	}
+
+	bearer := &authn.Bearer{Token: "inital-token"}
+	for _, test := range tests {
+		transport := &bearerTransport{
+			inner:    http.DefaultTransport,
+			bearer:   bearer,
+			basic:    &authn.Basic{},
+			registry: test.reg,
+			realm:    server.URL,
+		}
+		client := http.Client{Transport: transport}
+		resp, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
+		if test.wantErr && err == nil {
+			t.Errorf("%s: wanted err but got nil", test.reg.String())
+		} else if !test.wantErr && err != nil {
+			t.Errorf("%s: unexpected err: %v", test.reg.String(), err)
+		}
+
+		// Check that we get the expected response back if it's supposed to work.
+		if !test.wantErr && resp.StatusCode != http.StatusNotFound {
+			t.Errorf("%s: unexpected response: %v", test.reg.String(), resp)
+		}
+	}
+}

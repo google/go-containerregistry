@@ -63,31 +63,43 @@ func parseChallenge(suffix string) map[string]string {
 func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
 	client := http.Client{Transport: t}
 
-	url := fmt.Sprintf("%s://%s/v2/", reg.Scheme(), reg.Name())
-	resp, err := client.Get(url)
-	if err != nil {
-		return nil, err
+	// Always try https first, falling back to http if we can.
+	schemes := []string{"https"}
+	if reg.Scheme() == "http" {
+		schemes = append(schemes, "http")
 	}
-	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-		// If we get a 200, then no authentication is needed.
-		return &pingResp{challenge: anonymous}, nil
-	case http.StatusUnauthorized:
-		wac := resp.Header.Get(http.CanonicalHeaderKey("WWW-Authenticate"))
-		if parts := strings.SplitN(wac, " ", 2); len(parts) == 2 {
-			// If there are two parts, then parse the challenge parameters.
-			return &pingResp{
-				challenge:  challenge(parts[0]).Canonical(),
-				parameters: parseChallenge(parts[1]),
-			}, nil
+	var connErr error
+	for _, scheme := range schemes {
+		url := fmt.Sprintf("%s://%s/v2/", scheme, reg.Name())
+		resp, err := client.Get(url)
+		if err != nil {
+			connErr = err
+			// Potentially retry with http.
+			continue
 		}
-		// Otherwise, just return the challenge without parameters.
-		return &pingResp{
-			challenge: challenge(wac).Canonical(),
-		}, nil
-	default:
-		return nil, fmt.Errorf("unrecognized HTTP status: %v", resp.Status)
+		defer resp.Body.Close()
+
+		switch resp.StatusCode {
+		case http.StatusOK:
+			// If we get a 200, then no authentication is needed.
+			return &pingResp{challenge: anonymous}, nil
+		case http.StatusUnauthorized:
+			wac := resp.Header.Get(http.CanonicalHeaderKey("WWW-Authenticate"))
+			if parts := strings.SplitN(wac, " ", 2); len(parts) == 2 {
+				// If there are two parts, then parse the challenge parameters.
+				return &pingResp{
+					challenge:  challenge(parts[0]).Canonical(),
+					parameters: parseChallenge(parts[1]),
+				}, nil
+			}
+			// Otherwise, just return the challenge without parameters.
+			return &pingResp{
+				challenge: challenge(wac).Canonical(),
+			}, nil
+		default:
+			return nil, fmt.Errorf("unrecognized HTTP status: %v", resp.Status)
+		}
 	}
+	return nil, connErr
 }
