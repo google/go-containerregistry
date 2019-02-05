@@ -39,6 +39,8 @@ type bearerTransport struct {
 	// See https://docs.docker.com/registry/spec/auth/token/
 	service string
 	scopes  []string
+	// Scheme we should use, determined by ping response.
+	scheme string
 }
 
 var _ http.RoundTripper = (*bearerTransport)(nil)
@@ -61,24 +63,11 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		}
 		in.Header.Set("User-Agent", transportName)
 
-		// Always try https first, falling back to http if we can.
-		schemes := []string{"https"}
-		if bt.registry.Scheme() == "http" {
-			schemes = append(schemes, "http")
+		if bt.scheme == "" {
+			bt.scheme = "https"
 		}
-
-		var connErr error
-		for _, scheme := range schemes {
-			in.URL.Scheme = scheme
-			resp, err := bt.inner.RoundTrip(in)
-			if err != nil {
-				connErr = err
-				// Potentially retry with http.
-				continue
-			}
-			return resp, nil
-		}
-		return nil, connErr
+		in.URL.Scheme = bt.scheme
+		return bt.inner.RoundTrip(in)
 	}
 
 	res, err := sendRequest()

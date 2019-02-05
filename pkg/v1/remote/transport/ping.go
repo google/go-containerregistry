@@ -36,6 +36,9 @@ type pingResp struct {
 	// Following the challenge there are often key/value pairs
 	// e.g. Bearer service="gcr.io",realm="https://auth.gcr.io/v36/tokenz"
 	parameters map[string]string
+
+	// The registry's scheme to use. Communicates whether we fell back to http.
+	scheme string
 }
 
 func (c challenge) Canonical() challenge {
@@ -83,7 +86,10 @@ func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
 		switch resp.StatusCode {
 		case http.StatusOK:
 			// If we get a 200, then no authentication is needed.
-			return &pingResp{challenge: anonymous}, nil
+			return &pingResp{
+				challenge: anonymous,
+				scheme:    scheme,
+			}, nil
 		case http.StatusUnauthorized:
 			wac := resp.Header.Get(http.CanonicalHeaderKey("WWW-Authenticate"))
 			if parts := strings.SplitN(wac, " ", 2); len(parts) == 2 {
@@ -91,11 +97,13 @@ func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
 				return &pingResp{
 					challenge:  challenge(parts[0]).Canonical(),
 					parameters: parseChallenge(parts[1]),
+					scheme:     scheme,
 				}, nil
 			}
 			// Otherwise, just return the challenge without parameters.
 			return &pingResp{
 				challenge: challenge(wac).Canonical(),
+				scheme:    scheme,
 			}, nil
 		default:
 			return nil, fmt.Errorf("unrecognized HTTP status: %v", resp.Status)
