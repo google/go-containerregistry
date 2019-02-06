@@ -76,6 +76,7 @@ func TestBearerRefresh(t *testing.T) {
 				realm:    server.URL,
 				scopes:   []string{expectedScope},
 				service:  expectedService,
+				scheme:   "http",
 			}
 
 			if err := bt.refresh(); (err != nil) != tc.wantErr {
@@ -129,6 +130,7 @@ func TestBearerTransport(t *testing.T) {
 		inner:    &http.Transport{},
 		bearer:   bearer,
 		registry: registry,
+		scheme:   "http",
 	}}
 
 	_, err = client.Get(fmt.Sprintf("http://%s/v2/auth", u.Host))
@@ -175,6 +177,7 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 		basic:    &authn.Basic{},
 		registry: registry,
 		realm:    server.URL,
+		scheme:   "http",
 	}
 	client := http.Client{Transport: transport}
 
