@@ -63,9 +63,6 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		}
 		in.Header.Set("User-Agent", transportName)
 
-		if bt.scheme == "" {
-			bt.scheme = "https"
-		}
 		in.URL.Scheme = bt.scheme
 		return bt.inner.RoundTrip(in)
 	}
