@@ -15,6 +15,8 @@
 package v1
 
 import (
+	"encoding/json"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -32,6 +34,13 @@ func TestGoodHashes(t *testing.T) {
 		}
 		if got, want := h.String(), s; got != want {
 			t.Errorf("String(); got %q, want %q", got, want)
+		}
+		bytes, err := json.Marshal(h)
+		if err != nil {
+			t.Errorf("Unexpected error json.Marshaling hash: %v", err)
+		}
+		if got, want := string(bytes), strconv.Quote(h.String()); got != want {
+			t.Errorf("json.Marshal(); got %q, want %q", got, want)
 		}
 	}
 }
