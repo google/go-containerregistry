@@ -187,3 +187,33 @@ func TestTransportSelectionUnrecognizedChallenge(t *testing.T) {
 		t.Errorf("New() = %v, %v", tp, err)
 	}
 }
+
+func TestTransportAlwaysTriesHttps(t *testing.T) {
+	// Use a NewTLSServer so that this speaks TLS even though it's localhost.
+	// This ensures that we try https even for local registries.
+	count := 0
+	server := httptest.NewTLSServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			count++
+			w.Write([]byte(`{"token": "dfskdjhfkhsjdhfkjhsdf"}`))
+		}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Errorf("Unexpected error during url.Parse: %v", err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Errorf("Unexpected error during NewRegistry: %v", err)
+	}
+
+	basic := &authn.Basic{Username: "foo", Password: "bar"}
+	tp, err := New(registry, basic, server.Client().Transport, []string{testReference.Scope(PullScope)})
+	if err != nil {
+		t.Fatalf("New() = %v, %v", tp, err)
+	}
+	if count == 0 {
+		t.Errorf("failed to call TLS localhost server")
+	}
+}
