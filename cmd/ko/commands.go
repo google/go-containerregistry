@@ -15,10 +15,18 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/ko/build"
+	"github.com/google/go-containerregistry/pkg/ko/publish"
+	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"k8s.io/kubernetes/pkg/kubectl/genericclioptions"
@@ -47,6 +55,21 @@ func passthru(command string) runCmd {
 			log.Fatalf("error executing %q command with args: %v; %v", command, os.Args[1:], err)
 		}
 	}
+}
+
+// TODO: Better way to do this?
+func inject(no *NameOptions, lo *LocalOptions, ta *TagsOptions) (build.Interface, publish.Interface) {
+	builder, err := makeBuilder()
+	if err != nil {
+		log.Fatalf("error creating builder: %v", err)
+	}
+
+	publisher, err := makePublisher(no, lo, ta)
+	if err != nil {
+		log.Fatalf("error creating publisher: %v", err)
+	}
+
+	return builder, publisher
 }
 
 // addKubeCommands augments our CLI surface with a passthru delete command, and an apply
@@ -144,7 +167,8 @@ func addKubeCommands(topLevel *cobra.Command) {
 					stdin.Write([]byte("---\n"))
 				}
 				// Once primed kick things off.
-				resolveFilesToWriter(fo, no, lo, ta, stdin)
+				builder, publisher := inject(no, lo, ta)
+				resolveFilesToWriter(builder, publisher, fo, stdin)
 			}()
 
 			// Run it.
@@ -197,7 +221,8 @@ func addKubeCommands(topLevel *cobra.Command) {
   ko resolve --local -f config/`,
 		Args: cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			resolveFilesToWriter(fo, no, lo, ta, os.Stdout)
+			builder, publisher := inject(no, lo, ta)
+			resolveFilesToWriter(builder, publisher, fo, os.Stdout)
 		},
 	}
 	addLocalArg(resolve, lo)
@@ -295,4 +320,103 @@ func addKubeCommands(topLevel *cobra.Command) {
 	addTagsArg(run, ta)
 
 	topLevel.AddCommand(run)
+
+	// TODO: Write docs
+	py := &cobra.Command{
+		Use:   "py -f FILENAME",
+		Short: "Print the input files with image references resolved to built/pushed image digests.",
+		Long:  `This sub-command finds import path references within the provided files, builds them into Go binaries, containerizes them, publishes them, and prints the resulting yaml.`,
+		Example: `
+  # Build and publish import path references to a Docker
+  # Registry as:
+  #   ${KO_DOCKER_REPO}/<package name>-<hash of import path>
+  # When KO_DOCKER_REPO is ko.local, it is the same as if
+  # --local and --preserve-import-paths were passed.
+  ko py -f config/
+
+  # Build and publish import path references to a Docker
+  # Registry preserving import path names as:
+  #   ${KO_DOCKER_REPO}/<import path>
+  # When KO_DOCKER_REPO is ko.local, it is the same as if
+  # --local was passed.
+  ko py --preserve-import-paths -f config/
+
+  # Build and publish import path references to a Docker
+  # daemon as:
+  #   ko.local/<import path>
+  # This always preserves import paths.
+  ko py --local -f config/`,
+		Args: cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			builder, publisher := &copyBuilder{}, &copyPublisher{}
+			resolveFilesToWriter(builder, publisher, fo, os.Stdout)
+		},
+	}
+	addLocalArg(py, lo)
+	addNamingArgs(py, no)
+	addFileArg(py, fo)
+	addTagsArg(py, ta)
+	topLevel.AddCommand(py)
+}
+
+// TODO: move these to pkg/ko
+type copyBuilder struct{}
+
+func (cb *copyBuilder) IsSupportedReference(s string) bool {
+	ref, err := name.ParseReference(s, name.StrictValidation)
+	if err != nil {
+		return false
+	}
+	img, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err == nil {
+		cfg, err := img.ConfigName()
+		if cfg.String() == "" {
+			log.Printf("ERROR ERROR ERROR SCHEMA 1 IMAGE: %s", ref.String())
+			return false
+		}
+		return err == nil
+	}
+	return false
+}
+
+// Build turns the given importpath reference into a v1.Image containing the Go binary.
+func (cb *copyBuilder) Build(s string) (v1.Image, error) {
+	ref, err := name.ParseReference(s, name.StrictValidation)
+	if err != nil {
+		return nil, err
+	}
+	return remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+}
+
+// TODO: name options
+type copyPublisher struct{}
+
+func (cp *copyPublisher) Publish(img v1.Image, s string) (name.Reference, error) {
+	ref, err := name.ParseReference(s, name.StrictValidation)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: real options
+	repoName := os.Getenv("KO_DOCKER_REPO")
+	h, err := img.Digest()
+	if err != nil {
+		return nil, err
+	}
+	// TODO: tags
+	dig, err := name.NewDigest(fmt.Sprintf("%s/%s@%s", repoName, ref.Context(), h), name.StrictValidation)
+	if err != nil {
+		return nil, err
+	}
+
+	auth, err := authn.DefaultKeychain.Resolve(dig.Context().Registry)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Publishing %v", dig)
+	if err := remote.Write(dig, img, auth, http.DefaultTransport); err != nil {
+		return nil, err
+	}
+
+	return dig, nil
 }

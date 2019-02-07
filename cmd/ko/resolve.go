@@ -44,33 +44,12 @@ func gobuildOptions() ([]build.Option, error) {
 	return opts, nil
 }
 
-func makeBuilder() (*build.Caching, error) {
+func makeBuilder() (build.Interface, error) {
 	opt, err := gobuildOptions()
 	if err != nil {
 		log.Fatalf("error setting up builder options: %v", err)
 	}
-	innerBuilder, err := build.NewGo(opt...)
-	if err != nil {
-		return nil, err
-	}
-
-	// tl;dr Wrap builder in a caching builder.
-	//
-	// The caching builder should on Build calls:
-	//  - Check for a valid Build future
-	//    - if a valid Build future exists at the time of the request,
-	//      then block on it.
-	//    - if it does not, then initiate and record a Build future.
-	//  - When import paths are "affected" by filesystem changes during a
-	//    Watch, then invalidate their build futures *before* we put the
-	//    affected yaml files onto the channel
-	//
-	// This will benefit the following key cases:
-	// 1. When the same import path is referenced across multiple yaml files
-	//    we can elide subsequent builds by blocking on the same image future.
-	// 2. When an affected yaml file has multiple import paths (mostly unaffected)
-	//    we can elide the builds of unchanged import paths.
-	return build.NewCaching(innerBuilder)
+	return build.NewGo(opt...)
 }
 
 func makePublisher(no *NameOptions, lo *LocalOptions, ta *TagsOptions) (publish.Interface, error) {
@@ -104,17 +83,28 @@ func makePublisher(no *NameOptions, lo *LocalOptions, ta *TagsOptions) (publish.
 // resolvedFuture represents a "future" for the bytes of a resolved file.
 type resolvedFuture chan []byte
 
-func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions, ta *TagsOptions, out io.WriteCloser) {
+func resolveFilesToWriter(builder build.Interface, publisher publish.Interface, fo *FilenameOptions, out io.WriteCloser) {
 	defer out.Close()
-	builder, err := makeBuilder()
+
+	// tl;dr Wrap builder in a caching builder.
+	//
+	// The caching builder should on Build calls:
+	//  - Check for a valid Build future
+	//    - if a valid Build future exists at the time of the request,
+	//      then block on it.
+	//    - if it does not, then initiate and record a Build future.
+	//  - When import paths are "affected" by filesystem changes during a
+	//    Watch, then invalidate their build futures *before* we put the
+	//    affected yaml files onto the channel
+	//
+	// This will benefit the following key cases:
+	// 1. When the same import path is referenced across multiple yaml files
+	//    we can elide subsequent builds by blocking on the same image future.
+	// 2. When an affected yaml file has multiple import paths (mostly unaffected)
+	//    we can elide the builds of unchanged import paths.
+	cachingBuilder, err := build.NewCaching(builder)
 	if err != nil {
 		log.Fatalf("error creating builder: %v", err)
-	}
-
-	// Wrap publisher in a memoizing publisher implementation.
-	publisher, err := makePublisher(no, lo, ta)
-	if err != nil {
-		log.Fatalf("error creating publisher: %v", err)
 	}
 
 	// By having this as a channel, we can hook this up to a filesystem
@@ -140,7 +130,7 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 				for _, ip := range value {
 					if ss.Has(ip) {
 						// See the comment above about how "builder" works.
-						builder.Invalidate(ip)
+						cachingBuilder.Invalidate(ip)
 						fs <- key
 					}
 				}
@@ -192,7 +182,7 @@ func resolveFilesToWriter(fo *FilenameOptions, no *NameOptions, lo *LocalOptions
 				defer close(ch)
 				// Record the builds we do via this builder.
 				recordingBuilder := &build.Recorder{
-					Builder: builder,
+					Builder: cachingBuilder,
 				}
 				b, err := resolveFile(f, recordingBuilder, publisher)
 				if err != nil {
