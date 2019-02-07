@@ -360,27 +360,37 @@ func addKubeCommands(topLevel *cobra.Command) {
 }
 
 // TODO: move these to pkg/ko
-type copyBuilder struct{}
+type copyBuilder struct {
+	cache map[string]v1.Image
+}
 
 func (cb *copyBuilder) IsSupportedReference(s string) bool {
+	if cb.cache == nil {
+		cb.cache = make(map[string]v1.Image)
+	}
+	if _, ok := cb.cache[s]; ok {
+		return true
+	}
 	ref, err := name.ParseReference(s, name.StrictValidation)
 	if err != nil {
 		return false
 	}
 	img, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	if err == nil {
-		cfg, err := img.ConfigName()
-		if cfg.String() == "" {
-			log.Printf("ERROR ERROR ERROR SCHEMA 1 IMAGE: %s", ref.String())
-			return false
-		}
-		return err == nil
+	if err != nil {
+		log.Println(err)
+		return false
 	}
-	return false
+	cb.cache[s] = img
+	return true
 }
 
 // Build turns the given importpath reference into a v1.Image containing the Go binary.
 func (cb *copyBuilder) Build(s string) (v1.Image, error) {
+	if img, ok := cb.cache[s]; ok {
+		return img, nil
+	}
+
+	log.Printf("i don't think this should ever happen: %s", s)
 	ref, err := name.ParseReference(s, name.StrictValidation)
 	if err != nil {
 		return nil, err
