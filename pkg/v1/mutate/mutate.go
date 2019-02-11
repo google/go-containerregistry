@@ -518,6 +518,10 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 		}
 	}
 
+	if err := tarWriter.Close(); err != nil {
+		return nil, err
+	}
+
 	b := w.Bytes()
 	// gzip the contents, then create the layer
 	opener := func() (io.ReadCloser, error) {

@@ -137,6 +137,9 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 					return err
 				}
 			}
+			if err := tw.Close(); err != nil {
+				return err
+			}
 			return nil
 		}())
 	}()
@@ -153,7 +156,7 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	wantDigest := "sha256:f53d6a164ab476294212843f267740bd12f79e00abd8050c24ce8a9bceaa36b0"
+	wantDigest := "sha256:ed80efd7e7e884fb59db568f234332283b341b96155e872d638de42d55a34198"
 	if got, err := l.Digest(); err != nil {
 		t.Errorf("Digest: %v", err)
 	} else if got.String() != wantDigest {
