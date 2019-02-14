@@ -369,7 +369,7 @@ func TestAppendStreamableLayer(t *testing.T) {
 	if err != nil {
 		t.Errorf("Digest: %v", err)
 	}
-	wantDigest := "sha256:4138c8f7156b863ae1f6b08726ce020650d5445d43b13ad42d04df98e0ab1fed"
+	wantDigest := "sha256:5fa010d1a9ab2cf0125a53087aed97aa327dc845123702cb2a52c844f19cc36b"
 	if h.String() != wantDigest {
 		t.Errorf("Image digest got %q, want %q", h, wantDigest)
 	}
