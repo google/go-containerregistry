@@ -89,7 +89,7 @@ func validateConfig(img v1.Image) error {
 	}
 
 	if cf.RootFS.Type != "layers" {
-		return fmt.Errorf("invalid ConfigFile.RootFS.Type: %q != %q) %s", cf.RootFS.Type, "layers")
+		return fmt.Errorf("invalid ConfigFile.RootFS.Type: %q != %q", cf.RootFS.Type, "layers")
 	}
 
 	return nil
