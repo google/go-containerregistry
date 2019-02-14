@@ -62,4 +62,3 @@ func TestIsGzipped(t *testing.T) {
 		}
 	}
 }
-
