@@ -31,7 +31,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-const appPath = "/ko-app"
+const appDir = "/ko-app"
 
 // GetBase takes an importpath and returns a base v1.Image.
 type GetBase func(string) (v1.Image, error)
@@ -117,7 +117,7 @@ func build(ip string) (string, error) {
 	return file, nil
 }
 
-func tarBinary(binary string) (*bytes.Buffer, error) {
+func tarBinary(name, binary string) (*bytes.Buffer, error) {
 	buf := bytes.NewBuffer(nil)
 	tw := tar.NewWriter(buf)
 	defer tw.Close()
@@ -132,7 +132,7 @@ func tarBinary(binary string) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	header := &tar.Header{
-		Name:     appPath,
+		Name:     name,
 		Size:     stat.Size(),
 		Typeflag: tar.TypeReg,
 		// Use a fixed Mode, so that this isn't sensitive to the directory and umask
@@ -249,8 +249,10 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	}
 	layers = append(layers, dataLayer)
 
+	appPath := filepath.Join(appDir, filepath.Base(s))
+
 	// Construct a tarball with the binary and produce a layer.
-	binaryLayerBuf, err := tarBinary(file)
+	binaryLayerBuf, err := tarBinary(appPath, file)
 	if err != nil {
 		return nil, err
 	}
