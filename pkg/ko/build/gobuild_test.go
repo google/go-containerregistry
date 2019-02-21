@@ -119,7 +119,7 @@ func TestGoBuildNoKoData(t *testing.T) {
 	t.Run("check determinism", func(t *testing.T) {
 		expectedHash := v1.Hash{
 			Algorithm: "sha256",
-			Hex:       "4b0bcce3acbfba36dbdb76d3c5d0dc43e268cf2666fcf58584fc714ccbb28bd7",
+			Hex:       "f9a8bbe82883cf49161202d6697d906319c5b418725d4256778e6958c786801f",
 		}
 		appLayer := ls[baseLayers+1]
 
@@ -196,7 +196,7 @@ func TestGoBuild(t *testing.T) {
 	t.Run("check determinism", func(t *testing.T) {
 		expectedHash := v1.Hash{
 			Algorithm: "sha256",
-			Hex:       "c7502053d5bcf34f0b720cdea2d53ff0e38e803756108396e09f92ad36cc375e",
+			Hex:       "d6538378e47da0d6780d9a7caa6bdeffa6428bc6d35b95e1802958d1eefb671c",
 		}
 		appLayer := ls[baseLayers+1]
 
