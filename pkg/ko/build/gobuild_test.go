@@ -119,7 +119,7 @@ func TestGoBuildNoKoData(t *testing.T) {
 	t.Run("check determinism", func(t *testing.T) {
 		expectedHash := v1.Hash{
 			Algorithm: "sha256",
-			Hex:       "a688c9bc444d0a34cbc24abd62aa2fa263f61f2060963bb7a4fc3fa92075a2bf",
+			Hex:       "f9a8bbe82883cf49161202d6697d906319c5b418725d4256778e6958c786801f",
 		}
 		appLayer := ls[baseLayers+1]
 
@@ -141,7 +141,7 @@ func TestGoBuildNoKoData(t *testing.T) {
 			t.Errorf("len(entrypoint) = %v, want %v", got, want)
 		}
 
-		if got, want := entrypoint[0], appPath; got != want {
+		if got, want := entrypoint[0], "/ko-app/crane"; got != want {
 			t.Errorf("entrypoint = %v, want %v", got, want)
 		}
 	})
@@ -196,7 +196,7 @@ func TestGoBuild(t *testing.T) {
 	t.Run("check determinism", func(t *testing.T) {
 		expectedHash := v1.Hash{
 			Algorithm: "sha256",
-			Hex:       "71912d718600c5a2b8db3a127a14073bba61dded0dac8e1a6ebdeb4a37f2ce8d",
+			Hex:       "d6538378e47da0d6780d9a7caa6bdeffa6428bc6d35b95e1802958d1eefb671c",
 		}
 		appLayer := ls[baseLayers+1]
 
@@ -277,7 +277,7 @@ func TestGoBuild(t *testing.T) {
 			t.Errorf("len(entrypoint) = %v, want %v", got, want)
 		}
 
-		if got, want := entrypoint[0], appPath; got != want {
+		if got, want := entrypoint[0], "/ko-app/test"; got != want {
 			t.Errorf("entrypoint = %v, want %v", got, want)
 		}
 	})
