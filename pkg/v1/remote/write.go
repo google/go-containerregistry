@@ -29,6 +29,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -369,4 +370,87 @@ func scopesForUploadingImage(ref name.Reference, layers []v1.Layer) []string {
 	return scopes
 }
 
-// TODO(mattmoor): WriteIndex
+func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, t http.RoundTripper) error {
+	index, err := ii.IndexManifest()
+	if err != nil {
+		return err
+	}
+
+	for _, desc := range index.Manifests {
+		ref, err := name.ParseReference(fmt.Sprintf("%s@%s", ref.Context(), desc.Digest), name.StrictValidation)
+		if err != nil {
+			return err
+		}
+
+		switch desc.MediaType {
+		case types.OCIImageIndex, types.DockerManifestList:
+			ii, err := ii.ImageIndex(desc.Digest)
+			if err != nil {
+				return err
+			}
+
+			if err := WriteIndex(ref, ii, auth, t); err != nil {
+				return err
+			}
+		case types.OCIManifestSchema1, types.DockerManifestSchema2:
+			img, err := ii.Image(desc.Digest)
+			if err != nil {
+				return err
+			}
+			if err := Write(ref, img, auth, t); err != nil {
+				return err
+			}
+		}
+	}
+
+	scopes := []string{ref.Scope(transport.PushScope)}
+	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
+	if err != nil {
+		return err
+	}
+	client := http.Client{Transport: tr}
+
+	// TODO: Reuse commitImage
+	raw, err := ii.RawIndexManifest()
+	if err != nil {
+		return err
+	}
+	mt, err := ii.MediaType()
+	if err != nil {
+		return err
+	}
+
+	path := fmt.Sprintf("/v2/%s/manifests/%s", ref.Context().RepositoryStr(), ref.Identifier())
+	u := url.URL{
+		Scheme: ref.Context().Registry.Scheme(),
+		Host:   ref.Context().RegistryStr(),
+		Path:   path,
+	}
+
+	// Make the request to PUT the serialized manifest
+	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(raw))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", string(mt))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
+		return err
+	}
+
+	digest, err := ii.Digest()
+	if err != nil {
+		return err
+	}
+
+	// The index was successfully pushed!
+	log.Printf("%v: digest: %v size: %d", ref, digest, len(raw))
+
+	return nil
+}
