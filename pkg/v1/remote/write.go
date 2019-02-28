@@ -33,6 +33,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type Manifest interface {
+	RawManifest() ([]byte, error)
+	MediaType() (types.MediaType, error)
+	Digest() (v1.Hash, error)
+}
+
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.RoundTripper) error {
 	ls, err := img.Layers()
@@ -48,7 +54,6 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 	w := writer{
 		ref:    ref,
 		client: &http.Client{Transport: tr},
-		img:    img,
 	}
 
 	// Upload individual layers in goroutines and collect any errors.
@@ -92,14 +97,13 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 
 	// With all of the constituent elements uploaded, upload the manifest
 	// to commit the image.
-	return w.commitImage()
+	return w.commitImage(img)
 }
 
 // writer writes the elements of an image to a remote image reference.
 type writer struct {
 	ref    name.Reference
 	client *http.Client
-	img    v1.Image
 }
 
 // url returns a url.Url for the specified path in the context of this remote image reference.
@@ -127,14 +131,38 @@ func (w *writer) nextLocation(resp *http.Response) (string, error) {
 	return resp.Request.URL.ResolveReference(u).String(), nil
 }
 
-// checkExisting checks if a blob exists already in the repository by making a
+// checkExistingBlob checks if a blob exists already in the repository by making a
 // HEAD request to the blob store API.  GCR performs an existence check on the
 // initiation if "mount" is specified, even if no "from" sources are specified.
 // However, this is not broadly applicable to all registries, e.g. ECR.
-func (w *writer) checkExisting(h v1.Hash) (bool, error) {
+func (w *writer) checkExistingBlob(h v1.Hash) (bool, error) {
 	u := w.url(fmt.Sprintf("/v2/%s/blobs/%s", w.ref.Context().RepositoryStr(), h.String()))
 
 	resp, err := w.client.Head(u.String())
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusNotFound); err != nil {
+		return false, err
+	}
+
+	return resp.StatusCode == http.StatusOK, nil
+}
+
+// checkExistingManifest checks if a manifest exists already in the repository
+// by making a HEAD request to the manifest API.
+func (w *writer) checkExistingManifest(h v1.Hash, mt types.MediaType) (bool, error) {
+	u := w.url(fmt.Sprintf("/v2/%s/manifests/%s", w.ref.Context().RepositoryStr(), h.String()))
+
+	req, err := http.NewRequest(http.MethodHead, u.String(), nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Accept", string(mt))
+
+	resp, err := w.client.Do(req)
 	if err != nil {
 		return false, err
 	}
@@ -255,7 +283,7 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		}
 		digest = h.String()
 
-		existing, err := w.checkExisting(h)
+		existing, err := w.checkExistingBlob(h)
 		if err != nil {
 			return err
 		}
@@ -307,12 +335,12 @@ func (w *writer) uploadOne(l v1.Layer) error {
 }
 
 // commitImage does a PUT of the image's manifest.
-func (w *writer) commitImage() error {
-	raw, err := w.img.RawManifest()
+func (w *writer) commitImage(man Manifest) error {
+	raw, err := man.RawManifest()
 	if err != nil {
 		return err
 	}
-	mt, err := w.img.MediaType()
+	mt, err := man.MediaType()
 	if err != nil {
 		return err
 	}
@@ -336,7 +364,7 @@ func (w *writer) commitImage() error {
 		return err
 	}
 
-	digest, err := w.img.Digest()
+	digest, err := man.Digest()
 	if err != nil {
 		return err
 	}
@@ -376,6 +404,16 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, 
 		return err
 	}
 
+	scopes := []string{ref.Scope(transport.PushScope)}
+	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
+	if err != nil {
+		return err
+	}
+	w := writer{
+		ref:    ref,
+		client: &http.Client{Transport: tr},
+	}
+
 	for _, desc := range index.Manifests {
 		ref, err := name.ParseReference(fmt.Sprintf("%s@%s", ref.Context(), desc.Digest), name.StrictValidation)
 		if err != nil {
@@ -393,6 +431,14 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, 
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
+			exists, err := w.checkExistingManifest(desc.Digest, desc.MediaType)
+			if err != nil {
+				return err
+			}
+			if exists {
+				log.Printf("existing manifest: %v", desc.Digest)
+				continue
+			}
 			img, err := ii.Image(desc.Digest)
 			if err != nil {
 				return err
@@ -403,54 +449,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, 
 		}
 	}
 
-	scopes := []string{ref.Scope(transport.PushScope)}
-	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
-	if err != nil {
-		return err
-	}
-	client := http.Client{Transport: tr}
-
-	// TODO: Reuse commitImage
-	raw, err := ii.RawIndexManifest()
-	if err != nil {
-		return err
-	}
-	mt, err := ii.MediaType()
-	if err != nil {
-		return err
-	}
-
-	path := fmt.Sprintf("/v2/%s/manifests/%s", ref.Context().RepositoryStr(), ref.Identifier())
-	u := url.URL{
-		Scheme: ref.Context().Registry.Scheme(),
-		Host:   ref.Context().RegistryStr(),
-		Path:   path,
-	}
-
-	// Make the request to PUT the serialized manifest
-	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(raw))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", string(mt))
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if err := transport.CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
-		return err
-	}
-
-	digest, err := ii.Digest()
-	if err != nil {
-		return err
-	}
-
-	// The index was successfully pushed!
-	log.Printf("%v: digest: %v size: %d", ref, digest, len(raw))
-
-	return nil
+	// With all of the constituent elements uploaded, upload the manifest
+	// to commit the image.
+	return w.commitImage(ii)
 }
