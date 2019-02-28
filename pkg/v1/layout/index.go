@@ -17,11 +17,12 @@ package layout
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"io"
-	"io/ioutil"
 )
 
 var _ v1.ImageIndex = (*layoutIndex)(nil)

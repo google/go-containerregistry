@@ -246,15 +246,6 @@ func (l LayoutPath) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 			if err := l.writeImage(img); err != nil {
 				return err
 			}
-		default:
-			// We don't recognize this artifact, just pass it through.
-			blob, err := ii.Blob(desc.Digest)
-			if err != nil {
-				return err
-			}
-			if err := l.WriteBlob(desc.Digest, blob); err != nil {
-				return err
-			}
 		}
 	}
 

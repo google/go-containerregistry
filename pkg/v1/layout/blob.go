@@ -15,10 +15,11 @@
 package layout
 
 import (
-	"github.com/google/go-containerregistry/pkg/v1"
 	"io"
 	"io/ioutil"
 	"os"
+
+	"github.com/google/go-containerregistry/pkg/v1"
 )
 
 // Blob returns a blob with the given hash from the LayoutPath.
