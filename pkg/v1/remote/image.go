@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -40,6 +41,7 @@ type remoteImage struct {
 	manifest     []byte
 	configLock   sync.Mutex // Protects config
 	config       []byte
+	mediaType    types.MediaType
 }
 
 // ImageOption is a functional option for Image.
@@ -101,7 +103,9 @@ func (r *remoteImage) url(resource, identifier string) url.URL {
 }
 
 func (r *remoteImage) MediaType() (types.MediaType, error) {
-	// TODO(jonjohnsonjr): Determine this based on response.
+	if string(r.mediaType) != "" {
+		return r.mediaType, nil
+	}
 	return types.DockerManifestSchema2, nil
 }
 
@@ -118,8 +122,12 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO(jonjohnsonjr): Accept OCI manifest, manifest list, and image index.
-	req.Header.Set("Accept", string(types.DockerManifestSchema2))
+	// TODO(jonjohnsonjr): Accept manifest list and image index?
+	req.Header.Set("Accept", strings.Join([]string{
+		string(types.DockerManifestSchema2),
+		string(types.OCIManifestSchema1),
+	}, ","))
+
 	resp, err := r.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -156,6 +164,7 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		// https://github.com/GoogleContainerTools/kaniko/issues/298
 	}
 
+	r.mediaType = types.MediaType(resp.Header.Get("Content-Type"))
 	r.manifest = manifest
 	return r.manifest, nil
 }
