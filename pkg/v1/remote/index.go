@@ -1,12 +1,23 @@
+// Copyright 2018 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package remote
 
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -19,8 +30,7 @@ import (
 
 // remoteIndex accesses an index from a remote registry
 type remoteIndex struct {
-	ref          name.Reference
-	client       *http.Client
+	fetch        fetcher
 	manifestLock sync.Mutex // Protects manifest
 	manifest     []byte
 	mediaType    types.MediaType
@@ -45,17 +55,11 @@ func Index(ref name.Reference, options ...ImageOption) (v1.ImageIndex, error) {
 		return nil, err
 	}
 	return &remoteIndex{
-		ref:    i.ref,
-		client: &http.Client{Transport: tr},
+		fetch: fetcher{
+			ref:    i.ref,
+			client: &http.Client{Transport: tr},
+		},
 	}, nil
-}
-
-func (r *remoteIndex) url(resource, identifier string) url.URL {
-	return url.URL{
-		Scheme: r.ref.Context().Registry.Scheme(),
-		Host:   r.ref.Context().RegistryStr(),
-		Path:   fmt.Sprintf("/v2/%s/%s/%s", r.ref.Context().RepositoryStr(), resource, identifier),
-	}
 }
 
 func (r *remoteIndex) MediaType() (types.MediaType, error) {
@@ -76,52 +80,16 @@ func (r *remoteIndex) RawManifest() ([]byte, error) {
 		return r.manifest, nil
 	}
 
-	u := r.url("manifests", r.ref.Identifier())
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, err
+	acceptable := []types.MediaType{
+		types.DockerManifestList,
+		types.OCIImageIndex,
 	}
-	req.Header.Set("Accept", strings.Join([]string{
-		string(types.DockerManifestList),
-		string(types.OCIImageIndex),
-	}, ","))
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if err := transport.CheckError(resp, http.StatusOK); err != nil {
-		return nil, err
-	}
-
-	manifest, err := ioutil.ReadAll(resp.Body)
+	manifest, desc, err := r.fetch.manifest(acceptable)
 	if err != nil {
 		return nil, err
 	}
 
-	digest, _, err := v1.SHA256(bytes.NewReader(manifest))
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate the digest matches what we asked for, if pulling by digest.
-	if dgst, ok := r.ref.(name.Digest); ok {
-		if digest.String() != dgst.DigestStr() {
-			return nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), r.ref)
-		}
-	} else {
-		// Do nothing for tags; I give up.
-		//
-		// We'd like to validate that the "Docker-Content-Digest" header matches what is returned by the registry,
-		// but so many registries implement this incorrectly that it's not worth checking.
-		//
-		// For reference:
-		// https://github.com/docker/distribution/issues/2395
-		// https://github.com/GoogleContainerTools/kaniko/issues/298
-	}
-
-	r.mediaType = types.MediaType(resp.Header.Get("Content-Type"))
+	r.mediaType = desc.MediaType
 	r.manifest = manifest
 	return r.manifest, nil
 }
@@ -135,14 +103,15 @@ func (r *remoteIndex) IndexManifest() (*v1.IndexManifest, error) {
 }
 
 func (r *remoteIndex) Image(h v1.Hash) (v1.Image, error) {
-	imgRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.ref.Context(), h), name.StrictValidation)
+	imgRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.fetch.ref.Context(), h), name.StrictValidation)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: pull this out for reuse
 	ri := &remoteImage{
-		ref:    imgRef,
-		client: r.client,
+		fetch: fetcher{
+			ref:    imgRef,
+			client: r.fetch.client,
+		},
 	}
 	imgCore, err := partial.CompressedToImage(ri)
 	if err != nil {
@@ -152,18 +121,19 @@ func (r *remoteIndex) Image(h v1.Hash) (v1.Image, error) {
 	// remote.Write calls to facilitate cross-repo "mounting".
 	return &mountableImage{
 		Image:     imgCore,
-		Reference: r.ref,
+		Reference: r.fetch.ref,
 	}, nil
 }
 
 func (r *remoteIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
-	idxRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.ref.Context(), h), name.StrictValidation)
+	idxRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.fetch.ref.Context(), h), name.StrictValidation)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: pull this out for reuse
 	return &remoteIndex{
-		ref:    idxRef,
-		client: r.client,
+		fetch: fetcher{
+			ref:    idxRef,
+			client: r.fetch.client,
+		},
 	}, nil
 }

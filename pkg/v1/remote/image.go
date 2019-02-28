@@ -35,8 +35,7 @@ import (
 
 // remoteImage accesses an image from a remote registry
 type remoteImage struct {
-	ref          name.Reference
-	client       *http.Client
+	fetch        fetcher
 	manifestLock sync.Mutex // Protects manifest
 	manifest     []byte
 	configLock   sync.Mutex // Protects config
@@ -62,8 +61,10 @@ func (i *imageOpener) Open() (v1.Image, error) {
 		return nil, err
 	}
 	ri := &remoteImage{
-		ref:    i.ref,
-		client: &http.Client{Transport: tr},
+		fetch: fetcher{
+			ref:    i.ref,
+			client: &http.Client{Transport: tr},
+		},
 	}
 	imgCore, err := partial.CompressedToImage(ri)
 	if err != nil {
@@ -94,12 +95,77 @@ func Image(ref name.Reference, options ...ImageOption) (v1.Image, error) {
 	return img.Open()
 }
 
-func (r *remoteImage) url(resource, identifier string) url.URL {
+// fetcher implements methods for reading from a remote image.
+type fetcher struct {
+	ref    name.Reference
+	client *http.Client
+}
+
+// url returns a url.Url for the specified path in the context of this remote image reference.
+func (f *fetcher) url(resource, identifier string) url.URL {
 	return url.URL{
-		Scheme: r.ref.Context().Registry.Scheme(),
-		Host:   r.ref.Context().RegistryStr(),
-		Path:   fmt.Sprintf("/v2/%s/%s/%s", r.ref.Context().RepositoryStr(), resource, identifier),
+		Scheme: f.ref.Context().Registry.Scheme(),
+		Host:   f.ref.Context().RegistryStr(),
+		Path:   fmt.Sprintf("/v2/%s/%s/%s", f.ref.Context().RepositoryStr(), resource, identifier),
 	}
+}
+
+func (f *fetcher) manifest(acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
+	u := f.url("manifests", f.ref.Identifier())
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	accept := []string{}
+	for _, mt := range acceptable {
+		accept = append(accept, string(mt))
+	}
+	req.Header.Set("Accept", strings.Join(accept, ","))
+
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := transport.CheckError(resp, http.StatusOK); err != nil {
+		return nil, nil, err
+	}
+
+	manifest, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	digest, size, err := v1.SHA256(bytes.NewReader(manifest))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Validate the digest matches what we asked for, if pulling by digest.
+	if dgst, ok := f.ref.(name.Digest); ok {
+		if digest.String() != dgst.DigestStr() {
+			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.ref)
+		}
+	} else {
+		// Do nothing for tags; I give up.
+		//
+		// We'd like to validate that the "Docker-Content-Digest" header matches what is returned by the registry,
+		// but so many registries implement this incorrectly that it's not worth checking.
+		//
+		// For reference:
+		// https://github.com/docker/distribution/issues/2395
+		// https://github.com/GoogleContainerTools/kaniko/issues/298
+	}
+
+	// Return all this info since we have to calculate it anyway.
+	desc := v1.Descriptor{
+		Digest:    digest,
+		Size:      size,
+		MediaType: types.MediaType(resp.Header.Get("Content-Type")),
+	}
+
+	return manifest, &desc, nil
 }
 
 func (r *remoteImage) MediaType() (types.MediaType, error) {
@@ -117,54 +183,17 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		return r.manifest, nil
 	}
 
-	u := r.url("manifests", r.ref.Identifier())
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
 	// TODO(jonjohnsonjr): Accept manifest list and image index?
-	req.Header.Set("Accept", strings.Join([]string{
-		string(types.DockerManifestSchema2),
-		string(types.OCIManifestSchema1),
-	}, ","))
-
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return nil, err
+	acceptable := []types.MediaType{
+		types.DockerManifestSchema2,
+		types.OCIManifestSchema1,
 	}
-	defer resp.Body.Close()
-
-	if err := transport.CheckError(resp, http.StatusOK); err != nil {
-		return nil, err
-	}
-
-	manifest, err := ioutil.ReadAll(resp.Body)
+	manifest, desc, err := r.fetch.manifest(acceptable)
 	if err != nil {
 		return nil, err
 	}
 
-	digest, _, err := v1.SHA256(bytes.NewReader(manifest))
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate the digest matches what we asked for, if pulling by digest.
-	if dgst, ok := r.ref.(name.Digest); ok {
-		if digest.String() != dgst.DigestStr() {
-			return nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), r.ref)
-		}
-	} else {
-		// Do nothing for tags; I give up.
-		//
-		// We'd like to validate that the "Docker-Content-Digest" header matches what is returned by the registry,
-		// but so many registries implement this incorrectly that it's not worth checking.
-		//
-		// For reference:
-		// https://github.com/docker/distribution/issues/2395
-		// https://github.com/GoogleContainerTools/kaniko/issues/298
-	}
-
-	r.mediaType = types.MediaType(resp.Header.Get("Content-Type"))
+	r.mediaType = desc.MediaType
 	r.manifest = manifest
 	return r.manifest, nil
 }
@@ -211,8 +240,8 @@ func (rl *remoteLayer) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
-	u := rl.ri.url("blobs", rl.digest.String())
-	resp, err := rl.ri.client.Get(u.String())
+	u := rl.ri.fetch.url("blobs", rl.digest.String())
+	resp, err := rl.ri.fetch.client.Get(u.String())
 	if err != nil {
 		return nil, err
 	}
