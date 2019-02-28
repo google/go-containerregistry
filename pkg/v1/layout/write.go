@@ -34,9 +34,7 @@ var layoutFile = `{
 
 // AppendImage writes a v1.Image to an OCI image layout at path and updates
 // the index.json to reference it.
-func AppendImage(path string, img v1.Image) (v1.ImageIndex, error) {
-	// TODO: Options for Annotations and URLs.
-
+func AppendImage(path string, img v1.Image, options ...LayoutOption) (v1.ImageIndex, error) {
 	if err := WriteImage(path, img); err != nil {
 		return nil, err
 	}
@@ -62,13 +60,18 @@ func AppendImage(path string, img v1.Image) (v1.ImageIndex, error) {
 		Digest:    d,
 	}
 
+	for _, opt := range options {
+		if err := opt(&desc); err != nil {
+			return nil, err
+		}
+	}
+
 	return AppendDescriptor(path, desc)
 }
 
 // AppendIndex writes a v1.ImageIndex to an OCI image layout at path and updates
 // the index.json to reference it.
-func AppendIndex(path string, ii v1.ImageIndex) (v1.ImageIndex, error) {
-	// TODO: Options for Annotations and URLs.
+func AppendIndex(path string, ii v1.ImageIndex, options ...LayoutOption) (v1.ImageIndex, error) {
 	if err := WriteIndex(path, ii); err != nil {
 		return nil, err
 	}
@@ -92,6 +95,12 @@ func AppendIndex(path string, ii v1.ImageIndex) (v1.ImageIndex, error) {
 		MediaType: mt,
 		Size:      int64(len(manifest)),
 		Digest:    d,
+	}
+
+	for _, opt := range options {
+		if err := opt(&desc); err != nil {
+			return nil, err
+		}
 	}
 
 	return AppendDescriptor(path, desc)

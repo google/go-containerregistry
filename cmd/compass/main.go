@@ -100,8 +100,11 @@ func freeze(src, path string) {
 		if err != nil {
 			log.Fatalf("reading image %q: %v", ref, err)
 		}
-		// TODO: WithAnnotation -- put source in there.
-		if _, err := layout.AppendImage(path, img); err != nil {
+
+		annotations := map[string]string{
+			"org.opencontainers.image.ref.name": t,
+		}
+		if _, err := layout.AppendImage(path, img, layout.WithAnnotations(annotations)); err != nil {
 			log.Fatalf("writing image %q: %v", path, err)
 		}
 	}
@@ -130,18 +133,40 @@ func thaw(path, dst string) {
 	}
 
 	for _, desc := range manifest.Manifests {
-		// TODO: Read tag from annotation.
-		d := fmt.Sprintf("%s@%s", repo, desc.Digest)
-		ref, err := name.NewDigest(d, name.StrictValidation)
-		if err != nil {
-			log.Fatalf("parsing digest %q: %v", d, err)
+		// This logic is janky, we'd want smarter rewriting rules.
+		source := ""
+		for k, v := range desc.Annotations {
+			if k == "org.opencontainers.image.ref.name" {
+				source = v
+			}
+		}
+
+		var ref name.Reference
+		if source != "" {
+			originalTag, err := name.NewTag(source, name.WeakValidation)
+			if err == nil {
+				// We parsed as a tag, reuse it.
+				t := fmt.Sprintf("%s:%s", repo, originalTag.TagStr())
+				ref, err = name.NewTag(t, name.StrictValidation)
+				if err != nil {
+					log.Fatalf("parsing tag %q: %v", t, err)
+				}
+			}
+		}
+
+		if ref == nil {
+			d := fmt.Sprintf("%s@%s", repo, desc.Digest)
+			ref, err = name.NewDigest(d, name.StrictValidation)
+			if err != nil {
+				log.Fatalf("parsing digest %q: %v", d, err)
+			}
 		}
 		log.Printf("Pushing %v", ref)
 
 		// TODO: check media type
 		img, err := ii.Image(desc.Digest)
 		if err != nil {
-			log.Fatalf("reading image %q: %v", d, err)
+			log.Fatalf("reading image %q: %v", ref, err)
 		}
 		if err := remote.Write(ref, img, auth, http.DefaultTransport); err != nil {
 			log.Fatalf("writing image %q: %v", ref, err)
