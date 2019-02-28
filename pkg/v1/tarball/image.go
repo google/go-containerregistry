@@ -23,14 +23,17 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
+
+const imageIdPrefix = "sha256:"
 
 type image struct {
 	opener        Opener
@@ -39,6 +42,7 @@ type image struct {
 	imgDescriptor *singleImageTarDescriptor
 
 	tag *name.Tag
+	id  string
 }
 
 type uncompressedImage struct {
@@ -68,6 +72,20 @@ func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
 	return Image(pathOpener(path), tag)
 }
 
+// ImageWithIdFromPath returns a v1.Image with a given id from a tarball located on path.
+// If the id does not begin with "sha256:" an error is returned.
+func ImageWithIdFromPath(path string, id string) (v1.Image, error) {
+	img := &image{
+		opener: pathOpener(path),
+		id:     id,
+	}
+	if err := img.loadTarDescriptorAndConfigById(); err != nil {
+		return nil, err
+	}
+
+	return img.compressedOrUncompressedImage()
+}
+
 // Image exposes an image from the tarball at the provided path.
 func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 	img := &image{
@@ -78,22 +96,7 @@ func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 		return nil, err
 	}
 
-	// Peek at the first layer and see if it's compressed.
-	compressed, err := img.areLayersCompressed()
-	if err != nil {
-		return nil, err
-	}
-	if compressed {
-		c := compressedImage{
-			image: img,
-		}
-		return partial.CompressedToImage(&c)
-	}
-
-	uc := uncompressedImage{
-		image: img,
-	}
-	return partial.UncompressedToImage(&uc)
+	return img.compressedOrUncompressedImage()
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
@@ -133,6 +136,38 @@ func (td tarDescriptor) findSpecifiedImageDescriptor(tag *name.Tag) (*singleImag
 	return nil, fmt.Errorf("tag %s not found in tarball", tag)
 }
 
+func (td tarDescriptor) findSpecifiedIdImageDescriptor(id string) (*singleImageTarDescriptor, error) {
+	if !strings.HasPrefix(id, imageIdPrefix) {
+		return nil, fmt.Errorf("invalid image id, must start with %q: %s", imageIdPrefix, id)
+	}
+	config := fmt.Sprintf("%s.json", strings.TrimPrefix(id, imageIdPrefix))
+	for _, img := range td {
+		if img.Config == config {
+			return &img, nil
+		}
+	}
+	return nil, fmt.Errorf("image with id %s not found in tarball", id)
+}
+
+func (i * image) compressedOrUncompressedImage() (v1.Image, error) {
+	// Peek at the first layer and see if it's compressed.
+	compressed, err := i.areLayersCompressed()
+	if err != nil {
+		return nil, err
+	}
+	if compressed {
+		c := compressedImage{
+			image: i,
+		}
+		return partial.CompressedToImage(&c)
+	}
+
+	uc := uncompressedImage{
+		image: i,
+	}
+	return partial.UncompressedToImage(&uc)
+}
+
 func (i *image) areLayersCompressed() (bool, error) {
 	if len(i.imgDescriptor.Layers) == 0 {
 		return false, errors.New("0 layers found in image")
@@ -158,6 +193,35 @@ func (i *image) loadTarDescriptorAndConfig() error {
 	}
 
 	i.imgDescriptor, err = i.td.findSpecifiedImageDescriptor(i.tag)
+	if err != nil {
+		return err
+	}
+
+	cfg, err := extractFileFromTar(i.opener, i.imgDescriptor.Config)
+	if err != nil {
+		return err
+	}
+	defer cfg.Close()
+
+	i.config, err = ioutil.ReadAll(cfg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (i *image) loadTarDescriptorAndConfigById() error {
+	td, err := extractFileFromTar(i.opener, "manifest.json")
+	if err != nil {
+		return err
+	}
+	defer td.Close()
+
+	if err := json.NewDecoder(td).Decode(&i.td); err != nil {
+		return err
+	}
+
+	i.imgDescriptor, err = i.td.findSpecifiedIdImageDescriptor(i.id)
 	if err != nil {
 		return err
 	}

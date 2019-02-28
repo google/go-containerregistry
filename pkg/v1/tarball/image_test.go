@@ -79,3 +79,20 @@ func TestBundleMultiple(t *testing.T) {
 		})
 	}
 }
+
+func TestBundleMultipleById(t *testing.T) {
+	for _, id := range []string{
+		"sha256:930705ce23e3b6ed4c08746b6fe880089c864fbaf62482702ae3fdd66b8c7fe9",
+		"sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
+	} {
+		t.Run(id, func(t *testing.T) {
+			img, err := ImageWithIdFromPath("testdata/test_bundle.tar", id)
+			if err != nil {
+				t.Fatalf("Error loading image: %v", err)
+			}
+			if _, err := img.Manifest(); err != nil {
+				t.Fatalf("Unexpected error loading manifest: %v", err)
+			}
+		})
+	}
+}
