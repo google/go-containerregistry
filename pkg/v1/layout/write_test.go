@@ -1,14 +1,17 @@
 package layout
 
 import (
-	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"bytes"
+	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
@@ -202,5 +205,30 @@ func TestOptions(t *testing.T) {
 	}
 	if got, want := desc.Platform.OS, "haiku"; got != want {
 		t.Fatalf("wrong OS; got: %v, want: %v", got, want)
+	}
+}
+
+func TestDeduplicatedWrites(t *testing.T) {
+	lp, err := Read(testPath)
+	if err != nil {
+		t.Fatalf("Read() = %v", err)
+	}
+
+	b, err := lp.Blob(configDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := bytes.NewBuffer([]byte{})
+	if _, err := io.Copy(buf, b); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := lp.WriteBlob(configDigest, ioutil.NopCloser(bytes.NewBuffer(buf.Bytes()))); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := lp.WriteBlob(configDigest, ioutil.NopCloser(bytes.NewBuffer(buf.Bytes()))); err != nil {
+		t.Fatal(err)
 	}
 }

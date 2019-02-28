@@ -144,11 +144,13 @@ func (l LayoutPath) WriteBlob(hash v1.Hash, r io.ReadCloser) error {
 		return err
 	}
 
-	w, err := os.Create(filepath.Join(dir, hash.Hex))
-	if os.IsExist(err) {
+	file := filepath.Join(dir, hash.Hex)
+	if _, err := os.Stat(file); err == nil {
 		// Blob already exists, that's fine.
 		return nil
-	} else if err != nil {
+	}
+	w, err := os.Create(file)
+	if err != nil {
 		return err
 	}
 	defer w.Close()
