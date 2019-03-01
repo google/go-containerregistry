@@ -20,9 +20,11 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/v1"
@@ -30,18 +32,22 @@ import (
 
 // Image validates that img does not violate any invariants of the image format.
 func Image(img v1.Image) error {
+	errs := []string{}
 	if err := validateLayers(img); err != nil {
-		return fmt.Errorf("validating layers: %v", err)
+		errs = append(errs, fmt.Sprintf("validating layers: %v", err))
 	}
 
 	if err := validateConfig(img); err != nil {
-		return fmt.Errorf("validating config: %v", err)
+		errs = append(errs, fmt.Sprintf("validating config: %v", err))
 	}
 
 	if err := validateManifest(img); err != nil {
-		return fmt.Errorf("validating manifest: %v", err)
+		errs = append(errs, fmt.Sprintf("validating manifest: %v", err))
 	}
 
+	if len(errs) != 0 {
+		return errors.New(strings.Join(errs, "\n\n"))
+	}
 	return nil
 }
 
@@ -76,20 +82,25 @@ func validateConfig(img v1.Image) error {
 		return err
 	}
 
+	errs := []string{}
 	if cn != hash {
-		return fmt.Errorf("mismatched config digest: ConfigName()=%s, SHA256(RawConfigFile())=%s", cn, hash)
+		errs = append(errs, fmt.Sprintf("mismatched config digest: ConfigName()=%s, SHA256(RawConfigFile())=%s", cn, hash))
 	}
 
 	if want, got := m.Config.Size, size; want != got {
-		return fmt.Errorf("mismatched config size: Manifest.Config.Size()=%d, len(RawConfigFile())=%d", want, got)
+		errs = append(errs, fmt.Sprintf("mismatched config size: Manifest.Config.Size()=%d, len(RawConfigFile())=%d", want, got))
 	}
 
 	if diff := cmp.Diff(pcf, cf); diff != "" {
-		return fmt.Errorf("mismatched config content: (-ParseConfigFile(RawConfigFile()) +ConfigFile()) %s", diff)
+		errs = append(errs, fmt.Sprintf("mismatched config content: (-ParseConfigFile(RawConfigFile()) +ConfigFile()) %s", diff))
 	}
 
 	if cf.RootFS.Type != "layers" {
-		return fmt.Errorf("invalid ConfigFile.RootFS.Type: %q != %q", cf.RootFS.Type, "layers")
+		errs = append(errs, fmt.Sprintf("invalid ConfigFile.RootFS.Type: %q != %q", cf.RootFS.Type, "layers"))
+	}
+
+	if len(errs) != 0 {
+		return errors.New(strings.Join(errs, "\n"))
 	}
 
 	return nil
@@ -196,6 +207,7 @@ func validateLayers(img v1.Image) error {
 		return err
 	}
 
+	errs := []string{}
 	for i, layer := range layers {
 		digest, err := layer.Digest()
 		if err != nil {
@@ -211,28 +223,32 @@ func validateLayers(img v1.Image) error {
 		}
 
 		if digest != digests[i] {
-			return fmt.Errorf("mismatched layer[%d] digest: Digest()=%s, SHA256(Compressed())=%s", i, digest, digests[i])
+			errs = append(errs, fmt.Sprintf("mismatched layer[%d] digest: Digest()=%s, SHA256(Compressed())=%s", i, digest, digests[i]))
 		}
 
 		if m.Layers[i].Digest != digests[i] {
-			return fmt.Errorf("mismatched layer[%d] digest: Manifest.Layers[%d].Digest=%s, SHA256(Compressed())=%s", i, i, m.Layers[i].Digest, digests[i])
+			errs = append(errs, fmt.Sprintf("mismatched layer[%d] digest: Manifest.Layers[%d].Digest=%s, SHA256(Compressed())=%s", i, i, m.Layers[i].Digest, digests[i]))
 		}
 
 		if diffid != diffids[i] {
-			return fmt.Errorf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Gunzip(Compressed()))=%s", i, diffid, diffids[i])
+			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Gunzip(Compressed()))=%s", i, diffid, diffids[i]))
 		}
 
 		if cf.RootFS.DiffIDs[i] != diffids[i] {
-			return fmt.Errorf("mismatched layer[%d] diffid: ConfigFile.RootFS.DiffIDs[%d]=%s, SHA256(Gunzip(Compressed()))=%s", i, i, cf.RootFS.DiffIDs[i], diffids[i])
+			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: ConfigFile.RootFS.DiffIDs[%d]=%s, SHA256(Gunzip(Compressed()))=%s", i, i, cf.RootFS.DiffIDs[i], diffids[i]))
 		}
 
 		if size != sizes[i] {
-			return fmt.Errorf("mismatched layer[%d] size: Size()=%d, len(Compressed())=%d", i, size, sizes[i])
+			errs = append(errs, fmt.Sprintf("mismatched layer[%d] size: Size()=%d, len(Compressed())=%d", i, size, sizes[i]))
 		}
 
 		if m.Layers[i].Size != sizes[i] {
-			return fmt.Errorf("mismatched layer[%d] size: Manifest.Layers[%d].Size=%d, len(Compressed())=%d", i, i, m.Layers[i].Size, sizes[i])
+			errs = append(errs, fmt.Sprintf("mismatched layer[%d] size: Manifest.Layers[%d].Size=%d, len(Compressed())=%d", i, i, m.Layers[i].Size, sizes[i]))
 		}
+
+	}
+	if len(errs) != 0 {
+		return errors.New(strings.Join(errs, "\n"))
 	}
 
 	return nil
@@ -264,12 +280,17 @@ func validateManifest(img v1.Image) error {
 		return err
 	}
 
+	errs := []string{}
 	if digest != hash {
-		return fmt.Errorf("mismatched manifest digest: Digest()=%s, SHA256(RawManifest())=%s", digest, hash)
+		errs = append(errs, fmt.Sprintf("mismatched manifest digest: Digest()=%s, SHA256(RawManifest())=%s", digest, hash))
 	}
 
 	if diff := cmp.Diff(pm, m); diff != "" {
-		return fmt.Errorf("mismatched manifest content: (-ParseManifest(RawManifest()) +Manifest()) %s", diff)
+		errs = append(errs, fmt.Sprintf("mismatched manifest content: (-ParseManifest(RawManifest()) +Manifest()) %s", diff))
+	}
+
+	if len(errs) != 0 {
+		return errors.New(strings.Join(errs, "\n"))
 	}
 
 	return nil
