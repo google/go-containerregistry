@@ -33,7 +33,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type Manifest interface {
+type manifest interface {
 	RawManifest() ([]byte, error)
 	MediaType() (types.MediaType, error)
 	Digest() (v1.Hash, error)
@@ -335,7 +335,7 @@ func (w *writer) uploadOne(l v1.Layer) error {
 }
 
 // commitImage does a PUT of the image's manifest.
-func (w *writer) commitImage(man Manifest) error {
+func (w *writer) commitImage(man manifest) error {
 	raw, err := man.RawManifest()
 	if err != nil {
 		return err
@@ -398,6 +398,9 @@ func scopesForUploadingImage(ref name.Reference, layers []v1.Layer) []string {
 	return scopes
 }
 
+// WriteIndex pushes the provided Imageindex to the specified image reference.
+// WriteIndex will attempt to push all of the referenced manifests before
+// attempting to push the ImageIndex, to retain referential integrity.
 func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, t http.RoundTripper) error {
 	index, err := ii.IndexManifest()
 	if err != nil {
