@@ -86,7 +86,7 @@ func AppendIndex(path string, ii v1.ImageIndex, options ...LayoutOption) (v1.Ima
 		return nil, err
 	}
 
-	manifest, err := ii.RawIndexManifest()
+	manifest, err := ii.RawManifest()
 	if err != nil {
 		return nil, err
 	}
@@ -112,11 +112,16 @@ func AppendDescriptor(path string, desc v1.Descriptor) (v1.ImageIndex, error) {
 	// Create an empty image index if it doesn't exist.
 	var ii v1.ImageIndex
 	ii, err := Index(path)
-	if os.IsNotExist(err) {
-		if err := writeFile(path, "oci-layout", []byte(layoutFile)); err != nil {
+	if err != nil {
+		if os.IsNotExist(err) {
+			// If it's not there, initialize the index.
+			if err := writeFile(path, "oci-layout", []byte(layoutFile)); err != nil {
+				return nil, err
+			}
+			ii = empty.Index
+		} else {
 			return nil, err
 		}
-		ii = empty.Index
 	}
 
 	index, err := ii.IndexManifest()
@@ -273,7 +278,7 @@ func writeIndexToFile(path string, indexFile string, ii v1.ImageIndex) error {
 		}
 	}
 
-	rawIndex, err := ii.RawIndexManifest()
+	rawIndex, err := ii.RawManifest()
 	if err != nil {
 		return err
 	}

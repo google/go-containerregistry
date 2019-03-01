@@ -93,32 +93,21 @@ func (li *layoutImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error)
 
 	for _, desc := range manifest.Layers {
 		if h == desc.Digest {
-			// We assume that all these layers are compressed, which is probably not
-			// safe to assume. It will take some restructuring to make that work, so
-			// just return an error for now if we encounter unexpected layers.
-			if err := checkCompressedLayer(desc); err != nil {
-				return nil, err
+			switch desc.MediaType {
+			case types.OCILayer, types.DockerLayer:
+				return partial.CompressedToLayer(&compressedBlob{
+					path: li.path,
+					desc: desc,
+				})
+			default:
+				// TODO: We assume everything is a compressed blob, but that might not be true.
+				// TODO: Handle foreign layers.
+				return nil, fmt.Errorf("unexpected media type: %v for layer: %v", desc.MediaType, desc.Digest)
 			}
-
-			return partial.CompressedLayer(&compressedBlob{
-				path: li.path,
-				desc: desc,
-			}), nil
 		}
 	}
 
 	return nil, fmt.Errorf("could not find layer in image: %s", h)
-}
-
-func checkCompressedLayer(desc v1.Descriptor) error {
-	switch desc.MediaType {
-	case types.OCILayer:
-	case types.DockerLayer:
-	default:
-		return fmt.Errorf("unexpected layer media type: %s for layer: %s", desc.MediaType, desc.Digest)
-	}
-
-	return nil
 }
 
 type compressedBlob struct {

@@ -15,7 +15,6 @@
 package layout
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -41,12 +40,12 @@ func Index(path string) (v1.ImageIndex, error) {
 		return nil, err
 	}
 
-	img := &layoutIndex{
+	idx := &layoutIndex{
 		path:     path,
 		rawIndex: rawIndex,
 	}
 
-	return img, nil
+	return idx, nil
 }
 
 func (i *layoutIndex) MediaType() (types.MediaType, error) {
@@ -54,8 +53,7 @@ func (i *layoutIndex) MediaType() (types.MediaType, error) {
 }
 
 func (i *layoutIndex) Digest() (v1.Hash, error) {
-	digest, _, err := v1.SHA256(bytes.NewReader(i.rawIndex))
-	return digest, err
+	return partial.Digest(i)
 }
 
 func (i *layoutIndex) IndexManifest() (*v1.IndexManifest, error) {
@@ -64,7 +62,7 @@ func (i *layoutIndex) IndexManifest() (*v1.IndexManifest, error) {
 	return &index, err
 }
 
-func (i *layoutIndex) RawIndexManifest() ([]byte, error) {
+func (i *layoutIndex) RawManifest() ([]byte, error) {
 	return i.rawIndex, nil
 }
 
