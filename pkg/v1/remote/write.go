@@ -422,6 +422,14 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, 
 		if err != nil {
 			return err
 		}
+		exists, err := w.checkExistingManifest(desc.Digest, desc.MediaType)
+		if err != nil {
+			return err
+		}
+		if exists {
+			log.Printf("existing manifest: %v", desc.Digest)
+			continue
+		}
 
 		switch desc.MediaType {
 		case types.OCIImageIndex, types.DockerManifestList:
@@ -434,14 +442,6 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, 
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
-			exists, err := w.checkExistingManifest(desc.Digest, desc.MediaType)
-			if err != nil {
-				return err
-			}
-			if exists {
-				log.Printf("existing manifest: %v", desc.Digest)
-				continue
-			}
 			img, err := ii.Image(desc.Digest)
 			if err != nil {
 				return err
