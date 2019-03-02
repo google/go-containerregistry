@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -30,7 +31,15 @@ import (
 
 const bogusDigest = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
-func mustDigest(t *testing.T, img v1.Image) v1.Hash {
+// TODO: Rename this and move to write.go. Needed to treat Image and ImageIndex
+// the same for content-addressability reasons and code reuse.
+type Manifest interface {
+	Digest() (v1.Hash, error)
+	RawManifest() ([]byte, error)
+	MediaType() (types.MediaType, error)
+}
+
+func mustDigest(t *testing.T, img Manifest) v1.Hash {
 	h, err := img.Digest()
 	if err != nil {
 		t.Fatalf("Digest() = %v", err)
@@ -46,7 +55,7 @@ func mustManifest(t *testing.T, img v1.Image) *v1.Manifest {
 	return m
 }
 
-func mustRawManifest(t *testing.T, img v1.Image) []byte {
+func mustRawManifest(t *testing.T, img Manifest) []byte {
 	m, err := img.RawManifest()
 	if err != nil {
 		t.Fatalf("RawManifest() = %v", err)
@@ -162,8 +171,10 @@ func TestRawManifestDigests(t *testing.T) {
 			}
 
 			rmt := remoteImage{
-				ref:    ref,
-				client: http.DefaultClient,
+				fetcher: fetcher{
+					Ref:    ref,
+					Client: http.DefaultClient,
+				},
 			}
 
 			if _, err := rmt.RawManifest(); (err != nil) != tc.wantErr {
@@ -194,8 +205,10 @@ func TestRawManifestNotFound(t *testing.T) {
 	}
 
 	img := remoteImage{
-		ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-		client: http.DefaultClient,
+		fetcher: fetcher{
+			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client: http.DefaultClient,
+		},
 	}
 
 	if _, err := img.RawManifest(); err == nil {
@@ -231,8 +244,10 @@ func TestRawConfigFileNotFound(t *testing.T) {
 	}
 
 	rmt := remoteImage{
-		ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-		client: http.DefaultClient,
+		fetcher: fetcher{
+			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client: http.DefaultClient,
+		},
 	}
 
 	if _, err := rmt.RawConfigFile(); err == nil {
@@ -250,7 +265,8 @@ func TestAcceptHeaders(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
-			if got, want := r.Header.Get("Accept"), string(types.DockerManifestSchema2); got != want {
+			wantAccept := strings.Join([]string{string(types.DockerManifestSchema2), string(types.OCIManifestSchema1)}, ",")
+			if got, want := r.Header.Get("Accept"), wantAccept; got != want {
 				t.Errorf("Accept header; got %v, want %v", got, want)
 			}
 			w.Write(mustRawManifest(t, img))
@@ -265,8 +281,10 @@ func TestAcceptHeaders(t *testing.T) {
 	}
 
 	rmt := &remoteImage{
-		ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-		client: http.DefaultClient,
+		fetcher: fetcher{
+			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client: http.DefaultClient,
+		},
 	}
 	manifest, err := rmt.RawManifest()
 	if err != nil {
