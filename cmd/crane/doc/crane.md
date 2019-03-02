@@ -28,4 +28,5 @@ crane [flags]
 * [crane pull](crane_pull.md)	 - Pull a remote image by reference and store its contents in a tarball
 * [crane push](crane_push.md)	 - Push image contents as a tarball to a remote registry
 * [crane rebase](crane_rebase.md)	 - Rebase an image onto a new base image
+* [crane validate](crane_validate.md)	 - Validate that an image is well-formed
 
