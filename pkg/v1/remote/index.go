@@ -30,7 +30,7 @@ import (
 
 // remoteIndex accesses an index from a remote registry
 type remoteIndex struct {
-	fetch        fetcher
+	fetcher
 	manifestLock sync.Mutex // Protects manifest
 	manifest     []byte
 	mediaType    types.MediaType
@@ -55,9 +55,9 @@ func Index(ref name.Reference, options ...ImageOption) (v1.ImageIndex, error) {
 		return nil, err
 	}
 	return &remoteIndex{
-		fetch: fetcher{
-			ref:    i.ref,
-			client: &http.Client{Transport: tr},
+		fetcher: fetcher{
+			Ref:    i.ref,
+			Client: &http.Client{Transport: tr},
 		},
 	}, nil
 }
@@ -84,7 +84,7 @@ func (r *remoteIndex) RawManifest() ([]byte, error) {
 		types.DockerManifestList,
 		types.OCIImageIndex,
 	}
-	manifest, desc, err := r.fetch.manifest(acceptable)
+	manifest, desc, err := r.fetchManifest(acceptable)
 	if err != nil {
 		return nil, err
 	}
@@ -103,14 +103,14 @@ func (r *remoteIndex) IndexManifest() (*v1.IndexManifest, error) {
 }
 
 func (r *remoteIndex) Image(h v1.Hash) (v1.Image, error) {
-	imgRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.fetch.ref.Context(), h), name.StrictValidation)
+	imgRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), h), name.StrictValidation)
 	if err != nil {
 		return nil, err
 	}
 	ri := &remoteImage{
-		fetch: fetcher{
-			ref:    imgRef,
-			client: r.fetch.client,
+		fetcher: fetcher{
+			Ref:    imgRef,
+			Client: r.Client,
 		},
 	}
 	imgCore, err := partial.CompressedToImage(ri)
@@ -121,19 +121,19 @@ func (r *remoteIndex) Image(h v1.Hash) (v1.Image, error) {
 	// remote.Write calls to facilitate cross-repo "mounting".
 	return &mountableImage{
 		Image:     imgCore,
-		Reference: r.fetch.ref,
+		Reference: r.Ref,
 	}, nil
 }
 
 func (r *remoteIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
-	idxRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.fetch.ref.Context(), h), name.StrictValidation)
+	idxRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), h), name.StrictValidation)
 	if err != nil {
 		return nil, err
 	}
 	return &remoteIndex{
-		fetch: fetcher{
-			ref:    idxRef,
-			client: r.fetch.client,
+		fetcher: fetcher{
+			Ref:    idxRef,
+			Client: r.Client,
 		},
 	}, nil
 }

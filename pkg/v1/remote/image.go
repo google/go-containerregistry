@@ -35,7 +35,7 @@ import (
 
 // remoteImage accesses an image from a remote registry
 type remoteImage struct {
-	fetch        fetcher
+	fetcher
 	manifestLock sync.Mutex // Protects manifest
 	manifest     []byte
 	configLock   sync.Mutex // Protects config
@@ -61,9 +61,9 @@ func (i *imageOpener) Open() (v1.Image, error) {
 		return nil, err
 	}
 	ri := &remoteImage{
-		fetch: fetcher{
-			ref:    i.ref,
-			client: &http.Client{Transport: tr},
+		fetcher: fetcher{
+			Ref:    i.ref,
+			Client: &http.Client{Transport: tr},
 		},
 	}
 	imgCore, err := partial.CompressedToImage(ri)
@@ -97,21 +97,21 @@ func Image(ref name.Reference, options ...ImageOption) (v1.Image, error) {
 
 // fetcher implements methods for reading from a remote image.
 type fetcher struct {
-	ref    name.Reference
-	client *http.Client
+	Ref    name.Reference
+	Client *http.Client
 }
 
 // url returns a url.Url for the specified path in the context of this remote image reference.
 func (f *fetcher) url(resource, identifier string) url.URL {
 	return url.URL{
-		Scheme: f.ref.Context().Registry.Scheme(),
-		Host:   f.ref.Context().RegistryStr(),
-		Path:   fmt.Sprintf("/v2/%s/%s/%s", f.ref.Context().RepositoryStr(), resource, identifier),
+		Scheme: f.Ref.Context().Registry.Scheme(),
+		Host:   f.Ref.Context().RegistryStr(),
+		Path:   fmt.Sprintf("/v2/%s/%s/%s", f.Ref.Context().RepositoryStr(), resource, identifier),
 	}
 }
 
-func (f *fetcher) manifest(acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
-	u := f.url("manifests", f.ref.Identifier())
+func (f *fetcher) fetchManifest(acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
+	u := f.url("manifests", f.Ref.Identifier())
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, nil, err
@@ -122,7 +122,7 @@ func (f *fetcher) manifest(acceptable []types.MediaType) ([]byte, *v1.Descriptor
 	}
 	req.Header.Set("Accept", strings.Join(accept, ","))
 
-	resp, err := f.client.Do(req)
+	resp, err := f.Client.Do(req)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -143,9 +143,9 @@ func (f *fetcher) manifest(acceptable []types.MediaType) ([]byte, *v1.Descriptor
 	}
 
 	// Validate the digest matches what we asked for, if pulling by digest.
-	if dgst, ok := f.ref.(name.Digest); ok {
+	if dgst, ok := f.Ref.(name.Digest); ok {
 		if digest.String() != dgst.DigestStr() {
-			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.ref)
+			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.Ref)
 		}
 	} else {
 		// Do nothing for tags; I give up.
@@ -188,7 +188,7 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		types.DockerManifestSchema2,
 		types.OCIManifestSchema1,
 	}
-	manifest, desc, err := r.fetch.manifest(acceptable)
+	manifest, desc, err := r.fetchManifest(acceptable)
 	if err != nil {
 		return nil, err
 	}
@@ -240,8 +240,8 @@ func (rl *remoteLayer) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
-	u := rl.ri.fetch.url("blobs", rl.digest.String())
-	resp, err := rl.ri.fetch.client.Get(u.String())
+	u := rl.ri.url("blobs", rl.digest.String())
+	resp, err := rl.ri.Client.Get(u.String())
 	if err != nil {
 		return nil, err
 	}

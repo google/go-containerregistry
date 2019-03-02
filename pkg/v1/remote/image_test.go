@@ -171,9 +171,9 @@ func TestRawManifestDigests(t *testing.T) {
 			}
 
 			rmt := remoteImage{
-				fetch: fetcher{
-					ref:    ref,
-					client: http.DefaultClient,
+				fetcher: fetcher{
+					Ref:    ref,
+					Client: http.DefaultClient,
 				},
 			}
 
@@ -205,9 +205,9 @@ func TestRawManifestNotFound(t *testing.T) {
 	}
 
 	img := remoteImage{
-		fetch: fetcher{
-			ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			client: http.DefaultClient,
+		fetcher: fetcher{
+			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client: http.DefaultClient,
 		},
 	}
 
@@ -244,9 +244,9 @@ func TestRawConfigFileNotFound(t *testing.T) {
 	}
 
 	rmt := remoteImage{
-		fetch: fetcher{
-			ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			client: http.DefaultClient,
+		fetcher: fetcher{
+			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client: http.DefaultClient,
 		},
 	}
 
@@ -281,9 +281,9 @@ func TestAcceptHeaders(t *testing.T) {
 	}
 
 	rmt := &remoteImage{
-		fetch: fetcher{
-			ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			client: http.DefaultClient,
+		fetcher: fetcher{
+			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client: http.DefaultClient,
 		},
 	}
 	manifest, err := rmt.RawManifest()
