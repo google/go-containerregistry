@@ -398,7 +398,7 @@ func scopesForUploadingImage(ref name.Reference, layers []v1.Layer) []string {
 	return scopes
 }
 
-// WriteIndex pushes the provided Imageindex to the specified image reference.
+// WriteIndex pushes the provided ImageIndex to the specified image reference.
 // WriteIndex will attempt to push all of the referenced manifests before
 // attempting to push the ImageIndex, to retain referential integrity.
 func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, t http.RoundTripper) error {

@@ -164,87 +164,58 @@ func setupWriterWithServer(server *httptest.Server, repo string) (*writer, close
 	}, server, nil
 }
 
-func TestCheckExistingBlobFound(t *testing.T) {
+func TestCheckExistingBlob(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		existing bool
+		wantErr  bool
+	}{{
+		name:     "success",
+		status:   http.StatusOK,
+		existing: true,
+	}, {
+		name:     "not found",
+		status:   http.StatusNotFound,
+		existing: false,
+	}, {
+		name:     "error",
+		status:   http.StatusInternalServerError,
+		existing: false,
+		wantErr:  true,
+	}}
+
 	img := setupImage(t)
 	h := mustConfigName(t, img)
 	expectedRepo := "foo/bar"
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
 
-	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodHead {
-			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
-		}
-		if r.URL.Path != expectedPath {
-			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
-		}
-		http.Error(w, "Found", http.StatusOK)
-	}))
-	if err != nil {
-		t.Fatalf("setupWriter() = %v", err)
-	}
-	defer closer.Close()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodHead {
+					t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+				}
+				if r.URL.Path != expectedPath {
+					t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+				}
+				http.Error(w, http.StatusText(test.status), test.status)
+			}))
+			if err != nil {
+				t.Fatalf("setupWriter() = %v", err)
+			}
+			defer closer.Close()
 
-	existing, err := w.checkExistingBlob(h)
-	if err != nil {
-		t.Errorf("checkExistingBlob() = %v", err)
-	}
-	if !existing {
-		t.Error("checkExistingBlob() = !existing, want existing")
-	}
-}
-
-func TestCheckExistingBlobNotFound(t *testing.T) {
-	img := setupImage(t)
-	h := mustConfigName(t, img)
-	expectedRepo := "foo/bar"
-	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
-
-	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodHead {
-			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
-		}
-		if r.URL.Path != expectedPath {
-			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
-		}
-		http.Error(w, "NotFound", http.StatusNotFound)
-	}))
-	if err != nil {
-		t.Fatalf("setupWriter() = %v", err)
-	}
-	defer closer.Close()
-
-	existing, err := w.checkExistingBlob(h)
-	if err != nil {
-		t.Errorf("checkExistingBlob() = %v", err)
-	}
-	if existing {
-		t.Error("checkExistingBlob() = existing, want !existing")
-	}
-}
-
-func TestCheckExistingBlobError(t *testing.T) {
-	img := setupImage(t)
-	h := mustConfigName(t, img)
-	expectedRepo := "foo/bar"
-	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
-
-	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodHead {
-			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
-		}
-		if r.URL.Path != expectedPath {
-			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
-		}
-		http.Error(w, "Found - Error", http.StatusBadRequest)
-	}))
-	if err != nil {
-		t.Fatalf("setupWriter() = %v", err)
-	}
-	defer closer.Close()
-
-	existing, err := w.checkExistingBlob(h)
-	if err == nil {
-		t.Errorf("checkExistingBlob() = %v; wanted error", existing)
+			existing, err := w.checkExistingBlob(h)
+			if test.existing != existing {
+				t.Errorf("checkExistingBlob() = %v, want %v", existing, test.existing)
+			}
+			if err != nil && !test.wantErr {
+				t.Errorf("checkExistingBlob() = %v", err)
+			} else if err == nil && test.wantErr {
+				t.Error("checkExistingBlob() wanted err, got nil")
+			}
+		})
 	}
 }
 
@@ -1026,12 +997,12 @@ func TestCheckExistingManifest(t *testing.T) {
 
 			existing, err := w.checkExistingManifest(h, mt)
 			if test.existing != existing {
-				t.Errorf("checkExistingBlob() = %v, want %v", existing, test.existing)
+				t.Errorf("checkExistingManifest() = %v, want %v", existing, test.existing)
 			}
 			if err != nil && !test.wantErr {
-				t.Errorf("checkExistingBlob() = %v", err)
+				t.Errorf("checkExistingManifest() = %v", err)
 			} else if err == nil && test.wantErr {
-				t.Error("checkExistingBlob() wanted err, got nil")
+				t.Error("checkExistingManifest() wanted err, got nil")
 			}
 		})
 	}
