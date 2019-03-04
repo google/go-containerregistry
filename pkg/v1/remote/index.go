@@ -17,6 +17,7 @@ package remote
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 
@@ -136,4 +137,8 @@ func (r *remoteIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
 			Client: r.Client,
 		},
 	}, nil
+}
+
+func (r *remoteIndex) Blob(h v1.Hash) (io.ReadCloser, error) {
+	return r.fetchBlob(h)
 }

@@ -178,6 +178,21 @@ func (f *fetcher) fetchManifest(acceptable []types.MediaType) ([]byte, *v1.Descr
 	return manifest, &desc, nil
 }
 
+func (f *fetcher) fetchBlob(h v1.Hash) (io.ReadCloser, error) {
+	u := f.url("blobs", h.String())
+	resp, err := f.Client.Get(u.String())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := transport.CheckError(resp, http.StatusOK); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+
+	return v1util.VerifyReadCloser(resp.Body, h)
+}
+
 func (r *remoteImage) MediaType() (types.MediaType, error) {
 	if string(r.mediaType) != "" {
 		return r.mediaType, nil
@@ -260,18 +275,7 @@ func (rl *remoteLayer) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
-	u := rl.ri.url("blobs", rl.digest.String())
-	resp, err := rl.ri.Client.Get(u.String())
-	if err != nil {
-		return nil, err
-	}
-
-	if err := transport.CheckError(resp, http.StatusOK); err != nil {
-		resp.Body.Close()
-		return nil, err
-	}
-
-	return v1util.VerifyReadCloser(resp.Body, rl.digest)
+	return rl.ri.fetchBlob(rl.digest)
 }
 
 // Manifest implements partial.WithManifest so that we can use partial.BlobSize below.
