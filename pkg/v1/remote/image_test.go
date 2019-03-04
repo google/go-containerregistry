@@ -31,15 +31,7 @@ import (
 
 const bogusDigest = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
-// TODO: Rename this and move to write.go. Needed to treat Image and ImageIndex
-// the same for content-addressability reasons and code reuse.
-type Manifest interface {
-	Digest() (v1.Hash, error)
-	RawManifest() ([]byte, error)
-	MediaType() (types.MediaType, error)
-}
-
-func mustDigest(t *testing.T, img Manifest) v1.Hash {
+func mustDigest(t *testing.T, img manifest) v1.Hash {
 	h, err := img.Digest()
 	if err != nil {
 		t.Fatalf("Digest() = %v", err)
@@ -55,7 +47,7 @@ func mustManifest(t *testing.T, img v1.Image) *v1.Manifest {
 	return m
 }
 
-func mustRawManifest(t *testing.T, img Manifest) []byte {
+func mustRawManifest(t *testing.T, img manifest) []byte {
 	m, err := img.RawManifest()
 	if err != nil {
 		t.Fatalf("RawManifest() = %v", err)

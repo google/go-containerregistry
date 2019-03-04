@@ -125,6 +125,14 @@ func setupImage(t *testing.T) v1.Image {
 	return rnd
 }
 
+func setupIndex(t *testing.T, children int64) v1.ImageIndex {
+	rnd, err := random.Index(1024, 1, children)
+	if err != nil {
+		t.Fatalf("random.ImageIndex() = %v", err)
+	}
+	return rnd
+}
+
 func mustConfigName(t *testing.T, img v1.Image) v1.Hash {
 	h, err := img.ConfigName()
 	if err != nil {
@@ -133,12 +141,12 @@ func mustConfigName(t *testing.T, img v1.Image) v1.Hash {
 	return h
 }
 
-func setupWriter(repo string, img v1.Image, handler http.HandlerFunc) (*writer, closer, error) {
+func setupWriter(repo string, handler http.HandlerFunc) (*writer, closer, error) {
 	server := httptest.NewServer(handler)
-	return setupWriterWithServer(server, repo, img)
+	return setupWriterWithServer(server, repo)
 }
 
-func setupWriterWithServer(server *httptest.Server, repo string, img v1.Image) (*writer, closer, error) {
+func setupWriterWithServer(server *httptest.Server, repo string) (*writer, closer, error) {
 	u, err := url.Parse(server.URL)
 	if err != nil {
 		server.Close()
@@ -152,92 +160,62 @@ func setupWriterWithServer(server *httptest.Server, repo string, img v1.Image) (
 
 	return &writer{
 		ref:    tag,
-		img:    img,
 		client: http.DefaultClient,
 	}, server, nil
 }
 
-func TestCheckExistingFound(t *testing.T) {
+func TestCheckExistingBlob(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		existing bool
+		wantErr  bool
+	}{{
+		name:     "success",
+		status:   http.StatusOK,
+		existing: true,
+	}, {
+		name:     "not found",
+		status:   http.StatusNotFound,
+		existing: false,
+	}, {
+		name:     "error",
+		status:   http.StatusInternalServerError,
+		existing: false,
+		wantErr:  true,
+	}}
+
 	img := setupImage(t)
 	h := mustConfigName(t, img)
 	expectedRepo := "foo/bar"
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
 
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodHead {
-			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
-		}
-		if r.URL.Path != expectedPath {
-			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
-		}
-		http.Error(w, "Found", http.StatusOK)
-	}))
-	if err != nil {
-		t.Fatalf("setupWriter() = %v", err)
-	}
-	defer closer.Close()
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodHead {
+					t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+				}
+				if r.URL.Path != expectedPath {
+					t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+				}
+				http.Error(w, http.StatusText(test.status), test.status)
+			}))
+			if err != nil {
+				t.Fatalf("setupWriter() = %v", err)
+			}
+			defer closer.Close()
 
-	existing, err := w.checkExisting(h)
-	if err != nil {
-		t.Errorf("checkExisting() = %v", err)
-	}
-	if !existing {
-		t.Error("checkExisting() = !existing, want existing")
-	}
-}
-
-func TestCheckExistingNotFound(t *testing.T) {
-	img := setupImage(t)
-	h := mustConfigName(t, img)
-	expectedRepo := "foo/bar"
-	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
-
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodHead {
-			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
-		}
-		if r.URL.Path != expectedPath {
-			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
-		}
-		http.Error(w, "NotFound", http.StatusNotFound)
-	}))
-	if err != nil {
-		t.Fatalf("setupWriter() = %v", err)
-	}
-	defer closer.Close()
-
-	existing, err := w.checkExisting(h)
-	if err != nil {
-		t.Errorf("checkExisting() = %v", err)
-	}
-	if existing {
-		t.Error("checkExisting() = existing, want !existing")
-	}
-}
-
-func TestCheckExistingError(t *testing.T) {
-	img := setupImage(t)
-	h := mustConfigName(t, img)
-	expectedRepo := "foo/bar"
-	expectedPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
-
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodHead {
-			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
-		}
-		if r.URL.Path != expectedPath {
-			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
-		}
-		http.Error(w, "Found - Error", http.StatusBadRequest)
-	}))
-	if err != nil {
-		t.Fatalf("setupWriter() = %v", err)
-	}
-	defer closer.Close()
-
-	existing, err := w.checkExisting(h)
-	if err == nil {
-		t.Errorf("checkExisting() = %v; wanted error", existing)
+			existing, err := w.checkExistingBlob(h)
+			if test.existing != existing {
+				t.Errorf("checkExistingBlob() = %v, want %v", existing, test.existing)
+			}
+			if err != nil && !test.wantErr {
+				t.Errorf("checkExistingBlob() = %v", err)
+			} else if err == nil && test.wantErr {
+				t.Error("checkExistingBlob() wanted err, got nil")
+			}
+		})
 	}
 }
 
@@ -250,7 +228,7 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 		"mount": []string{h.String()},
 	}.Encode()
 
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
 		}
@@ -286,7 +264,7 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 	}.Encode()
 	expectedLocation := "https://somewhere.io/upload?foo=bar"
 
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
 		}
@@ -325,7 +303,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 		"mount": []string{h.String()},
 	}.Encode()
 
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
 		}
@@ -363,7 +341,7 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 		Reference: mustNewTag(t, fmt.Sprintf("gcr.io/%s", expectedMountRepo)),
 	}
 
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
 		}
@@ -424,7 +402,7 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 		Reference: mustNewTag(t, fmt.Sprintf("%s/%s", u.Host, expectedMountRepo)),
 	}
 
-	w, closer, err := setupWriterWithServer(server, expectedRepo, img)
+	w, closer, err := setupWriterWithServer(server, expectedRepo)
 	if err != nil {
 		t.Fatalf("setupWriterWithServer() = %v", err)
 	}
@@ -444,7 +422,7 @@ func TestStreamBlob(t *testing.T) {
 	expectedPath := "/vWhatever/I/decide"
 	expectedCommitLocation := "https://commit.io/v12/blob"
 
-	w, closer, err := setupWriter("what/ever", img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter("what/ever", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
 		}
@@ -497,7 +475,7 @@ func TestStreamLayer(t *testing.T) {
 
 	expectedPath := "/vWhatever/I/decide"
 	expectedCommitLocation := "https://commit.io/v12/blob"
-	w, closer, err := setupWriter("what/ever", nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter("what/ever", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
 		}
@@ -550,7 +528,7 @@ func TestCommitBlob(t *testing.T) {
 		"digest": []string{h.String()},
 	}.Encode()
 
-	w, closer, err := setupWriter("what/ever", img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter("what/ever", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
 		}
@@ -583,7 +561,7 @@ func TestUploadOne(t *testing.T) {
 	streamPath := "/path/to/upload"
 	commitPath := "/path/to/commit"
 
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case headPath:
 			if r.Method != http.MethodHead {
@@ -642,7 +620,7 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 	streamPath := "/path/to/upload"
 	commitPath := "/path/to/commit"
 
-	w, closer, err := setupWriter(expectedRepo, nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case initiatePath:
 			if r.Method != http.MethodPost {
@@ -703,7 +681,7 @@ func TestCommitImage(t *testing.T) {
 	expectedRepo := "foo/bar"
 	expectedPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
-	w, closer, err := setupWriter(expectedRepo, img, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
 		}
@@ -735,7 +713,7 @@ func TestCommitImage(t *testing.T) {
 	}
 	defer closer.Close()
 
-	if err := w.commitImage(); err != nil {
+	if err := w.commitImage(img); err != nil {
 		t.Errorf("commitBlob() = %v", err)
 	}
 }
@@ -968,5 +946,127 @@ func TestScopesForUploadingImage(t *testing.T) {
 		if diff := cmp.Diff(tc.expected[1:], actual[1:], cmpopts.SortSlices(less)); diff != "" {
 			t.Errorf("TestScopesForUploadingImage() %s: Wrong scopes (-want +got) = %v", tc.name, diff)
 		}
+	}
+}
+
+func TestCheckExistingManifest(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   int
+		existing bool
+		wantErr  bool
+	}{{
+		name:     "success",
+		status:   http.StatusOK,
+		existing: true,
+	}, {
+		name:     "not found",
+		status:   http.StatusNotFound,
+		existing: false,
+	}, {
+		name:     "error",
+		status:   http.StatusInternalServerError,
+		existing: false,
+		wantErr:  true,
+	}}
+
+	img := setupImage(t)
+	h := mustDigest(t, img)
+	mt := mustMediaType(t, img)
+	expectedRepo := "foo/bar"
+	expectedPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, h.String())
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodHead {
+					t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+				}
+				if r.URL.Path != expectedPath {
+					t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+				}
+				if got, want := r.Header.Get("Accept"), string(mt); got != want {
+					t.Errorf("r.Header['Accept']; got %v, want %v", got, want)
+				}
+				http.Error(w, http.StatusText(test.status), test.status)
+			}))
+			if err != nil {
+				t.Fatalf("setupWriter() = %v", err)
+			}
+			defer closer.Close()
+
+			existing, err := w.checkExistingManifest(h, mt)
+			if test.existing != existing {
+				t.Errorf("checkExistingManifest() = %v, want %v", existing, test.existing)
+			}
+			if err != nil && !test.wantErr {
+				t.Errorf("checkExistingManifest() = %v", err)
+			} else if err == nil && test.wantErr {
+				t.Error("checkExistingManifest() wanted err, got nil")
+			}
+		})
+	}
+}
+
+func TestWriteIndex(t *testing.T) {
+	idx := setupIndex(t, 2)
+	expectedRepo := "write/time"
+	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
+	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	childDigest := mustIndexManifest(t, idx).Manifests[0].Digest
+	childPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, childDigest)
+	existinChildDigest := mustIndexManifest(t, idx).Manifests[1].Digest
+	existingChildPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, existinChildDigest)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case initiatePath:
+			if r.Method != http.MethodPost {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+			}
+			http.Error(w, "Mounted", http.StatusCreated)
+		case manifestPath:
+			if r.Method != http.MethodPut {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
+			}
+			http.Error(w, "Created", http.StatusCreated)
+		case existingChildPath:
+			if r.Method == http.MethodHead {
+				http.Error(w, http.StatusText(http.StatusOK), http.StatusOK)
+				return
+			}
+			t.Errorf("Unexpected method; got %v, want %v", r.Method, http.MethodHead)
+		case childPath:
+			if r.Method == http.MethodHead {
+				http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+				return
+			}
+			if r.Method != http.MethodPut {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
+			}
+			http.Error(w, "Created", http.StatusCreated)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewTag() = %v", err)
+	}
+
+	if err := WriteIndex(tag, idx, authn.Anonymous, http.DefaultTransport); err != nil {
+		t.Errorf("WriteIndex() = %v", err)
 	}
 }
