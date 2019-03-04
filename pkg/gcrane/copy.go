@@ -66,7 +66,7 @@ func doCopy(args []string, recursive bool) {
 		// First, try to copy as an index.
 		// If that fails, try to copy as an image.
 		// We have to try this second because fallback logic exists in the registry
-		// to convert an index to an  image.
+		// to convert an index to an image.
 		// TODO(#388): Figure out which artifact is returned at runtime.
 		if err := copyIndex(src, dst, srcAuth, dstAuth); err != nil {
 			if err := copyImage(src, dst, srcAuth, dstAuth); err != nil {

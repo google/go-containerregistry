@@ -15,6 +15,7 @@
 package crane
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -51,6 +52,11 @@ func doCopy(_ *cobra.Command, args []string) {
 	}
 	log.Printf("Pushing %v", dstRef)
 
+	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
+	if err != nil {
+		log.Fatalf("getting creds for %q: %v", srcRef, err)
+	}
+
 	dstAuth, err := authn.DefaultKeychain.Resolve(dstRef.Context().Registry)
 	if err != nil {
 		log.Fatalf("getting creds for %q: %v", dstRef, err)
@@ -58,23 +64,38 @@ func doCopy(_ *cobra.Command, args []string) {
 
 	// First, try to copy as an index.
 	// If that fails, try to copy as an image.
-	// We have to do things in this order because fallback logic exists in the
-	// registry to convert an index to an  image.
+	// We have to try this second because fallback logic exists in the registry
+	// to convert an index to an image.
 	// TODO(#388): Figure out which artifact is returned at runtime.
-	idx, err := remote.Index(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	if err == nil {
-		if err := remote.WriteIndex(dstRef, idx, dstAuth, http.DefaultTransport); err == nil {
-			// We succeeded, so return. If we encounter any errors just fall through.
-			// This is less than ideal.
-			return
+	if err := copyIndex(srcRef, dstRef, srcAuth, dstAuth); err != nil {
+		if err := copyImage(srcRef, dstRef, srcAuth, dstAuth); err != nil {
+			log.Fatalf("failed to copy image: %v", err)
 		}
 	}
-	img, err := remote.Image(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+}
+
+func copyImage(srcRef, dstRef name.Reference, srcAuth, dstAuth authn.Authenticator) error {
+	img, err := remote.Image(srcRef, remote.WithAuth(srcAuth))
 	if err != nil {
-		log.Fatalf("reading image %q: %v", srcRef, err)
+		return fmt.Errorf("reading image %q: %v", srcRef, err)
 	}
 
 	if err := remote.Write(dstRef, img, dstAuth, http.DefaultTransport); err != nil {
-		log.Fatalf("writing image %q: %v", dstRef, err)
+		return fmt.Errorf("writing image %q: %v", dstRef, err)
 	}
+
+	return nil
+}
+
+func copyIndex(srcRef, dstRef name.Reference, srcAuth, dstAuth authn.Authenticator) error {
+	idx, err := remote.Index(srcRef, remote.WithAuth(srcAuth))
+	if err != nil {
+		return fmt.Errorf("reading index %q: %v", srcRef, err)
+	}
+
+	if err := remote.WriteIndex(dstRef, idx, dstAuth, http.DefaultTransport); err != nil {
+		return fmt.Errorf("writing index %q: %v", dstRef, err)
+	}
+
+	return nil
 }
