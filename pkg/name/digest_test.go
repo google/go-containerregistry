@@ -37,7 +37,6 @@ var goodStrictValidationTagDigestNames = []string{
 var goodWeakValidationDigestNames = []string{
 	"namespace/pathcomponent/image@" + validDigest,
 	"library/ubuntu@" + validDigest,
-	"gcr.io/project-id/missing-digest@",
 }
 
 var goodWeakValidationTagDigestNames = []string{
@@ -48,6 +47,7 @@ var goodWeakValidationTagDigestNames = []string{
 var badDigestNames = []string{
 	"gcr.io/project-id/unknown-alg@unknown:abc123",
 	"gcr.io/project-id/wrong-length@sha256:d34db33fd34db33f",
+	"gcr.io/project-id/missing-digest@",
 }
 
 func TestNewDigestStrictValidation(t *testing.T) {
