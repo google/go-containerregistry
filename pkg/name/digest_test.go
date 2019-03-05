@@ -28,10 +28,21 @@ var goodStrictValidationDigestNames = []string{
 	"example.text/foo/bar@" + validDigest,
 }
 
+var goodStrictValidationTagDigestNames = []string{
+	"example.text/foo/bar:latest@" + validDigest,
+	"example.text:8443/foo/bar:latest@" + validDigest,
+	"example.text/foo/bar:v1.0.0-alpine@" + validDigest,
+}
+
 var goodWeakValidationDigestNames = []string{
 	"namespace/pathcomponent/image@" + validDigest,
 	"library/ubuntu@" + validDigest,
 	"gcr.io/project-id/missing-digest@",
+}
+
+var goodWeakValidationTagDigestNames = []string{
+	"nginx:latest@" + validDigest,
+	"library/nginx:latest@" + validDigest,
 }
 
 var badDigestNames = []string{
@@ -50,6 +61,12 @@ func TestNewDigestStrictValidation(t *testing.T) {
 		}
 	}
 
+	for _, name := range goodStrictValidationTagDigestNames {
+		if _, err := NewDigest(name, StrictValidation); err != nil {
+			t.Errorf("`%s` should be a valid Digest name, got error: %v", name, err)
+		}
+	}
+
 	for _, name := range append(goodWeakValidationDigestNames, badDigestNames...) {
 		if repo, err := NewDigest(name, StrictValidation); err == nil {
 			t.Errorf("`%s` should be an invalid Digest name, got Digest: %#v", name, repo)
@@ -60,7 +77,7 @@ func TestNewDigestStrictValidation(t *testing.T) {
 func TestNewDigest(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range append(goodStrictValidationDigestNames, goodWeakValidationDigestNames...) {
+	for _, name := range append(goodStrictValidationDigestNames, append(goodWeakValidationDigestNames, goodWeakValidationTagDigestNames...)...) {
 		if _, err := NewDigest(name, WeakValidation); err != nil {
 			t.Errorf("`%s` should be a valid Digest name, got error: %v", name, err)
 		}
