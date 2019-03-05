@@ -23,11 +23,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-var Index = index()
-
-func index() v1.ImageIndex {
-	return emptyIndex{}
-}
+// Index is a singleton empty index, think: FROM scratch.
+var Index = emptyIndex{}
 
 type emptyIndex struct{}
 
