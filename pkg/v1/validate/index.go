@@ -69,7 +69,7 @@ func validateChildren(idx v1.ImageIndex) error {
 				errs = append(errs, fmt.Sprintf("failed to validate image Manifests[%d](%s): %v", i, desc.Digest, err))
 			}
 		default:
-			return fmt.Errorf("TODO: validate Blob!")
+			return fmt.Errorf("todo: validate index Blob()")
 		}
 	}
 
