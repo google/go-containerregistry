@@ -42,6 +42,7 @@ type remoteImage struct {
 	configLock   sync.Mutex // Protects config
 	config       []byte
 	mediaType    types.MediaType
+	platform     v1.Platform
 }
 
 // ImageOption is a functional option for Image.
@@ -54,6 +55,7 @@ type imageOpener struct {
 	transport http.RoundTripper
 	ref       name.Reference
 	client    *http.Client
+	platform  v1.Platform
 }
 
 func (i *imageOpener) Open() (v1.Image, error) {
@@ -66,6 +68,7 @@ func (i *imageOpener) Open() (v1.Image, error) {
 			Ref:    i.ref,
 			Client: &http.Client{Transport: tr},
 		},
+		platform: i.platform,
 	}
 	imgCore, err := partial.CompressedToImage(ri)
 	if err != nil {
@@ -86,6 +89,10 @@ func Image(ref name.Reference, options ...ImageOption) (v1.Image, error) {
 		auth:      authn.Anonymous,
 		transport: http.DefaultTransport,
 		ref:       ref,
+		platform: v1.Platform{
+			Architecture: runtime.GOARCH,
+			OS:           runtime.GOOS,
+		},
 	}
 
 	for _, option := range options {
@@ -308,6 +315,7 @@ func (r *remoteImage) matchImage(rawIndex []byte) ([]byte, *v1.Descriptor, error
 		return nil, nil, err
 	}
 	for _, childDesc := range index.Manifests {
+		// If platform is missing from child descriptor, assume it's amd64/linux.
 		p := v1.Platform{
 			Architecture: "amd64",
 			OS:           "linux",
@@ -315,7 +323,7 @@ func (r *remoteImage) matchImage(rawIndex []byte) ([]byte, *v1.Descriptor, error
 		if childDesc.Platform != nil {
 			p = *childDesc.Platform
 		}
-		if runtime.GOARCH == p.Architecture && runtime.GOOS == p.OS {
+		if r.platform.Architecture == p.Architecture && r.platform.OS == p.OS {
 			childRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), childDesc.Digest), name.StrictValidation)
 			if err != nil {
 				return nil, nil, err

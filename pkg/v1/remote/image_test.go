@@ -446,25 +446,6 @@ func TestPullingManifestListNoMatch(t *testing.T) {
 	childPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, childDigest)
 	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, mustConfigName(t, child))
 
-	// Rewrite the index to make sure the current runtime matches the second child.
-	manifest, err := idx.IndexManifest()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Ensure none match.
-	for i := range manifest.Manifests {
-		manifest.Manifests[i].Platform = &v1.Platform{
-			Architecture: "not-real-arch",
-			OS:           "not-real-os",
-		}
-	}
-	rawManifest, err := json.Marshal(manifest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(string(rawManifest))
-
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v2/":
@@ -474,7 +455,7 @@ func TestPullingManifestListNoMatch(t *testing.T) {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
 			w.Header().Set("Content-Type", string(mustMediaType(t, idx)))
-			w.Write(rawManifest)
+			w.Write(mustRawManifest(t, idx))
 		case childPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
@@ -494,9 +475,12 @@ func TestPullingManifestListNoMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
 	}
-
+	platform := v1.Platform{
+		Architecture: "not-real-arch",
+		OS:           "not-real-os",
+	}
 	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
-	rmtChild, err := Image(tag)
+	rmtChild, err := Image(tag, WithPlatform(platform))
 	if err != nil {
 		t.Errorf("Image() = %v", err)
 	}
