@@ -33,10 +33,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -128,7 +130,7 @@ func setupImage(t *testing.T) v1.Image {
 func setupIndex(t *testing.T, children int64) v1.ImageIndex {
 	rnd, err := random.Index(1024, 1, children)
 	if err != nil {
-		t.Fatalf("random.ImageIndex() = %v", err)
+		t.Fatalf("random.Index() = %v", err)
 	}
 	return rnd
 }
@@ -414,6 +416,97 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 	}
 	if !mounted {
 		t.Error("initiateUpload() = !mounted, want mounted")
+	}
+}
+
+func TestDedupeLayers(t *testing.T) {
+	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, 10000))) }
+
+	img, err := random.Image(1024, 3)
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+
+	// Append three identical tarball.Layers, which should be deduped
+	// because contents can be hashed before uploading.
+	for i := 0; i < 3; i++ {
+		tl, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) { return newBlob(), nil })
+		if err != nil {
+			t.Fatalf("LayerFromOpener(#%d): %v", i, err)
+		}
+		img, err = mutate.AppendLayers(img, tl)
+		if err != nil {
+			t.Fatalf("mutate.AppendLayer(#%d): %v", i, err)
+		}
+	}
+
+	// Append three identical stream.Layers, whose uploads will *not* be
+	// deduped since Write can't tell they're identical ahead of time.
+	for i := 0; i < 3; i++ {
+		sl := stream.NewLayer(newBlob())
+		img, err = mutate.AppendLayers(img, sl)
+		if err != nil {
+			t.Fatalf("mutate.AppendLayer(#%d): %v", i, err)
+		}
+	}
+
+	expectedRepo := "write/time"
+	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
+	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	uploadPath := "/upload"
+	commitPath := "/commit"
+	numUploads := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case initiatePath:
+			if r.Method != http.MethodPost {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+			}
+			w.Header().Set("Location", uploadPath)
+			http.Error(w, "Accepted", http.StatusAccepted)
+		case uploadPath:
+			if r.Method != http.MethodPatch {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
+			}
+			numUploads++
+			w.Header().Set("Location", commitPath)
+			http.Error(w, "Created", http.StatusCreated)
+		case commitPath:
+			http.Error(w, "Created", http.StatusCreated)
+		case manifestPath:
+			if r.Method != http.MethodPut {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
+			}
+			http.Error(w, "Created", http.StatusCreated)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewTag() = %v", err)
+	}
+
+	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport); err != nil {
+		t.Errorf("Write: %v", err)
+	}
+
+	// 3 random layers, 1 tarball layer (deduped), 3 stream layers (not deduped), 1 image config blob
+	wantUploads := 3 + 1 + 3 + 1
+	if numUploads != wantUploads {
+		t.Fatalf("Write uploaded %d blobs, want %d", numUploads, wantUploads)
 	}
 }
 
