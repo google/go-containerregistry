@@ -34,7 +34,7 @@ var layoutFile = `{
 // AppendImage writes a v1.Image to the LayoutPath and updates
 // the index.json to reference it.
 func (l LayoutPath) AppendImage(img v1.Image, options ...LayoutOption) error {
-	if err := l.WriteImage(img); err != nil {
+	if err := l.writeImage(img); err != nil {
 		return err
 	}
 
@@ -71,7 +71,7 @@ func (l LayoutPath) AppendImage(img v1.Image, options ...LayoutOption) error {
 // AppendIndex writes a v1.ImageIndex to the LayoutPath and updates
 // the index.json to reference it.
 func (l LayoutPath) AppendIndex(ii v1.ImageIndex, options ...LayoutOption) error {
-	if err := l.WriteIndex(ii); err != nil {
+	if err := l.writeIndex(ii); err != nil {
 		return err
 	}
 
@@ -176,9 +176,7 @@ func (l LayoutPath) writeLayer(layer v1.Layer) error {
 	return l.WriteBlob(d, r)
 }
 
-// WriteImage writes a v1.Image to the LayoutPath.
-// This doesn't update the top-level index.json, see AppendImage.
-func (l LayoutPath) WriteImage(img v1.Image) error {
+func (l LayoutPath) writeImage(img v1.Image) error {
 	layers, err := img.Layers()
 	if err != nil {
 		return err
@@ -237,7 +235,7 @@ func (l LayoutPath) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 			if err != nil {
 				return err
 			}
-			if err := l.WriteIndex(ii); err != nil {
+			if err := l.writeIndex(ii); err != nil {
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
@@ -245,7 +243,7 @@ func (l LayoutPath) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 			if err != nil {
 				return err
 			}
-			if err := l.WriteImage(img); err != nil {
+			if err := l.writeImage(img); err != nil {
 				return err
 			}
 		default:
@@ -268,9 +266,7 @@ func (l LayoutPath) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 	return l.writeFile(indexFile, rawIndex)
 }
 
-// WriteIndex writes a v1.ImageIndex to the LayoutPath.
-// This doesn't update the top-level index.json, see AppendIndex.
-func (l LayoutPath) WriteIndex(ii v1.ImageIndex) error {
+func (l LayoutPath) writeIndex(ii v1.ImageIndex) error {
 	// Always just write oci-layout file, since it's small.
 	if err := l.writeFile("oci-layout", []byte(layoutFile)); err != nil {
 		return err
