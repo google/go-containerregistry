@@ -63,7 +63,11 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 	seen := map[v1.Hash]struct{}{}
 	for _, l := range ls {
 		l := l
-		if h, err := l.Digest(); err == nil {
+		if _, ok := l.(*stream.Layer); !ok {
+			h, err := l.Digest()
+			if err != nil {
+				return err
+			}
 			// If we can determine the layer's digest ahead of
 			// time, use it to dedupe uploads.
 			if _, found := seen[h]; found {

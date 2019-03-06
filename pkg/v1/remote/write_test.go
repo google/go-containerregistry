@@ -26,6 +26,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -456,7 +457,7 @@ func TestDedupeLayers(t *testing.T) {
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 	uploadPath := "/upload"
 	commitPath := "/commit"
-	numUploads := 0
+	var numUploads int32 = 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
 			http.Error(w, "NotFound", http.StatusNotFound)
@@ -475,7 +476,7 @@ func TestDedupeLayers(t *testing.T) {
 			if r.Method != http.MethodPatch {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
 			}
-			numUploads++
+			atomic.AddInt32(&numUploads, 1)
 			w.Header().Set("Location", commitPath)
 			http.Error(w, "Created", http.StatusCreated)
 		case commitPath:
@@ -504,7 +505,7 @@ func TestDedupeLayers(t *testing.T) {
 	}
 
 	// 3 random layers, 1 tarball layer (deduped), 3 stream layers (not deduped), 1 image config blob
-	wantUploads := 3 + 1 + 3 + 1
+	wantUploads := int32(3 + 1 + 3 + 1)
 	if numUploads != wantUploads {
 		t.Fatalf("Write uploaded %d blobs, want %d", numUploads, wantUploads)
 	}
