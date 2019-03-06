@@ -60,7 +60,7 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 	// If we can dedupe by the layer digest, try to do so. If the layer is
 	// a stream.Layer, we can't dedupe and might re-upload.
 	var g errgroup.Group
-	seen := map[v1.Hash]struct{}{}
+	uploaded := map[v1.Hash]bool{}
 	for _, l := range ls {
 		l := l
 		if _, ok := l.(*stream.Layer); !ok {
@@ -70,10 +70,10 @@ func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.Ro
 			}
 			// If we can determine the layer's digest ahead of
 			// time, use it to dedupe uploads.
-			if _, found := seen[h]; found {
+			if uploaded[h] {
 				continue // Already uploading.
 			}
-			seen[h] = struct{}{}
+			uploaded[h] = true
 		}
 
 		g.Go(func() error {
