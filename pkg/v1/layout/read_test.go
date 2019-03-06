@@ -23,13 +23,20 @@ func TestRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Read() = %v", err)
 	}
-	if testPath != lp.Path() {
-		t.Errorf("unexpected path %s", lp.Path())
+	if testPath != lp.path() {
+		t.Errorf("unexpected path %s", lp.path())
 	}
 }
 
 func TestReadErrors(t *testing.T) {
 	if _, err := Read(bogusPath); err == nil {
+		t.Errorf("Read(%s) = nil, expected err", bogusPath)
+	}
+
+	// Found this here:
+	// https://github.com/golang/go/issues/24195
+	invalidPath := "double-null-padded-string\x00\x00"
+	if _, err := Read(invalidPath); err == nil {
 		t.Errorf("Read(%s) = nil, expected err", bogusPath)
 	}
 }

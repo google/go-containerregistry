@@ -15,25 +15,23 @@
 package layout
 
 import (
+	"github.com/google/go-containerregistry/pkg/v1"
 	"io"
 	"io/ioutil"
 	"os"
-	"path/filepath"
-
-	"github.com/google/go-containerregistry/pkg/v1"
 )
 
-// Blob returns a blob with the given hash from an OCI Image Layout.
-func Blob(path string, h v1.Hash) (io.ReadCloser, error) {
-	return os.Open(blobPath(path, h))
+// Blob returns a blob with the given hash from the LayoutPath.
+func (l LayoutPath) Blob(h v1.Hash) (io.ReadCloser, error) {
+	return os.Open(l.blobPath(h))
 }
 
-// Bytes is a convenience function to return a blob from an OCI Image Layout as
+// Bytes is a convenience function to return a blob from the LayoutPath as
 // a byte slice.
-func Bytes(path string, h v1.Hash) ([]byte, error) {
-	return ioutil.ReadFile(blobPath(path, h))
+func (l LayoutPath) Bytes(h v1.Hash) ([]byte, error) {
+	return ioutil.ReadFile(l.blobPath(h))
 }
 
-func blobPath(path string, h v1.Hash) string {
-	return filepath.Join(path, "blobs", h.Algorithm, h.Hex)
+func (l LayoutPath) blobPath(h v1.Hash) string {
+	return l.path("blobs", h.Algorithm, h.Hex)
 }

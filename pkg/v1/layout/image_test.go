@@ -44,7 +44,11 @@ var (
 )
 
 func TestImage(t *testing.T) {
-	img, err := Image(testPath, manifestDigest)
+	lp, err := Read(testPath)
+	if err != nil {
+		t.Fatalf("Read() = %v", err)
+	}
+	img, err := lp.Image(manifestDigest)
 	if err != nil {
 		t.Fatalf("Image() = %v", err)
 	}
@@ -83,7 +87,11 @@ func TestImage(t *testing.T) {
 }
 
 func TestImageErrors(t *testing.T) {
-	img, err := Image(testPath, manifestDigest)
+	lp, err := Read(testPath)
+	if err != nil {
+		t.Fatalf("Read() = %v", err)
+	}
+	img, err := lp.Image(manifestDigest)
 	if err != nil {
 		t.Fatalf("Image() = %v", err)
 	}
@@ -92,11 +100,11 @@ func TestImageErrors(t *testing.T) {
 		t.Fatalf("LayerByDigest(%s) = nil, expected err", bogusDigest)
 	}
 
-	if _, err := Image(testPath, bogusDigest); err == nil {
+	if _, err := lp.Image(bogusDigest); err == nil {
 		t.Fatalf("Image(%s) = nil, expected err", bogusDigest)
 	}
 
-	if _, err := Image(bogusPath, bogusDigest); err == nil {
+	if _, err := lp.Image(bogusDigest); err == nil {
 		t.Fatalf("Image(%s, %s) = nil, expected err", bogusPath, bogusDigest)
 	}
 }

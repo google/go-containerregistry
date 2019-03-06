@@ -1,6 +1,7 @@
 package layout
 
 import (
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -33,7 +34,7 @@ func TestWrite(t *testing.T) {
 
 	if layoutPath, err := Write(tmp, original); err != nil {
 		t.Fatalf("Write(%s) = %v", tmp, err)
-	} else if tmp != layoutPath.Path() {
+	} else if tmp != layoutPath.path() {
 		t.Fatalf("unexpected file system path %v", layoutPath)
 	}
 
@@ -60,31 +61,12 @@ func TestWriteErrors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("accessing index: %v", err)
 	}
-	img, err := Image(testPath, manifestDigest)
-	if err != nil {
-		t.Fatalf("Image() = %v", err)
-	}
 
 	// Found this here:
 	// https://github.com/golang/go/issues/24195
 	invalidPath := "double-null-padded-string\x00\x00"
 	if _, err := Write(invalidPath, idx); err == nil {
 		t.Fatalf("Write(%s) = nil, expected err", invalidPath)
-	}
-	if err := WriteIndex(invalidPath, idx); err == nil {
-		t.Fatalf("WriteIndex(%s) = nil, expected err", invalidPath)
-	}
-	if err := WriteImage(invalidPath, img); err == nil {
-		t.Fatalf("WriteIndex(%s) = nil, expected err", invalidPath)
-	}
-	if _, err := AppendIndex(invalidPath, idx); err == nil {
-		t.Fatalf("WriteIndex(%s) = nil, expected err", invalidPath)
-	}
-	if _, err := AppendImage(invalidPath, img); err == nil {
-		t.Fatalf("WriteIndex(%s) = nil, expected err", invalidPath)
-	}
-	if _, err := AppendDescriptor(invalidPath, v1.Descriptor{}); err == nil {
-		t.Fatalf("WriteIndex(%s) = nil, expected err", invalidPath)
 	}
 }
 
@@ -95,6 +77,10 @@ func TestAppendDescriptorInitializesIndex(t *testing.T) {
 	}
 
 	defer os.RemoveAll(tmp)
+	temp, err := Write(tmp, empty.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Append a descriptor to a non-existent layout.
 	desc := v1.Descriptor{
@@ -102,7 +88,7 @@ func TestAppendDescriptorInitializesIndex(t *testing.T) {
 		Size:      1337,
 		MediaType: types.MediaType("not real"),
 	}
-	if _, err := AppendDescriptor(tmp, desc); err != nil {
+	if err := temp.AppendDescriptor(desc); err != nil {
 		t.Fatalf("AppendDescriptor(%s) = %v", tmp, err)
 	}
 
@@ -148,6 +134,10 @@ func TestAppendArtifacts(t *testing.T) {
 	}
 
 	// Let's reconstruct the original.
+	temp, err := Write(tmp, empty.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i, desc := range originalManifest.Manifests {
 		// Each descriptor is annotated with its position.
 		annotations := map[string]string{
@@ -159,7 +149,7 @@ func TestAppendArtifacts(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := AppendIndex(tmp, ii, WithAnnotations(annotations)); err != nil {
+			if err := temp.AppendIndex(ii, WithAnnotations(annotations)); err != nil {
 				t.Fatal(err)
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
@@ -167,7 +157,7 @@ func TestAppendArtifacts(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := AppendImage(tmp, img, WithAnnotations(annotations)); err != nil {
+			if err := temp.AppendImage(img, WithAnnotations(annotations)); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -195,6 +185,7 @@ func TestOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	temp, err := Write(tmp, empty.Index)
 	annotations := map[string]string{
 		"foo": "bar",
 	}
@@ -212,7 +203,11 @@ func TestOptions(t *testing.T) {
 		WithURLs(urls),
 		WithPlatform(platform),
 	}
-	idx, err := AppendImage(tmp, img, options...)
+	err = temp.AppendImage(img, options...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx, err := temp.ImageIndex()
 	if err != nil {
 		t.Fatal(err)
 	}

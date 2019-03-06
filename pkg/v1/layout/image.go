@@ -25,7 +25,7 @@ import (
 )
 
 type layoutImage struct {
-	path         string
+	path         LayoutPath
 	desc         v1.Descriptor
 	manifestLock sync.Mutex // Protects rawManifest
 	rawManifest  []byte
@@ -33,14 +33,9 @@ type layoutImage struct {
 
 var _ partial.CompressedImageCore = (*layoutImage)(nil)
 
-// Image reads a v1.Image from the OCI image layout at path with digest h.
-func Image(path string, h v1.Hash) (v1.Image, error) {
-	// Read the layout so we can find the manifest descriptor.
-	lp, err := Read(path)
-	if err != nil {
-		return nil, err
-	}
-	ii, err := lp.ImageIndex()
+// Image reads a v1.Image with digest h from the LayoutPath.
+func (l LayoutPath) Image(h v1.Hash) (v1.Image, error) {
+	ii, err := l.ImageIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +59,7 @@ func (li *layoutImage) RawManifest() ([]byte, error) {
 		return li.rawManifest, nil
 	}
 
-	b, err := Bytes(li.path, li.desc.Digest)
+	b, err := li.path.Bytes(li.desc.Digest)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +74,7 @@ func (li *layoutImage) RawConfigFile() ([]byte, error) {
 		return nil, err
 	}
 
-	return Bytes(li.path, manifest.Config.Digest)
+	return li.path.Bytes(manifest.Config.Digest)
 }
 
 func (li *layoutImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
@@ -115,7 +110,7 @@ func (li *layoutImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error)
 }
 
 type compressedBlob struct {
-	path string
+	path LayoutPath
 	desc v1.Descriptor
 }
 
@@ -124,7 +119,7 @@ func (b *compressedBlob) Digest() (v1.Hash, error) {
 }
 
 func (b *compressedBlob) Compressed() (io.ReadCloser, error) {
-	return Blob(b.path, b.desc.Digest)
+	return b.path.Blob(b.desc.Digest)
 }
 
 func (b *compressedBlob) Size() (int64, error) {

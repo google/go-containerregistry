@@ -17,7 +17,6 @@ package layout
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"io"
 	"io/ioutil"
 	"os"
@@ -32,26 +31,26 @@ var layoutFile = `{
     "imageLayoutVersion": "1.0.0"
 }`
 
-// AppendImage writes a v1.Image to an OCI image layout at path and updates
+// AppendImage writes a v1.Image to the LayoutPath and updates
 // the index.json to reference it.
-func AppendImage(path string, img v1.Image, options ...LayoutOption) (v1.ImageIndex, error) {
-	if err := WriteImage(path, img); err != nil {
-		return nil, err
+func (l LayoutPath) AppendImage(img v1.Image, options ...LayoutOption) error {
+	if err := l.WriteImage(img); err != nil {
+		return err
 	}
 
 	mt, err := img.MediaType()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	d, err := img.Digest()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	manifest, err := img.RawManifest()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	desc := v1.Descriptor{
@@ -62,33 +61,33 @@ func AppendImage(path string, img v1.Image, options ...LayoutOption) (v1.ImageIn
 
 	for _, opt := range options {
 		if err := opt(&desc); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return AppendDescriptor(path, desc)
+	return l.AppendDescriptor(desc)
 }
 
-// AppendIndex writes a v1.ImageIndex to an OCI image layout at path and updates
+// AppendIndex writes a v1.ImageIndex to the LayoutPath and updates
 // the index.json to reference it.
-func AppendIndex(path string, ii v1.ImageIndex, options ...LayoutOption) (v1.ImageIndex, error) {
-	if err := WriteIndex(path, ii); err != nil {
-		return nil, err
+func (l LayoutPath) AppendIndex(ii v1.ImageIndex, options ...LayoutOption) error {
+	if err := l.WriteIndex(ii); err != nil {
+		return err
 	}
 
 	mt, err := ii.MediaType()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	d, err := ii.Digest()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	manifest, err := ii.RawManifest()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	desc := v1.Descriptor{
@@ -99,68 +98,48 @@ func AppendIndex(path string, ii v1.ImageIndex, options ...LayoutOption) (v1.Ima
 
 	for _, opt := range options {
 		if err := opt(&desc); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return AppendDescriptor(path, desc)
+	return l.AppendDescriptor(desc)
 }
 
-// AppendDescriptor adds a descriptor to the index.json of an ImageIndex located
-// at path.
-func AppendDescriptor(path string, desc v1.Descriptor) (v1.ImageIndex, error) {
-	// Create an empty layout if it doesn't exist.
-	lp, err := Read(path)
+// AppendDescriptor adds a descriptor to the index.json of the LayoutPath.
+func (l LayoutPath) AppendDescriptor(desc v1.Descriptor) error {
+	ii, err := l.ImageIndex()
 	if err != nil {
-		if os.IsNotExist(err) {
-			// If it's not there, initialize the index.
-			lp, err = Write(path, empty.Index)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
-	}
-	ii, err := lp.ImageIndex()
-	if err != nil {
-		return nil, err
+		return err
 	}
 
 	index, err := ii.IndexManifest()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	index.Manifests = append(index.Manifests, desc)
 
 	rawIndex, err := json.MarshalIndent(index, "", "   ")
 	if err != nil {
-		return nil, err
-	}
-
-	if err := writeFile(path, "index.json", rawIndex); err != nil {
-		return nil, err
-	}
-
-	return &layoutIndex{
-		path:     path,
-		rawIndex: rawIndex,
-	}, nil
-}
-
-func writeFile(path string, name string, data []byte) error {
-	if err := os.MkdirAll(path, os.ModePerm); err != nil && !os.IsExist(err) {
 		return err
 	}
 
-	return ioutil.WriteFile(filepath.Join(path, name), data, os.ModePerm)
+	return l.writeFile("index.json", rawIndex)
 }
 
-// WriteBlob copies a file to the blobs/ directory from the given ReadCloser at
+func (l LayoutPath) writeFile(name string, data []byte) error {
+	if err := os.MkdirAll(l.path(), os.ModePerm); err != nil && !os.IsExist(err) {
+		return err
+	}
+
+	return ioutil.WriteFile(l.path(name), data, os.ModePerm)
+
+}
+
+// WriteBlob copies a file to the blobs/ directory in the LayoutPath from the given ReadCloser at
 // blobs/{hash.Algorithm}/{hash.Hex}.
-func WriteBlob(path string, hash v1.Hash, r io.ReadCloser) error {
-	dir := filepath.Join(path, "blobs", hash.Algorithm)
+func (l LayoutPath) WriteBlob(hash v1.Hash, r io.ReadCloser) error {
+	dir := l.path("blobs", hash.Algorithm)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -183,7 +162,7 @@ func WriteBlob(path string, hash v1.Hash, r io.ReadCloser) error {
 
 // TODO: For streaming layers we should write to a tmp file then Rename to the
 // final digest.
-func writeLayer(path string, layer v1.Layer) error {
+func (l LayoutPath) writeLayer(layer v1.Layer) error {
 	d, err := layer.Digest()
 	if err != nil {
 		return err
@@ -194,12 +173,12 @@ func writeLayer(path string, layer v1.Layer) error {
 		return err
 	}
 
-	return WriteBlob(path, d, r)
+	return l.WriteBlob(d, r)
 }
 
-// WriteImage writes a v1.Image to an OCI Image layout at path.
+// WriteImage writes a v1.Image to the LayoutPath.
 // This doesn't update the top-level index.json, see AppendImage.
-func WriteImage(path string, img v1.Image) error {
+func (l LayoutPath) WriteImage(img v1.Image) error {
 	layers, err := img.Layers()
 	if err != nil {
 		return err
@@ -210,7 +189,7 @@ func WriteImage(path string, img v1.Image) error {
 	for _, layer := range layers {
 		layer := layer
 		g.Go(func() error {
-			return writeLayer(path, layer)
+			return l.writeLayer(layer)
 		})
 	}
 	if err := g.Wait(); err != nil {
@@ -226,7 +205,7 @@ func WriteImage(path string, img v1.Image) error {
 	if err != nil {
 		return err
 	}
-	if err := WriteBlob(path, cfgName, ioutil.NopCloser(bytes.NewReader(cfgBlob))); err != nil {
+	if err := l.WriteBlob(cfgName, ioutil.NopCloser(bytes.NewReader(cfgBlob))); err != nil {
 		return err
 	}
 
@@ -240,10 +219,10 @@ func WriteImage(path string, img v1.Image) error {
 		return err
 	}
 
-	return WriteBlob(path, d, ioutil.NopCloser(bytes.NewReader(manifest)))
+	return l.WriteBlob(d, ioutil.NopCloser(bytes.NewReader(manifest)))
 }
 
-func writeIndexToFile(path string, indexFile string, ii v1.ImageIndex) error {
+func (l LayoutPath) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 	index, err := ii.IndexManifest()
 	if err != nil {
 		return err
@@ -258,7 +237,7 @@ func writeIndexToFile(path string, indexFile string, ii v1.ImageIndex) error {
 			if err != nil {
 				return err
 			}
-			if err := WriteIndex(path, ii); err != nil {
+			if err := l.WriteIndex(ii); err != nil {
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
@@ -266,7 +245,7 @@ func writeIndexToFile(path string, indexFile string, ii v1.ImageIndex) error {
 			if err != nil {
 				return err
 			}
-			if err := WriteImage(path, img); err != nil {
+			if err := l.WriteImage(img); err != nil {
 				return err
 			}
 		default:
@@ -275,7 +254,7 @@ func writeIndexToFile(path string, indexFile string, ii v1.ImageIndex) error {
 			if err != nil {
 				return err
 			}
-			if err := WriteBlob(path, desc.Digest, blob); err != nil {
+			if err := l.WriteBlob(desc.Digest, blob); err != nil {
 				return err
 			}
 		}
@@ -286,14 +265,14 @@ func writeIndexToFile(path string, indexFile string, ii v1.ImageIndex) error {
 		return err
 	}
 
-	return writeFile(path, indexFile, rawIndex)
+	return l.writeFile(indexFile, rawIndex)
 }
 
-// WriteIndex writes a v1.ImageIndex to an OCI Image layout at path.
+// WriteIndex writes a v1.ImageIndex to the LayoutPath.
 // This doesn't update the top-level index.json, see AppendIndex.
-func WriteIndex(path string, ii v1.ImageIndex) error {
+func (l LayoutPath) WriteIndex(ii v1.ImageIndex) error {
 	// Always just write oci-layout file, since it's small.
-	if err := writeFile(path, "oci-layout", []byte(layoutFile)); err != nil {
+	if err := l.writeFile("oci-layout", []byte(layoutFile)); err != nil {
 		return err
 	}
 
@@ -303,10 +282,11 @@ func WriteIndex(path string, ii v1.ImageIndex) error {
 	}
 
 	indexFile := filepath.Join("blobs", h.Algorithm, h.Hex)
-	return writeIndexToFile(path, indexFile, ii)
+	return l.writeIndexToFile(indexFile, ii)
+
 }
 
-// Write constructs an OCI image layout at path from an ImageIndex.
+// Write constructs a LayoutPath at path from an ImageIndex.
 //
 // The contents are written in the following format:
 // At the top level, there is:
@@ -317,12 +297,13 @@ func WriteIndex(path string, ii v1.ImageIndex) error {
 //   One file for each config blob, named after its SHA.
 //   One file for each manifest blob, named after its SHA.
 func Write(path string, ii v1.ImageIndex) (LayoutPath, error) {
+	lp := LayoutPath(path)
 	// Always just write oci-layout file, since it's small.
-	if err := writeFile(path, "oci-layout", []byte(layoutFile)); err != nil {
+	if err := lp.writeFile("oci-layout", []byte(layoutFile)); err != nil {
 		return "", err
 	}
 
 	// TODO create blobs/ in case there is a blobs file which would prevent the directory from being created
 
-	return LayoutPath(path), writeIndexToFile(path, "index.json", ii)
+	return lp, lp.writeIndexToFile("index.json", ii)
 }

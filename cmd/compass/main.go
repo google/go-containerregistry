@@ -16,6 +16,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"log"
 	"net/http"
 
@@ -73,6 +74,11 @@ func main() {
 }
 
 func freeze(src, path string) {
+	lp, err := layout.Write(path, empty.Index)
+	if err != nil {
+		log.Fatalf("writing image layout %q: %v", path, err)
+	}
+
 	repo, err := name.NewRepository(src, name.WeakValidation)
 	if err != nil {
 		log.Fatalf("parsing repo %q: %v", src, err)
@@ -104,7 +110,7 @@ func freeze(src, path string) {
 		annotations := map[string]string{
 			"org.opencontainers.image.ref.name": t,
 		}
-		if _, err := layout.AppendImage(path, img, layout.WithAnnotations(annotations)); err != nil {
+		if err := lp.AppendImage(img, layout.WithAnnotations(annotations)); err != nil {
 			log.Fatalf("writing image %q: %v", path, err)
 		}
 	}

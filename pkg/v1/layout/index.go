@@ -17,31 +17,29 @@ package layout
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"path/filepath"
-
 	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"io"
+	"io/ioutil"
 )
 
 var _ v1.ImageIndex = (*layoutIndex)(nil)
 
 type layoutIndex struct {
-	path     string
+	path     LayoutPath
 	rawIndex []byte
 }
 
-// ImageIndex returns a v1.ImageIndex for a LayoutPath.
+// ImageIndex returns a v1.ImageIndex for the LayoutPath.
 func (l LayoutPath) ImageIndex() (v1.ImageIndex, error) {
-	rawIndex, err := ioutil.ReadFile(filepath.Join(l.Path(), "index.json"))
+	rawIndex, err := ioutil.ReadFile(l.path("index.json"))
 	if err != nil {
 		return nil, err
 	}
 
 	idx := &layoutIndex{
-		path:     l.Path(),
+		path:     l,
 		rawIndex: rawIndex,
 	}
 
@@ -95,7 +93,7 @@ func (i *layoutIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
 		return nil, fmt.Errorf("unexpected media type for %v: %s", h, desc.MediaType)
 	}
 
-	rawIndex, err := Bytes(i.path, h)
+	rawIndex, err := i.path.Bytes(h)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +105,7 @@ func (i *layoutIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
 }
 
 func (i *layoutIndex) Blob(h v1.Hash) (io.ReadCloser, error) {
-	return Blob(i.path, h)
+	return i.path.Blob(h)
 }
 
 func (i *layoutIndex) findDescriptor(h v1.Hash) (*v1.Descriptor, error) {
