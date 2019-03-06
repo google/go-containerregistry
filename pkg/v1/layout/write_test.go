@@ -26,8 +26,10 @@ func TestWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Write(tmp, original); err != nil {
+	if layoutPath, err := Write(tmp, original); err != nil {
 		t.Fatalf("Write(%s) = %v", tmp, err)
+	} else if tmp != layoutPath.Path() {
+		t.Fatalf("unexpected file system path %v", layoutPath)
 	}
 
 	written, err := Index(tmp)
@@ -53,7 +55,7 @@ func TestWriteErrors(t *testing.T) {
 	// Found this here:
 	// https://github.com/golang/go/issues/24195
 	invalidPath := "double-null-padded-string\x00\x00"
-	if err := Write(invalidPath, idx); err == nil {
+	if _, err := Write(invalidPath, idx); err == nil {
 		t.Fatalf("Write(%s) = nil, expected err", invalidPath)
 	}
 	if err := WriteIndex(invalidPath, idx); err == nil {

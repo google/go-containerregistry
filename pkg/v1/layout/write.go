@@ -303,21 +303,23 @@ func WriteIndex(path string, ii v1.ImageIndex) error {
 	return writeIndexToFile(path, indexFile, ii)
 }
 
-// Write converts an ImageIndex to an OCI image layout at path.
+// Write constructs an OCI image layout at path from an ImageIndex.
 //
 // The contents are written in the following format:
 // At the top level, there is:
 //   One oci-layout file containing the version of this image-layout.
-//   One index.json file listing decsriptors for the contained images.
+//   One index.json file listing descriptors for the contained images.
 // Under blobs/, there is, for each image:
 //   One file for each layer, named after the layer's SHA.
 //   One file for each config blob, named after its SHA.
 //   One file for each manifest blob, named after its SHA.
-func Write(path string, ii v1.ImageIndex) error {
+func Write(path string, ii v1.ImageIndex) (LayoutPath, error) {
 	// Always just write oci-layout file, since it's small.
 	if err := writeFile(path, "oci-layout", []byte(layoutFile)); err != nil {
-		return err
+		return "", err
 	}
+	
+	// TODO create blobs/ in case there is a blobs file which would prevent the directory from being created
 
-	return writeIndexToFile(path, "index.json", ii)
+	return LayoutPath(path), writeIndexToFile(path, "index.json", ii)
 }
