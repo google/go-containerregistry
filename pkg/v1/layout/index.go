@@ -33,15 +33,15 @@ type layoutIndex struct {
 	rawIndex []byte
 }
 
-// Index reads an OCI image layout at path as a v1.ImageIndex.
-func Index(path string) (v1.ImageIndex, error) {
-	rawIndex, err := ioutil.ReadFile(filepath.Join(path, "index.json"))
+// ImageIndex returns a v1.ImageIndex for a LayoutPath.
+func (l LayoutPath) ImageIndex() (v1.ImageIndex, error) {
+	rawIndex, err := ioutil.ReadFile(filepath.Join(l.Path(), "index.json"))
 	if err != nil {
 		return nil, err
 	}
 
 	idx := &layoutIndex{
-		path:     path,
+		path:     l.Path(),
 		rawIndex: rawIndex,
 	}
 

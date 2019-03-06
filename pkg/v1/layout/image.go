@@ -35,8 +35,12 @@ var _ partial.CompressedImageCore = (*layoutImage)(nil)
 
 // Image reads a v1.Image from the OCI image layout at path with digest h.
 func Image(path string, h v1.Hash) (v1.Image, error) {
-	// Read the index.json so we can find the manifest descriptor.
-	ii, err := Index(path)
+	// Read the layout so we can find the manifest descriptor.
+	lp, err := Read(path)
+	if err != nil {
+		return nil, err
+	}
+	ii, err := lp.ImageIndex()
 	if err != nil {
 		return nil, err
 	}

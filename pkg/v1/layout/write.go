@@ -17,13 +17,13 @@ package layout
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
 )
@@ -109,19 +109,22 @@ func AppendIndex(path string, ii v1.ImageIndex, options ...LayoutOption) (v1.Ima
 // AppendDescriptor adds a descriptor to the index.json of an ImageIndex located
 // at path.
 func AppendDescriptor(path string, desc v1.Descriptor) (v1.ImageIndex, error) {
-	// Create an empty image index if it doesn't exist.
-	var ii v1.ImageIndex
-	ii, err := Index(path)
+	// Create an empty layout if it doesn't exist.
+	lp, err := Read(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// If it's not there, initialize the index.
-			if err := writeFile(path, "oci-layout", []byte(layoutFile)); err != nil {
+			lp, err = Write(path, empty.Index)
+			if err != nil {
 				return nil, err
 			}
-			ii = empty.Index
 		} else {
 			return nil, err
 		}
+	}
+	ii, err := lp.ImageIndex()
+	if err != nil {
+		return nil, err
 	}
 
 	index, err := ii.IndexManifest()
@@ -318,7 +321,7 @@ func Write(path string, ii v1.ImageIndex) (LayoutPath, error) {
 	if err := writeFile(path, "oci-layout", []byte(layoutFile)); err != nil {
 		return "", err
 	}
-	
+
 	// TODO create blobs/ in case there is a blobs file which would prevent the directory from being created
 
 	return LayoutPath(path), writeIndexToFile(path, "index.json", ii)

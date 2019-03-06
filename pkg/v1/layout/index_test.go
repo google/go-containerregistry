@@ -22,9 +22,13 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	idx, err := Index(testPath)
+	lp, err := Read(testPath)
 	if err != nil {
-		t.Fatalf("Index() = %v", err)
+		t.Fatalf("Read() = %v", err)
+	}
+	idx, err := lp.ImageIndex()
+	if err != nil {
+		t.Fatalf("accessing index: %v", err)
 	}
 
 	if err := validate.Index(idx); err != nil {
@@ -41,14 +45,18 @@ func TestIndex(t *testing.T) {
 	}
 
 	if _, err := idx.Blob(configDigest); err != nil {
-		t.Errorf("validate.Index() = %v", err)
+		t.Errorf("Blob() = %v", err)
 	}
 }
 
 func TestIndexErrors(t *testing.T) {
-	idx, err := Index(testPath)
+	lp, err := Read(testPath)
 	if err != nil {
-		t.Fatalf("Index() = %v", err)
+		t.Fatalf("Read() = %v", err)
+	}
+	idx, err := lp.ImageIndex()
+	if err != nil {
+		t.Fatalf("accessing index: %v", err)
 	}
 
 	if _, err := idx.Image(bogusDigest); err == nil {
@@ -65,9 +73,5 @@ func TestIndexErrors(t *testing.T) {
 
 	if _, err := idx.ImageIndex(manifestDigest); err == nil {
 		t.Errorf("idx.ImageIndex(%s) = nil, expected err", bogusDigest)
-	}
-
-	if _, err := Index(bogusPath); err == nil {
-		t.Errorf("Index(%s) = nil, expected err", bogusPath)
 	}
 }
