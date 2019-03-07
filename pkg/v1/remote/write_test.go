@@ -229,6 +229,7 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
 		"mount": []string{h.String()},
+		"from":  []string{"baz/bar"},
 	}.Encode()
 
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -248,7 +249,7 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload("", h.String())
+	_, mounted, err := w.initiateUpload("baz/bar", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -264,6 +265,7 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
 		"mount": []string{h.String()},
+		"from":  []string{"baz/bar"},
 	}.Encode()
 	expectedLocation := "https://somewhere.io/upload?foo=bar"
 
@@ -285,7 +287,7 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload("", h.String())
+	location, mounted, err := w.initiateUpload("baz/bar", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -304,6 +306,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
 		"mount": []string{h.String()},
+		"from":  []string{"baz/bar"},
 	}.Encode()
 
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -323,7 +326,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload("", h.String())
+	location, mounted, err := w.initiateUpload("baz/bar", h.String())
 	if err == nil {
 		t.Errorf("intiateUpload() = %v, %v; wanted error", location, mounted)
 	}
@@ -337,6 +340,7 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
 		"mount": []string{h.String()},
+		"from":  []string{"baz/bar"},
 	}.Encode()
 
 	img = &mountableImage{
@@ -361,7 +365,7 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload("", h.String())
+	_, mounted, err := w.initiateUpload("baz/bar", h.String())
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
