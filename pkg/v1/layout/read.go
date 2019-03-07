@@ -15,7 +15,7 @@
 package layout
 
 import (
-	"io/ioutil"
+	"os"
 	"path/filepath"
 )
 
@@ -23,7 +23,7 @@ import (
 func Read(path string) (LayoutPath, error) {
 	// TODO: check oci-layout exists
 
-	_, err := ioutil.ReadFile(filepath.Join(path, "index.json"))
+	_, err := os.Stat(filepath.Join(path, "index.json"))
 	if err != nil {
 		return "", err
 	}

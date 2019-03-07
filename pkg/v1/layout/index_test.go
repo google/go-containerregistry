@@ -22,13 +22,9 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	lp, err := Read(testPath)
+	idx, err := ImageIndex(testPath)
 	if err != nil {
-		t.Fatalf("Read() = %v", err)
-	}
-	idx, err := lp.ImageIndex()
-	if err != nil {
-		t.Fatalf("accessing index: %v", err)
+		t.Fatalf("ImageIndex() = %v", err)
 	}
 
 	if err := validate.Index(idx); err != nil {
@@ -50,13 +46,9 @@ func TestIndex(t *testing.T) {
 }
 
 func TestIndexErrors(t *testing.T) {
-	lp, err := Read(testPath)
+	idx, err := ImageIndex(testPath)
 	if err != nil {
-		t.Fatalf("Read() = %v", err)
-	}
-	idx, err := lp.ImageIndex()
-	if err != nil {
-		t.Fatalf("accessing index: %v", err)
+		t.Fatalf("ImageIndex() = %v", err)
 	}
 
 	if _, err := idx.Image(bogusDigest); err == nil {

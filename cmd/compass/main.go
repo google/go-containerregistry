@@ -128,14 +128,9 @@ func thaw(path, dst string) {
 		log.Fatalf("getting creds for %q: %v", repo, err)
 	}
 
-	lp, err := layout.Read(path)
+	ii, err := layout.ImageIndex(path)
 	if err != nil {
 		log.Fatalf("reading image layout %q: %v", path, err)
-	}
-
-	ii, err := lp.ImageIndex()
-	if err != nil {
-		log.Fatalf("accessing index: %v", err)
 	}
 
 	manifest, err := ii.IndexManifest()
@@ -187,14 +182,9 @@ func thaw(path, dst string) {
 }
 
 func ls(path string) {
-	lp, err := layout.Read(path)
+	ii, err := layout.ImageIndex(path)
 	if err != nil {
-		log.Fatalf("reading layout: %v", err)
-	}
-
-	ii, err := lp.ImageIndex()
-	if err != nil {
-		log.Fatalf("accessing index: %v", err)
+		log.Fatalf("reading image layout %q: %v", path, err)
 	}
 
 	m, err := ii.IndexManifest()

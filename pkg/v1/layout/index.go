@@ -31,6 +31,15 @@ type layoutIndex struct {
 	rawIndex []byte
 }
 
+// ImageIndex is a convenience function which constructs a LayoutPath and returns its v1.ImageIndex.
+func ImageIndex(path string) (v1.ImageIndex, error) {
+	lp, err := Read(path)
+	if err != nil {
+		return nil, err
+	}
+	return lp.ImageIndex()
+}
+
 // ImageIndex returns a v1.ImageIndex for the LayoutPath.
 func (l LayoutPath) ImageIndex() (v1.ImageIndex, error) {
 	rawIndex, err := ioutil.ReadFile(l.path("index.json"))

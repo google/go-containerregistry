@@ -22,15 +22,10 @@ func TestWrite(t *testing.T) {
 
 	defer os.RemoveAll(tmp)
 
-	lp, err := Read(testPath)
+	original, err := ImageIndex(testPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	original, err := lp.ImageIndex()
-	if err != nil {
-		t.Fatalf("accessing index: %v", err)
-	}
-
 
 	if layoutPath, err := Write(tmp, original); err != nil {
 		t.Fatalf("Write(%s) = %v", tmp, err)
@@ -38,13 +33,9 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("unexpected file system path %v", layoutPath)
 	}
 
-	newLayout, err := Read(tmp)
+	written, err := ImageIndex(tmp)
 	if err != nil {
 		t.Fatal(err)
-	}
-	written, err := newLayout.ImageIndex()
-	if err != nil {
-		t.Fatalf("accessing index: %v", err)
 	}
 
 	if err := validate.Index(written); err != nil {
@@ -53,13 +44,9 @@ func TestWrite(t *testing.T) {
 }
 
 func TestWriteErrors(t *testing.T) {
-	lp, err := Read(testPath)
+	idx, err := ImageIndex(testPath)
 	if err != nil {
-		t.Fatalf("Read() = %v", err)
-	}
-	idx, err := lp.ImageIndex()
-	if err != nil {
-		t.Fatalf("accessing index: %v", err)
+		t.Fatalf("ImageIndex() = %v", err)
 	}
 
 	// Found this here:
@@ -93,13 +80,9 @@ func TestAppendDescriptorInitializesIndex(t *testing.T) {
 	}
 
 	// Read that layout from disk and make sure the descriptor is there.
-	lp, err := Read(tmp)
+	idx, err := ImageIndex(tmp)
 	if err != nil {
-		t.Fatalf("Read() = %v", err)
-	}
-	idx, err := lp.ImageIndex()
-	if err != nil {
-		t.Fatalf("accessing index: %v", err)
+		t.Fatalf("ImageIndex() = %v", err)
 	}
 
 	manifest, err := idx.IndexManifest()
@@ -119,13 +102,9 @@ func TestAppendArtifacts(t *testing.T) {
 
 	defer os.RemoveAll(tmp)
 
-	lp, err := Read(testPath)
+	original, err := ImageIndex(testPath)
 	if err != nil {
 		t.Fatal(err)
-	}
-	original, err := lp.ImageIndex()
-	if err != nil {
-		t.Fatalf("accessing index: %v", err)
 	}
 
 	originalManifest, err := original.IndexManifest()
@@ -163,13 +142,9 @@ func TestAppendArtifacts(t *testing.T) {
 		}
 	}
 
-	newLayout, err := Read(tmp)
+	reconstructed, err := ImageIndex(tmp)
 	if err != nil {
-		t.Fatalf("Read() = %v", err)
-	}
-	reconstructed, err := newLayout.ImageIndex()
-	if err != nil {
-		t.Fatalf("accessing index: %v", err)
+		t.Fatalf("ImageIndex() = %v", err)
 	}
 	reconstructedManifest, err := reconstructed.IndexManifest()
 	if err != nil {
@@ -203,8 +178,7 @@ func TestOptions(t *testing.T) {
 		WithURLs(urls),
 		WithPlatform(platform),
 	}
-	err = temp.AppendImage(img, options...)
-	if err != nil {
+	if err := temp.AppendImage(img, options...); err != nil {
 		t.Fatal(err)
 	}
 	idx, err := temp.ImageIndex()
