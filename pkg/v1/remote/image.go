@@ -34,6 +34,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
+var defaultPlatform = v1.Platform{
+	Architecture: "amd64",
+	OS:           "linux",
+}
+
 // remoteImage accesses an image from a remote registry
 type remoteImage struct {
 	fetcher
@@ -89,10 +94,7 @@ func Image(ref name.Reference, options ...ImageOption) (v1.Image, error) {
 		auth:      authn.Anonymous,
 		transport: http.DefaultTransport,
 		ref:       ref,
-		platform: v1.Platform{
-			Architecture: runtime.GOARCH,
-			OS:           runtime.GOOS,
-		},
+		platform:  defaultPlatform,
 	}
 
 	for _, option := range options {
@@ -316,10 +318,7 @@ func (r *remoteImage) matchImage(rawIndex []byte) ([]byte, *v1.Descriptor, error
 	}
 	for _, childDesc := range index.Manifests {
 		// If platform is missing from child descriptor, assume it's amd64/linux.
-		p := v1.Platform{
-			Architecture: "amd64",
-			OS:           "linux",
-		}
+		p := defaultPlatform
 		if childDesc.Platform != nil {
 			p = *childDesc.Platform
 		}
