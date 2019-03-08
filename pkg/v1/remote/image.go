@@ -24,7 +24,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -32,11 +31,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
-
-var defaultPlatform = v1.Platform{
-	Architecture: "amd64",
-	OS:           "linux",
-}
 
 // remoteImage accesses an image from a remote registry
 type remoteImage struct {
@@ -46,62 +40,27 @@ type remoteImage struct {
 	configLock   sync.Mutex // Protects config
 	config       []byte
 	mediaType    types.MediaType
-	platform     v1.Platform
 }
-
-// ImageOption is a functional option for Image.
-type ImageOption func(*imageOpener) error
 
 var _ partial.CompressedImageCore = (*remoteImage)(nil)
-
-type imageOpener struct {
-	auth      authn.Authenticator
-	transport http.RoundTripper
-	ref       name.Reference
-	client    *http.Client
-	platform  v1.Platform
-}
-
-func (i *imageOpener) Open() (v1.Image, error) {
-	tr, err := transport.New(i.ref.Context().Registry, i.auth, i.transport, []string{i.ref.Scope(transport.PullScope)})
-	if err != nil {
-		return nil, err
-	}
-	ri := &remoteImage{
-		fetcher: fetcher{
-			Ref:    i.ref,
-			Client: &http.Client{Transport: tr},
-		},
-		platform: i.platform,
-	}
-	imgCore, err := partial.CompressedToImage(ri)
-	if err != nil {
-		return imgCore, err
-	}
-	// Wrap the v1.Layers returned by this v1.Image in a hint for downstream
-	// remote.Write calls to facilitate cross-repo "mounting".
-	return &mountableImage{
-		Image:     imgCore,
-		Reference: i.ref,
-	}, nil
-}
 
 // Image provides access to a remote image reference, applying functional options
 // to the underlying imageOpener before resolving the reference into a v1.Image.
 func Image(ref name.Reference, options ...ImageOption) (v1.Image, error) {
-	img := &imageOpener{
-		auth:      authn.Anonymous,
-		transport: http.DefaultTransport,
-		ref:       ref,
-		platform:  defaultPlatform,
+	acceptable := []types.MediaType{
+		types.DockerManifestSchema2,
+		types.OCIManifestSchema1,
+		// We resolve these to images later.
+		types.DockerManifestList,
+		types.OCIImageIndex,
 	}
 
-	for _, option := range options {
-		if err := option(img); err != nil {
-			return nil, err
-		}
+	desc, err := get(ref, acceptable, options...)
+	if err != nil {
+		return nil, err
 	}
-	return img.Open()
+
+	return desc.Image()
 }
 
 // fetcher implements methods for reading from a remote image.
@@ -119,8 +78,8 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 	}
 }
 
-func (f *fetcher) fetchManifest(acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
-	u := f.url("manifests", f.Ref.Identifier())
+func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
+	u := f.url("manifests", ref.Identifier())
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, nil, err
@@ -152,7 +111,7 @@ func (f *fetcher) fetchManifest(acceptable []types.MediaType) ([]byte, *v1.Descr
 	}
 
 	// Validate the digest matches what we asked for, if pulling by digest.
-	if dgst, ok := f.Ref.(name.Digest); ok {
+	if dgst, ok := ref.(name.Digest); ok {
 		if digest.String() != dgst.DigestStr() {
 			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.Ref)
 		}
@@ -184,7 +143,6 @@ func (r *remoteImage) MediaType() (types.MediaType, error) {
 	return types.DockerManifestSchema2, nil
 }
 
-// TODO(jonjohnsonjr): Handle manifest lists.
 func (r *remoteImage) RawManifest() ([]byte, error) {
 	r.manifestLock.Lock()
 	defer r.manifestLock.Unlock()
@@ -192,24 +150,16 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		return r.manifest, nil
 	}
 
+	// We should never get here because the public entrypoints do type-checking
+	// via remote.Descriptor. Just in case, but I've left this here for tests that
+	// directly instantiate a remoteImage.
 	acceptable := []types.MediaType{
 		types.DockerManifestSchema2,
 		types.OCIManifestSchema1,
-		// We'll resolve these to an image based on the platform.
-		types.DockerManifestList,
-		types.OCIImageIndex,
 	}
-	manifest, desc, err := r.fetchManifest(acceptable)
+	manifest, desc, err := r.fetchManifest(r.Ref, acceptable)
 	if err != nil {
 		return nil, err
-	}
-
-	// We want an image but the registry has an index, resolve it to an image.
-	for desc.MediaType == types.DockerManifestList || desc.MediaType == types.OCIImageIndex {
-		manifest, desc, err = r.matchImage(manifest)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	r.mediaType = desc.MediaType
@@ -301,37 +251,4 @@ func (r *remoteImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) 
 		ri:     r,
 		digest: h,
 	}, nil
-}
-
-// This naively matches the first manifest with matching Architecture and OS.
-//
-// We should probably use this instead:
-//	 github.com/containerd/containerd/platforms
-//
-// But first we'd need to migrate to:
-//   github.com/opencontainers/image-spec/specs-go/v1
-func (r *remoteImage) matchImage(rawIndex []byte) ([]byte, *v1.Descriptor, error) {
-	index, err := v1.ParseIndexManifest(bytes.NewReader(rawIndex))
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, childDesc := range index.Manifests {
-		// If platform is missing from child descriptor, assume it's amd64/linux.
-		p := defaultPlatform
-		if childDesc.Platform != nil {
-			p = *childDesc.Platform
-		}
-		if r.platform.Architecture == p.Architecture && r.platform.OS == p.OS {
-			childRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), childDesc.Digest), name.StrictValidation)
-			if err != nil {
-				return nil, nil, err
-			}
-			r.fetcher = fetcher{
-				Client: r.Client,
-				Ref:    childRef,
-			}
-			return r.fetchManifest([]types.MediaType{childDesc.MediaType})
-		}
-	}
-	return nil, nil, fmt.Errorf("no matching image for %s/%s, index: %s", r.platform.Architecture, r.platform.OS, string(rawIndex))
 }

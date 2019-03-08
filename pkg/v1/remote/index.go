@@ -17,14 +17,11 @@ package remote
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"sync"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
-	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -39,27 +36,17 @@ type remoteIndex struct {
 // Index provides access to a remote index reference, applying functional options
 // to the underlying imageOpener before resolving the reference into a v1.ImageIndex.
 func Index(ref name.Reference, options ...ImageOption) (v1.ImageIndex, error) {
-	i := &imageOpener{
-		auth:      authn.Anonymous,
-		transport: http.DefaultTransport,
-		ref:       ref,
+	acceptable := []types.MediaType{
+		types.DockerManifestList,
+		types.OCIImageIndex,
 	}
 
-	for _, option := range options {
-		if err := option(i); err != nil {
-			return nil, err
-		}
-	}
-	tr, err := transport.New(i.ref.Context().Registry, i.auth, i.transport, []string{i.ref.Scope(transport.PullScope)})
+	desc, err := get(ref, acceptable, options...)
 	if err != nil {
 		return nil, err
 	}
-	return &remoteIndex{
-		fetcher: fetcher{
-			Ref:    i.ref,
-			Client: &http.Client{Transport: tr},
-		},
-	}, nil
+
+	return desc.ImageIndex()
 }
 
 func (r *remoteIndex) MediaType() (types.MediaType, error) {
@@ -84,7 +71,7 @@ func (r *remoteIndex) RawManifest() ([]byte, error) {
 		types.DockerManifestList,
 		types.OCIImageIndex,
 	}
-	manifest, desc, err := r.fetchManifest(acceptable)
+	manifest, desc, err := r.fetchManifest(r.Ref, acceptable)
 	if err != nil {
 		return nil, err
 	}
@@ -136,4 +123,60 @@ func (r *remoteIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
 			Client: r.Client,
 		},
 	}, nil
+}
+
+// This naively matches the first manifest with matching Architecture and OS.
+//
+// We should probably use this instead:
+//	 github.com/containerd/containerd/platforms
+//
+// But first we'd need to migrate to:
+//   github.com/opencontainers/image-spec/specs-go/v1
+func (r *remoteIndex) ImageByPlatform(platform v1.Platform) (v1.Image, error) {
+	desc, err := r.DescriptorByPlatform(platform)
+	if err != nil {
+		return nil, err
+	}
+
+	// Descriptor.Image will call back into here if it's an index.
+	return desc.Image()
+}
+
+func (r *remoteIndex) DescriptorByPlatform(platform v1.Platform) (*Descriptor, error) {
+	index, err := r.IndexManifest()
+	if err != nil {
+		return nil, err
+	}
+	for _, childDesc := range index.Manifests {
+		// If platform is missing from child descriptor, assume it's amd64/linux.
+		p := defaultPlatform
+		if childDesc.Platform != nil {
+			p = *childDesc.Platform
+		}
+		if platform.Architecture == p.Architecture && platform.OS == p.OS {
+			childRef, err := r.childRef(childDesc.Digest)
+			if err != nil {
+				return nil, err
+			}
+			manifest, desc, err := r.fetchManifest(childRef, []types.MediaType{childDesc.MediaType})
+			if err != nil {
+				return nil, err
+			}
+
+			return &Descriptor{
+				fetcher: fetcher{
+					Ref:    childRef,
+					Client: r.Client,
+				},
+				Manifest:   manifest,
+				Descriptor: *desc,
+				platform:   platform,
+			}, nil
+		}
+	}
+	return nil, fmt.Errorf("no matching image for %s/%s in %s", platform.Architecture, platform.OS, r.Ref)
+}
+
+func (r *remoteIndex) childRef(h v1.Hash) (name.Reference, error) {
+	return name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), h), name.StrictValidation)
 }

@@ -262,8 +262,6 @@ func TestAcceptHeaders(t *testing.T) {
 			wantAccept := strings.Join([]string{
 				string(types.DockerManifestSchema2),
 				string(types.OCIManifestSchema1),
-				string(types.DockerManifestList),
-				string(types.OCIImageIndex),
 			}, ",")
 			if got, want := r.Header.Get("Accept"), wantAccept; got != want {
 				t.Errorf("Accept header; got %v, want %v", got, want)
@@ -390,7 +388,6 @@ func TestPullingManifestList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Log(string(rawManifest))
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -430,7 +427,7 @@ func TestPullingManifestList(t *testing.T) {
 
 	// Test that child works as expected.
 	if got, want := mustRawManifest(t, rmtChild), mustRawManifest(t, child); bytes.Compare(got, want) != 0 {
-		t.Errorf("RawManifest() = %v, want %v", got, want)
+		t.Errorf("RawManifest() = %v, want %v", string(got), string(want))
 	}
 	if got, want := mustRawConfigFile(t, rmtChild), mustRawConfigFile(t, child); bytes.Compare(got, want) != 0 {
 		t.Errorf("RawConfigFile() = %v, want %v", got, want)
@@ -480,13 +477,7 @@ func TestPullingManifestListNoMatch(t *testing.T) {
 		OS:           "not-real-os",
 	}
 	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
-	rmtChild, err := Image(tag, WithPlatform(platform))
-	if err != nil {
-		t.Errorf("Image() = %v", err)
-	}
-
-	// Test that child works as expected.
-	if b, err := rmtChild.RawManifest(); err == nil {
-		t.Errorf("RawManifest() = %v, wanted err", b)
+	if _, err := Image(tag, WithPlatform(platform)); err == nil {
+		t.Errorf("Image succeeded, wanted err")
 	}
 }
