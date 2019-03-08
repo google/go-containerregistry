@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -33,6 +34,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
+var defaultPlatform = v1.Platform{
+	Architecture: "amd64",
+	OS:           "linux",
+}
+
 // remoteImage accesses an image from a remote registry
 type remoteImage struct {
 	fetcher
@@ -41,6 +47,7 @@ type remoteImage struct {
 	configLock   sync.Mutex // Protects config
 	config       []byte
 	mediaType    types.MediaType
+	platform     v1.Platform
 }
 
 // ImageOption is a functional option for Image.
@@ -53,6 +60,7 @@ type imageOpener struct {
 	transport http.RoundTripper
 	ref       name.Reference
 	client    *http.Client
+	platform  v1.Platform
 }
 
 func (i *imageOpener) Open() (v1.Image, error) {
@@ -65,6 +73,7 @@ func (i *imageOpener) Open() (v1.Image, error) {
 			Ref:    i.ref,
 			Client: &http.Client{Transport: tr},
 		},
+		platform: i.platform,
 	}
 	imgCore, err := partial.CompressedToImage(ri)
 	if err != nil {
@@ -85,6 +94,7 @@ func Image(ref name.Reference, options ...ImageOption) (v1.Image, error) {
 		auth:      authn.Anonymous,
 		transport: http.DefaultTransport,
 		ref:       ref,
+		platform:  defaultPlatform,
 	}
 
 	for _, option := range options {
@@ -183,14 +193,24 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		return r.manifest, nil
 	}
 
-	// TODO(jonjohnsonjr): Accept manifest list and image index?
 	acceptable := []types.MediaType{
 		types.DockerManifestSchema2,
 		types.OCIManifestSchema1,
+		// We'll resolve these to an image based on the platform.
+		types.DockerManifestList,
+		types.OCIImageIndex,
 	}
 	manifest, desc, err := r.fetchManifest(acceptable)
 	if err != nil {
 		return nil, err
+	}
+
+	// We want an image but the registry has an index, resolve it to an image.
+	for desc.MediaType == types.DockerManifestList || desc.MediaType == types.OCIImageIndex {
+		manifest, desc, err = r.matchImage(manifest)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	r.mediaType = desc.MediaType
@@ -282,4 +302,37 @@ func (r *remoteImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) 
 		ri:     r,
 		digest: h,
 	}, nil
+}
+
+// This naively matches the first manifest with matching GOOS and GOARCH.
+//
+// We should probably use this instead:
+//	 github.com/containerd/containerd/platforms
+//
+// But first we'd need to migrate to:
+//   github.com/opencontainers/image-spec/specs-go/v1
+func (r *remoteImage) matchImage(rawIndex []byte) ([]byte, *v1.Descriptor, error) {
+	index, err := v1.ParseIndexManifest(bytes.NewReader(rawIndex))
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, childDesc := range index.Manifests {
+		// If platform is missing from child descriptor, assume it's amd64/linux.
+		p := defaultPlatform
+		if childDesc.Platform != nil {
+			p = *childDesc.Platform
+		}
+		if r.platform.Architecture == p.Architecture && r.platform.OS == p.OS {
+			childRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), childDesc.Digest), name.StrictValidation)
+			if err != nil {
+				return nil, nil, err
+			}
+			r.fetcher = fetcher{
+				Client: r.Client,
+				Ref:    childRef,
+			}
+			return r.fetchManifest([]types.MediaType{childDesc.MediaType})
+		}
+	}
+	return nil, nil, fmt.Errorf("no matching image for %s/%s, index: %s", runtime.GOARCH, runtime.GOOS, string(rawIndex))
 }
