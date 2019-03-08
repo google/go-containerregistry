@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -103,4 +105,24 @@ func (i *randomIndex) Image(h v1.Hash) (v1.Image, error) {
 func (i *randomIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
 	// This is a single level index (for now?).
 	return nil, fmt.Errorf("image not found: %v", h)
+}
+
+func (i *randomIndex) Blob(h v1.Hash) (io.ReadCloser, error) {
+	for d, img := range i.images {
+		if d == h {
+			b, err := img.RawManifest()
+			if err != nil {
+				return nil, err
+			}
+			return ioutil.NopCloser(bytes.NewReader(b)), err
+		}
+		if layer, err := img.LayerByDigest(h); err == nil {
+			return layer.Compressed()
+		}
+		if layer, err := img.LayerByDiffID(h); err == nil {
+			return layer.Uncompressed()
+		}
+	}
+
+	return nil, fmt.Errorf("blob not found: %v", h)
 }
