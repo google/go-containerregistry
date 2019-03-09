@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -304,7 +303,7 @@ func (r *remoteImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) 
 	}, nil
 }
 
-// This naively matches the first manifest with matching GOOS and GOARCH.
+// This naively matches the first manifest with matching Architecture and OS.
 //
 // We should probably use this instead:
 //	 github.com/containerd/containerd/platforms
@@ -334,5 +333,5 @@ func (r *remoteImage) matchImage(rawIndex []byte) ([]byte, *v1.Descriptor, error
 			return r.fetchManifest([]types.MediaType{childDesc.MediaType})
 		}
 	}
-	return nil, nil, fmt.Errorf("no matching image for %s/%s, index: %s", runtime.GOARCH, runtime.GOOS, string(rawIndex))
+	return nil, nil, fmt.Errorf("no matching image for %s/%s, index: %s", r.platform.Architecture, r.platform.OS, string(rawIndex))
 }
