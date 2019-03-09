@@ -109,15 +109,25 @@ func TestMultiWriteSameImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating test tag2.")
 	}
-	tagToImage := make(map[name.Tag]v1.Image)
-	tagToImage[tag1] = randImage
-	tagToImage[tag2] = randImage
+	dig3, err := name.NewDigest("gcr.io/baz/baz@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test dig3.")
+	}
+	refToImage := make(map[name.Reference]v1.Image)
+	refToImage[tag1] = randImage
+	refToImage[tag2] = randImage
+	refToImage[dig3] = randImage
 
 	// Write the images with both tags to the tarball
-	if err := MultiWriteToFile(fp.Name(), tagToImage); err != nil {
+	if err := MultiRefWriteToFile(fp.Name(), refToImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
-	for tag := range tagToImage {
+	for ref := range refToImage {
+		tag, ok := ref.(name.Tag)
+		if !ok {
+			continue
+		}
+
 		tarImage, err := ImageFromPath(fp.Name(), &tag)
 		if err != nil {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
@@ -163,6 +173,12 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 		t.Fatalf("Error creating random image 2.")
 	}
 
+	// Make another random image
+	randImage3, err := random.Image(256, 8)
+	if err != nil {
+		t.Fatalf("Error creating random image 3.")
+	}
+
 	// Create two tags, one pointing to each image created.
 	tag1, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
 	if err != nil {
@@ -172,15 +188,25 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating test tag2.")
 	}
-	tagToImage := make(map[name.Tag]v1.Image)
-	tagToImage[tag1] = randImage1
-	tagToImage[tag2] = randImage2
+	dig3, err := name.NewDigest("gcr.io/baz/baz@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test dig3.")
+	}
+	refToImage := make(map[name.Reference]v1.Image)
+	refToImage[tag1] = randImage1
+	refToImage[tag2] = randImage2
+	refToImage[dig3] = randImage3
 
 	// Write both images to the tarball.
-	if err := MultiWriteToFile(fp.Name(), tagToImage); err != nil {
+	if err := MultiRefWriteToFile(fp.Name(), refToImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
-	for tag, img := range tagToImage {
+	for ref, img := range refToImage {
+		tag, ok := ref.(name.Tag)
+		if !ok {
+			continue
+		}
+
 		tarImage, err := ImageFromPath(fp.Name(), &tag)
 		if err != nil {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
