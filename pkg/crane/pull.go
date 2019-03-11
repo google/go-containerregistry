@@ -38,13 +38,13 @@ func NewCmdPull() *cobra.Command {
 		Use:   "pull",
 		Short: "Pull a remote image by reference and store its contents in a tarball",
 		Args:  cobra.ExactArgs(2),
-		Run: func(_ *cobra.Command, args []string) {
-			pull(args[0], args[1])
-		},
+		Run:   pull,
 	}
 }
 
-func pull(src, dst string) {
+func pull(_ *cobra.Command, args []string) {
+	src, dst := args[0], args[1]
+
 	ref, err := name.ParseReference(src, name.WeakValidation)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", src, err)
