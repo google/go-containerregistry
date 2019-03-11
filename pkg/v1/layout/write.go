@@ -248,6 +248,9 @@ func (l LayoutPath) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 			if err := l.writeImage(img); err != nil {
 				return err
 			}
+		default:
+			// TODO: The layout could reference arbitrary things, which we should
+			// probably just pass through.
 		}
 	}
 

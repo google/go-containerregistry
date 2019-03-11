@@ -15,8 +15,6 @@
 package v1
 
 import (
-	"io"
-
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -39,7 +37,4 @@ type ImageIndex interface {
 
 	// ImageIndex returns a v1.ImageIndex that this ImageIndex references.
 	ImageIndex(Hash) (ImageIndex, error)
-
-	// Blob returns an io.Readcloser that this ImageIndex references.
-	Blob(Hash) (io.ReadCloser, error)
 }

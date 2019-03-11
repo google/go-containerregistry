@@ -17,7 +17,6 @@ package empty
 import (
 	"encoding/json"
 	"errors"
-	"io"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -56,9 +55,5 @@ func (i emptyIndex) Image(v1.Hash) (v1.Image, error) {
 }
 
 func (i emptyIndex) ImageIndex(v1.Hash) (v1.ImageIndex, error) {
-	return nil, errors.New("empty index")
-}
-
-func (i emptyIndex) Blob(v1.Hash) (io.ReadCloser, error) {
 	return nil, errors.New("empty index")
 }

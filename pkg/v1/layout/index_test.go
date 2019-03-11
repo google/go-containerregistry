@@ -39,10 +39,6 @@ func TestIndex(t *testing.T) {
 	if got, want := mt, types.OCIImageIndex; got != want {
 		t.Errorf("MediaType(); want: %v got: %v", want, got)
 	}
-
-	if _, err := idx.Blob(configDigest); err != nil {
-		t.Errorf("Blob() = %v", err)
-	}
 }
 
 func TestIndexErrors(t *testing.T) {
