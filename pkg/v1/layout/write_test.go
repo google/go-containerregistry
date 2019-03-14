@@ -176,7 +176,7 @@ func TestOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	options := []LayoutOption{
+	options := []Option{
 		WithAnnotations(annotations),
 		WithURLs(urls),
 		WithPlatform(platform),

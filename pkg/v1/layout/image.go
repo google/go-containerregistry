@@ -25,7 +25,7 @@ import (
 )
 
 type layoutImage struct {
-	path         LayoutPath
+	path         Path
 	desc         v1.Descriptor
 	manifestLock sync.Mutex // Protects rawManifest
 	rawManifest  []byte
@@ -33,8 +33,8 @@ type layoutImage struct {
 
 var _ partial.CompressedImageCore = (*layoutImage)(nil)
 
-// Image reads a v1.Image with digest h from the LayoutPath.
-func (l LayoutPath) Image(h v1.Hash) (v1.Image, error) {
+// Image reads a v1.Image with digest h from the Path.
+func (l Path) Image(h v1.Hash) (v1.Image, error) {
 	ii, err := l.ImageIndex()
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (li *layoutImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error)
 }
 
 type compressedBlob struct {
-	path LayoutPath
+	path Path
 	desc v1.Descriptor
 }
 

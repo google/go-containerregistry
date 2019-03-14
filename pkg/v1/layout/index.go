@@ -28,11 +28,11 @@ import (
 var _ v1.ImageIndex = (*layoutIndex)(nil)
 
 type layoutIndex struct {
-	path     LayoutPath
+	path     Path
 	rawIndex []byte
 }
 
-// ImageIndex is a convenience function which constructs a LayoutPath and returns its v1.ImageIndex.
+// ImageIndexFromPath is a convenience function which constructs a Path and returns its v1.ImageIndex.
 func ImageIndexFromPath(path string) (v1.ImageIndex, error) {
 	lp, err := Read(path)
 	if err != nil {
@@ -41,8 +41,8 @@ func ImageIndexFromPath(path string) (v1.ImageIndex, error) {
 	return lp.ImageIndex()
 }
 
-// ImageIndex returns a v1.ImageIndex for the LayoutPath.
-func (l LayoutPath) ImageIndex() (v1.ImageIndex, error) {
+// ImageIndex returns a v1.ImageIndex for the Path.
+func (l Path) ImageIndex() (v1.ImageIndex, error) {
 	rawIndex, err := ioutil.ReadFile(l.path("index.json"))
 	if err != nil {
 		return nil, err

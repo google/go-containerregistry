@@ -16,10 +16,10 @@ package layout
 
 import "path/filepath"
 
-// LayoutPath represents an OCI image layout rooted in a file system path
-type LayoutPath string
+// Path represents an OCI image layout rooted in a file system path
+type Path string
 
-func (l LayoutPath) path(elem ...string) string {
+func (l Path) path(elem ...string) string {
 	complete := []string{string(l)}
 	return filepath.Join(append(complete, elem...)...)
 }

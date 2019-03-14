@@ -31,9 +31,9 @@ var layoutFile = `{
     "imageLayoutVersion": "1.0.0"
 }`
 
-// AppendImage writes a v1.Image to the LayoutPath and updates
+// AppendImage writes a v1.Image to the Path and updates
 // the index.json to reference it.
-func (l LayoutPath) AppendImage(img v1.Image, options ...LayoutOption) error {
+func (l Path) AppendImage(img v1.Image, options ...Option) error {
 	if err := l.writeImage(img); err != nil {
 		return err
 	}
@@ -68,9 +68,9 @@ func (l LayoutPath) AppendImage(img v1.Image, options ...LayoutOption) error {
 	return l.AppendDescriptor(desc)
 }
 
-// AppendIndex writes a v1.ImageIndex to the LayoutPath and updates
+// AppendIndex writes a v1.ImageIndex to the Path and updates
 // the index.json to reference it.
-func (l LayoutPath) AppendIndex(ii v1.ImageIndex, options ...LayoutOption) error {
+func (l Path) AppendIndex(ii v1.ImageIndex, options ...Option) error {
 	if err := l.writeIndex(ii); err != nil {
 		return err
 	}
@@ -105,8 +105,8 @@ func (l LayoutPath) AppendIndex(ii v1.ImageIndex, options ...LayoutOption) error
 	return l.AppendDescriptor(desc)
 }
 
-// AppendDescriptor adds a descriptor to the index.json of the LayoutPath.
-func (l LayoutPath) AppendDescriptor(desc v1.Descriptor) error {
+// AppendDescriptor adds a descriptor to the index.json of the Path.
+func (l Path) AppendDescriptor(desc v1.Descriptor) error {
 	ii, err := l.ImageIndex()
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (l LayoutPath) AppendDescriptor(desc v1.Descriptor) error {
 	return l.writeFile("index.json", rawIndex)
 }
 
-func (l LayoutPath) writeFile(name string, data []byte) error {
+func (l Path) writeFile(name string, data []byte) error {
 	if err := os.MkdirAll(l.path(), os.ModePerm); err != nil && !os.IsExist(err) {
 		return err
 	}
@@ -136,9 +136,9 @@ func (l LayoutPath) writeFile(name string, data []byte) error {
 
 }
 
-// WriteBlob copies a file to the blobs/ directory in the LayoutPath from the given ReadCloser at
+// WriteBlob copies a file to the blobs/ directory in the Path from the given ReadCloser at
 // blobs/{hash.Algorithm}/{hash.Hex}.
-func (l LayoutPath) WriteBlob(hash v1.Hash, r io.ReadCloser) error {
+func (l Path) WriteBlob(hash v1.Hash, r io.ReadCloser) error {
 	dir := l.path("blobs", hash.Algorithm)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil && !os.IsExist(err) {
 		return err
@@ -164,7 +164,7 @@ func (l LayoutPath) WriteBlob(hash v1.Hash, r io.ReadCloser) error {
 
 // TODO: For streaming layers we should write to a tmp file then Rename to the
 // final digest.
-func (l LayoutPath) writeLayer(layer v1.Layer) error {
+func (l Path) writeLayer(layer v1.Layer) error {
 	d, err := layer.Digest()
 	if err != nil {
 		return err
@@ -178,7 +178,7 @@ func (l LayoutPath) writeLayer(layer v1.Layer) error {
 	return l.WriteBlob(d, r)
 }
 
-func (l LayoutPath) writeImage(img v1.Image) error {
+func (l Path) writeImage(img v1.Image) error {
 	layers, err := img.Layers()
 	if err != nil {
 		return err
@@ -222,7 +222,7 @@ func (l LayoutPath) writeImage(img v1.Image) error {
 	return l.WriteBlob(d, ioutil.NopCloser(bytes.NewReader(manifest)))
 }
 
-func (l LayoutPath) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
+func (l Path) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 	index, err := ii.IndexManifest()
 	if err != nil {
 		return err
@@ -262,7 +262,7 @@ func (l LayoutPath) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 	return l.writeFile(indexFile, rawIndex)
 }
 
-func (l LayoutPath) writeIndex(ii v1.ImageIndex) error {
+func (l Path) writeIndex(ii v1.ImageIndex) error {
 	// Always just write oci-layout file, since it's small.
 	if err := l.writeFile("oci-layout", []byte(layoutFile)); err != nil {
 		return err
@@ -278,7 +278,7 @@ func (l LayoutPath) writeIndex(ii v1.ImageIndex) error {
 
 }
 
-// Write constructs a LayoutPath at path from an ImageIndex.
+// Write constructs a Path at path from an ImageIndex.
 //
 // The contents are written in the following format:
 // At the top level, there is:
@@ -288,8 +288,8 @@ func (l LayoutPath) writeIndex(ii v1.ImageIndex) error {
 //   One file for each layer, named after the layer's SHA.
 //   One file for each config blob, named after its SHA.
 //   One file for each manifest blob, named after its SHA.
-func Write(path string, ii v1.ImageIndex) (LayoutPath, error) {
-	lp := LayoutPath(path)
+func Write(path string, ii v1.ImageIndex) (Path, error) {
+	lp := Path(path)
 	// Always just write oci-layout file, since it's small.
 	if err := lp.writeFile("oci-layout", []byte(layoutFile)); err != nil {
 		return "", err

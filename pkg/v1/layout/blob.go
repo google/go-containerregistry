@@ -22,17 +22,17 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1"
 )
 
-// Blob returns a blob with the given hash from the LayoutPath.
-func (l LayoutPath) Blob(h v1.Hash) (io.ReadCloser, error) {
+// Blob returns a blob with the given hash from the Path.
+func (l Path) Blob(h v1.Hash) (io.ReadCloser, error) {
 	return os.Open(l.blobPath(h))
 }
 
-// Bytes is a convenience function to return a blob from the LayoutPath as
+// Bytes is a convenience function to return a blob from the Path as
 // a byte slice.
-func (l LayoutPath) Bytes(h v1.Hash) ([]byte, error) {
+func (l Path) Bytes(h v1.Hash) ([]byte, error) {
 	return ioutil.ReadFile(l.blobPath(h))
 }
 
-func (l LayoutPath) blobPath(h v1.Hash) string {
+func (l Path) blobPath(h v1.Hash) string {
 	return l.path("blobs", h.Algorithm, h.Hex)
 }

@@ -2,13 +2,14 @@ package layout
 
 import "github.com/google/go-containerregistry/pkg/v1"
 
-// LayoutOption is a functional option for Layout.
+// Option is a functional option for Layout.
 //
 // TODO: We'll need to change this signature to support Sparse/Thin images.
 // Or, alternatively, wrap it in a sparse.Image that returns an empty list for layers?
-type LayoutOption func(*v1.Descriptor) error
+type Option func(*v1.Descriptor) error
 
-func WithAnnotations(annotations map[string]string) LayoutOption {
+// WithAnnotations adds annotations to the artifact descriptor.
+func WithAnnotations(annotations map[string]string) Option {
 	return func(desc *v1.Descriptor) error {
 		if desc.Annotations == nil {
 			desc.Annotations = make(map[string]string)
@@ -21,7 +22,8 @@ func WithAnnotations(annotations map[string]string) LayoutOption {
 	}
 }
 
-func WithURLs(urls []string) LayoutOption {
+// WithURLs adds urls to the artifact descriptor.
+func WithURLs(urls []string) Option {
 	return func(desc *v1.Descriptor) error {
 		if desc.URLs == nil {
 			desc.URLs = []string{}
@@ -34,7 +36,8 @@ func WithURLs(urls []string) LayoutOption {
 	}
 }
 
-func WithPlatform(platform v1.Platform) LayoutOption {
+// WithPlatform sets the platform of the artifact descriptor.
+func WithPlatform(platform v1.Platform) Option {
 	return func(desc *v1.Descriptor) error {
 		desc.Platform = &platform
 		return nil
