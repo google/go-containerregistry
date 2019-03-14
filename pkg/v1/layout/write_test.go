@@ -25,7 +25,7 @@ func TestWrite(t *testing.T) {
 
 	defer os.RemoveAll(tmp)
 
-	original, err := ImageIndex(testPath)
+	original, err := ImageIndexFromPath(testPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("unexpected file system path %v", layoutPath)
 	}
 
-	written, err := ImageIndex(tmp)
+	written, err := ImageIndexFromPath(tmp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,9 +47,9 @@ func TestWrite(t *testing.T) {
 }
 
 func TestWriteErrors(t *testing.T) {
-	idx, err := ImageIndex(testPath)
+	idx, err := ImageIndexFromPath(testPath)
 	if err != nil {
-		t.Fatalf("ImageIndex() = %v", err)
+		t.Fatalf("ImageIndexFromPath() = %v", err)
 	}
 
 	// Found this here:
@@ -83,9 +83,9 @@ func TestAppendDescriptorInitializesIndex(t *testing.T) {
 	}
 
 	// Read that layout from disk and make sure the descriptor is there.
-	idx, err := ImageIndex(tmp)
+	idx, err := ImageIndexFromPath(tmp)
 	if err != nil {
-		t.Fatalf("ImageIndex() = %v", err)
+		t.Fatalf("ImageIndexFromPath() = %v", err)
 	}
 
 	manifest, err := idx.IndexManifest()
@@ -105,7 +105,7 @@ func TestAppendArtifacts(t *testing.T) {
 
 	defer os.RemoveAll(tmp)
 
-	original, err := ImageIndex(testPath)
+	original, err := ImageIndexFromPath(testPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,9 +145,9 @@ func TestAppendArtifacts(t *testing.T) {
 		}
 	}
 
-	reconstructed, err := ImageIndex(tmp)
+	reconstructed, err := ImageIndexFromPath(tmp)
 	if err != nil {
-		t.Fatalf("ImageIndex() = %v", err)
+		t.Fatalf("ImageIndexFromPath() = %v", err)
 	}
 	reconstructedManifest, err := reconstructed.IndexManifest()
 	if err != nil {

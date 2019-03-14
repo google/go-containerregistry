@@ -33,7 +33,7 @@ type layoutIndex struct {
 }
 
 // ImageIndex is a convenience function which constructs a LayoutPath and returns its v1.ImageIndex.
-func ImageIndex(path string) (v1.ImageIndex, error) {
+func ImageIndexFromPath(path string) (v1.ImageIndex, error) {
 	lp, err := Read(path)
 	if err != nil {
 		return nil, err

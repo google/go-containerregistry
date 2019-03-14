@@ -22,9 +22,9 @@ import (
 )
 
 func TestIndex(t *testing.T) {
-	idx, err := ImageIndex(testPath)
+	idx, err := ImageIndexFromPath(testPath)
 	if err != nil {
-		t.Fatalf("ImageIndex() = %v", err)
+		t.Fatalf("ImageIndexFromPath() = %v", err)
 	}
 
 	if err := validate.Index(idx); err != nil {
@@ -42,9 +42,9 @@ func TestIndex(t *testing.T) {
 }
 
 func TestIndexErrors(t *testing.T) {
-	idx, err := ImageIndex(testPath)
+	idx, err := ImageIndexFromPath(testPath)
 	if err != nil {
-		t.Fatalf("ImageIndex() = %v", err)
+		t.Fatalf("ImageIndexFromPath() = %v", err)
 	}
 
 	if _, err := idx.Image(bogusDigest); err == nil {

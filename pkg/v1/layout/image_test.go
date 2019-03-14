@@ -54,16 +54,14 @@ func TestImage(t *testing.T) {
 	}
 
 	if err := validate.Image(img); err != nil {
-		t.Fatalf("validate.Image() = %v", err)
+		t.Errorf("validate.Image() = %v", err)
 	}
 
 	mt, err := img.MediaType()
 	if err != nil {
-		t.Fatalf("MediaType() = %v", err)
-	}
-
-	if got, want := mt, types.OCIManifestSchema1; got != want {
-		t.Fatalf("MediaType(); want: %v got: %v", want, got)
+		t.Errorf("MediaType() = %v", err)
+	} else if got, want := mt, types.OCIManifestSchema1; got != want {
+		t.Errorf("MediaType(); want: %v got: %v", want, got)
 	}
 
 	cfg, err := img.LayerByDigest(configDigest)
@@ -82,7 +80,7 @@ func TestImage(t *testing.T) {
 	}
 
 	if got, want := cfgDigest, cfgName; got != want {
-		t.Fatalf("ConfigName(); want: %v got: %v", want, got)
+		t.Errorf("ConfigName(); want: %v got: %v", want, got)
 	}
 }
 
@@ -97,14 +95,14 @@ func TestImageErrors(t *testing.T) {
 	}
 
 	if _, err := img.LayerByDigest(bogusDigest); err == nil {
-		t.Fatalf("LayerByDigest(%s) = nil, expected err", bogusDigest)
+		t.Errorf("LayerByDigest(%s) = nil, expected err", bogusDigest)
 	}
 
 	if _, err := lp.Image(bogusDigest); err == nil {
-		t.Fatalf("Image(%s) = nil, expected err", bogusDigest)
+		t.Errorf("Image(%s) = nil, expected err", bogusDigest)
 	}
 
 	if _, err := lp.Image(bogusDigest); err == nil {
-		t.Fatalf("Image(%s, %s) = nil, expected err", bogusPath, bogusDigest)
+		t.Errorf("Image(%s, %s) = nil, expected err", bogusPath, bogusDigest)
 	}
 }
