@@ -44,9 +44,9 @@ var (
 )
 
 func TestImage(t *testing.T) {
-	lp, err := Read(testPath)
+	lp, err := FromPath(testPath)
 	if err != nil {
-		t.Fatalf("Read() = %v", err)
+		t.Fatalf("FromPath() = %v", err)
 	}
 	img, err := lp.Image(manifestDigest)
 	if err != nil {
@@ -85,9 +85,9 @@ func TestImage(t *testing.T) {
 }
 
 func TestImageErrors(t *testing.T) {
-	lp, err := Read(testPath)
+	lp, err := FromPath(testPath)
 	if err != nil {
-		t.Fatalf("Read() = %v", err)
+		t.Fatalf("FromPath() = %v", err)
 	}
 	img, err := lp.Image(manifestDigest)
 	if err != nil {

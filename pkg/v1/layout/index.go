@@ -34,7 +34,7 @@ type layoutIndex struct {
 
 // ImageIndexFromPath is a convenience function which constructs a Path and returns its v1.ImageIndex.
 func ImageIndexFromPath(path string) (v1.ImageIndex, error) {
-	lp, err := Read(path)
+	lp, err := FromPath(path)
 	if err != nil {
 		return nil, err
 	}

@@ -19,8 +19,8 @@ import (
 	"path/filepath"
 )
 
-// Read reads an OCI image layout at path and constructs a Path.
-func Read(path string) (Path, error) {
+// FromPath reads an OCI image layout at path and constructs a layout.Path.
+func FromPath(path string) (Path, error) {
 	// TODO: check oci-layout exists
 
 	_, err := os.Stat(filepath.Join(path, "index.json"))

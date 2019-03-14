@@ -42,7 +42,7 @@ func TestWrite(t *testing.T) {
 	}
 
 	if err := validate.Index(written); err != nil {
-		t.Fatalf("validate.Read() = %v", err)
+		t.Fatalf("validate.Index() = %v", err)
 	}
 }
 
@@ -209,9 +209,9 @@ func TestOptions(t *testing.T) {
 }
 
 func TestDeduplicatedWrites(t *testing.T) {
-	lp, err := Read(testPath)
+	lp, err := FromPath(testPath)
 	if err != nil {
-		t.Fatalf("Read() = %v", err)
+		t.Fatalf("FromPath() = %v", err)
 	}
 
 	b, err := lp.Blob(configDigest)
