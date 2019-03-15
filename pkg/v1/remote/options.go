@@ -59,6 +59,9 @@ func WithAuthFromKeychain(keys authn.Keychain) ImageOption {
 	}
 }
 
+// WithPlatform is a functional option for overriding the default platform
+// that Image and Descriptor.Image use for resolving an index to an image.
+// The default platform is amd64/linux.
 func WithPlatform(p v1.Platform) ImageOption {
 	return func(i *imageOpener) error {
 		i.platform = p

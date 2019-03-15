@@ -67,6 +67,9 @@ func (r *remoteIndex) RawManifest() ([]byte, error) {
 		return r.manifest, nil
 	}
 
+	// NOTE(jonjohnsonjr): We should never get here because the public entrypoints
+	// do type-checking via remote.Descriptor. Just in case, but I've left this
+	// here for tests that directly instantiate a remoteIndex.
 	acceptable := []types.MediaType{
 		types.DockerManifestList,
 		types.OCIImageIndex,
@@ -90,39 +93,31 @@ func (r *remoteIndex) IndexManifest() (*v1.IndexManifest, error) {
 }
 
 func (r *remoteIndex) Image(h v1.Hash) (v1.Image, error) {
-	imgRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), h), name.StrictValidation)
+	desc, err := r.childByHash(h)
 	if err != nil {
 		return nil, err
 	}
-	ri := &remoteImage{
-		fetcher: fetcher{
-			Ref:    imgRef,
-			Client: r.Client,
-		},
-	}
-	imgCore, err := partial.CompressedToImage(ri)
-	if err != nil {
-		return imgCore, err
-	}
-	// Wrap the v1.Layers returned by this v1.Image in a hint for downstream
-	// remote.Write calls to facilitate cross-repo "mounting".
-	return &mountableImage{
-		Image:     imgCore,
-		Reference: r.Ref,
-	}, nil
+
+	// Descriptor.Image will handle coercing nested indexes into an Image.
+	return desc.Image()
 }
 
 func (r *remoteIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
-	idxRef, err := name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), h), name.StrictValidation)
+	desc, err := r.childByHash(h)
 	if err != nil {
 		return nil, err
 	}
-	return &remoteIndex{
-		fetcher: fetcher{
-			Ref:    idxRef,
-			Client: r.Client,
-		},
-	}, nil
+	return desc.ImageIndex()
+}
+
+func (r *remoteIndex) imageByPlatform(platform v1.Platform) (v1.Image, error) {
+	desc, err := r.childByPlatform(platform)
+	if err != nil {
+		return nil, err
+	}
+
+	// Descriptor.Image will handle coercing nested indexes into an Image.
+	return desc.Image()
 }
 
 // This naively matches the first manifest with matching Architecture and OS.
@@ -132,17 +127,7 @@ func (r *remoteIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
 //
 // But first we'd need to migrate to:
 //   github.com/opencontainers/image-spec/specs-go/v1
-func (r *remoteIndex) ImageByPlatform(platform v1.Platform) (v1.Image, error) {
-	desc, err := r.DescriptorByPlatform(platform)
-	if err != nil {
-		return nil, err
-	}
-
-	// Descriptor.Image will call back into here if it's an index.
-	return desc.Image()
-}
-
-func (r *remoteIndex) DescriptorByPlatform(platform v1.Platform) (*Descriptor, error) {
+func (r *remoteIndex) childByPlatform(platform v1.Platform) (*Descriptor, error) {
 	index, err := r.IndexManifest()
 	if err != nil {
 		return nil, err
@@ -153,30 +138,48 @@ func (r *remoteIndex) DescriptorByPlatform(platform v1.Platform) (*Descriptor, e
 		if childDesc.Platform != nil {
 			p = *childDesc.Platform
 		}
-		if platform.Architecture == p.Architecture && platform.OS == p.OS {
-			childRef, err := r.childRef(childDesc.Digest)
-			if err != nil {
-				return nil, err
-			}
-			manifest, desc, err := r.fetchManifest(childRef, []types.MediaType{childDesc.MediaType})
-			if err != nil {
-				return nil, err
-			}
 
-			return &Descriptor{
-				fetcher: fetcher{
-					Ref:    childRef,
-					Client: r.Client,
-				},
-				Manifest:   manifest,
-				Descriptor: *desc,
-				platform:   platform,
-			}, nil
+		if platform.Architecture == p.Architecture && platform.OS == p.OS {
+			return r.childDescriptor(childDesc, platform)
 		}
 	}
-	return nil, fmt.Errorf("no matching image for %s/%s in %s", platform.Architecture, platform.OS, r.Ref)
+	return nil, fmt.Errorf("no child with platform %s/%s in index %s", platform.Architecture, platform.OS, r.Ref)
+}
+
+func (r *remoteIndex) childByHash(h v1.Hash) (*Descriptor, error) {
+	index, err := r.IndexManifest()
+	if err != nil {
+		return nil, err
+	}
+	for _, childDesc := range index.Manifests {
+		if h == childDesc.Digest {
+			return r.childDescriptor(childDesc, defaultPlatform)
+		}
+	}
+	return nil, fmt.Errorf("no child with digest %s in index %s", h, r.Ref)
 }
 
 func (r *remoteIndex) childRef(h v1.Hash) (name.Reference, error) {
 	return name.ParseReference(fmt.Sprintf("%s@%s", r.Ref.Context(), h), name.StrictValidation)
+}
+
+// Convert one of this index's child's v1.Descriptor into a remote.Descriptor, with the given platform option.
+func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform) (*Descriptor, error) {
+	ref, err := r.childRef(child.Digest)
+	if err != nil {
+		return nil, err
+	}
+	manifest, desc, err := r.fetchManifest(ref, []types.MediaType{child.MediaType})
+	if err != nil {
+		return nil, err
+	}
+	return &Descriptor{
+		fetcher: fetcher{
+			Ref:    ref,
+			Client: r.Client,
+		},
+		Manifest:   manifest,
+		Descriptor: *desc,
+		platform:   platform,
+	}, nil
 }

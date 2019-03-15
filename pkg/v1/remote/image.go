@@ -73,9 +73,9 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 		return r.manifest, nil
 	}
 
-	// We should never get here because the public entrypoints do type-checking
-	// via remote.Descriptor. Just in case, but I've left this here for tests that
-	// directly instantiate a remoteImage.
+	// NOTE(jonjohnsonjr): We should never get here because the public entrypoints
+	// do type-checking via remote.Descriptor. Just in case, but I've left this
+	// here for tests that directly instantiate a remoteImage.
 	acceptable := []types.MediaType{
 		types.DockerManifestSchema2,
 		types.OCIManifestSchema1,
