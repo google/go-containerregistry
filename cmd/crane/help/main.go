@@ -5,10 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/google/go-containerregistry/cmd/crane/cmd"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
-
-	"github.com/google/go-containerregistry/pkg/crane"
 )
 
 var dir string
@@ -17,7 +16,7 @@ var root = &cobra.Command{
 	Short: "Generate crane's help docs",
 	Args:  cobra.NoArgs,
 	Run: func(*cobra.Command, []string) {
-		if err := doc.GenMarkdownTree(crane.Root, dir); err != nil {
+		if err := doc.GenMarkdownTree(cmd.Root, dir); err != nil {
 			log.Fatalln(err)
 		}
 	},

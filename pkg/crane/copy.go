@@ -15,45 +15,33 @@
 package crane
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdCopy()) }
-
-// NewCmdCopy creates a new cobra.Command for the copy subcommand.
-func NewCmdCopy() *cobra.Command {
-	return &cobra.Command{
-		Use:     "copy",
-		Aliases: []string{"cp"},
-		Short:   "Efficiently copy a remote image from src to dst",
-		Args:    cobra.ExactArgs(2),
-		Run:     doCopy,
-	}
-}
-
-func doCopy(_ *cobra.Command, args []string) {
-	src, dst := args[0], args[1]
+// Copy copies a remote image or index from src to dst.
+func Copy(src, dst string) error {
 	srcRef, err := name.ParseReference(src)
 	if err != nil {
-		log.Fatalf("parsing reference %q: %v", src, err)
+		return fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 	log.Printf("Pulling %v", srcRef)
 
 	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
-		log.Fatalf("fetching image %q: %v", srcRef, err)
+		return fmt.Errorf("parsing reference %q: %v", dst, err)
 	}
 
 	dstRef, err := name.ParseReference(dst)
 	if err != nil {
-		log.Fatalf("parsing reference %q: %v", dst, err)
+		return fmt.Errorf("getting creds for %q: %v", srcRef, err)
 	}
+
 	log.Printf("Pushing %v", dstRef)
 
 	switch desc.MediaType {
@@ -68,6 +56,8 @@ func doCopy(_ *cobra.Command, args []string) {
 			log.Fatalf("failed to copy image: %v", err)
 		}
 	}
+
+	return nil
 }
 
 func copyImage(desc *remote.Descriptor, dstRef name.Reference) error {

@@ -15,34 +15,19 @@
 package crane
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdDelete()) }
-
-// NewCmdDelete creates a new cobra.Command for the delete subcommand.
-func NewCmdDelete() *cobra.Command {
-	return &cobra.Command{
-		Use:   "delete",
-		Short: "Delete an image reference from its registry",
-		Args:  cobra.ExactArgs(1),
-		Run:   doDelete,
-	}
-}
-
-func doDelete(_ *cobra.Command, args []string) {
-	ref := args[0]
-	r, err := name.ParseReference(ref)
+// Delete deletes the remote reference at src.
+func Delete(src string) error {
+	ref, err := name.ParseReference(src)
 	if err != nil {
-		log.Fatalf("parsing reference %q: %v", ref, err)
+		return fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
-	if err := remote.Delete(r, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
-		log.Fatalf("deleting image %q: %v", r, err)
-	}
+	return remote.Delete(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }

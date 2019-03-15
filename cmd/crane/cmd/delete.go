@@ -12,13 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package cmd
 
-// Manifest returns the manifest for the remote image or index ref.
-func Manifest(ref string) ([]byte, error) {
-	desc, err := getManifest(ref)
-	if err != nil {
-		return nil, err
+import (
+	"log"
+
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/spf13/cobra"
+)
+
+func init() { Root.AddCommand(NewCmdDelete()) }
+
+// NewCmdDelete creates a new cobra.Command for the delete subcommand.
+func NewCmdDelete() *cobra.Command {
+	return &cobra.Command{
+		Use:   "delete",
+		Short: "Delete an image reference from its registry",
+		Args:  cobra.ExactArgs(1),
+		Run: func(_ *cobra.Command, args []string) {
+			ref := args[0]
+			if err := crane.Delete(ref); err != nil {
+				log.Fatalf("deleting %s: %v", ref, err)
+			}
+		},
 	}
-	return desc.Manifest, nil
 }

@@ -12,13 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package cmd
 
-// Manifest returns the manifest for the remote image or index ref.
-func Manifest(ref string) ([]byte, error) {
-	desc, err := getManifest(ref)
-	if err != nil {
-		return nil, err
+import (
+	"fmt"
+	"log"
+
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/spf13/cobra"
+)
+
+func init() { Root.AddCommand(NewCmdDigest()) }
+
+// NewCmdDigest creates a new cobra.Command for the digest subcommand.
+func NewCmdDigest() *cobra.Command {
+	return &cobra.Command{
+		Use:   "digest",
+		Short: "Get the digest of an image",
+		Args:  cobra.ExactArgs(1),
+		Run: func(_ *cobra.Command, args []string) {
+			digest, err := crane.Digest(args[0])
+			if err != nil {
+				log.Fatalf("computing digest: %v", err)
+			}
+			fmt.Println(digest)
+		},
 	}
-	return desc.Manifest, nil
 }

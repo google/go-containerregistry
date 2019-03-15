@@ -14,34 +14,11 @@
 
 package crane
 
-import (
-	"fmt"
-	"log"
-
-	"github.com/spf13/cobra"
-)
-
-func init() { Root.AddCommand(NewCmdConfig()) }
-
-// NewCmdConfig creates a new cobra.Command for the config subcommand.
-func NewCmdConfig() *cobra.Command {
-	return &cobra.Command{
-		Use:   "config",
-		Short: "Get the config of an image",
-		Args:  cobra.ExactArgs(1),
-		Run:   config,
-	}
-}
-
-func config(_ *cobra.Command, args []string) {
-	ref := args[0]
+// Config returns the config file for the remote image ref.
+func Config(ref string) ([]byte, error) {
 	i, _, err := getImage(ref)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
-	config, err := i.RawConfigFile()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Print(string(config))
+	return i.RawConfigFile()
 }

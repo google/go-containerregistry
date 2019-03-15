@@ -18,11 +18,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/cmd/crane/cmd"
 )
 
 func main() {
-	if err := crane.Root.Execute(); err != nil {
+	if err := cmd.Root.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

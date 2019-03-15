@@ -15,73 +15,19 @@
 package crane
 
 import (
-	"log"
+	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdAppend()) }
-
-// NewCmdAppend creates a new cobra.Command for the append subcommand.
-func NewCmdAppend() *cobra.Command {
-	var baseRef, newTag, newLayer, outFile string
-	appendCmd := &cobra.Command{
-		Use:   "append",
-		Short: "Append contents of a tarball to a remote image",
-		Args:  cobra.NoArgs,
-		Run: func(_ *cobra.Command, args []string) {
-			doAppend(baseRef, newTag, newLayer, outFile)
-		},
-	}
-	appendCmd.Flags().StringVarP(&baseRef, "base", "b", "", "Name of base image to append to")
-	appendCmd.Flags().StringVarP(&newTag, "new_tag", "t", "", "Tag to apply to resulting image")
-	appendCmd.Flags().StringVarP(&newLayer, "new_layer", "f", "", "Path to tarball to append to image")
-	appendCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
-
-	appendCmd.MarkFlagRequired("base")
-	appendCmd.MarkFlagRequired("new_tag")
-	appendCmd.MarkFlagRequired("new_layer")
-	return appendCmd
-}
-
-func doAppend(src, dst, tar, output string) {
-	srcRef, err := name.ParseReference(src)
+// Append reads a layer from path and appends it the the v1.Image base.
+func Append(base v1.Image, path string) (v1.Image, error) {
+	layer, err := tarball.LayerFromFile(path)
 	if err != nil {
-		log.Fatalf("parsing reference %q: %v", src, err)
-	}
-	srcImage, err := remote.Image(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	if err != nil {
-		log.Fatalf("reading image %q: %v", srcRef, err)
+		return nil, fmt.Errorf("reading tar %q: %v", path, err)
 	}
 
-	dstTag, err := name.NewTag(dst)
-	if err != nil {
-		log.Fatalf("parsing tag %q: %v", dst, err)
-	}
-
-	layer, err := tarball.LayerFromFile(tar)
-	if err != nil {
-		log.Fatalf("reading tar %q: %v", tar, err)
-	}
-
-	image, err := mutate.AppendLayers(srcImage, layer)
-	if err != nil {
-		log.Fatalf("appending layer: %v", err)
-	}
-
-	if output != "" {
-		if err := tarball.WriteToFile(output, dstTag, image); err != nil {
-			log.Fatalf("writing output %q: %v", output, err)
-		}
-		return
-	}
-
-	if err := remote.Write(dstTag, image, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
-		log.Fatalf("writing image %q: %v", dstTag, err)
-	}
+	return mutate.AppendLayers(base, layer)
 }
