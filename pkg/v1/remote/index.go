@@ -68,8 +68,8 @@ func (r *remoteIndex) RawManifest() ([]byte, error) {
 	}
 
 	// NOTE(jonjohnsonjr): We should never get here because the public entrypoints
-	// do type-checking via remote.Descriptor. Just in case, but I've left this
-	// here for tests that directly instantiate a remoteIndex.
+	// do type-checking via remote.Descriptor. I've left this here for tests that
+	// directly instantiate a remoteIndex.
 	acceptable := []types.MediaType{
 		types.DockerManifestList,
 		types.OCIImageIndex,
