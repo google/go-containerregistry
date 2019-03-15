@@ -144,7 +144,7 @@ func pullLayout(src, dst string) error {
 		// For now, we just do the fallback thing. try in
 		if err := appendIndex(path, ref, auth, annotation); err != nil {
 			if err := appendImage(path, ref, auth, annotation); err != nil {
-				return fmt.Errorf("appending %v: %v", ref, err)
+				return fmt.Errorf("appending %s: %v", ref, err)
 			}
 		}
 	}
