@@ -60,6 +60,14 @@ func mustMediaType(t *testing.T, man manifest) types.MediaType {
 	return mt
 }
 
+func mustHash(t *testing.T, s string) v1.Hash {
+	h, err := v1.NewHash(s)
+	if err != nil {
+		t.Fatalf("NewHash() = %v", err)
+	}
+	return h
+}
+
 func TestIndexRawManifestDigests(t *testing.T) {
 	idx := randomIndex(t)
 	expectedRepo := "foo/bar"
@@ -190,11 +198,11 @@ func TestIndex(t *testing.T) {
 	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 	rmt, err := Index(tag, WithTransport(http.DefaultTransport))
 	if err != nil {
-		t.Errorf("Image() = %v", err)
+		t.Errorf("Index() = %v", err)
 	}
 	rmtChild, err := rmt.Image(childDigest)
 	if err != nil {
-		t.Errorf("Image() = %v", err)
+		t.Errorf("remoteIndex.Image(%s) = %v", childDigest, err)
 	}
 
 	// Test that index works as expected.
@@ -225,5 +233,15 @@ func TestIndex(t *testing.T) {
 	// Make sure caching the manifest works for child.
 	if childReqCount != 1 {
 		t.Errorf("RawManifest made %v requests, expected 1", childReqCount)
+	}
+
+	// Try to fetch bogus children.
+	bogusHash := mustHash(t, bogusDigest)
+
+	if _, err := rmt.Image(bogusHash); err == nil {
+		t.Errorf("remoteIndex.Image(bogusDigest) err = %v, wanted err", err)
+	}
+	if _, err := rmt.ImageIndex(bogusHash); err == nil {
+		t.Errorf("remoteIndex.ImageIndex(bogusDigest) err = %v, wanted err", err)
 	}
 }
