@@ -15,8 +15,13 @@
 package remote
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -155,4 +160,77 @@ func (d *Descriptor) remoteIndex() *remoteIndex {
 		manifest:  d.Manifest,
 		mediaType: d.MediaType,
 	}
+}
+
+// fetcher implements methods for reading from a registry.
+type fetcher struct {
+	Ref    name.Reference
+	Client *http.Client
+}
+
+// url returns a url.Url for the specified path in the context of this remote image reference.
+func (f *fetcher) url(resource, identifier string) url.URL {
+	return url.URL{
+		Scheme: f.Ref.Context().Registry.Scheme(),
+		Host:   f.Ref.Context().RegistryStr(),
+		Path:   fmt.Sprintf("/v2/%s/%s/%s", f.Ref.Context().RepositoryStr(), resource, identifier),
+	}
+}
+
+func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
+	u := f.url("manifests", ref.Identifier())
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	accept := []string{}
+	for _, mt := range acceptable {
+		accept = append(accept, string(mt))
+	}
+	req.Header.Set("Accept", strings.Join(accept, ","))
+
+	resp, err := f.Client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := transport.CheckError(resp, http.StatusOK); err != nil {
+		return nil, nil, err
+	}
+
+	manifest, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	digest, size, err := v1.SHA256(bytes.NewReader(manifest))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Validate the digest matches what we asked for, if pulling by digest.
+	if dgst, ok := ref.(name.Digest); ok {
+		if digest.String() != dgst.DigestStr() {
+			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.Ref)
+		}
+	} else {
+		// Do nothing for tags; I give up.
+		//
+		// We'd like to validate that the "Docker-Content-Digest" header matches what is returned by the registry,
+		// but so many registries implement this incorrectly that it's not worth checking.
+		//
+		// For reference:
+		// https://github.com/docker/distribution/issues/2395
+		// https://github.com/GoogleContainerTools/kaniko/issues/298
+	}
+
+	// Return all this info since we have to calculate it anyway.
+	desc := v1.Descriptor{
+		Digest:    digest,
+		Size:      size,
+		MediaType: types.MediaType(resp.Header.Get("Content-Type")),
+	}
+
+	return manifest, &desc, nil
 }
