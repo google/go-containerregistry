@@ -24,6 +24,10 @@ func CheckPushPermission(ref name.Reference, kc authn.Keychain, t http.RoundTrip
 	if err != nil {
 		return err
 	}
+	// TODO(jasonhall): Against GCR, just doing the token handshake is
+	// enough, but this doesn't extend to Dockerhub, so we actually need
+	// to initiate an upload. Figure out how to return early here when we
+	// can.
 	w := writer{
 		ref:    ref,
 		client: &http.Client{Transport: tr},

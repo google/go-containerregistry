@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
 )
 
 func TestCheckPushPermission(t *testing.T) {
@@ -50,6 +51,23 @@ func TestCheckPushPermission(t *testing.T) {
 		ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 		if err := CheckPushPermission(ref, authn.DefaultKeychain, http.DefaultTransport); (err != nil) != c.wantErr {
 			t.Errorf("CheckPermission(%d): got error = %v, want err = %t", c.status, err, c.wantErr)
+		}
+	}
+}
+
+func TestCheckPushPermission_Real(t *testing.T) {
+	// Tests should not run in an environment where these registries can
+	// be pushed to.
+	for _, r := range []name.Reference{
+		mustNewTag(t, "ubuntu"),
+		mustNewTag(t, "google/cloud-sdk"),
+		mustNewTag(t, "microsoft/dotnet:sdk"),
+		mustNewTag(t, "gcr.io/non-existent-project/made-up"),
+		mustNewTag(t, "gcr.io/google-containers/foo"),
+		mustNewTag(t, "quay.io/username/reponame"),
+	} {
+		if err := CheckPushPermission(r, authn.DefaultKeychain, http.DefaultTransport); err == nil {
+			t.Errorf("CheckPushPermission(%s) returned nil", r)
 		}
 	}
 }
