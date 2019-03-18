@@ -34,3 +34,11 @@ func getImage(r string) (v1.Image, name.Reference, error) {
 	}
 	return img, ref, nil
 }
+
+func getManifest(r string) (*remote.Descriptor, error) {
+	ref, err := name.ParseReference(r, name.WeakValidation)
+	if err != nil {
+		return nil, fmt.Errorf("parsing reference %q: %v", r, err)
+	}
+	return remote.Get(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+}

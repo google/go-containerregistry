@@ -35,13 +35,9 @@ func NewCmdManifest() *cobra.Command {
 
 func manifest(_ *cobra.Command, args []string) {
 	ref := args[0]
-	i, _, err := getImage(ref)
+	desc, err := getManifest(ref)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
-	manifest, err := i.RawManifest()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Print(string(manifest))
+	fmt.Print(string(desc.Manifest))
 }

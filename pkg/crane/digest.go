@@ -35,13 +35,9 @@ func NewCmdDigest() *cobra.Command {
 
 func digest(_ *cobra.Command, args []string) {
 	ref := args[0]
-	i, _, err := getImage(ref)
+	desc, err := getManifest(ref)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
-	digest, err := i.Digest()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Println(digest.String())
+	fmt.Println(desc.Digest)
 }
