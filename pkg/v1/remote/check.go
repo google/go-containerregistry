@@ -25,9 +25,11 @@ func CheckPushPermission(ref name.Reference, kc authn.Keychain, t http.RoundTrip
 		return err
 	}
 	// TODO(jasonhall): Against GCR, just doing the token handshake is
-	// enough, but this doesn't extend to Dockerhub, so we actually need
-	// to initiate an upload. Figure out how to return early here when we
-	// can.
+	// enough, but this doesn't extend to Dockerhub
+	// (https://github.com/docker/hub-feedback/issues/1771), so we actually
+	// need to initiate an upload to tell whether the credentials can
+	// authorize a push. Figure out how to return early here when we can,
+	// to avoid a roundtrip for spec-compliant registries.
 	w := writer{
 		ref:    ref,
 		client: &http.Client{Transport: tr},
