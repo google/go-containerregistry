@@ -13,6 +13,8 @@ import (
 //
 // This can be useful to check whether the caller has permission to push an
 // image before doing work to construct the image.
+//
+// TODO(#412): Remove the need for this method.
 func CheckPushPermission(ref name.Reference, kc authn.Keychain, t http.RoundTripper) error {
 	auth, err := kc.Resolve(ref.Context().Registry)
 	if err != nil {
