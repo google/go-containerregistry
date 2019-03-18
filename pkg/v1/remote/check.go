@@ -34,6 +34,21 @@ func CheckPushPermission(ref name.Reference, kc authn.Keychain, t http.RoundTrip
 		ref:    ref,
 		client: &http.Client{Transport: tr},
 	}
-	_, _, err = w.initiateUpload("", "")
+	loc, _, err := w.initiateUpload("", "")
+	if loc != "" {
+		// Since we're only initiating the upload to check whether we
+		// can, we should attempt to cancel it, in case initiating
+		// reserves some resources on the server. We shouldn't wait for
+		// cancelling to complete, and we don't care if it fails.
+		go w.cancelUpload(loc)
+	}
 	return err
+}
+
+func (w *writer) cancelUpload(loc string) {
+	req, err := http.NewRequest(http.MethodDelete, loc, nil)
+	if err != nil {
+		return
+	}
+	_, _ = w.client.Do(req)
 }
