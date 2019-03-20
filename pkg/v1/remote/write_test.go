@@ -425,7 +425,8 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 }
 
 func TestDedupeLayers(t *testing.T) {
-	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, 10000))) }
+	blob := bytes.NewReader(bytes.Repeat([]byte{'a'}, 10000))
+        newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, 10000))) }
 
 	img, err := random.Image(1024, 3)
 	if err != nil {
@@ -435,9 +436,9 @@ func TestDedupeLayers(t *testing.T) {
 	// Append three identical tarball.Layers, which should be deduped
 	// because contents can be hashed before uploading.
 	for i := 0; i < 3; i++ {
-		tl, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) { return newBlob(), nil })
+		tl, err := tarball.LayerFromReader(blob)
 		if err != nil {
-			t.Fatalf("LayerFromOpener(#%d): %v", i, err)
+			t.Fatalf("LayerFromReader(#%d): %v", i, err)
 		}
 		img, err = mutate.AppendLayers(img, tl)
 		if err != nil {

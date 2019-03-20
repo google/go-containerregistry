@@ -285,10 +285,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	dataLayerBytes := dataLayerBuf.Bytes()
-	dataLayer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewBuffer(dataLayerBytes)), nil
-	})
+	dataLayer, err := tarball.LayerFromReader(dataLayerBuf)
 	if err != nil {
 		return nil, err
 	}
@@ -301,10 +298,7 @@ func (gb *gobuild) Build(s string) (v1.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	binaryLayerBytes := binaryLayerBuf.Bytes()
-	binaryLayer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewBuffer(binaryLayerBytes)), nil
-	})
+	binaryLayer, err := tarball.LayerFromReader(binaryLayerBuf)
 	if err != nil {
 		return nil, err
 	}

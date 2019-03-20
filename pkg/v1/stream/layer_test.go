@@ -63,10 +63,10 @@ func TestStreamVsBuffer(t *testing.T) {
 	}
 
 	// Test that buffering the same contents and using
-	// tarball.LayerFromOpener results in the same digest/diffID/size.
-	tl, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) { return newBlob(), nil })
+	// tarball.LayerFromReader results in the same digest/diffID/size.
+	tl, err := tarball.LayerFromReader(newBlob())
 	if err != nil {
-		t.Fatalf("LayerFromOpener: %v", err)
+		t.Fatalf("LayerFromReader: %v", err)
 	}
 	if d, err := tl.Digest(); err != nil {
 		t.Errorf("Digest: %v", err)
