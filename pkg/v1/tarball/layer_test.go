@@ -47,7 +47,7 @@ func TestLayerFromFile(t *testing.T) {
 	assertSizesAreEqual(t, tarLayer, tarGzLayer)
 }
 
-func TestLayerFromReader(t *testing.T) {
+func TestLayerFromOpenerReader(t *testing.T) {
 	setupFixtures(t)
 	defer teardownFixtures(t)
 
@@ -71,6 +71,35 @@ func TestLayerFromReader(t *testing.T) {
 		return ioutil.NopCloser(bytes.NewReader(gzBytes)), nil
 	}
 	tarGzLayer, err := LayerFromOpener(gzOpener)
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+
+	assertDigestsAreEqual(t, tarLayer, tarGzLayer)
+	assertDiffIDsAreEqual(t, tarLayer, tarGzLayer)
+	assertCompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
+	assertUncompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
+	assertSizesAreEqual(t, tarLayer, tarGzLayer)
+}
+
+func TestLayerFromReader(t *testing.T) {
+	setupFixtures(t)
+	defer teardownFixtures(t)
+
+	ucBytes, err := ioutil.ReadFile("testdata/content.tar")
+	if err != nil {
+		t.Fatalf("Unable to read tar file: %v", err)
+	}
+	tarLayer, err := LayerFromReader(bytes.NewReader(ucBytes))
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+
+	gzBytes, err := ioutil.ReadFile("gzip_content.tgz")
+	if err != nil {
+		t.Fatalf("Unable to read tar file: %v", err)
+	}
+	tarGzLayer, err := LayerFromReader(bytes.NewReader(gzBytes))
 	if err != nil {
 		t.Fatalf("Unable to create layer from tar file: %v", err)
 	}
