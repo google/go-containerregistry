@@ -71,7 +71,7 @@ func rebase(orig, oldBase, newBase, rebased string) {
 		log.Fatalln(err)
 	}
 
-	rebasedTag, err := name.NewTag(rebased, name.WeakValidation)
+	rebasedTag, err := name.NewTag(rebased)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", rebased, err)
 	}

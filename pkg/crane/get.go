@@ -24,7 +24,7 @@ import (
 )
 
 func getImage(r string) (v1.Image, name.Reference, error) {
-	ref, err := name.ParseReference(r, name.WeakValidation)
+	ref, err := name.ParseReference(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing reference %q: %v", r, err)
 	}
@@ -36,7 +36,7 @@ func getImage(r string) (v1.Image, name.Reference, error) {
 }
 
 func getManifest(r string) (*remote.Descriptor, error) {
-	ref, err := name.ParseReference(r, name.WeakValidation)
+	ref, err := name.ParseReference(r)
 	if err != nil {
 		return nil, fmt.Errorf("parsing reference %q: %v", r, err)
 	}

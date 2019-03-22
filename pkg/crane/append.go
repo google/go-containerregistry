@@ -51,7 +51,7 @@ func NewCmdAppend() *cobra.Command {
 }
 
 func doAppend(src, dst, tar, output string) {
-	srcRef, err := name.ParseReference(src, name.WeakValidation)
+	srcRef, err := name.ParseReference(src)
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", src, err)
 	}
@@ -60,7 +60,7 @@ func doAppend(src, dst, tar, output string) {
 		log.Fatalf("reading image %q: %v", srcRef, err)
 	}
 
-	dstTag, err := name.NewTag(dst, name.WeakValidation)
+	dstTag, err := name.NewTag(dst)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", dst, err)
 	}

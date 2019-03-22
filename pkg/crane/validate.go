@@ -74,7 +74,7 @@ func makeTarball(path string) (v1.Image, error) {
 }
 
 func makeRemote(remoteRef string) (v1.Image, error) {
-	ref, err := name.ParseReference(remoteRef, name.WeakValidation)
+	ref, err := name.ParseReference(remoteRef)
 	if err != nil {
 		return nil, fmt.Errorf("parsing remote ref %q: %v", remoteRef, err)
 	}
@@ -83,7 +83,7 @@ func makeRemote(remoteRef string) (v1.Image, error) {
 }
 
 func makeDaemon(daemonRef string) (v1.Image, error) {
-	ref, err := name.ParseReference(daemonRef, name.WeakValidation)
+	ref, err := name.ParseReference(daemonRef)
 	if err != nil {
 		return nil, fmt.Errorf("parsing daemon ref %q: %v", daemonRef, err)
 	}

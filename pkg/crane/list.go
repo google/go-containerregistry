@@ -39,7 +39,7 @@ func NewCmdList() *cobra.Command {
 
 func ls(_ *cobra.Command, args []string) {
 	r := args[0]
-	repo, err := name.NewRepository(r, name.WeakValidation)
+	repo, err := name.NewRepository(r)
 	if err != nil {
 		log.Fatalf("parsing repo %q: %v", r, err)
 	}

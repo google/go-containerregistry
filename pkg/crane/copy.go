@@ -40,13 +40,13 @@ func NewCmdCopy() *cobra.Command {
 
 func doCopy(_ *cobra.Command, args []string) {
 	src, dst := args[0], args[1]
-	srcRef, err := name.ParseReference(src, name.WeakValidation)
+	srcRef, err := name.ParseReference(src)
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", src, err)
 	}
 	log.Printf("Pulling %v", srcRef)
 
-	dstRef, err := name.ParseReference(dst, name.WeakValidation)
+	dstRef, err := name.ParseReference(dst)
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", dst, err)
 	}

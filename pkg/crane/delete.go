@@ -38,7 +38,7 @@ func NewCmdDelete() *cobra.Command {
 
 func doDelete(_ *cobra.Command, args []string) {
 	ref := args[0]
-	r, err := name.ParseReference(ref, name.WeakValidation)
+	r, err := name.ParseReference(ref)
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", ref, err)
 	}
