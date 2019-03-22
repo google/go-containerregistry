@@ -134,7 +134,8 @@ func NewRegistry(name string, opts ...Option) (Registry, error) {
 }
 
 // NewInsecureRegistry returns an Insecure Registry based on the given name.
-// Strict validation requires explicit, valid RFC 3986 URI authorities to be given.
+//
+// Deprecated: Use the Insecure Option with NewRegistry instead.
 func NewInsecureRegistry(name string, opts ...Option) (Registry, error) {
 	opts = append(opts, Insecure)
 	return NewRegistry(name, opts...)
