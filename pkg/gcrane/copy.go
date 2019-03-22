@@ -87,12 +87,12 @@ type copier struct {
 }
 
 func newCopier(src, dst string) (*copier, error) {
-	srcRepo, err := name.NewRepository(src, name.WeakValidation)
+	srcRepo, err := name.NewRepository(src)
 	if err != nil {
 		return nil, fmt.Errorf("parsing repo %q: %v", src, err)
 	}
 
-	dstRepo, err := name.NewRepository(dst, name.WeakValidation)
+	dstRepo, err := name.NewRepository(dst)
 	if err != nil {
 		return nil, fmt.Errorf("parsing repo %q: %v", dst, err)
 	}
@@ -111,12 +111,12 @@ func newCopier(src, dst string) (*copier, error) {
 }
 
 func copyImage(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
-	srcRef, err := name.ParseReference(src, name.WeakValidation)
+	srcRef, err := name.ParseReference(src)
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
-	dstRef, err := name.ParseReference(dst, name.WeakValidation)
+	dstRef, err := name.ParseReference(dst)
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", dst, err)
 	}
@@ -134,12 +134,12 @@ func copyImage(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
 }
 
 func copyIndex(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
-	srcRef, err := name.ParseReference(src, name.WeakValidation)
+	srcRef, err := name.ParseReference(src)
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
-	dstRef, err := name.ParseReference(dst, name.WeakValidation)
+	dstRef, err := name.ParseReference(dst)
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", dst, err)
 	}
@@ -378,12 +378,12 @@ func toStringSet(slice []string) map[string]struct{} {
 }
 
 func parseRefAuths(src, dst string) (authn.Authenticator, authn.Authenticator, error) {
-	srcRef, err := name.ParseReference(src, name.WeakValidation)
+	srcRef, err := name.ParseReference(src)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
-	dstRef, err := name.ParseReference(dst, name.WeakValidation)
+	dstRef, err := name.ParseReference(dst)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing reference %q: %v", dst, err)
 	}

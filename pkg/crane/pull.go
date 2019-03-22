@@ -45,7 +45,7 @@ func NewCmdPull() *cobra.Command {
 func pull(_ *cobra.Command, args []string) {
 	src, dst := args[0], args[1]
 
-	ref, err := name.ParseReference(src, name.WeakValidation)
+	ref, err := name.ParseReference(src)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", src, err)
 	}
@@ -67,7 +67,7 @@ func pull(_ *cobra.Command, args []string) {
 			log.Fatal("ref wasn't a tag or digest")
 		}
 		s := fmt.Sprintf("%s:%s", d.Repository.Name(), iWasADigestTag)
-		tag, err = name.NewTag(s, name.WeakValidation)
+		tag, err = name.NewTag(s)
 		if err != nil {
 			log.Fatalf("parsing digest as tag (%s): %v", s, err)
 		}

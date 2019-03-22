@@ -39,7 +39,7 @@ func NewCmdPush() *cobra.Command {
 
 func push(_ *cobra.Command, args []string) {
 	src, dst := args[0], args[1]
-	t, err := name.NewTag(dst, name.WeakValidation)
+	t, err := name.NewTag(dst)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", dst, err)
 	}

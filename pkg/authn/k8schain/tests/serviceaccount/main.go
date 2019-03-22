@@ -17,14 +17,13 @@ package main
 import (
 	"log"
 
+	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-
-	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 )
 
 func main() {
-	ref, err := name.NewTag("gcr.io/build-crd-testing/secret-sauce:latest", name.WeakValidation)
+	ref, err := name.NewTag("gcr.io/build-crd-testing/secret-sauce:latest")
 	if err != nil {
 		log.Fatalf("NewTag() = %v", err)
 	}
