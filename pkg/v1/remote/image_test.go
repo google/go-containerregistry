@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -369,7 +368,7 @@ func TestPullingManifestList(t *testing.T) {
 	childPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, childDigest)
 	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, mustConfigName(t, child))
 
-	// Rewrite the index to make sure the current runtime matches the second child.
+	// Rewrite the index to make sure the desired platform matches the second child.
 	manifest, err := idx.IndexManifest()
 	if err != nil {
 		t.Fatal(err)
@@ -380,10 +379,7 @@ func TestPullingManifestList(t *testing.T) {
 		OS:           "not-real-os",
 	}
 	// Make sure the second manifest does.
-	manifest.Manifests[1].Platform = &v1.Platform{
-		Architecture: runtime.GOARCH,
-		OS:           runtime.GOOS,
-	}
+	manifest.Manifests[1].Platform = &defaultPlatform
 	rawManifest, err := json.Marshal(manifest)
 	if err != nil {
 		t.Fatal(err)
