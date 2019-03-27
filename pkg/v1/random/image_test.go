@@ -19,6 +19,8 @@ import (
 	"io"
 	"io/ioutil"
 	"testing"
+
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func TestManifestAndConfig(t *testing.T) {
@@ -57,6 +59,14 @@ func TestTarLayer(t *testing.T) {
 		t.Errorf("Got %d layers, want 5", len(layers))
 	}
 	for i, l := range layers {
+		mediaType, err := l.MediaType()
+		if err != nil {
+			t.Fatalf("MediaType: %v", err)
+		}
+		if got, want := mediaType, types.DockerLayer; got != want {
+			t.Fatalf("MediaType(); got %q, want %q", got, want)
+		}
+
 		rc, err := l.Uncompressed()
 		if err != nil {
 			t.Errorf("Uncompressed(%d): %v", i, err)

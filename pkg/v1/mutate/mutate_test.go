@@ -32,6 +32,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func TestExtractWhiteout(t *testing.T) {
@@ -600,6 +601,10 @@ func (m mockLayer) Digest() (v1.Hash, error) {
 
 func (m mockLayer) DiffID() (v1.Hash, error) {
 	return v1.Hash{Algorithm: "fake", Hex: "diff id"}, nil
+}
+
+func (m mockLayer) MediaType() (types.MediaType, error) {
+	return "some-media-type", nil
 }
 
 func (m mockLayer) Size() (int64, error) { return 137438691328, nil }
