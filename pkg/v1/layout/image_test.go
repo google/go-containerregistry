@@ -82,6 +82,21 @@ func TestImage(t *testing.T) {
 	if got, want := cfgDigest, cfgName; got != want {
 		t.Errorf("ConfigName(); want: %v got: %v", want, got)
 	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("img.Layers() = %v", err)
+	}
+
+	mediaType, err := layers[0].MediaType()
+	if err != nil {
+		t.Fatalf("img.Layers() = %v", err)
+	}
+
+	// Fixture is a DockerLayer
+	if got, want := mediaType, types.DockerLayer; got != want {
+		t.Fatalf("MediaType(); want: %q got: %q", want, got)
+	}
 }
 
 func TestImageErrors(t *testing.T) {
