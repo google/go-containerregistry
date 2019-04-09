@@ -192,3 +192,72 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", bearer.Token, refreshedToken)
 	}
 }
+
+type recorder struct {
+	reqs []*http.Request
+	resp *http.Response
+	err  error
+}
+
+func newRecorder(resp *http.Response, err error) *recorder {
+	return &recorder{
+		reqs: []*http.Request{},
+		resp: resp,
+		err:  err,
+	}
+}
+
+func (r *recorder) RoundTrip(in *http.Request) (*http.Response, error) {
+	r.reqs = append(r.reqs, in)
+	return r.resp, r.err
+}
+
+func TestSchemeOverride(t *testing.T) {
+	// Record the requests we get in the inner transport.
+	cannedResponse := http.Response{
+		Status:     http.StatusText(http.StatusOK),
+		StatusCode: http.StatusOK,
+	}
+	rec := newRecorder(&cannedResponse, nil)
+	registry, err := name.NewRegistry("example.com")
+	if err != nil {
+		t.Fatalf("Unexpected error during NewRegistry: %v", err)
+	}
+	bearer := &authn.Bearer{Token: "does-not-matter"}
+	bt := &bearerTransport{
+		inner:    rec,
+		bearer:   bearer,
+		basic:    &authn.Basic{},
+		registry: registry,
+		realm:    "token.example.com",
+		scheme:   "http",
+	}
+
+	// We should see the scheme be overridden to "http" for the registry, but the
+	// scheme for the token server should be unchanged.
+	tests := []struct {
+		url        string
+		wantScheme string
+	}{{
+		url:        "https://example.com",
+		wantScheme: "http",
+	}, {
+		url:        "https://token.example.com",
+		wantScheme: "https",
+	}}
+
+	for i, tt := range tests {
+		req, err := http.NewRequest("GET", tt.url, nil)
+		if err != nil {
+			t.Fatalf("Unexpected error during NewRequest: %v", err)
+		}
+
+		if _, err := bt.RoundTrip(req); err != nil {
+			t.Fatalf("Unexpected error during RoundTrip: %v", err)
+		}
+
+		if got, want := rec.reqs[i].URL.Scheme, tt.wantScheme; got != want {
+			t.Errorf("Wrong scheme: wanted %v, got %v", want, got)
+		}
+	}
+}
