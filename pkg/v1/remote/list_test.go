@@ -22,8 +22,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -74,7 +72,7 @@ func TestList(t *testing.T) {
 				t.Fatalf("name.NewRepository(%v) = %v", repoName, err)
 			}
 
-			tags, err := List(repo, authn.Anonymous, http.DefaultTransport)
+			tags, err := List(repo)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("List() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
 			}

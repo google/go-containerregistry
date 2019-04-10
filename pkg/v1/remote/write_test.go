@@ -31,7 +31,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -504,7 +503,7 @@ func TestDedupeLayers(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport); err != nil {
+	if err := Write(tag, img); err != nil {
 		t.Errorf("Write: %v", err)
 	}
 
@@ -855,7 +854,7 @@ func TestWrite(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport); err != nil {
+	if err := Write(tag, img); err != nil {
 		t.Errorf("Write() = %v", err)
 	}
 }
@@ -905,7 +904,7 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Write(tag, img, authn.Anonymous, http.DefaultTransport); err == nil {
+	if err := Write(tag, img); err == nil {
 		t.Error("Write() = nil; wanted error")
 	} else if se, ok := err.(*transport.Error); !ok {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)
@@ -1164,7 +1163,7 @@ func TestWriteIndex(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := WriteIndex(tag, idx, authn.Anonymous, http.DefaultTransport); err != nil {
+	if err := WriteIndex(tag, idx); err != nil {
 		t.Errorf("WriteIndex() = %v", err)
 	}
 }
