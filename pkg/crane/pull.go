@@ -34,8 +34,8 @@ func init() { Root.AddCommand(NewCmdPull()) }
 
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "pull",
+	return &cobra.Command{
+		Use:   "crane pull [image] [output-path]",
 		Short: "Pull a remote image by reference and store its contents in a tarball",
 		Args: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
@@ -45,14 +45,6 @@ func NewCmdPull() *cobra.Command {
 		},
 		Run: pull,
 	}
-
-	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		fmt.Println("Usage: ")
-		fmt.Println("  crane pull [image] [output-path]")
-		return nil
-	})
-
-	return cmd
 }
 
 func pull(_ *cobra.Command, args []string) {
