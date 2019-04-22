@@ -10,7 +10,7 @@ import (
 )
 
 type manifests struct {
-	// maps container -> manifest tag/ digest -> manifest
+	// maps repo -> manifest tag/digest -> manifest
 	manifests map[string]map[string][]byte
 	lock      sync.Mutex
 }
@@ -30,16 +30,17 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) {
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
 	target := elem[len(elem)-1]
-	container := strings.Join(elem[1:len(elem)-2], "/")
+	repo := strings.Join(elem[1:len(elem)-2], "/")
 
 	if req.Method == "GET" {
 		m.lock.Lock()
 		defer m.lock.Unlock()
-		if _, ok := m.manifests[container]; !ok {
+		c, ok := m.manifests[repo]
+		if !ok {
 			resp.WriteHeader(http.StatusNotFound)
 			return
 		}
-		m, ok := m.manifests[container][target]
+		m, ok := c[target]
 		if !ok {
 			resp.WriteHeader(http.StatusNotFound)
 			return
@@ -53,11 +54,11 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) {
 	if req.Method == "HEAD" {
 		m.lock.Lock()
 		defer m.lock.Unlock()
-		if _, ok := m.manifests[container]; !ok {
+		if _, ok := m.manifests[repo]; !ok {
 			resp.WriteHeader(http.StatusNotFound)
 			return
 		}
-		m, ok := m.manifests[container][target]
+		m, ok := m.manifests[repo][target]
 		if !ok {
 			resp.WriteHeader(http.StatusNotFound)
 			return
@@ -70,12 +71,12 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) {
 	if req.Method == "PUT" {
 		m.lock.Lock()
 		defer m.lock.Unlock()
-		if _, ok := m.manifests[container]; !ok {
-			m.manifests[container] = map[string][]byte{}
+		if _, ok := m.manifests[repo]; !ok {
+			m.manifests[repo] = map[string][]byte{}
 		}
 		b := &bytes.Buffer{}
 		io.Copy(b, req.Body)
-		m.manifests[container][target] = b.Bytes()
+		m.manifests[repo][target] = b.Bytes()
 		resp.WriteHeader(http.StatusCreated)
 		return
 	}
