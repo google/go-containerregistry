@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -28,11 +27,6 @@ func isManifest(req *http.Request) bool {
 func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) {
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
-	// Must have a path of form /v2/{container}/manifests/{tag, digest}
-	if len(elem) < 4 {
-		resp.WriteHeader(http.StatusBadRequest)
-		return
-	}
 	target := elem[len(elem)-1]
 	container := strings.Join(elem[1:len(elem)-2], "/")
 
@@ -71,11 +65,9 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) {
 		if _, ok := m.manifests[container]; !ok {
 			m.manifests[container] = map[string][]byte{}
 		}
-		b, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			resp.WriteHeader(http.StatusBadRequest)
-		}
-		m.manifests[container][target] = b
+		b := &bytes.Buffer{}
+		io.Copy(b, req.Body)
+		m.manifests[container][target] = b.Bytes()
 		resp.WriteHeader(http.StatusCreated)
 		return
 	}

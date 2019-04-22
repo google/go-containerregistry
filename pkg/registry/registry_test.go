@@ -61,6 +61,19 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusNotFound,
 		},
 		{
+			Description: "bad blob verb",
+			Method:      "FOO",
+			URL:         "/v2/foo/blobs/sha256:asd",
+			Code:        http.StatusBadRequest,
+		},
+		{
+			Description: "GET containerless blob",
+			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusOK,
+		},
+		{
 			Description: "GET blob",
 			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
 			Method:      "GET",
@@ -122,6 +135,20 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusNotFound,
 		},
 		{
+			Description: "get missing manifest good container",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/manifests/bar",
+			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "head missing manifest good container",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
+			Method:      "HEAD",
+			URL:         "/v2/foo/manifests/bar",
+			Code:        http.StatusNotFound,
+		},
+		{
 			Description: "get manifest",
 			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
 			Method:      "GET",
@@ -141,6 +168,12 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/manifests/latest",
 			Code:        http.StatusCreated,
 			Body:        "foo",
+		},
+		{
+			Description: "bad manifest method",
+			Method:      "BAR",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusBadRequest,
 		},
 	}
 
