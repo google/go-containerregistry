@@ -29,7 +29,6 @@ func New() http.Handler {
 	m := http.NewServeMux()
 	v := v{
 		blobs: blobs{
-
 			contents: map[string][]byte{},
 			uploads:  map[string][]byte{},
 		},

@@ -33,12 +33,10 @@ type blobs struct {
 	uploads map[string][]byte
 }
 
-// https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pulling-a-layer
-// https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-a-layer
 func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
-	// Must have a path of form /v2/{container}/blobs/{upload,sha256:}
+	// Must have a path of form /v2/{name}/blobs/{upload,sha256:}
 	if len(elem) < 4 {
 		resp.WriteHeader(http.StatusBadRequest)
 		return
