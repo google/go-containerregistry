@@ -8,6 +8,7 @@ import (
 // https://docs.docker.com/registry/spec/api/#api-version-check
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#api-version-check
 func version(resp http.ResponseWriter, req *http.Request) {
+	resp.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
 	if req.URL.Path != "/v2/" {
 		resp.WriteHeader(404)
 		return
