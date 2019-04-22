@@ -99,6 +99,24 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "PATCH" && service == "uploads" {
+		r := req.Header.Get("Content-Range")
+		if r != "" {
+			start, end := 0, 0
+			if _, err := fmt.Sscanf(r, "%d-%d", &start, &end); err != nil {
+				resp.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if start != len(b.uploads[target]) {
+				resp.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			l := bytes.NewBuffer(b.uploads[target])
+			io.Copy(l, req.Body)
+			b.uploads[target] = l.Bytes()
+			resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
+			resp.WriteHeader(http.StatusNoContent)
+			return
+		}
 		if _, ok := b.uploads[target]; ok {
 			resp.WriteHeader(http.StatusBadRequest)
 			return

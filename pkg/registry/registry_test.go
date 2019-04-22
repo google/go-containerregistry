@@ -17,10 +17,11 @@ func TestCalls(t *testing.T) {
 		Description string
 
 		// Request / setup
-		URL        string
-		Digests    map[string]string
-		Manifests  map[string]string
-		BlobStream map[string]string
+		URL           string
+		Digests       map[string]string
+		Manifests     map[string]string
+		BlobStream    map[string]string
+		RequestHeader map[string]string
 
 		// Response
 		Code   int
@@ -214,6 +215,42 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/manifests/latest",
 			Code:        http.StatusBadRequest,
 		},
+		{
+			Description:   "Chunk upload start",
+			Method:        "PATCH",
+			URL:           "/v2/foo/blobs/uploads/1",
+			RequestHeader: map[string]string{"Content-Range": "0-3"},
+			Code:          http.StatusNoContent,
+			Body:          "foo",
+			Header:        map[string]string{"Range": "0-3"},
+		},
+		{
+			Description:   "Chunk upload bad content range",
+			Method:        "PATCH",
+			URL:           "/v2/foo/blobs/uploads/1",
+			RequestHeader: map[string]string{"Content-Range": "0-bar"},
+			Code:          http.StatusBadRequest,
+			Body:          "foo",
+		},
+		{
+			Description:   "Chunk upload overlaps previous data",
+			Method:        "PATCH",
+			URL:           "/v2/foo/blobs/uploads/1",
+			BlobStream:    map[string]string{"1": "foo"},
+			RequestHeader: map[string]string{"Content-Range": "2-5"},
+			Code:          http.StatusBadRequest,
+			Body:          "bar",
+		},
+		{
+			Description:   "Chunk upload after previous data",
+			Method:        "PATCH",
+			URL:           "/v2/foo/blobs/uploads/1",
+			BlobStream:    map[string]string{"1": "foo"},
+			RequestHeader: map[string]string{"Content-Range": "3-6"},
+			Code:          http.StatusNoContent,
+			Body:          "bar",
+			Header:        map[string]string{"Range": "0-6"},
+		},
 	}
 
 	for _, tc := range tcs {
@@ -287,6 +324,10 @@ func TestCalls(t *testing.T) {
 				Method: tc.Method,
 				URL:    u,
 				Body:   ioutil.NopCloser(strings.NewReader(tc.Body)),
+				Header: map[string][]string{},
+			}
+			for k, v := range tc.RequestHeader {
+				req.Header.Set(k, v)
 			}
 			resp, err := s.Client().Do(req)
 			if err != nil {
