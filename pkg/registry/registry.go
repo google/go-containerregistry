@@ -5,9 +5,17 @@ import (
 	"net/http"
 )
 
+type v struct {
+	blobs blobs
+}
+
 // https://docs.docker.com/registry/spec/api/#api-version-check
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#api-version-check
-func version(resp http.ResponseWriter, req *http.Request) {
+func (v *v) v2(resp http.ResponseWriter, req *http.Request) {
+	if isBlob(req) {
+		v.blobs.handle(resp, req)
+		return
+	}
 	resp.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
 	if req.URL.Path != "/v2/" {
 		resp.WriteHeader(404)
@@ -19,6 +27,13 @@ func version(resp http.ResponseWriter, req *http.Request) {
 // New returns a handler which implements the docker registry protocol. It should be registered at the site root.
 func New() http.Handler {
 	m := http.NewServeMux()
-	m.HandleFunc("/v2/", version)
+	v := v{
+		blobs: blobs{
+
+			contents: map[string][]byte{},
+			uploads:  map[string][]byte{},
+		},
+	}
+	m.HandleFunc("/v2/", v.v2)
 	return m
 }
