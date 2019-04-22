@@ -17,8 +17,9 @@ func TestCalls(t *testing.T) {
 		Description string
 
 		// Request / setup
-		URL     string
-		Digests map[string]string
+		URL       string
+		Digests   map[string]string
+		Manifests map[string]string
 
 		// Response
 		Code   int
@@ -108,6 +109,39 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusBadRequest,
 			Body:        "foo",
 		},
+		{
+			Description: "get missing manifest",
+			Method:      "GET",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "head missing manifest",
+			Method:      "HEAD",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "get manifest",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusOK,
+		},
+		{
+			Description: "head manifest",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
+			Method:      "HEAD",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusOK,
+		},
+		{
+			Description: "create manifest",
+			Method:      "PUT",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusCreated,
+			Body:        "foo",
+		},
 	}
 
 	for _, tc := range tcs {
@@ -115,6 +149,24 @@ func TestCalls(t *testing.T) {
 			s := httptest.NewServer(registry.New())
 			defer s.Close()
 
+			for manifest, contents := range tc.Manifests {
+				u, err := url.Parse(s.URL + "/v2/" + manifest)
+				if err != nil {
+					t.Fatalf("Error parsing %q: %v", s.URL+"/v2", err)
+				}
+				req := &http.Request{
+					Method: "PUT",
+					URL:    u,
+					Body:   ioutil.NopCloser(strings.NewReader(contents)),
+				}
+				resp, err := s.Client().Do(req)
+				if err != nil {
+					t.Fatalf("Error uploading manifest: %v", err)
+				}
+				if resp.StatusCode != http.StatusCreated {
+					t.Fatalf("Error uploading manifest got status: %d", resp.StatusCode)
+				}
+			}
 			for digest, contents := range tc.Digests {
 				u, err := url.Parse(fmt.Sprintf("%s/v2/foo/blobs/uploads/1?digest=%s", s.URL, digest))
 				if err != nil {
