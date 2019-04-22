@@ -108,6 +108,20 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusBadRequest,
 		},
 		{
+			Description: "monolithic upload good digest",
+			Method:      "POST",
+			URL:         "/v2/foo/blobs/uploads?digest=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusCreated,
+			Body:        "foo",
+		},
+		{
+			Description: "monolithic upload bad digest",
+			Method:      "POST",
+			URL:         "/v2/foo/blobs/uploads?digest=sha256:fake",
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
+		},
+		{
 			Description: "upload good digest",
 			Method:      "PUT",
 			URL:         "/v2/foo/blobs/uploads/1?digest=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
