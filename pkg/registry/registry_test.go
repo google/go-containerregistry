@@ -17,9 +17,10 @@ func TestCalls(t *testing.T) {
 		Description string
 
 		// Request / setup
-		URL       string
-		Digests   map[string]string
-		Manifests map[string]string
+		URL        string
+		Digests    map[string]string
+		Manifests  map[string]string
+		BlobStream map[string]string
 
 		// Response
 		Code   int
@@ -137,6 +138,30 @@ func TestCalls(t *testing.T) {
 			Body:        "foo",
 		},
 		{
+			Description: "stream upload",
+			Method:      "PATCH",
+			URL:         "/v2/foo/blobs/uploads/1",
+			Code:        http.StatusNoContent,
+			Body:        "foo",
+			Header:      map[string]string{"Range": "0-3"},
+		},
+		{
+			Description: "stream duplicate upload",
+			Method:      "PATCH",
+			URL:         "/v2/foo/blobs/uploads/1",
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
+			BlobStream:  map[string]string{"1": "foo"},
+		},
+		{
+			Description: "stream finish upload",
+			Method:      "PUT",
+			URL:         "/v2/foo/blobs/uploads/1?digest=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			BlobStream:  map[string]string{"1": "foo"},
+			Code:        http.StatusCreated,
+			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
+		},
+		{
 			Description: "get missing manifest",
 			Method:      "GET",
 			URL:         "/v2/foo/manifests/latest",
@@ -214,6 +239,7 @@ func TestCalls(t *testing.T) {
 					t.Fatalf("Error uploading manifest got status: %d", resp.StatusCode)
 				}
 			}
+
 			for digest, contents := range tc.Digests {
 				u, err := url.Parse(fmt.Sprintf("%s/v2/foo/blobs/uploads/1?digest=%s", s.URL, digest))
 				if err != nil {
@@ -230,6 +256,25 @@ func TestCalls(t *testing.T) {
 				}
 				if resp.StatusCode != http.StatusCreated {
 					t.Fatalf("Error uploading digest got status: %d", resp.StatusCode)
+				}
+			}
+
+			for upload, contents := range tc.BlobStream {
+				u, err := url.Parse(fmt.Sprintf("%s/v2/foo/blobs/uploads/%s", s.URL, upload))
+				if err != nil {
+					t.Fatalf("Error parsing %q: %v", s.URL+tc.URL, err)
+				}
+				req := &http.Request{
+					Method: "PATCH",
+					URL:    u,
+					Body:   ioutil.NopCloser(strings.NewReader(contents)),
+				}
+				resp, err := s.Client().Do(req)
+				if err != nil {
+					t.Fatalf("Error streaming blob: %v", err)
+				}
+				if resp.StatusCode != http.StatusNoContent {
+					t.Fatalf("Error streaming blob: %d", resp.StatusCode)
 				}
 
 			}

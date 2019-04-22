@@ -98,6 +98,21 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if req.Method == "PATCH" && service == "uploads" {
+		if _, ok := b.uploads[target]; ok {
+			resp.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		l := &bytes.Buffer{}
+		io.Copy(l, req.Body)
+
+		b.uploads[target] = l.Bytes()
+		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
+		resp.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	if req.Method == "PUT" && service == "uploads" {
 		digest := req.URL.Query().Get("digest")
 		if digest == "" {
@@ -105,7 +120,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		l := &bytes.Buffer{}
+		l := bytes.NewBuffer(b.uploads[target])
 		io.Copy(l, req.Body)
 		rd := sha256.Sum256(l.Bytes())
 		d := "sha256:" + hex.EncodeToString(rd[:])
@@ -115,6 +130,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 		}
 
 		b.contents[d] = l.Bytes()
+		delete(b.uploads, target)
 		resp.Header().Set("Docker-Content-Digest", d)
 		resp.WriteHeader(http.StatusCreated)
 		return
