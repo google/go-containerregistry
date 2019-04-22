@@ -6,7 +6,8 @@ import (
 )
 
 type v struct {
-	blobs blobs
+	blobs     blobs
+	manifests manifests
 }
 
 // https://docs.docker.com/registry/spec/api/#api-version-check
@@ -14,6 +15,10 @@ type v struct {
 func (v *v) v2(resp http.ResponseWriter, req *http.Request) {
 	if isBlob(req) {
 		v.blobs.handle(resp, req)
+		return
+	}
+	if isManifest(req) {
+		v.manifests.handle(resp, req)
 		return
 	}
 	resp.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
@@ -31,6 +36,9 @@ func New() http.Handler {
 		blobs: blobs{
 			contents: map[string][]byte{},
 			uploads:  map[string][]byte{},
+		},
+		manifests: manifests{
+			manifests: map[string]map[string][]byte{},
 		},
 	}
 	m.HandleFunc("/v2/", v.v2)
