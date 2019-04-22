@@ -72,6 +72,23 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "POST" && target == "uploads" {
+		digest := req.URL.Query().Get("digest")
+		if digest != "" {
+			l := &bytes.Buffer{}
+			io.Copy(l, req.Body)
+			rd := sha256.Sum256(l.Bytes())
+			d := "sha256:" + hex.EncodeToString(rd[:])
+			if d != digest {
+				resp.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			b.contents[d] = l.Bytes()
+			resp.Header().Set("Docker-Content-Digest", d)
+			resp.WriteHeader(http.StatusCreated)
+			return
+		}
+
 		id := fmt.Sprint(rand.Int63())
 		resp.Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s",
 			strings.Join(elem[1:len(elem)-2], ","),
