@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // Returns whether this url should be handled by the blob handler
@@ -31,6 +32,7 @@ type blobs struct {
 	contents map[string][]byte
 	// Each upload gets a unique id that writes occur to until finalized.
 	uploads map[string][]byte
+	lock    sync.Mutex
 }
 
 func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
@@ -45,6 +47,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 	service := elem[len(elem)-2]
 
 	if req.Method == "HEAD" {
+		b.lock.Lock()
+		defer b.lock.Unlock()
 		b, ok := b.contents[target]
 		if !ok {
 			resp.WriteHeader(http.StatusNotFound)
@@ -58,6 +62,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "GET" {
+		b.lock.Lock()
+		defer b.lock.Unlock()
 		b, ok := b.contents[target]
 		if !ok {
 			resp.WriteHeader(http.StatusNotFound)
@@ -83,6 +89,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 				return
 			}
 
+			b.lock.Lock()
+			defer b.lock.Unlock()
 			b.contents[d] = l.Bytes()
 			resp.Header().Set("Docker-Content-Digest", d)
 			resp.WriteHeader(http.StatusCreated)
@@ -106,6 +114,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 				resp.WriteHeader(http.StatusBadRequest)
 				return
 			}
+			b.lock.Lock()
+			defer b.lock.Unlock()
 			if start != len(b.uploads[target]) {
 				resp.WriteHeader(http.StatusBadRequest)
 				return
@@ -117,6 +127,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 			resp.WriteHeader(http.StatusNoContent)
 			return
 		}
+		b.lock.Lock()
+		defer b.lock.Unlock()
 		if _, ok := b.uploads[target]; ok {
 			resp.WriteHeader(http.StatusBadRequest)
 			return
@@ -138,6 +150,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		b.lock.Lock()
+		defer b.lock.Unlock()
 		l := bytes.NewBuffer(b.uploads[target])
 		io.Copy(l, req.Body)
 		rd := sha256.Sum256(l.Bytes())

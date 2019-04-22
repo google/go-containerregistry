@@ -6,11 +6,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 type manifests struct {
 	// maps container -> manifest tag/ digest -> manifest
 	manifests map[string]map[string][]byte
+	lock      sync.Mutex
 }
 
 func isManifest(req *http.Request) bool {
@@ -31,6 +33,8 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) {
 	container := strings.Join(elem[1:len(elem)-2], "/")
 
 	if req.Method == "GET" {
+		m.lock.Lock()
+		defer m.lock.Unlock()
 		if _, ok := m.manifests[container]; !ok {
 			resp.WriteHeader(http.StatusNotFound)
 			return
@@ -47,6 +51,8 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "HEAD" {
+		m.lock.Lock()
+		defer m.lock.Unlock()
 		if _, ok := m.manifests[container]; !ok {
 			resp.WriteHeader(http.StatusNotFound)
 			return
@@ -62,6 +68,8 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	if req.Method == "PUT" {
+		m.lock.Lock()
+		defer m.lock.Unlock()
 		if _, ok := m.manifests[container]; !ok {
 			m.manifests[container] = map[string][]byte{}
 		}
