@@ -19,6 +19,9 @@ import (
 func isBlob(req *http.Request) bool {
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
+	if elem[len(elem)-1] == "" {
+		elem = elem[:len(elem)-1]
+	}
 	if len(elem) < 3 {
 		return false
 	}
@@ -35,13 +38,19 @@ type blobs struct {
 	lock    sync.Mutex
 }
 
-func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
+func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
+	if elem[len(elem)-1] == "" {
+		elem = elem[:len(elem)-1]
+	}
 	// Must have a path of form /v2/{name}/blobs/{upload,sha256:}
 	if len(elem) < 4 {
-		resp.WriteHeader(http.StatusBadRequest)
-		return
+		return &regError{
+			Status:  http.StatusBadRequest,
+			Code:    "NAME_INVALID",
+			Message: "blobs must be attached to a container",
+		}
 	}
 	target := elem[len(elem)-1]
 	service := elem[len(elem)-2]
@@ -51,14 +60,17 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 		defer b.lock.Unlock()
 		b, ok := b.contents[target]
 		if !ok {
-			resp.WriteHeader(http.StatusNotFound)
-			return
+			return &regError{
+				Status:  http.StatusNotFound,
+				Code:    "BLOB_UNKNOWN",
+				Message: "Unknown blob",
+			}
 		}
 
 		resp.Header().Set("Content-Length", fmt.Sprint(len(b)))
 		resp.Header().Set("Docker-Content-Digest", target)
 		resp.WriteHeader(http.StatusOK)
-		return
+		return nil
 	}
 
 	if req.Method == "GET" {
@@ -66,15 +78,18 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 		defer b.lock.Unlock()
 		b, ok := b.contents[target]
 		if !ok {
-			resp.WriteHeader(http.StatusNotFound)
-			return
+			return &regError{
+				Status:  http.StatusNotFound,
+				Code:    "BLOB_UNKNOWN",
+				Message: "Unknown blob",
+			}
 		}
 
 		resp.Header().Set("Content-Length", fmt.Sprint(len(b)))
 		resp.Header().Set("Docker-Content-Digest", target)
 		resp.WriteHeader(http.StatusOK)
 		io.Copy(resp, bytes.NewReader(b))
-		return
+		return nil
 	}
 
 	if req.Method == "POST" && target == "uploads" {
@@ -85,8 +100,11 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 			rd := sha256.Sum256(l.Bytes())
 			d := "sha256:" + hex.EncodeToString(rd[:])
 			if d != digest {
-				resp.WriteHeader(http.StatusBadRequest)
-				return
+				return &regError{
+					Status:  http.StatusBadRequest,
+					Code:    "DIGEST_INVALID",
+					Message: "digest does not match contents",
+				}
 			}
 
 			b.lock.Lock()
@@ -94,7 +112,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 			b.contents[d] = l.Bytes()
 			resp.Header().Set("Docker-Content-Digest", d)
 			resp.WriteHeader(http.StatusCreated)
-			return
+			return nil
 		}
 
 		id := fmt.Sprint(rand.Int63())
@@ -103,7 +121,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 			id))
 		resp.Header().Set("Range", "0-0")
 		resp.WriteHeader(http.StatusAccepted)
-		return
+		return nil
 	}
 
 	if req.Method == "PATCH" && service == "uploads" {
@@ -111,43 +129,61 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 		if r != "" {
 			start, end := 0, 0
 			if _, err := fmt.Sscanf(r, "%d-%d", &start, &end); err != nil {
-				resp.WriteHeader(http.StatusBadRequest)
-				return
+				return &regError{
+					Status:  http.StatusRequestedRangeNotSatisfiable,
+					Code:    "BLOB_UPLOAD_UNKNOWN",
+					Message: "We don't understand your Content-Range",
+				}
 			}
 			b.lock.Lock()
 			defer b.lock.Unlock()
 			if start != len(b.uploads[target]) {
-				resp.WriteHeader(http.StatusBadRequest)
-				return
+				return &regError{
+					Status:  http.StatusRequestedRangeNotSatisfiable,
+					Code:    "BLOB_UPLOAD_UNKNOWN",
+					Message: "Your content range doesn't match what we have",
+				}
 			}
 			l := bytes.NewBuffer(b.uploads[target])
 			io.Copy(l, req.Body)
 			b.uploads[target] = l.Bytes()
+			resp.Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s",
+				strings.Join(elem[1:len(elem)-2], ","),
+				target))
 			resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
 			resp.WriteHeader(http.StatusNoContent)
-			return
+			return nil
 		}
 		b.lock.Lock()
 		defer b.lock.Unlock()
 		if _, ok := b.uploads[target]; ok {
-			resp.WriteHeader(http.StatusBadRequest)
-			return
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "BLOB_UPLOAD_INVALID",
+				Message: "Stream uploads after first write are not allowed",
+			}
 		}
 
 		l := &bytes.Buffer{}
 		io.Copy(l, req.Body)
 
 		b.uploads[target] = l.Bytes()
+		resp.Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s",
+			strings.Join(elem[1:len(elem)-2], ","),
+			target))
 		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
 		resp.WriteHeader(http.StatusNoContent)
-		return
+		return nil
 	}
 
 	if req.Method == "PUT" && service == "uploads" {
 		digest := req.URL.Query().Get("digest")
 		if digest == "" {
-			resp.WriteHeader(http.StatusBadRequest)
-			return
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "DIGEST_INVALID",
+				Message: "digest not specified",
+			}
 		}
 
 		b.lock.Lock()
@@ -157,17 +193,23 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) {
 		rd := sha256.Sum256(l.Bytes())
 		d := "sha256:" + hex.EncodeToString(rd[:])
 		if d != digest {
-			resp.WriteHeader(http.StatusBadRequest)
-			return
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "DIGEST_INVALID",
+				Message: "digest does not match contents",
+			}
 		}
 
 		b.contents[d] = l.Bytes()
 		delete(b.uploads, target)
 		resp.Header().Set("Docker-Content-Digest", d)
 		resp.WriteHeader(http.StatusCreated)
-		return
+		return nil
 	}
 
-	resp.WriteHeader(http.StatusBadRequest)
-	return
+	return &regError{
+		Status:  http.StatusBadRequest,
+		Code:    "METHOD_UNKNOWN",
+		Message: "We don't understand your method + url",
+	}
 }

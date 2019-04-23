@@ -8,6 +8,7 @@
 package registry
 
 import (
+	"log"
 	"net/http"
 )
 
@@ -18,21 +19,34 @@ type v struct {
 
 // https://docs.docker.com/registry/spec/api/#api-version-check
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#api-version-check
-func (v *v) v2(resp http.ResponseWriter, req *http.Request) {
+func (v *v) v2(resp http.ResponseWriter, req *http.Request) *regError {
 	if isBlob(req) {
-		v.blobs.handle(resp, req)
-		return
+		return v.blobs.handle(resp, req)
 	}
 	if isManifest(req) {
-		v.manifests.handle(resp, req)
-		return
+		return v.manifests.handle(resp, req)
 	}
 	resp.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
 	if req.URL.Path != "/v2/" {
-		resp.WriteHeader(404)
-		return
+		return &regError{
+			Status:  http.StatusNotFound,
+			Code:    "METHOD_UNKNOWN",
+			Message: "We don't understand your method + url",
+		}
 	}
 	resp.WriteHeader(200)
+	return nil
+}
+
+func (v *v) root(resp http.ResponseWriter, req *http.Request) {
+	if rerr := v.v2(resp, req); rerr != nil {
+		log.Printf("%s %s %d %s %s", req.Method, req.URL, rerr.Status, rerr.Code, rerr.Message)
+		if err := rerr.Write(resp); err != nil {
+			log.Print(err)
+		}
+		return
+	}
+	log.Printf("%s %s", req.Method, req.URL)
 }
 
 // New returns a handler which implements the docker registry protocol. It should be registered at the site root.
@@ -47,6 +61,6 @@ func New() http.Handler {
 			manifests: map[string]map[string][]byte{},
 		},
 	}
-	m.HandleFunc("/v2/", v.v2)
+	m.HandleFunc("/v2/", v.root)
 	return m
 }

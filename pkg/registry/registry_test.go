@@ -229,7 +229,7 @@ func TestCalls(t *testing.T) {
 			Method:        "PATCH",
 			URL:           "/v2/foo/blobs/uploads/1",
 			RequestHeader: map[string]string{"Content-Range": "0-bar"},
-			Code:          http.StatusBadRequest,
+			Code:          http.StatusRequestedRangeNotSatisfiable,
 			Body:          "foo",
 		},
 		{
@@ -238,7 +238,7 @@ func TestCalls(t *testing.T) {
 			URL:           "/v2/foo/blobs/uploads/1",
 			BlobStream:    map[string]string{"1": "foo"},
 			RequestHeader: map[string]string{"Content-Range": "2-5"},
-			Code:          http.StatusBadRequest,
+			Code:          http.StatusRequestedRangeNotSatisfiable,
 			Body:          "bar",
 		},
 		{
