@@ -1,4 +1,10 @@
-// Package registry implements a docker V2 registry.
+// Package registry implements a docker V2 registry and the OCI distribution specification.
+//
+// It is designed to be used anywhere a low dependency container registry is needed, with an
+// initial focus on tests.
+//
+// Its goal is to be standards compliant and its strictness will increase over time.
+
 package registry
 
 import (
