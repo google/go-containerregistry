@@ -2,6 +2,8 @@ package registry
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -51,6 +53,8 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 				Message: "Unknown manifest",
 			}
 		}
+		d := "sha256:" + hex.EncodeToString(m)
+		resp.Header().Set("Docker-Content-Digest", d)
 		resp.Header().Set("Content-Length", fmt.Sprint(len(m)))
 		resp.WriteHeader(http.StatusOK)
 		io.Copy(resp, bytes.NewReader(m))
@@ -75,6 +79,8 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 				Message: "Unknown manifest",
 			}
 		}
+		d := "sha256:" + hex.EncodeToString(m)
+		resp.Header().Set("Docker-Content-Digest", d)
 		resp.Header().Set("Content-Length", fmt.Sprint(len(m)))
 		resp.WriteHeader(http.StatusOK)
 		return nil
@@ -88,7 +94,10 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 		}
 		b := &bytes.Buffer{}
 		io.Copy(b, req.Body)
+		rd := sha256.Sum256(b.Bytes())
+		d := "sha256:" + hex.EncodeToString(rd[:])
 		m.manifests[repo][target] = b.Bytes()
+		resp.Header().Set("Docker-Content-Digest", d)
 		resp.WriteHeader(http.StatusCreated)
 		return nil
 	}

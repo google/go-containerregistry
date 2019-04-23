@@ -104,6 +104,13 @@ func TestCalls(t *testing.T) {
 			Header:      map[string]string{"Range": "0-0"},
 		},
 		{
+			Description: "uploadurl",
+			Method:      "POST",
+			URL:         "/v2/foo/blobs/uploads/",
+			Code:        http.StatusAccepted,
+			Header:      map[string]string{"Range": "0-0"},
+		},
+		{
 			Description: "upload put missing digest",
 			Method:      "PUT",
 			URL:         "/v2/foo/blobs/uploads/1",

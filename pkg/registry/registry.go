@@ -41,9 +41,7 @@ func (v *v) v2(resp http.ResponseWriter, req *http.Request) *regError {
 func (v *v) root(resp http.ResponseWriter, req *http.Request) {
 	if rerr := v.v2(resp, req); rerr != nil {
 		log.Printf("%s %s %d %s %s", req.Method, req.URL, rerr.Status, rerr.Code, rerr.Message)
-		if err := rerr.Write(resp); err != nil {
-			log.Print(err)
-		}
+		rerr.Write(resp)
 		return
 	}
 	log.Printf("%s %s", req.Method, req.URL)
