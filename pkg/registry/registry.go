@@ -27,7 +27,7 @@ func (v *v) v2(resp http.ResponseWriter, req *http.Request) *regError {
 		return v.manifests.handle(resp, req)
 	}
 	resp.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
-	if req.URL.Path != "/v2/" {
+	if req.URL.Path != "/v2/" && req.URL.Path != "/v2" {
 		return &regError{
 			Status:  http.StatusNotFound,
 			Code:    "METHOD_UNKNOWN",
@@ -49,7 +49,6 @@ func (v *v) root(resp http.ResponseWriter, req *http.Request) {
 
 // New returns a handler which implements the docker registry protocol. It should be registered at the site root.
 func New() http.Handler {
-	m := http.NewServeMux()
 	v := v{
 		blobs: blobs{
 			contents: map[string][]byte{},
@@ -59,6 +58,5 @@ func New() http.Handler {
 			manifests: map[string]map[string]manifest{},
 		},
 	}
-	m.HandleFunc("/v2/", v.root)
-	return m
+	return http.HandlerFunc(v.root)
 }
