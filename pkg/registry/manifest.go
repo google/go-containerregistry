@@ -11,9 +11,14 @@ import (
 	"sync"
 )
 
+type manifest struct {
+	contentType string
+	blob        []byte
+}
+
 type manifests struct {
 	// maps repo -> manifest tag/digest -> manifest
-	manifests map[string]map[string][]byte
+	manifests map[string]map[string]manifest
 	lock      sync.Mutex
 }
 
@@ -53,11 +58,13 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 				Message: "Unknown manifest",
 			}
 		}
-		d := "sha256:" + hex.EncodeToString(m)
+		rd := sha256.Sum256(m.blob)
+		d := "sha256:" + hex.EncodeToString(rd[:])
 		resp.Header().Set("Docker-Content-Digest", d)
-		resp.Header().Set("Content-Length", fmt.Sprint(len(m)))
+		resp.Header().Set("Content-Type", m.contentType)
+		resp.Header().Set("Content-Length", fmt.Sprint(len(m.blob)))
 		resp.WriteHeader(http.StatusOK)
-		io.Copy(resp, bytes.NewReader(m))
+		io.Copy(resp, bytes.NewReader(m.blob))
 		return nil
 	}
 
@@ -79,9 +86,11 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 				Message: "Unknown manifest",
 			}
 		}
-		d := "sha256:" + hex.EncodeToString(m)
+		rd := sha256.Sum256(m.blob)
+		d := "sha256:" + hex.EncodeToString(rd[:])
 		resp.Header().Set("Docker-Content-Digest", d)
-		resp.Header().Set("Content-Length", fmt.Sprint(len(m)))
+		resp.Header().Set("Content-Type", m.contentType)
+		resp.Header().Set("Content-Length", fmt.Sprint(len(m.blob)))
 		resp.WriteHeader(http.StatusOK)
 		return nil
 	}
@@ -90,13 +99,16 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 		m.lock.Lock()
 		defer m.lock.Unlock()
 		if _, ok := m.manifests[repo]; !ok {
-			m.manifests[repo] = map[string][]byte{}
+			m.manifests[repo] = map[string]manifest{}
 		}
 		b := &bytes.Buffer{}
 		io.Copy(b, req.Body)
 		rd := sha256.Sum256(b.Bytes())
 		d := "sha256:" + hex.EncodeToString(rd[:])
-		m.manifests[repo][target] = b.Bytes()
+		m.manifests[repo][target] = manifest{
+			blob:        b.Bytes(),
+			contentType: req.Header.Get("Content-Type"),
+		}
 		resp.Header().Set("Docker-Content-Digest", d)
 		resp.WriteHeader(http.StatusCreated)
 		return nil

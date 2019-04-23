@@ -56,7 +56,7 @@ func New() http.Handler {
 			uploads:  map[string][]byte{},
 		},
 		manifests: manifests{
-			manifests: map[string]map[string][]byte{},
+			manifests: map[string]map[string]manifest{},
 		},
 	}
 	m.HandleFunc("/v2/", v.root)
