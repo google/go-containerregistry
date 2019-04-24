@@ -4,7 +4,6 @@
 // initial focus on tests.
 //
 // Its goal is to be standards compliant and its strictness will increase over time.
-
 package registry
 
 import (
