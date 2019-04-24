@@ -7,7 +7,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 )
 
-func ExampleSetup() {
+func Example() {
 	s := httptest.NewServer(registry.New())
 	defer s.Close()
 	resp, _ := s.Client().Get(s.URL + "/v2/bar/blobs/sha256:...")
