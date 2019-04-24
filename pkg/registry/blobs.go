@@ -49,7 +49,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		return &regError{
 			Status:  http.StatusBadRequest,
 			Code:    "NAME_INVALID",
-			Message: "blobs must be attached to a container",
+			Message: "blobs must be attached to a repo",
 		}
 	}
 	target := elem[len(elem)-1]
