@@ -158,7 +158,7 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusNoContent,
 			Body:        "foo",
 			Header: map[string]string{
-				"Range":    "0-3",
+				"Range":    "0-2",
 				"Location": "/v2/foo/blobs/uploads/1",
 			},
 		},
@@ -239,7 +239,7 @@ func TestCalls(t *testing.T) {
 			Code:          http.StatusNoContent,
 			Body:          "foo",
 			Header: map[string]string{
-				"Range":    "0-3",
+				"Range":    "0-2",
 				"Location": "/v2/foo/blobs/uploads/1",
 			},
 		},
@@ -269,7 +269,7 @@ func TestCalls(t *testing.T) {
 			Code:          http.StatusNoContent,
 			Body:          "bar",
 			Header: map[string]string{
-				"Range":    "0-6",
+				"Range":    "0-5",
 				"Location": "/v2/foo/blobs/uploads/1",
 			},
 		},
