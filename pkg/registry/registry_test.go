@@ -74,6 +74,7 @@ func TestCalls(t *testing.T) {
 			Method:      "GET",
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusOK,
+			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
 		},
 		{
 			Description: "GET blob",
@@ -81,6 +82,7 @@ func TestCalls(t *testing.T) {
 			Method:      "GET",
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusOK,
+			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
 		},
 		{
 			Description: "HEAD blob",
@@ -88,7 +90,10 @@ func TestCalls(t *testing.T) {
 			Method:      "HEAD",
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusOK,
-			Header:      map[string]string{"Content-Length": "3"},
+			Header: map[string]string{
+				"Content-Length":        "3",
+				"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			},
 		},
 		{
 			Description: "blob url with no container",
@@ -122,6 +127,7 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/blobs/uploads?digest=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusCreated,
 			Body:        "foo",
+			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
 		},
 		{
 			Description: "monolithic upload bad digest",
@@ -151,7 +157,10 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/blobs/uploads/1",
 			Code:        http.StatusNoContent,
 			Body:        "foo",
-			Header:      map[string]string{"Range": "0-3"},
+			Header: map[string]string{
+				"Range":    "0-3",
+				"Location": "/v2/foo/blobs/uploads/1",
+			},
 		},
 		{
 			Description: "stream duplicate upload",
@@ -229,7 +238,10 @@ func TestCalls(t *testing.T) {
 			RequestHeader: map[string]string{"Content-Range": "0-3"},
 			Code:          http.StatusNoContent,
 			Body:          "foo",
-			Header:        map[string]string{"Range": "0-3"},
+			Header: map[string]string{
+				"Range":    "0-3",
+				"Location": "/v2/foo/blobs/uploads/1",
+			},
 		},
 		{
 			Description:   "Chunk upload bad content range",
@@ -256,7 +268,10 @@ func TestCalls(t *testing.T) {
 			RequestHeader: map[string]string{"Content-Range": "3-6"},
 			Code:          http.StatusNoContent,
 			Body:          "bar",
-			Header:        map[string]string{"Range": "0-6"},
+			Header: map[string]string{
+				"Range":    "0-6",
+				"Location": "/v2/foo/blobs/uploads/1",
+			},
 		},
 	}
 
