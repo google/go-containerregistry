@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"path"
 	"strings"
 	"sync"
 )
@@ -54,6 +55,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 	}
 	target := elem[len(elem)-1]
 	service := elem[len(elem)-2]
+	digest := req.URL.Query().Get("digest")
+	contentRange := req.Header.Get("Content-Range")
 
 	if req.Method == "HEAD" {
 		b.lock.Lock()
@@ -92,68 +95,63 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		return nil
 	}
 
-	if req.Method == "POST" && target == "uploads" {
-		digest := req.URL.Query().Get("digest")
-		if digest != "" {
-			l := &bytes.Buffer{}
-			io.Copy(l, req.Body)
-			rd := sha256.Sum256(l.Bytes())
-			d := "sha256:" + hex.EncodeToString(rd[:])
-			if d != digest {
-				return &regError{
-					Status:  http.StatusBadRequest,
-					Code:    "DIGEST_INVALID",
-					Message: "digest does not match contents",
-				}
+	if req.Method == "POST" && target == "uploads" && digest != "" {
+		l := &bytes.Buffer{}
+		io.Copy(l, req.Body)
+		rd := sha256.Sum256(l.Bytes())
+		d := "sha256:" + hex.EncodeToString(rd[:])
+		if d != digest {
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "DIGEST_INVALID",
+				Message: "digest does not match contents",
 			}
-
-			b.lock.Lock()
-			defer b.lock.Unlock()
-			b.contents[d] = l.Bytes()
-			resp.Header().Set("Docker-Content-Digest", d)
-			resp.WriteHeader(http.StatusCreated)
-			return nil
 		}
 
+		b.lock.Lock()
+		defer b.lock.Unlock()
+		b.contents[d] = l.Bytes()
+		resp.Header().Set("Docker-Content-Digest", d)
+		resp.WriteHeader(http.StatusCreated)
+		return nil
+	}
+
+	if req.Method == "POST" && target == "uploads" && digest == "" {
 		id := fmt.Sprint(rand.Int63())
-		resp.Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s",
-			strings.Join(elem[1:len(elem)-2], ","),
-			id))
+		resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-2]...), "blobs/uploads", id))
 		resp.Header().Set("Range", "0-0")
 		resp.WriteHeader(http.StatusAccepted)
 		return nil
 	}
 
-	if req.Method == "PATCH" && service == "uploads" {
-		r := req.Header.Get("Content-Range")
-		if r != "" {
-			start, end := 0, 0
-			if _, err := fmt.Sscanf(r, "%d-%d", &start, &end); err != nil {
-				return &regError{
-					Status:  http.StatusRequestedRangeNotSatisfiable,
-					Code:    "BLOB_UPLOAD_UNKNOWN",
-					Message: "We don't understand your Content-Range",
-				}
+	if req.Method == "PATCH" && service == "uploads" && contentRange != "" {
+		start, end := 0, 0
+		if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
+			return &regError{
+				Status:  http.StatusRequestedRangeNotSatisfiable,
+				Code:    "BLOB_UPLOAD_UNKNOWN",
+				Message: "We don't understand your Content-Range",
 			}
-			b.lock.Lock()
-			defer b.lock.Unlock()
-			if start != len(b.uploads[target]) {
-				return &regError{
-					Status:  http.StatusRequestedRangeNotSatisfiable,
-					Code:    "BLOB_UPLOAD_UNKNOWN",
-					Message: "Your content range doesn't match what we have",
-				}
-			}
-			l := bytes.NewBuffer(b.uploads[target])
-			io.Copy(l, req.Body)
-			b.uploads[target] = l.Bytes()
-			resp.Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s",
-				strings.Join(elem[1:len(elem)-2], ","),
-				target))
-			resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
-			resp.WriteHeader(http.StatusNoContent)
-			return nil
 		}
+		b.lock.Lock()
+		defer b.lock.Unlock()
+		if start != len(b.uploads[target]) {
+			return &regError{
+				Status:  http.StatusRequestedRangeNotSatisfiable,
+				Code:    "BLOB_UPLOAD_UNKNOWN",
+				Message: "Your content range doesn't match what we have",
+			}
+		}
+		l := bytes.NewBuffer(b.uploads[target])
+		io.Copy(l, req.Body)
+		b.uploads[target] = l.Bytes()
+		resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
+		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
+		resp.WriteHeader(http.StatusNoContent)
+		return nil
+	}
+
+	if req.Method == "PATCH" && service == "uploads" && contentRange == "" {
 		b.lock.Lock()
 		defer b.lock.Unlock()
 		if _, ok := b.uploads[target]; ok {
@@ -168,24 +166,21 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		io.Copy(l, req.Body)
 
 		b.uploads[target] = l.Bytes()
-		resp.Header().Set("Location", fmt.Sprintf("/v2/%s/blobs/uploads/%s",
-			strings.Join(elem[1:len(elem)-2], ","),
-			target))
+		resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
 		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
 		resp.WriteHeader(http.StatusNoContent)
 		return nil
 	}
 
-	if req.Method == "PUT" && service == "uploads" {
-		digest := req.URL.Query().Get("digest")
-		if digest == "" {
-			return &regError{
-				Status:  http.StatusBadRequest,
-				Code:    "DIGEST_INVALID",
-				Message: "digest not specified",
-			}
+	if req.Method == "PUT" && service == "uploads" && digest == "" {
+		return &regError{
+			Status:  http.StatusBadRequest,
+			Code:    "DIGEST_INVALID",
+			Message: "digest not specified",
 		}
+	}
 
+	if req.Method == "PUT" && service == "uploads" && digest != "" {
 		b.lock.Lock()
 		defer b.lock.Unlock()
 		l := bytes.NewBuffer(b.uploads[target])
