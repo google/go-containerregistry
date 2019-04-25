@@ -146,7 +146,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		io.Copy(l, req.Body)
 		b.uploads[target] = l.Bytes()
 		resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
-		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
+		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())-1))
 		resp.WriteHeader(http.StatusNoContent)
 		return nil
 	}
@@ -167,7 +167,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 
 		b.uploads[target] = l.Bytes()
 		resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
-		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())))
+		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())-1))
 		resp.WriteHeader(http.StatusNoContent)
 		return nil
 	}
