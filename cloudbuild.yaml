@@ -2,7 +2,7 @@ steps:
 # Build the ko binary.
 - name: gcr.io/cloud-builders/go:debian
   env: ['PROJECT_ROOT=github.com/google/go-containerregistry']
-  args: ['install', 'github.com/google/go-containerregistry/cmd/ko']
+  args: ['get', 'github.com/google/ko/cmd/ko']
 
 # Use the ko binary to build the crane and gcrane builder images.
 - name: gcr.io/cloud-builders/go:debian
