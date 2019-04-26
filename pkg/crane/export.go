@@ -50,9 +50,8 @@ func NewCmdExport() *cobra.Command {
 func openFile(s string) (*os.File, error) {
 	if s == "-" {
 		return os.Stdout, nil
-	} else {
-		return os.Create(s)
 	}
+	return os.Create(s)
 }
 
 func doExport(src, dst string) {
