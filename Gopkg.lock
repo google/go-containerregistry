@@ -289,6 +289,18 @@
   version = "1.1.4"
 
 [[projects]]
+  digest = "1:0d33e8f4230cafee906332f45cc456ce2b66ac18a1edc40a9c87e3e68682d08b"
+  name = "github.com/maxbrunsfeld/counterfeiter"
+  packages = [
+    ".",
+    "arguments",
+    "generator",
+  ]
+  pruneopts = "NUT"
+  revision = "2d74a219416bffff638e30a3775c76715f1968a7"
+  version = "v6.0.1"
+
+[[projects]]
   digest = "1:2f42fa12d6911c7b7659738758631bec870b7e9b4c6be5444f963cdcfccc191f"
   name = "github.com/modern-go/concurrent"
   packages = ["."]
@@ -467,16 +479,20 @@
   revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
 
 [[projects]]
-  branch = "master"
-  digest = "1:e1c96c8c8ce0af57da9dccb008e540b3d13b55ea04b530fb4fceb81706082bdd"
+  digest = "1:0bad61b6de9859f6c6c34d4b7f4d64d51fecbc3f779de0453acbee8af3d3f5e8"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
+    "go/gcexportdata",
+    "go/internal/cgo",
+    "go/internal/gcimporter",
+    "go/packages",
+    "go/types/typeutil",
     "imports",
     "internal/fastwalk",
   ]
   pruneopts = "NUT"
-  revision = "8149a73649a0118d28e0152493abf048af72e7b1"
+  revision = "a398e557df606a73ba39c8fd09a1b392b2a7ab59"
 
 [[projects]]
   digest = "1:b5aeceb800276be69165a745328380c8a4b6f2edc7a6bac112e22c8596ed8a49"
@@ -745,6 +761,7 @@
     "github.com/docker/docker/client",
     "github.com/google/go-cmp/cmp",
     "github.com/google/go-cmp/cmp/cmpopts",
+    "github.com/maxbrunsfeld/counterfeiter",
     "github.com/pkg/errors",
     "github.com/spf13/cobra",
     "github.com/spf13/cobra/doc",

@@ -28,4 +28,5 @@ export GOPATH=$(go env GOPATH)
 export PATH="${GOPATH}/bin:${PATH}"
 
 go install ./vendor/k8s.io/code-generator/cmd/deepcopy-gen
+go install ./vendor/github.com/maxbrunsfeld/counterfeiter
 go generate ./...
