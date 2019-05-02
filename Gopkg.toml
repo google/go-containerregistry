@@ -1,6 +1,7 @@
-# Used for deep copy code generation and ko publish tests.
+# Used for deep copy and mock code generation and ko publish tests.
 required = [
   "k8s.io/code-generator/cmd/deepcopy-gen",
+  "github.com/maxbrunsfeld/counterfeiter",
 ]
 
 [prune]
