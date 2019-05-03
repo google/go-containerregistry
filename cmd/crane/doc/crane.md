@@ -30,4 +30,5 @@ crane [flags]
 * [crane push](crane_push.md)	 - Push image contents as a tarball to a remote registry
 * [crane rebase](crane_rebase.md)	 - Rebase an image onto a new base image
 * [crane validate](crane_validate.md)	 - Validate that an image is well-formed
+* [crane version](crane_version.md)	 - Print the version
 
