@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -39,14 +38,19 @@ type manifest interface {
 }
 
 // Write pushes the provided img to the specified image reference.
-func Write(ref name.Reference, img v1.Image, auth authn.Authenticator, t http.RoundTripper) error {
+func Write(ref name.Reference, img v1.Image, options ...Option) error {
 	ls, err := img.Layers()
 	if err != nil {
 		return err
 	}
 
+	o, err := makeOptions(ref.Context().Registry, options...)
+	if err != nil {
+		return err
+	}
+
 	scopes := scopesForUploadingImage(ref, ls)
-	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
+	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}
@@ -404,14 +408,18 @@ func scopesForUploadingImage(ref name.Reference, layers []v1.Layer) []string {
 // WriteIndex pushes the provided ImageIndex to the specified image reference.
 // WriteIndex will attempt to push all of the referenced manifests before
 // attempting to push the ImageIndex, to retain referential integrity.
-func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, t http.RoundTripper) error {
+func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 	index, err := ii.IndexManifest()
 	if err != nil {
 		return err
 	}
 
+	o, err := makeOptions(ref.Context().Registry, options...)
+	if err != nil {
+		return err
+	}
 	scopes := []string{ref.Scope(transport.PushScope)}
-	tr, err := transport.New(ref.Context().Registry, auth, t, scopes)
+	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}
@@ -441,7 +449,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, 
 				return err
 			}
 
-			if err := WriteIndex(ref, ii, auth, t); err != nil {
+			if err := WriteIndex(ref, ii, WithAuth(o.auth), WithTransport(o.transport)); err != nil {
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
@@ -449,7 +457,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, auth authn.Authenticator, 
 			if err != nil {
 				return err
 			}
-			if err := Write(ref, img, auth, t); err != nil {
+			if err := Write(ref, img, WithAuth(o.auth), WithTransport(o.transport)); err != nil {
 				return err
 			}
 		}

@@ -16,7 +16,6 @@ package crane
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -82,12 +81,7 @@ func doAppend(src, dst, tar, output string) {
 		return
 	}
 
-	dstAuth, err := authn.DefaultKeychain.Resolve(dstTag.Context().Registry)
-	if err != nil {
-		log.Fatalf("getting creds for %q: %v", dstTag, err)
-	}
-
-	if err := remote.Write(dstTag, image, dstAuth, http.DefaultTransport); err != nil {
+	if err := remote.Write(dstTag, image, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 		log.Fatalf("writing image %q: %v", dstTag, err)
 	}
 }

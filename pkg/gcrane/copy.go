@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -126,7 +125,7 @@ func copyImage(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
 		return fmt.Errorf("reading image %q: %v", src, err)
 	}
 
-	if err := remote.Write(dstRef, img, dstAuth, http.DefaultTransport); err != nil {
+	if err := remote.Write(dstRef, img, remote.WithAuth(dstAuth)); err != nil {
 		return fmt.Errorf("writing image %q: %v", dst, err)
 	}
 
@@ -149,7 +148,7 @@ func copyIndex(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
 		return fmt.Errorf("reading image %q: %v", src, err)
 	}
 
-	if err := remote.WriteIndex(dstRef, idx, dstAuth, http.DefaultTransport); err != nil {
+	if err := remote.WriteIndex(dstRef, idx, remote.WithAuth(dstAuth)); err != nil {
 		return fmt.Errorf("writing image %q: %v", dst, err)
 	}
 

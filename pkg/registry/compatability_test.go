@@ -2,7 +2,6 @@ package registry_test
 
 import (
 	"bytes"
-	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -29,7 +28,7 @@ func TestPushAndPullContainer(t *testing.T) {
 		t.Fatalf("Unable to make random image: %v", err)
 	}
 
-	if err := remote.Write(d, i, nil, http.DefaultTransport); err != nil {
+	if err := remote.Write(d, i); err != nil {
 		t.Fatalf("Error writing image : %v", err)
 	}
 

@@ -16,7 +16,6 @@ package crane
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -43,12 +42,7 @@ func doDelete(_ *cobra.Command, args []string) {
 		log.Fatalf("parsing reference %q: %v", ref, err)
 	}
 
-	auth, err := authn.DefaultKeychain.Resolve(r.Context().Registry)
-	if err != nil {
-		log.Fatalf("getting creds for %q: %v", r, err)
-	}
-
-	if err := remote.Delete(r, auth, http.DefaultTransport); err != nil {
+	if err := remote.Delete(r, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 		log.Fatalf("deleting image %q: %v", r, err)
 	}
 }

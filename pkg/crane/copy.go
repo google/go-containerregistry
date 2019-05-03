@@ -16,7 +16,6 @@ package crane
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -46,48 +45,43 @@ func doCopy(_ *cobra.Command, args []string) {
 	}
 	log.Printf("Pulling %v", srcRef)
 
+	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err != nil {
+		log.Fatalf("fetching image %q: %v", srcRef, err)
+	}
+
 	dstRef, err := name.ParseReference(dst)
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", dst, err)
 	}
 	log.Printf("Pushing %v", dstRef)
 
-	dstAuth, err := authn.DefaultKeychain.Resolve(dstRef.Context().Registry)
-	if err != nil {
-		log.Fatalf("getting creds for %q: %v", dstRef, err)
-	}
-
-	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	if err != nil {
-		log.Fatalf("fetching image %q: %v", srcRef, err)
-	}
-
 	switch desc.MediaType {
 	case types.OCIImageIndex, types.DockerManifestList:
 		// Handle indexes separately.
-		if err := copyIndex(desc, dstRef, dstAuth); err != nil {
+		if err := copyIndex(desc, dstRef); err != nil {
 			log.Fatalf("failed to copy index: %v", err)
 		}
 	default:
 		// Assume anything else is an image, since some registries don't set mediaTypes properly.
-		if err := copyImage(desc, dstRef, dstAuth); err != nil {
+		if err := copyImage(desc, dstRef); err != nil {
 			log.Fatalf("failed to copy image: %v", err)
 		}
 	}
 }
 
-func copyImage(desc *remote.Descriptor, dstRef name.Reference, dstAuth authn.Authenticator) error {
+func copyImage(desc *remote.Descriptor, dstRef name.Reference) error {
 	img, err := desc.Image()
 	if err != nil {
 		return err
 	}
-	return remote.Write(dstRef, img, dstAuth, http.DefaultTransport)
+	return remote.Write(dstRef, img, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }
 
-func copyIndex(desc *remote.Descriptor, dstRef name.Reference, dstAuth authn.Authenticator) error {
+func copyIndex(desc *remote.Descriptor, dstRef name.Reference) error {
 	idx, err := desc.ImageIndex()
 	if err != nil {
 		return err
 	}
-	return remote.WriteIndex(dstRef, idx, dstAuth, http.DefaultTransport)
+	return remote.WriteIndex(dstRef, idx, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }

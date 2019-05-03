@@ -33,9 +33,8 @@ type remoteIndex struct {
 	mediaType    types.MediaType
 }
 
-// Index provides access to a remote index reference, applying functional options
-// to the underlying imageOpener before resolving the reference into a v1.ImageIndex.
-func Index(ref name.Reference, options ...ImageOption) (v1.ImageIndex, error) {
+// Index provides access to a remote index reference.
+func Index(ref name.Reference, options ...Option) (v1.ImageIndex, error) {
 	acceptable := []types.MediaType{
 		types.DockerManifestList,
 		types.OCIImageIndex,

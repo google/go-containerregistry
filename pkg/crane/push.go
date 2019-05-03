@@ -16,7 +16,6 @@ package crane
 
 import (
 	"log"
-	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -45,17 +44,12 @@ func push(_ *cobra.Command, args []string) {
 	}
 	log.Printf("Pushing %v", t)
 
-	auth, err := authn.DefaultKeychain.Resolve(t.Registry)
-	if err != nil {
-		log.Fatalf("getting creds for %q: %v", t, err)
-	}
-
 	i, err := tarball.ImageFromPath(src, nil)
 	if err != nil {
 		log.Fatalf("reading image %q: %v", src, err)
 	}
 
-	if err := remote.Write(t, i, auth, http.DefaultTransport); err != nil {
+	if err := remote.Write(t, i, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 		log.Fatalf("writing image %q: %v", t, err)
 	}
 }
