@@ -74,11 +74,25 @@ func (h *helper) Authorization() (string, error) {
 	cmd.Stdout = &out
 	cmdErr := h.r.Run(cmd)
 
-	// If we see this specific message, it means the domain wasn't found
-	// and we should fall back on anonymous auth.
 	output := strings.TrimSpace(out.String())
+	// If we see this specific message, it means the URL wasn't found
 	if output == magicNotFoundMessage {
-		return Anonymous.Authorization()
+		// Since some keychains allow to omit the protocol we have to
+		// fallback to test without protocol
+		fallbackCmd := exec.Command(helperName, "get")
+
+		fallbackCmd.Stdin = strings.NewReader(h.domain.String())
+		out.Reset()
+		fallbackCmd.Stdout = &out
+
+		cmdErr = h.r.Run(fallbackCmd)
+
+		// Even fallback was not found - give up now and fall back on
+		// anonymous auth.
+		output = strings.TrimSpace(out.String())
+		if output == magicNotFoundMessage {
+			return Anonymous.Authorization()
+		}
 	}
 
 	// Any other output should be parsed as JSON and the Username / Secret
