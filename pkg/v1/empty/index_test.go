@@ -17,11 +17,24 @@ package empty
 import (
 	"testing"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 func TestIndex(t *testing.T) {
 	if err := validate.Index(Index); err != nil {
 		t.Fatalf("validate.Index(empty.Index) = %v", err)
+	}
+
+	if mt, err := Index.MediaType(); err != nil || mt != types.OCIImageIndex {
+		t.Errorf("empty.Index.MediaType() = %v, %v", mt, err)
+	}
+
+	if _, err := Index.Image(v1.Hash{}); err == nil {
+		t.Errorf("empty.Index.Image() should always fail")
+	}
+	if _, err := Index.ImageIndex(v1.Hash{}); err == nil {
+		t.Errorf("empty.Index.ImageIndex() should always fail")
 	}
 }

@@ -12,30 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package remote
 
 import (
-	"fmt"
+	"testing"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
-// Load reads the tarball at path as a v1.Image.
-func Load(path string) (v1.Image, error) {
-	// TODO: Allow tag?
-	return tarball.ImageFromPath(path, nil)
-}
-
-// Push pushes the v1.Image img to a registry as dst.
-func Push(img v1.Image, dst string) error {
-	tag, err := name.NewTag(dst)
+func TestMountableImage(t *testing.T) {
+	img, err := random.Image(1024, 5)
 	if err != nil {
-		return fmt.Errorf("parsing tag %q: %v", dst, err)
+		t.Fatal(err)
 	}
 
-	return remote.Write(tag, img, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	ref, err := name.ParseReference("ubuntu")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	img = &mountableImage{
+		Image:     img,
+		Reference: ref,
+	}
+
+	if err := validate.Image(img); err != nil {
+		t.Errorf("Validate() = %v", err)
+	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, l := range layers {
+		if _, ok := l.(*MountableLayer); !ok {
+			t.Errorf("layers[%d] should be MountableLayer but isn't", i)
+		}
+	}
 }

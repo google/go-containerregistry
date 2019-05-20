@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2019 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package name
 
 import (
-	"io"
-
-	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"testing"
 )
 
-// Export writes the filesystem contents (as a tarball) of img to w.
-func Export(img v1.Image, w io.Writer) error {
-	fs := mutate.Extract(img)
-	_, err := io.Copy(w, fs)
-	return err
+func TestBadName(t *testing.T) {
+	_, err := ParseReference("@@")
+	if !IsErrBadName(err) {
+		t.Errorf("IsBadErrName == false: %v", err)
+	}
+	if err.Error() != "could not parse reference" {
+		t.Errorf("Unexpected string: %v", err)
+	}
 }

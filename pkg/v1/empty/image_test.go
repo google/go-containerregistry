@@ -16,7 +16,15 @@ package empty
 
 import (
 	"testing"
+
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
+
+func TestImage(t *testing.T) {
+	if err := validate.Image(Image); err != nil {
+		t.Fatalf("validate.Image(empty.Image) = %v", err)
+	}
+}
 
 func TestManifestAndConfig(t *testing.T) {
 	manifest, err := Image.Manifest()

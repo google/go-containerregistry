@@ -45,6 +45,7 @@ func TestLayerFromFile(t *testing.T) {
 	assertCompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
 	assertUncompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
 	assertSizesAreEqual(t, tarLayer, tarGzLayer)
+	assertMediaTypesAreEqual(t, tarLayer, tarGzLayer)
 }
 
 func TestLayerFromOpenerReader(t *testing.T) {
@@ -80,6 +81,7 @@ func TestLayerFromOpenerReader(t *testing.T) {
 	assertCompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
 	assertUncompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
 	assertSizesAreEqual(t, tarLayer, tarGzLayer)
+	assertMediaTypesAreEqual(t, tarLayer, tarGzLayer)
 }
 
 func TestLayerFromReader(t *testing.T) {
@@ -109,6 +111,7 @@ func TestLayerFromReader(t *testing.T) {
 	assertCompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
 	assertUncompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
 	assertSizesAreEqual(t, tarLayer, tarGzLayer)
+	assertMediaTypesAreEqual(t, tarLayer, tarGzLayer)
 }
 
 func assertDigestsAreEqual(t *testing.T, a, b v1.Layer) {
@@ -200,6 +203,24 @@ func assertUncompressedStreamsAreEqual(t *testing.T, a, b v1.Layer) {
 
 	if diff := cmp.Diff(saBytes, sbBytes); diff != "" {
 		t.Fatalf("Uncompressed streams were different: %v", diff)
+	}
+}
+
+func assertMediaTypesAreEqual(t *testing.T, a, b v1.Layer) {
+	t.Helper()
+
+	ma, err := a.MediaType()
+	if err != nil {
+		t.Fatalf("Unable to fetch MediaType for layer: %v", err)
+	}
+
+	mb, err := b.MediaType()
+	if err != nil {
+		t.Fatalf("Unable to fetch MediaType for layer: %v", err)
+	}
+
+	if ma != mb {
+		t.Fatalf("MediaType of each layer is different - %s != %s", ma, mb)
 	}
 }
 

@@ -56,3 +56,14 @@ func TestVerification(t *testing.T) {
 		t.Errorf("ReadAll() = %v", err)
 	}
 }
+
+func TestBadHash(t *testing.T) {
+	h := v1.Hash{
+		Algorithm: "fake256",
+		Hex:       "whatever",
+	}
+	_, err := VerifyReadCloser(ioutil.NopCloser(strings.NewReader("hi")), h)
+	if err == nil {
+		t.Errorf("VerifyReadCloser() = %v, wanted err", err)
+	}
+}

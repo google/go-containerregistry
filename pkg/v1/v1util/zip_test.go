@@ -16,17 +16,16 @@ package v1util
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
+	"strings"
 	"testing"
 )
 
 func TestReader(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
-	zipped, err := GzipReadCloser(ioutil.NopCloser(buf))
-	if err != nil {
-		t.Errorf("GzipReadCloser() = %v", err)
-	}
+	zipped := GzipReadCloser(ioutil.NopCloser(buf))
 	unzipped, err := GunzipReadCloser(zipped)
 	if err != nil {
 		t.Errorf("GunzipReadCloser() = %v", err)
@@ -38,6 +37,9 @@ func TestReader(t *testing.T) {
 	}
 	if got := string(b); got != want {
 		t.Errorf("ReadAll(); got %q, want %q", got, want)
+	}
+	if err := unzipped.Close(); err != nil {
+		t.Errorf("Close() = %v", err)
 	}
 }
 
@@ -60,5 +62,37 @@ func TestIsGzipped(t *testing.T) {
 		if err != test.err {
 			t.Errorf("IsGzipped; err: got %v, wanted %v\n", err, test.err)
 		}
+	}
+}
+
+var (
+	readErr = fmt.Errorf("Read failed")
+)
+
+type failReader struct{}
+
+func (f failReader) Read(_ []byte) (int, error) {
+	return 0, readErr
+}
+
+func TestReadErrors(t *testing.T) {
+	fr := failReader{}
+	if _, err := IsGzipped(fr); err != readErr {
+		t.Errorf("IsGzipped: expected readErr, got %v", err)
+	}
+
+	frc := ioutil.NopCloser(fr)
+	if _, err := GunzipReadCloser(frc); err != readErr {
+		t.Errorf("GunzipReadCloser: expected readErr, got %v", err)
+	}
+
+	zr := GzipReadCloser(ioutil.NopCloser(fr))
+	if _, err := zr.Read(nil); err != readErr {
+		t.Errorf("GzipReadCloser: expected readErr, got %v", err)
+	}
+
+	zr = GzipReadCloserLevel(ioutil.NopCloser(strings.NewReader("zip me")), -10)
+	if _, err := zr.Read(nil); err == nil {
+		t.Errorf("Expected invalid level error, got: %v", err)
 	}
 }

@@ -60,6 +60,9 @@ func validateChildren(idx v1.ImageIndex) error {
 			if err := Index(idx); err != nil {
 				errs = append(errs, fmt.Sprintf("failed to validate index Manifests[%d](%s): %v", i, desc.Digest, err))
 			}
+			if err := validateMediaType(idx, desc.MediaType); err != nil {
+				errs = append(errs, fmt.Sprintf("failed to validate index MediaType[%d](%s): %v", i, desc.Digest, err))
+			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
 			img, err := idx.Image(desc.Digest)
 			if err != nil {
@@ -68,6 +71,9 @@ func validateChildren(idx v1.ImageIndex) error {
 			if err := Image(img); err != nil {
 				errs = append(errs, fmt.Sprintf("failed to validate image Manifests[%d](%s): %v", i, desc.Digest, err))
 			}
+			if err := validateMediaType(img, desc.MediaType); err != nil {
+				errs = append(errs, fmt.Sprintf("failed to validate image MediaType[%d](%s): %v", i, desc.Digest, err))
+			}
 		default:
 			return fmt.Errorf("todo: validate index Blob()")
 		}
@@ -75,6 +81,22 @@ func validateChildren(idx v1.ImageIndex) error {
 
 	if len(errs) != 0 {
 		return errors.New(strings.Join(errs, "\n"))
+	}
+
+	return nil
+}
+
+type withMediaType interface {
+	MediaType() (types.MediaType, error)
+}
+
+func validateMediaType(i withMediaType, want types.MediaType) error {
+	got, err := i.MediaType()
+	if err != nil {
+		return err
+	}
+	if want != got {
+		return fmt.Errorf("mismatched mediaType: MediaType() = %v != %v", got, want)
 	}
 
 	return nil

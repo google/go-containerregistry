@@ -6,6 +6,7 @@ import (
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 // TestCache tests that the cache is populated when LayerByDigest is called.
@@ -29,6 +30,23 @@ func TestCache(t *testing.T) {
 	}
 	if got, want := len(m.m), numLayers; got != want {
 		t.Errorf("Cache has %d entries, want %d", got, want)
+	}
+}
+
+func TestImage(t *testing.T) {
+	img, err := random.Image(1024, 5)
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+	m := &memcache{map[v1.Hash]v1.Layer{}}
+	img = Image(img, m)
+
+	// Validate twice to hit the cache.
+	if err := validate.Image(img); err != nil {
+		t.Errorf("Validate: %v", err)
+	}
+	if err := validate.Image(img); err != nil {
+		t.Errorf("Validate: %v", err)
 	}
 }
 

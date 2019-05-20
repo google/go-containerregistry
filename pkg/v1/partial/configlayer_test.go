@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 type testUIC struct {
@@ -56,14 +57,22 @@ func TestConfigLayer(t *testing.T) {
 
 		layer, err := ConfigLayer(image)
 		if err != nil {
-			t.Errorf("ConfigLayer: %v", err)
+			t.Fatalf("ConfigLayer: %v", err)
 		}
 		lr, err := layer.Uncompressed()
 		if err != nil {
 			t.Fatalf("Error getting uncompressed layer: %v", err)
 		}
+		zr, err := layer.Compressed()
+		if err != nil {
+			t.Fatalf("Error getting compressed layer: %v", err)
+		}
 
 		cfgLayerBytes, err := ioutil.ReadAll(lr)
+		if err != nil {
+			t.Fatalf("Error reading config layer bytes: %v", err)
+		}
+		zcfgLayerBytes, err := ioutil.ReadAll(zr)
 		if err != nil {
 			t.Fatalf("Error reading config layer bytes: %v", err)
 		}
@@ -75,6 +84,42 @@ func TestConfigLayer(t *testing.T) {
 
 		if string(cfgFile) != string(cfgLayerBytes) {
 			t.Errorf("Config file layer doesn't match raw config file")
+		}
+		if string(cfgFile) != string(zcfgLayerBytes) {
+			t.Errorf("Config file layer doesn't match raw config file")
+		}
+
+		size, err := layer.Size()
+		if err != nil {
+			t.Fatalf("Error getting config layer size: %v", err)
+		}
+		if size != int64(len(cfgFile)) {
+			t.Errorf("Size() = %d, want %d", size, len(cfgFile))
+		}
+
+		digest, err := layer.Digest()
+		if err != nil {
+			t.Fatalf("Digest() = %v", err)
+		}
+		if digest != hash {
+			t.Errorf("ConfigLayer().Digest() != ConfigName(); %v, %v", digest, hash)
+		}
+
+		diffid, err := layer.DiffID()
+		if err != nil {
+			t.Fatalf("DiffId() = %v", err)
+		}
+		if diffid != hash {
+			t.Errorf("ConfigLayer().DiffID() != ConfigName(); %v, %v", diffid, hash)
+		}
+
+		mt, err := layer.MediaType()
+		if err != nil {
+			t.Fatalf("Error getting config layer media type: %v", err)
+		}
+
+		if mt != types.OCIConfigJSON {
+			t.Errorf("MediaType() = %v, want %v", mt, types.OCIConfigJSON)
 		}
 	}
 }
