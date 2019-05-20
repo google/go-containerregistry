@@ -80,11 +80,9 @@ func (h *helper) Authorization() (string, error) {
 		// Since some keychains allow to omit the protocol we have to
 		// fallback to test without protocol
 		fallbackCmd := exec.Command(helperName, "get")
-
 		fallbackCmd.Stdin = strings.NewReader(h.domain.String())
 		out.Reset()
 		fallbackCmd.Stdout = &out
-
 		cmdErr = h.r.Run(fallbackCmd)
 
 		// Even fallback was not found - give up now and fall back on
