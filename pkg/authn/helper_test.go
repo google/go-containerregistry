@@ -17,6 +17,7 @@ package authn
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
@@ -24,8 +25,15 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
+const (
+	username = "foo"
+	secret = "bar"
+)
+
 var (
 	testDomain, _ = name.NewRegistry("foo.dev", name.WeakValidation)
+	basic = &Basic{Username: username, Password: secret}
+	wantBasicAuthString, _ = basic.Authorization()
 )
 
 // errorRunner implements runner to always return an execution error.
@@ -152,7 +160,7 @@ func TestBadOutput(t *testing.T) {
 
 // TestHTTPSURL checks that helper saving https works
 func TestHTTPSURL(t *testing.T) {
-	output := `{"ServerURL":"","Username":"mainuser","Secret":"FVLGCQr_a-FZJM2ON227-YXdAEJn3oZZnnWs6Jd6iVE"}`
+	output := fmt.Sprintf(`{"ServerURL":"","Username":"%s","Secret":"%s"}`, username, secret)
 	f := func(cmd *exec.Cmd) error {
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(cmd.Stdin)
@@ -174,14 +182,14 @@ func TestHTTPSURL(t *testing.T) {
 		t.Errorf("Authorization() = %v", got)
 	}
 
-	if got != `Basic bWFpbnVzZXI6RlZMR0NRcl9hLUZaSk0yT04yMjctWVhkQUVKbjNvWlpubldzNkpkNmlWRQ==` {
-		t.Fatalf("Authorization() returned unexepcted result = %v (expected Basic bWFpbnVzZXI6RlZMR0NRcl9hLUZaSk0yT04yMjctWVhkQUVKbjNvWlpubldzNkpkNmlWRQ==)", got)
+	if got != wantBasicAuthString {
+		t.Fatalf("Authorization() returned unexepcted result = %v (expected %v)", got, wantBasicAuthString)
 	}
 }
 
 // TestProtocollessURL checks that helper saving without protocol works
 func TestProtocollessURL(t *testing.T) {
-	output := `{"ServerURL":"","Username":"mainuser","Secret":"FVLGCQr_a-FZJM2ON227-YXdAEJn3oZZnnWs6Jd6iVE"}`
+	output := fmt.Sprintf(`{"ServerURL":"","Username":"%s","Secret":"%s"}`, username, secret)
 	f := func(cmd *exec.Cmd) error {
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(cmd.Stdin)
@@ -203,7 +211,7 @@ func TestProtocollessURL(t *testing.T) {
 		t.Fatalf("Authorization() = %v", got)
 	}
 
-	if got != `Basic bWFpbnVzZXI6RlZMR0NRcl9hLUZaSk0yT04yMjctWVhkQUVKbjNvWlpubldzNkpkNmlWRQ==` {
-		t.Fatalf("Authorization() returned unexpected result = %v (expected Basic bWFpbnVzZXI6RlZMR0NRcl9hLUZaSk0yT04yMjctWVhkQUVKbjNvWlpubldzNkpkNmlWRQ==)", got)
+	if got != wantBasicAuthString {
+		t.Fatalf("Authorization() returned unexpected result = %v (expected %v)", got, wantBasicAuthString)
 	}
 }
