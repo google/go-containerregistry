@@ -15,8 +15,10 @@
 package authn
 
 import (
+	"bytes"
 	"errors"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -52,6 +54,17 @@ func (pr *printRunner) Run(cmd *exec.Cmd) error {
 	_, err := cmd.Stdout.Write([]byte(pr.msg))
 	return err
 }
+
+// customRunner implements runner to delegate to f
+type customRunner struct {
+	f func(*exec.Cmd) error
+}
+
+// Run implements runner
+func (cr *customRunner) Run(cmd *exec.Cmd) error {
+	return cr.f(cmd)
+}
+
 
 // errorPrintRunner implements runner to write a fixed message to stdout
 // and exit with an error code.
@@ -134,5 +147,63 @@ func TestBadOutput(t *testing.T) {
 	got, err := h.Authorization()
 	if err == nil {
 		t.Errorf("Authorization() = %v", got)
+	}
+}
+
+// TestHTTPSURL checks that helper saving https works
+func TestHTTPSURL(t *testing.T) {
+	output := `{"ServerURL":"","Username":"mainuser","Secret":"FVLGCQr_a-FZJM2ON227-YXdAEJn3oZZnnWs6Jd6iVE"}`
+	f := func(cmd *exec.Cmd) error {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(cmd.Stdin)
+		s := buf.String()
+
+		var err error
+
+		if strings.HasPrefix(s, "https://foo.dev") {
+			_, err = cmd.Stdout.Write([]byte(output))
+		} else {
+			_, err = cmd.Stdout.Write([]byte(magicNotFoundMessage))
+		}
+		return err
+	}
+
+	h := &helper{name: "test", domain: testDomain, r: &customRunner{f: f}}
+	got, err := h.Authorization()
+	if err != nil {
+		t.Errorf("Authorization() = %v", got)
+	}
+
+	if got != `Basic bWFpbnVzZXI6RlZMR0NRcl9hLUZaSk0yT04yMjctWVhkQUVKbjNvWlpubldzNkpkNmlWRQ==` {
+		t.Fatalf("Authorization() returned unexepcted result = %v (expected Basic bWFpbnVzZXI6RlZMR0NRcl9hLUZaSk0yT04yMjctWVhkQUVKbjNvWlpubldzNkpkNmlWRQ==)", got)
+	}
+}
+
+// TestProtocollessURL checks that helper saving without protocol works
+func TestProtocollessURL(t *testing.T) {
+	output := `{"ServerURL":"","Username":"mainuser","Secret":"FVLGCQr_a-FZJM2ON227-YXdAEJn3oZZnnWs6Jd6iVE"}`
+	f := func(cmd *exec.Cmd) error {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(cmd.Stdin)
+		s := buf.String()
+
+		var err error
+
+		if strings.HasPrefix(s, "foo.dev") {
+			_, err = cmd.Stdout.Write([]byte(output))
+		} else {
+			_, err = cmd.Stdout.Write([]byte(magicNotFoundMessage))
+		}
+		return err
+	}
+
+	h := &helper{name: "test", domain: testDomain, r: &customRunner{f: f}}
+	got, err := h.Authorization()
+	if err != nil {
+		t.Fatalf("Authorization() = %v", got)
+	}
+
+	if got != `Basic bWFpbnVzZXI6RlZMR0NRcl9hLUZaSk0yT04yMjctWVhkQUVKbjNvWlpubldzNkpkNmlWRQ==` {
+		t.Fatalf("Authorization() returned unexpected result = %v (expected Basic bWFpbnVzZXI6RlZMR0NRcl9hLUZaSk0yT04yMjctWVhkQUVKbjNvWlpubldzNkpkNmlWRQ==)", got)
 	}
 }
