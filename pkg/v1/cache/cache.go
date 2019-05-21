@@ -1,4 +1,4 @@
-// TODO
+// Package cache provides methods to cache layers.
 package cache
 
 import (
@@ -22,7 +22,8 @@ type Cache interface {
 	Delete(v1.Hash) error
 }
 
-var ErrNotFound = errors.New("image was not found")
+// ErrNotFound is returned by Get when no layer with the given Hash is found.
+var ErrNotFound = errors.New("layer was not found")
 
 // NewImage returns a new Image whose layers will be pulled from the cache if
 // they are found, and written to the cache as they are read from the
