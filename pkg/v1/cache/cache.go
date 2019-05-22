@@ -3,6 +3,7 @@ package cache
 
 import (
 	"errors"
+	"log"
 
 	"github.com/google/go-containerregistry/pkg/v1"
 )
@@ -40,6 +41,37 @@ func NewImage(i v1.Image, c Cache) v1.Image {
 type image struct {
 	v1.Image
 	c Cache
+}
+
+func (i *image) Layers() ([]v1.Layer, error) {
+	ls, err := i.Image.Layers()
+	if err != nil {
+		return nil, err
+	}
+
+	var out []v1.Layer
+	for _, l := range ls {
+		h, err := l.Digest()
+		if err != nil {
+			return nil, err
+		}
+		if cl, err := i.c.Get(h); err == ErrNotFound {
+			// Not cached, fall through to real layer.
+			l, err := i.c.Put(l)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, l)
+		} else if err != nil {
+			return nil, err
+		} else {
+			// Layer found in the cache.
+			log.Printf("Layer %s found in cache", h)
+			out = append(out, cl)
+		}
+
+	}
+	return out, nil
 }
 
 func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {

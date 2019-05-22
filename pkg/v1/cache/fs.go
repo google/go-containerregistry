@@ -33,6 +33,9 @@ type layer struct {
 }
 
 func (l *layer) Compressed() (io.ReadCloser, error) {
+	if err := os.MkdirAll(filepath.Dir(l.path), 0700); err != nil {
+		return nil, err
+	}
 	f, err := os.Create(l.path)
 	if err != nil {
 		return nil, err
