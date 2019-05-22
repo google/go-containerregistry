@@ -9,5 +9,5 @@ func ReadOnly(c Cache) Cache { return &ro{Cache: c} }
 
 type ro struct{ Cache }
 
-func (ro) Put(v1.Layer) error   { return nil }
-func (ro) Delete(v1.Hash) error { return nil }
+func (ro) Put(l v1.Layer) (v1.Layer, error) { return l, nil }
+func (ro) Delete(v1.Hash) error             { return nil }

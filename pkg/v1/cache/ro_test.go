@@ -40,7 +40,7 @@ func TestReadOnly(t *testing.T) {
 	ln := len(m.m)
 
 	// RO Put is a no-op.
-	if err := ro.Put(ls[0]); err != nil {
+	if _, err := ro.Put(ls[0]); err != nil {
 		t.Fatalf("ro.Put: %v", err)
 	}
 	if got, want := len(m.m), ln; got != want {

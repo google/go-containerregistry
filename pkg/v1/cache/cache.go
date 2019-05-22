@@ -3,8 +3,6 @@ package cache
 
 import (
 	"errors"
-	"io"
-	"os"
 
 	"github.com/google/go-containerregistry/pkg/v1"
 )
@@ -12,7 +10,11 @@ import (
 // Cache encapsulates methods to interact with cached layers.
 type Cache interface {
 	// Put writes the Layer to the Cache.
-	Put(v1.Layer) error
+	//
+	// The returned Layer should be used for future operations, since lazy
+	// cachers might only populate the cache when the layer is actually
+	// consumed.
+	Put(v1.Layer) (v1.Layer, error)
 
 	// Get returns the Layer cached by the given Hash, or ErrNotFound if no
 	// such layer was found.
@@ -48,40 +50,7 @@ func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 		if err != nil {
 			return nil, err
 		}
-		return l, i.c.Put(l)
+		return i.c.Put(l)
 	}
 	return l, err
-}
-
-type layer struct {
-	v1.Layer
-	path string
-}
-
-func (l *layer) Compressed() (io.ReadCloser, error) {
-	f, err := os.Create(l.path)
-	if err != nil {
-		return nil, err
-	}
-	rc, err := l.Layer.Compressed()
-	if err != nil {
-		return nil, err
-	}
-	return &readcloser{ReadCloser: rc, f: f}, nil
-}
-
-type readcloser struct {
-	io.ReadCloser
-	f *os.File
-}
-
-func (rc *readcloser) Read(b []byte) (int, error) {
-	return io.TeeReader(rc.ReadCloser, rc.f).Read(b)
-}
-
-func (rc *readcloser) Close() error {
-	if err := rc.f.Close(); err != nil {
-		return err
-	}
-	return rc.ReadCloser.Close()
 }
