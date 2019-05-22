@@ -59,12 +59,16 @@ func (rc *readcloser) Read(b []byte) (int, error) {
 }
 
 func (rc *readcloser) Close() error {
+	// Call all Close methods, even if any returned an error. Return the
+	// first returned error.
+	var err error
 	for _, c := range rc.closes {
-		if err := c(); err != nil {
-			return err
+		lastErr := c()
+		if err == nil {
+			err = lastErr
 		}
 	}
-	return nil
+	return err
 }
 
 func (fs *fscache) Get(h v1.Hash) (v1.Layer, error) {

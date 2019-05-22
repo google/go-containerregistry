@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -44,10 +43,6 @@ var _ partial.CompressedImageCore = (*remoteImage)(nil)
 
 // Image provides access to a remote image reference.
 func Image(ref name.Reference, options ...Option) (v1.Image, error) {
-	o, err := makeOptions(ref.Context().Registry, options...)
-	if err != nil {
-		return nil, err
-	}
 	acceptable := []types.MediaType{
 		types.DockerManifestSchema2,
 		types.OCIManifestSchema1,
@@ -64,9 +59,6 @@ func Image(ref name.Reference, options ...Option) (v1.Image, error) {
 	img, err := desc.Image()
 	if err != nil {
 		return nil, err
-	}
-	if o.cache != nil {
-		img = cache.NewImage(img, o.cache)
 	}
 	return img, nil
 }

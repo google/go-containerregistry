@@ -21,7 +21,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/cache"
 )
 
 // Option is a functional option for remote operations.
@@ -32,7 +31,6 @@ type options struct {
 	keychain  authn.Keychain
 	transport http.RoundTripper
 	platform  v1.Platform
-	cache     cache.Cache
 }
 
 func makeOptions(reg name.Registry, opts ...Option) (*options, error) {
@@ -103,17 +101,6 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 func WithPlatform(p v1.Platform) Option {
 	return func(o *options) error {
 		o.platform = p
-		return nil
-	}
-}
-
-// WithCache is a functional option to specify a Cache implementation that
-// should be used when pulling remote image layers.
-//
-// It is only used for remote.Image.
-func WithCache(c cache.Cache) Option {
-	return func(o *options) error {
-		o.cache = c
 		return nil
 	}
 }

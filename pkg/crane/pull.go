@@ -55,14 +55,12 @@ func pull(src, dst, cachePath string) {
 	}
 	log.Printf("Pulling %v", ref)
 
-	var c cache.Cache
-	if cachePath != "" {
-		c = cache.NewFilesystemCache(cachePath)
-	}
-
-	i, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain), remote.WithCache(c))
+	i, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		log.Fatalf("reading image %q: %v", ref, err)
+	}
+	if cachePath != "" {
+		i = cache.NewImage(i, cache.NewFilesystemCache(cachePath))
 	}
 
 	// WriteToFile wants a tag to write to the tarball, but we might have
