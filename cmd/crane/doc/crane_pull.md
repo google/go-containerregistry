@@ -13,7 +13,8 @@ crane pull [flags]
 ### Options
 
 ```
-  -h, --help   help for pull
+  -c, --cache_path string   Path to cache image layers
+  -h, --help                help for pull
 ```
 
 ### SEE ALSO
