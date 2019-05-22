@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -36,6 +38,9 @@ type manifest interface {
 	MediaType() (types.MediaType, error)
 	Digest() (v1.Hash, error)
 }
+
+const maxRetries = 2
+const backoffFactor = 0.5
 
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, options ...Option) error {
@@ -307,38 +312,54 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		}
 	}
 
-	location, mounted, err := w.initiateUpload(from, mount)
-	if err != nil {
-		return err
-	} else if mounted {
+	tryUpload := func() error {
+		location, mounted, err := w.initiateUpload(from, mount)
+		if err != nil {
+			return err
+		} else if mounted {
+			h, err := l.Digest()
+			if err != nil {
+				return err
+			}
+			log.Printf("mounted blob: %s", h.String())
+			return nil
+		}
+
+		blob, err := l.Compressed()
+		if err != nil {
+			return err
+		}
+		location, err = w.streamBlob(blob, location)
+		if err != nil {
+			return err
+		}
+
 		h, err := l.Digest()
 		if err != nil {
 			return err
 		}
-		log.Printf("mounted blob: %s", h.String())
+		digest := h.String()
+
+		if err := w.commitBlob(location, digest); err != nil {
+			return err
+		}
+		log.Printf("pushed blob: %s", digest)
 		return nil
 	}
-
-	blob, err := l.Compressed()
-	if err != nil {
-		return err
+	retries := 0
+	for {
+		err := tryUpload()
+		if err == nil {
+			return nil
+		}
+		if te, ok := err.(*transport.Error); !(ok && te.ShouldRetry()) || retries >= maxRetries {
+			return err
+		}
+		log.Printf("retrying after error: %s", err)
+		retries++
+		duration := time.Duration(backoffFactor*math.Pow(2, float64(retries))) * time.Second
+		time.Sleep(duration)
 	}
-	location, err = w.streamBlob(blob, location)
-	if err != nil {
-		return err
-	}
-
-	h, err := l.Digest()
-	if err != nil {
-		return err
-	}
-	digest := h.String()
-
-	if err := w.commitBlob(location, digest); err != nil {
-		return err
-	}
-	log.Printf("pushed blob: %s", digest)
-	return nil
 }
 
 // commitImage does a PUT of the image's manifest.
