@@ -10,8 +10,8 @@ import (
 
 // TestCache tests that the cache is populated when LayerByDigest is called.
 func TestCache(t *testing.T) {
-	var numLayers int64 = 5
-	img, err := random.Image(10, numLayers)
+	numLayers := 5
+	img, err := random.Image(10, int64(numLayers))
 	if err != nil {
 		t.Fatalf("random.Image: %v", err)
 	}
@@ -24,21 +24,11 @@ func TestCache(t *testing.T) {
 	}
 
 	// Consume each layer, cache gets populated.
-	ls, err := img.Layers()
-	if err != nil {
+	if _, err := img.Layers(); err != nil {
 		t.Fatalf("Layers: %v", err)
 	}
-	for i, l := range ls {
-		h, err := l.Digest()
-		if err != nil {
-			t.Fatalf("layer.Digest: %v", err)
-		}
-		if _, err := img.LayerByDigest(h); err != nil {
-			t.Fatalf("LayerByDigest: %v", err)
-		}
-		if got, want := len(m.m), i+1; got != want {
-			t.Errorf("Cache has %d entries, want %d", got, want)
-		}
+	if got, want := len(m.m), numLayers; got != want {
+		t.Errorf("Cache has %d entries, want %d", got, want)
 	}
 }
 
