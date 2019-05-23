@@ -34,20 +34,20 @@ var ErrNotFound = errors.New("layer was not found")
 
 // NewImage returns a new Image whose layers will be pulled from the cache if
 // they are found, and written to the cache as they are read from the
-// underlyiing Image.
-func NewImage(i v1.Image, c Cache) v1.Image {
-	return &image{
+// underlying Image.
+func NewImage(i v1.Image, c Cache) *Image {
+	return &Image{
 		Image: i,
 		c:     c,
 	}
 }
 
-type image struct {
+type Image struct {
 	v1.Image
 	c Cache
 }
 
-func (i *image) Layers() ([]v1.Layer, error) {
+func (i *Image) Layers() ([]v1.Layer, error) {
 	ls, err := i.Image.Layers()
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (i *image) Layers() ([]v1.Layer, error) {
 	return out, nil
 }
 
-func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
+func (i *Image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	l, err := i.c.Get(h)
 	if err == ErrNotFound {
 		// Not cached, get it and write it.
@@ -108,7 +108,7 @@ func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	return l, err
 }
 
-func (i *image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
+func (i *Image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
 	l, err := i.c.Get(h)
 	if err == ErrNotFound {
 		// Not cached, get it and write it.
