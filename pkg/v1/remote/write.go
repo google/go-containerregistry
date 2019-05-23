@@ -39,9 +39,6 @@ type manifest interface {
 	Digest() (v1.Hash, error)
 }
 
-const maxRetries = 2
-const backoffFactor = 0.5
-
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, options ...Option) error {
 	ls, err := img.Layers()
@@ -346,6 +343,8 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		log.Printf("pushed blob: %s", digest)
 		return nil
 	}
+	const maxRetries = 2
+	const backoffFactor = 0.5
 	retries := 0
 	for {
 		err := tryUpload()
