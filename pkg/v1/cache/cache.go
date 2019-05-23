@@ -15,6 +15,10 @@ type Cache interface {
 	// The returned Layer should be used for future operations, since lazy
 	// cachers might only populate the cache when the layer is actually
 	// consumed.
+	//
+	// The returned layer can be consumed, and the cache entry populated,
+	// by calling either Compressed or Uncompressed and consuming the
+	// returned io.ReadCloser.
 	Put(v1.Layer) (v1.Layer, error)
 
 	// Get returns the Layer cached by the given Hash, or ErrNotFound if no
@@ -51,24 +55,41 @@ func (i *image) Layers() ([]v1.Layer, error) {
 
 	var out []v1.Layer
 	for _, l := range ls {
-		h, err := l.Digest()
+		// Check if this layer is present in the cache in compressed
+		// form.
+		digest, err := l.Digest()
 		if err != nil {
 			return nil, err
 		}
-		if cl, err := i.c.Get(h); err == ErrNotFound {
-			// Not cached, fall through to real layer.
-			l, err := i.c.Put(l)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, l)
-		} else if err != nil {
-			return nil, err
-		} else {
+		if cl, err := i.c.Get(digest); err == nil {
 			// Layer found in the cache.
-			log.Printf("Layer %s found in cache", h)
+			log.Printf("Layer %s found (compressed) in cache", digest)
 			out = append(out, cl)
+			continue
+		} else if err != nil && err != ErrNotFound {
+			return nil, err
 		}
+
+		// Check if this layer is present in the cache in
+		// uncompressed form.
+		diffID, err := l.DiffID()
+		if err != nil {
+			return nil, err
+		}
+		if cl, err := i.c.Get(diffID); err == nil {
+			// Layer found in the cache.
+			log.Printf("Layer %s found (uncompressed) in cache", diffID)
+			out = append(out, cl)
+		} else if err != nil && err != ErrNotFound {
+			return nil, err
+		}
+
+		// Not cached, fall through to real layer.
+		l, err = i.c.Put(l)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, l)
 
 	}
 	return out, nil
@@ -79,6 +100,19 @@ func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	if err == ErrNotFound {
 		// Not cached, get it and write it.
 		l, err := i.Image.LayerByDigest(h)
+		if err != nil {
+			return nil, err
+		}
+		return i.c.Put(l)
+	}
+	return l, err
+}
+
+func (i *image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
+	l, err := i.c.Get(h)
+	if err == ErrNotFound {
+		// Not cached, get it and write it.
+		l, err := i.Image.LayerByDiffID(h)
 		if err != nil {
 			return nil, err
 		}

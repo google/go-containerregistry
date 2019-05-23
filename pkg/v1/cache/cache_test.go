@@ -61,16 +61,19 @@ func (f *fakeImage) LayerByDigest(v1.Hash) (v1.Layer, error) {
 //
 // It doesn't intend to actually write layer data, it just keeps a reference
 // to the original Layer.
+//
+// It only assumes/considers compressed layers, and so only writes layers by
+// digest.
 type memcache struct {
 	m map[v1.Hash]v1.Layer
 }
 
 func (m *memcache) Put(l v1.Layer) (v1.Layer, error) {
-	h, err := l.Digest()
+	digest, err := l.Digest()
 	if err != nil {
 		return nil, err
 	}
-	m.m[h] = l
+	m.m[digest] = l
 	return l, nil
 }
 

@@ -19,24 +19,37 @@ func NewFilesystemCache(path string) Cache {
 }
 
 func (fs *fscache) Put(l v1.Layer) (v1.Layer, error) {
-	h, err := l.Digest()
+	digest, err := l.Digest()
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(fs.path, h.String())
-	return &layer{Layer: l, path: path}, nil
+	diffID, err := l.DiffID()
+	if err != nil {
+		return nil, err
+	}
+	return &layer{
+		Layer:  l,
+		path:   fs.path,
+		digest: digest,
+		diffID: diffID,
+	}, nil
 }
 
 type layer struct {
 	v1.Layer
-	path string
+	path           string
+	digest, diffID v1.Hash
+}
+
+func (l *layer) create(h v1.Hash) (io.WriteCloser, error) {
+	if err := os.MkdirAll(l.path, 0700); err != nil {
+		return nil, err
+	}
+	return os.Create(filepath.Join(l.path, h.String()))
 }
 
 func (l *layer) Compressed() (io.ReadCloser, error) {
-	if err := os.MkdirAll(filepath.Dir(l.path), 0700); err != nil {
-		return nil, err
-	}
-	f, err := os.Create(l.path)
+	f, err := l.create(l.digest)
 	if err != nil {
 		return nil, err
 	}
@@ -44,9 +57,25 @@ func (l *layer) Compressed() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := io.TeeReader(rc, f)
-	closes := []func() error{rc.Close, f.Close}
-	return &readcloser{t: t, closes: closes}, nil
+	return &readcloser{
+		t:      io.TeeReader(rc, f),
+		closes: []func() error{rc.Close, f.Close},
+	}, nil
+}
+
+func (l *layer) Uncompressed() (io.ReadCloser, error) {
+	f, err := l.create(l.diffID)
+	if err != nil {
+		return nil, err
+	}
+	rc, err := l.Layer.Uncompressed()
+	if err != nil {
+		return nil, err
+	}
+	return &readcloser{
+		t:      io.TeeReader(rc, f),
+		closes: []func() error{rc.Close, f.Close},
+	}, nil
 }
 
 type readcloser struct {

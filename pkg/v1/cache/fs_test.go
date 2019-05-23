@@ -24,7 +24,7 @@ func TestFilesystemCache(t *testing.T) {
 	c := NewFilesystemCache(dir)
 	img = NewImage(img, c)
 
-	// Read all the layers to populate the cache.
+	// Read all the (compressed) layers to populate the cache.
 	ls, err := img.Layers()
 	if err != nil {
 		t.Fatalf("Layers: %v", err)
@@ -54,6 +54,33 @@ func TestFilesystemCache(t *testing.T) {
 		}
 	}
 
+	// Read all (uncompressed) layers, those populate the cache too.
+	for i, l := range ls {
+		rc, err := l.Uncompressed()
+		if err != nil {
+			t.Fatalf("layer[%d].Compressed: %v", i, err)
+		}
+		if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+			t.Fatalf("Error reading contents: %v", err)
+		}
+		rc.Close()
+	}
+
+	// Check that double the layers are present now, both compressed and
+	// uncompressed.
+	files, err = ioutil.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if got, want := len(files), numLayers*2; got != want {
+		t.Errorf("Got %d cached files, want %d", got, want)
+	}
+	for _, fi := range files {
+		if fi.Size() == 0 {
+			t.Errorf("Cached file %q is empty", fi.Name())
+		}
+	}
+
 	// Delete a cached layer, see it disappear.
 	l := ls[0]
 	h, err := l.Digest()
@@ -67,7 +94,7 @@ func TestFilesystemCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadDir: %v", err)
 	}
-	if got, want := len(files), numLayers-1; got != want {
+	if got, want := len(files), numLayers*2-1; got != want {
 		t.Errorf("Got %d cached files, want %d", got, want)
 	}
 
@@ -88,7 +115,7 @@ func TestFilesystemCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadDir: %v", err)
 	}
-	if got, want := len(files), numLayers; got != want {
+	if got, want := len(files), numLayers*2; got != want {
 		t.Errorf("Got %d cached files, want %d", got, want)
 	}
 	for _, fi := range files {
