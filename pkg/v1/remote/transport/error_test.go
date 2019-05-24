@@ -24,6 +24,40 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func TestShouldRetry(t *testing.T) {
+	tests := []struct {
+		error *Error
+		retry bool
+	}{{
+		error: &Error{},
+		retry: false,
+	}, {
+		error: &Error{
+			Errors: []Diagnostic{{
+				Code: BlobUploadInvalidErrorCode,
+			}},
+		},
+		retry: true,
+	}, {
+		error: &Error{
+			Errors: []Diagnostic{{
+				Code: BlobUploadInvalidErrorCode,
+			}, {
+				Code: DeniedErrorCode,
+			}},
+		},
+		retry: false,
+	}}
+
+	for _, test := range tests {
+		retry := test.error.ShouldRetry()
+
+		if test.retry != retry {
+			t.Errorf("ShouldRetry(%s) = %t, wanted %t", test.error, retry, test.retry)
+		}
+	}
+}
+
 func TestCheckErrorNil(t *testing.T) {
 	tests := []int{
 		http.StatusOK,
