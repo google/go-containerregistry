@@ -16,7 +16,7 @@ func TestCache(t *testing.T) {
 		t.Fatalf("random.Image: %v", err)
 	}
 	m := &memcache{map[v1.Hash]v1.Layer{}}
-	img = NewImage(img, m)
+	img = Image(img, m)
 
 	// Cache is empty.
 	if len(m.m) != 0 {
@@ -39,7 +39,7 @@ func TestCacheShortCircuit(t *testing.T) {
 	m := &memcache{map[v1.Hash]v1.Layer{
 		fakeHash: l,
 	}}
-	img := NewImage(&fakeImage{}, m)
+	img := Image(&fakeImage{}, m)
 
 	for i := 0; i < 10; i++ {
 		if _, err := img.LayerByDigest(fakeHash); err != nil {

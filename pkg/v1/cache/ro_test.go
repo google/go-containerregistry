@@ -16,7 +16,7 @@ func TestReadOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("random.Image: %v", err)
 	}
-	img = NewImage(img, m)
+	img = Image(img, m)
 	ls, err := img.Layers()
 	if err != nil {
 		t.Fatalf("Layers: %v", err)

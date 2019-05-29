@@ -6,13 +6,14 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 )
 
 func TestFilesystemCache(t *testing.T) {
 	dir, err := ioutil.TempDir("", "ggcr-cache")
 	if err != nil {
-
+		t.Fatalf("TempDir: %v", err)
 	}
 	defer os.RemoveAll(dir)
 
@@ -22,7 +23,7 @@ func TestFilesystemCache(t *testing.T) {
 		t.Fatalf("random.Image: %v", err)
 	}
 	c := NewFilesystemCache(dir)
-	img = NewImage(img, c)
+	img = Image(img, c)
 
 	// Read all the (compressed) layers to populate the cache.
 	ls, err := img.Layers()
@@ -122,5 +123,22 @@ func TestFilesystemCache(t *testing.T) {
 		if fi.Size() == 0 {
 			t.Errorf("Cached file %q is empty", fi.Name())
 		}
+	}
+}
+
+func TestErrNotFound(t *testing.T) {
+	dir, err := ioutil.TempDir("", "ggcr-cache")
+	if err != nil {
+		t.Fatalf("TempDir: %v", err)
+	}
+	os.RemoveAll(dir) // Remove the tempdir.
+
+	c := NewFilesystemCache(dir)
+	h := v1.Hash{Algorithm: "fake", Hex: "not-found"}
+	if _, err := c.Get(h); err != ErrNotFound {
+		t.Errorf("Get(%q): %v", h, err)
+	}
+	if err := c.Delete(h); err != ErrNotFound {
+		t.Errorf("Delete(%q): %v", h, err)
 	}
 }

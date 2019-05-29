@@ -109,5 +109,9 @@ func (fs *fscache) Get(h v1.Hash) (v1.Layer, error) {
 }
 
 func (fs *fscache) Delete(h v1.Hash) error {
-	return os.Remove(filepath.Join(fs.path, h.String()))
+	err := os.Remove(filepath.Join(fs.path, h.String()))
+	if os.IsNotExist(err) {
+		return ErrNotFound
+	}
+	return err
 }
