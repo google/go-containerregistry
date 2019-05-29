@@ -60,7 +60,7 @@ func pull(src, dst, cachePath string) {
 		log.Fatalf("reading image %q: %v", ref, err)
 	}
 	if cachePath != "" {
-		i = cache.NewImage(i, cache.NewFilesystemCache(cachePath))
+		i = cache.Image(i, cache.NewFilesystemCache(cachePath))
 	}
 
 	// WriteToFile wants a tag to write to the tarball, but we might have
