@@ -20,6 +20,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/cobra"
@@ -34,17 +35,20 @@ func init() { Root.AddCommand(NewCmdPull()) }
 
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull() *cobra.Command {
-	return &cobra.Command{
+	var cachePath string
+	pullCmd := &cobra.Command{
 		Use:   "pull",
 		Short: "Pull a remote image by reference and store its contents in a tarball",
 		Args:  cobra.ExactArgs(2),
-		Run:   pull,
+		Run: func(_ *cobra.Command, args []string) {
+			pull(args[0], args[1], cachePath)
+		},
 	}
+	pullCmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
+	return pullCmd
 }
 
-func pull(_ *cobra.Command, args []string) {
-	src, dst := args[0], args[1]
-
+func pull(src, dst, cachePath string) {
 	ref, err := name.ParseReference(src)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", src, err)
@@ -54,6 +58,9 @@ func pull(_ *cobra.Command, args []string) {
 	i, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		log.Fatalf("reading image %q: %v", ref, err)
+	}
+	if cachePath != "" {
+		i = cache.Image(i, cache.NewFilesystemCache(cachePath))
 	}
 
 	// WriteToFile wants a tag to write to the tarball, but we might have
