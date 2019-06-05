@@ -35,7 +35,19 @@ type Keychain interface {
 
 // defaultKeychain implements Keychain with the semantics of the standard Docker
 // credential keychain.
-type defaultKeychain struct{}
+type defaultKeychain struct {
+	configDir string
+}
+
+// SetDefaultKeychainConfigDir sets the client config directory to specified location.
+func SetDefaultKeychainConfigDir(p string) error {
+	dk, ok := DefaultKeychain.(*defaultKeychain)
+	if !ok {
+		return fmt.Errorf("Unable to set custom config dir")
+	}
+	dk.configDir = p
+	return nil
+}
 
 // configDir returns the directory containing Docker's config.json
 func configDir() (string, error) {
