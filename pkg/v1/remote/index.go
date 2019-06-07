@@ -183,10 +183,11 @@ func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform)
 	}, nil
 }
 
-// matchesPlatform checks if the given platform can run the required platform.
-// Matching platforms must have identical architecture, OS,
-// OS version (if provided), and variant (if provided)
-// Required features must be a subset of the features in the given platform.
+// matchesPlatform checks if the given platform matches the required platforms.
+// The given platform matches the required platform if
+// - architecture and OS are identical
+// - OS version and variant are identical if provided
+// - features and OS features of the required platform are subsets of those of the given platform
 func matchesPlatform(given, required v1.Platform) bool {
 	// Required fields
 	if given.Architecture != required.Architecture || given.OS != required.OS {
@@ -213,7 +214,7 @@ func matchesPlatform(given, required v1.Platform) bool {
 }
 
 // isSubset checks if the required array of strings is a subset of the given lst
-func isSubset(lst []string, required []string) bool {
+func isSubset(lst, required []string) bool {
 	set := make(map[string]bool)
 	for _, value := range lst {
 		set[value] = true
