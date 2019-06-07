@@ -119,7 +119,7 @@ func (r *remoteIndex) imageByPlatform(platform v1.Platform) (v1.Image, error) {
 	return desc.Image()
 }
 
-// This naively matches the first manifest with matching Architecture and OS.
+// This naively matches the first manifest with matching platform attributes.
 //
 // We should probably use this instead:
 //	 github.com/containerd/containerd/platforms
@@ -138,7 +138,7 @@ func (r *remoteIndex) childByPlatform(platform v1.Platform) (*Descriptor, error)
 			p = *childDesc.Platform
 		}
 
-		if platform.Architecture == p.Architecture && platform.OS == p.OS {
+		if r.matchesPlatform(p, platform) {
 			return r.childDescriptor(childDesc, platform)
 		}
 	}
@@ -181,4 +181,49 @@ func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform)
 		Descriptor: *desc,
 		platform:   platform,
 	}, nil
+}
+
+// Check if the given platform can run the required platform.
+// Matching platforms must have identical architecture, OS,
+// OS version (if provided), and variant (if provided)
+// Required features must be a subset of the features in the given platform.
+func (r *remoteIndex) matchesPlatform(given v1.Platform, required v1.Platform) bool {
+	// required fields
+	if given.Architecture != required.Architecture || given.OS != required.OS {
+		return false
+	}
+
+	// optional fields
+	if given.OSVersion != "" && given.OSVersion != required.OSVersion {
+		return false
+	}
+	if given.Variant != "" && given.Variant != required.Variant {
+		return false
+	}
+
+	// Verify any required features are a subset of this platform's features.
+	if !isSubset(given.OSFeatures, required.OSFeatures) {
+		return false
+	}
+	if !isSubset(given.Features, required.Features) {
+		return false
+	}
+
+	return true
+}
+
+// Check if the required array of strings is a subset of the given lst
+func isSubset(lst []string, required []string) bool {
+	set := make(map[string]bool)
+	for _, value := range lst {
+		set[value] = true
+	}
+
+	for _, value := range required {
+		if !set[value] {
+			return false
+		}
+	}
+
+	return true
 }
