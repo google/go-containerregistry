@@ -254,134 +254,134 @@ func TestMatchesPlatform(t *testing.T) {
 		result bool
 	}{{ // Identical
 		given: v1.Platform{
-				Architecture :	"amd64"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win32k"]
-				Variant      :	"armv6l"
-				Features  	 :	["sse4"]
+				Architecture :	"amd64",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win32k"],
+				Variant      :	"armv6l",
+				Features     :	["sse4"],
 		},
 		required: v1.Platform{
-				Architecture :	"amd64"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win32k"]
-				Variant      :	"armv6l"
-				Features  	 :	["sse4"]
+				Architecture :	"amd64",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win32k"],
+				Variant      :	"armv6l",
+				Features     :	["sse4"],
 	},
 		result: true,
 	},
 	{ // Fields must exactly match
 		given: v1.Platform{
-				Architecture :	"arm"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win64k"]
-				Variant      :	"armv6l"
-				Features  	 :	["sse4"]
+				Architecture :	"arm",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win64k"],
+				Variant      :	"armv6l",
+				Features     :	["sse4"],
 		},
 		required: v1.Platform{
-				Architecture :	"amd64"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win32k"]
-				Variant      :	"armv6l"
-				Features  	 :	["sse4"]
+				Architecture :	"amd64",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win32k"],
+				Variant      :	"armv6l",
+				Features     :	["sse4"],
 	},
 		result: false,
 	},
 	{ // Mismatched optional attr if supplied
 		given: v1.Platform{
-				Architecture :	"amd64"
-				OS           :	"linux"
-				OSVersion    :	""
-				OSFeatures   :	[]
-				Variant      :	""
-				Features  	 :	[]
+				Architecture :	"amd64",
+				OS           :	"linux",
+				OSVersion    :	"",
+				OSFeatures   :	[],
+				Variant      :	"",
+				Features     :	[],
 		},
 		required: v1.Platform{
-				Architecture :	"amd64"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win32k"]
-				Variant      :	"armv6l"
-				Features  	 :	["sse4"]
+				Architecture :	"amd64",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win32k"],
+				Variant      :	"armv6l",
+				Features     :	["sse4"],
 	},
 		result: false,
 	},
 	{ // Checking subset validity
 		given: v1.Platform{
-				Architecture :	""
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win32k"]
-				Variant      :	"armv6l"
-				Features  	 :	["sse4"]
+				Architecture :	"",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win32k"],
+				Variant      :	"armv6l",
+				Features     :	["sse4"],
 		},
 		required: v1.Platform{
-				Architecture :	""
-				OS           :	"linux"
-				OSVersion    :	""
-				OSFeatures   :	[]
-				Variant      :	""
-				Features  	 :	[]
+				Architecture :	"",
+				OS           :	"linux",
+				OSVersion    :	"",
+				OSFeatures   :	[],
+				Variant      :	"",
+				Features     :	[],
 	},
 		result: true,
 	},
 	{ // Checking subset validity
 		given: v1.Platform{
-				Architecture :	"arm"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win64k", "f1", "f2"]
-				Variant      :	""
-				Features  	 :	["sse4", "f1"]
+				Architecture :	"arm",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win64k", "f1", "f2"],
+				Variant      :	"",
+				Features     :	["sse4", "f1"],
 		},
 		required: v1.Platform{
-				Architecture :	"arm"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win64k"]
-				Variant      :	""
-				Features  	 :	["sse4"]
+				Architecture :	"arm",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win64k"],
+				Variant      :	"",
+				Features     :	["sse4"],
 	},
 		result: true,
 	},
 	{ // Checking subset validity
 		given: v1.Platform{
-				Architecture :	"arm"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win64k", "f1", "f2"]
-				Variant      :	""
-				Features  	 :	["sse4", "f1"]
+				Architecture :	"arm",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win64k", "f1", "f2"],
+				Variant      :	"",
+				Features     :	["sse4", "f1"],
 		},
 		required: v1.Platform{
-				Architecture :	"arm"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win64k"]
-				Variant      :	""
-				Features  	 :	["sse4", "f2"]
+				Architecture :	"arm",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win64k"],
+				Variant      :	"",
+				Features     :	["sse4", "f2"],
 	},
 		result: false,
 	},
 	{ // Checking subset validity
 		given: v1.Platform{
-				Architecture :	"arm"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	["win64k", "f1", "f2"]
-				Variant      :	""
-				Features  	 :	["sse4"]
+				Architecture :	"arm",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	["win64k", "f1", "f2"],
+				Variant      :	"",
+				Features     :	["sse4"],
 		},
 		required: v1.Platform{
-				Architecture :	"arm"
-				OS           :	"linux"
-				OSVersion    :	"10.0.10586"
-				OSFeatures   :	[]
-				Variant      :	"armv6l"
-				Features  	 :	["sse4"]
+				Architecture :	"arm",
+				OS           :	"linux",
+				OSVersion    :	"10.0.10586",
+				OSFeatures   :	[],
+				Variant      :	"armv6l",
+				Features     :	["sse4"],
 		},
 		result: false
 	}
