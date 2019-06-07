@@ -138,7 +138,7 @@ func (r *remoteIndex) childByPlatform(platform v1.Platform) (*Descriptor, error)
 			p = *childDesc.Platform
 		}
 
-		if r.matchesPlatform(p, platform) {
+		if matchesPlatform(p, platform) {
 			return r.childDescriptor(childDesc, platform)
 		}
 	}
