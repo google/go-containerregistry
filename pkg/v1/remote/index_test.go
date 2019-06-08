@@ -250,7 +250,7 @@ func TestMatchesPlatform(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		given  v1.Platform
-		req    v1.Platform
+		required    v1.Platform
 		result bool
 	}{{ // Identical
 		given: v1.Platform{
@@ -388,9 +388,9 @@ func TestMatchesPlatform(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got := matchesPlatform(test.given, test.req)
+		got := matchesPlatform(test.given, test.required)
 		if got != test.result {
-			t.Errorf("matchesPlatform(%v, %v); got %v, want %v", test.given, test.req, got, test.result)
+			t.Errorf("matchesPlatform(%v, %v); got %v, want %v", test.given, test.required, got, test.result)
 		}
 	}
 
