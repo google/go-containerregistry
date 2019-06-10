@@ -254,9 +254,9 @@ func TestMatchesPlatform(t *testing.T) {
 	tests := []struct {
 		// want is the expected return value from matchesPlatform
 		// when the given platform is 'given' and the required platform is 'required'.
-		given       v1.Platform
-		required    v1.Platform
-		want        bool
+		given    v1.Platform
+		required v1.Platform
+		want     bool
 	}{{ // The given & required platforms are identical. matchesPlatform expected to return true.
 		given: v1.Platform{
 			Architecture: "amd64",
