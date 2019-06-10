@@ -383,7 +383,7 @@ func TestMatchesPlatform(t *testing.T) {
 			},
 			required: v1.Platform{
 				Architecture: "arm",
-				OS:           "LinuX",
+				OS:           "linux",
 				OSVersion:    "",
 				OSFeatures:   []string{"win64k"},
 				Variant:      "",
@@ -410,7 +410,8 @@ func TestMatchesPlatform(t *testing.T) {
 			},
 			want: false,
 		},
-		{ // Checking subset validity. matchesPlatform expected to return true.
+		{ // Checking subset validity when required less features than given features.
+			// matchesPlatform expected to return true.
 			given: v1.Platform{
 				Architecture: "",
 				OS:           "linux",
@@ -429,7 +430,8 @@ func TestMatchesPlatform(t *testing.T) {
 			},
 			want: true,
 		},
-		{ // Checking subset validity. matchesPlatform expected to return true.
+		{ // Checking subset validity when required features are subset of given features.
+			// matchesPlatform expected to return true.
 			given: v1.Platform{
 				Architecture: "arm",
 				OS:           "linux",
@@ -448,7 +450,8 @@ func TestMatchesPlatform(t *testing.T) {
 			},
 			want: true,
 		},
-		{ // Checking subset validity. matchesPlatform expected to return false.
+		{ // Checking subset validity when some required features is not subset of given features.
+			// matchesPlatform expected to return false.
 			given: v1.Platform{
 				Architecture: "arm",
 				OS:           "linux",
@@ -467,7 +470,9 @@ func TestMatchesPlatform(t *testing.T) {
 			},
 			want: false,
 		},
-		{ // Checking subset validity. matchesPlatform expected to return false.
+		{ // Checking subset validity when OS features not required,
+			// and required features is indeed a subset of given features.
+			// matchesPlatform expected to return true.
 			given: v1.Platform{
 				Architecture: "arm",
 				OS:           "linux",
@@ -484,7 +489,7 @@ func TestMatchesPlatform(t *testing.T) {
 				Variant:      "armv6l",
 				Features:     []string{"sse4"},
 			},
-			want: false,
+			want: true,
 		},
 	}
 
