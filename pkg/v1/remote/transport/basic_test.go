@@ -59,3 +59,30 @@ func TestBasicTransport(t *testing.T) {
 		t.Errorf("Unexpected error during Get: %v", err)
 	}
 }
+
+func TestBasicTransportWithEmptyAuthnCred(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if c, ok := r.Header["Authorization"]; ok && c[0] == "" {
+				t.Error("got empty Authorization header")
+			}
+			if r.URL.Path == "/v2/auth" {
+				http.Redirect(w, r, "/redirect", http.StatusMovedPermanently)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+	defer server.Close()
+
+	inner := &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			return url.Parse(server.URL)
+		},
+	}
+
+	client := http.Client{Transport: &basicTransport{inner: inner, auth: authn.Anonymous, target: "gcr.io"}}
+	_, err := client.Get("http://gcr.io/v2/auth")
+	if err != nil {
+		t.Errorf("Unexpected error during Get: %v", err)
+	}
+}
