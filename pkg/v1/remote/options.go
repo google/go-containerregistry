@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
 // Option is a functional option for remote operations.
@@ -56,6 +57,9 @@ func makeOptions(reg name.Registry, opts ...Option) (*options, error) {
 		}
 		o.auth = auth
 	}
+
+	// Wrap the transport in something that can retry network flakes.
+	o.transport = transport.NewRetry(o.transport)
 
 	return o, nil
 }

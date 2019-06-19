@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestShouldRetry(t *testing.T) {
+func TestTemporary(t *testing.T) {
 	tests := []struct {
 		error *Error
 		retry bool
@@ -50,10 +50,10 @@ func TestShouldRetry(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		retry := test.error.ShouldRetry()
+		retry := test.error.Temporary()
 
 		if test.retry != retry {
-			t.Errorf("ShouldRetry(%s) = %t, wanted %t", test.error, retry, test.retry)
+			t.Errorf("Temporary(%s) = %t, wanted %t", test.error, retry, test.retry)
 		}
 	}
 }
