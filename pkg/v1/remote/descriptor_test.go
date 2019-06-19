@@ -26,6 +26,7 @@ import (
 
 func TestGetSchema1(t *testing.T) {
 	expectedRepo := "foo/bar"
+	fakeDigest := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +37,8 @@ func TestGetSchema1(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
-			w.Header().Set("Content-Type", string(types.DockerManifestSchema1))
+			w.Header().Set("Content-Type", string(types.DockerManifestSchema1Signed))
+			w.Header().Set("Docker-Content-Digest", fakeDigest)
 			w.Write([]byte("doesn't matter"))
 		default:
 			t.Fatalf("Unexpected path: %v", r.URL.Path)
@@ -54,6 +56,10 @@ func TestGetSchema1(t *testing.T) {
 	desc, err := Get(tag)
 	if err != nil {
 		t.Fatalf("Get(%s) = %v", tag, err)
+	}
+
+	if desc.Digest.String() != fakeDigest {
+		t.Errorf("Descriptor.Digest = %q, expected %q", desc.Digest, fakeDigest)
 	}
 
 	// Should fail based on media type.
