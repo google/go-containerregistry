@@ -47,15 +47,15 @@ type options struct {
 	predicate retry.Predicate
 }
 
-// WithBackoff sets the backoff for retry operations.
-func WithBackoff(backoff wait.Backoff) Option {
+// WithRetryBackoff sets the backoff for retry operations.
+func WithRetryBackoff(backoff wait.Backoff) Option {
 	return func(o *options) {
 		o.backoff = backoff
 	}
 }
 
-// WithPredicate sets the predicate for retry operations.
-func WithPredicate(predicate func(error) bool) Option {
+// WithRetryPredicate sets the predicate for retry operations.
+func WithRetryPredicate(predicate func(error) bool) Option {
 	return func(o *options) {
 		o.predicate = predicate
 	}

@@ -69,7 +69,7 @@ func TestRetryTransport(t *testing.T) {
 			errs: test.errs,
 		}
 
-		tr := NewRetry(&mt, WithBackoff(wait.Backoff{Steps: 3}), WithPredicate(retry.IsTemporary))
+		tr := NewRetry(&mt, WithRetryBackoff(wait.Backoff{Steps: 3}), WithRetryPredicate(retry.IsTemporary))
 
 		tr.RoundTrip(nil)
 		if mt.count != test.count {
