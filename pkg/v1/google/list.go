@@ -51,6 +51,9 @@ func newLister(repo name.Repository, options ...ListerOption) (*lister, error) {
 		}
 	}
 
+	// Wrap the transport in something that can retry network flakes.
+	l.transport = transport.NewRetry(l.transport)
+
 	scopes := []string{repo.Scope(transport.PullScope)}
 	tr, err := transport.New(repo.Registry, l.auth, l.transport, scopes)
 	if err != nil {

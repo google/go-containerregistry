@@ -20,17 +20,18 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net/http"
 	"net/url"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/internal/retry"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 type manifest interface {
@@ -343,22 +344,16 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		log.Printf("pushed blob: %s", digest)
 		return nil
 	}
-	const maxRetries = 2
-	const backoffFactor = 0.5
-	retries := 0
-	for {
-		err := tryUpload()
-		if err == nil {
-			return nil
-		}
-		if te, ok := err.(*transport.Error); !(ok && te.ShouldRetry()) || retries >= maxRetries {
-			return err
-		}
-		log.Printf("retrying after error: %s", err)
-		retries++
-		duration := time.Duration(backoffFactor*math.Pow(2, float64(retries))) * time.Second
-		time.Sleep(duration)
+
+	// Try this three times, waiting 1s after first failure, 3s after second.
+	backoff := wait.Backoff{
+		Duration: 1.0 * time.Second,
+		Factor:   3.0,
+		Jitter:   0.1,
+		Steps:    3,
 	}
+
+	return retry.Retry(tryUpload, retry.IsTemporary, backoff)
 }
 
 // commitImage does a PUT of the image's manifest.
