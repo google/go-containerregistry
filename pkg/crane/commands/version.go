@@ -12,17 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package commands
 
 import (
-	"fmt"
-	"github.com/google/go-containerregistry/pkg/crane/commands"
-	"os"
+	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	if err := commands.Root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func init() { Root.AddCommand(NewCmdVersion()) }
+
+// NewCmdVersion creates a new cobra.Command for the version subcommand.
+func NewCmdVersion() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print the version",
+		Args:  cobra.NoArgs,
+		Run: func(_ *cobra.Command, _ []string) {
+			api.PrintVersion()
+		},
 	}
 }

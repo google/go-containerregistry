@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package commands
 
 import (
-	"log"
-
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/crane/api"
 	"github.com/spf13/cobra"
 )
 
@@ -31,18 +27,8 @@ func NewCmdDelete() *cobra.Command {
 		Use:   "delete",
 		Short: "Delete an image reference from its registry",
 		Args:  cobra.ExactArgs(1),
-		Run:   doDelete,
-	}
-}
-
-func doDelete(_ *cobra.Command, args []string) {
-	ref := args[0]
-	r, err := name.ParseReference(ref)
-	if err != nil {
-		log.Fatalf("parsing reference %q: %v", ref, err)
-	}
-
-	if err := remote.Delete(r, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
-		log.Fatalf("deleting image %q: %v", r, err)
+		Run: func(_ *cobra.Command, args []string) {
+			api.Delete(args[0])
+		},
 	}
 }

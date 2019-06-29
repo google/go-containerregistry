@@ -12,32 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package commands
 
 import (
-	"fmt"
-	"log"
-
+	"github.com/google/go-containerregistry/pkg/crane/api"
 	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdDigest()) }
+func init() { Root.AddCommand(NewCmdCopy()) }
 
-// NewCmdDigest creates a new cobra.Command for the digest subcommand.
-func NewCmdDigest() *cobra.Command {
+// NewCmdCopy creates a new cobra.Command for the copy subcommand.
+func NewCmdCopy() *cobra.Command {
 	return &cobra.Command{
-		Use:   "digest",
-		Short: "Get the digest of an image",
-		Args:  cobra.ExactArgs(1),
-		Run:   digest,
+		Use:     "copy",
+		Aliases: []string{"cp"},
+		Short:   "Efficiently copy a remote image from src to dst",
+		Args:    cobra.ExactArgs(2),
+		Run: func(cmd *cobra.Command, args []string) {
+			api.Copy(args[0], args[1])
+		},
 	}
-}
-
-func digest(_ *cobra.Command, args []string) {
-	ref := args[0]
-	desc, err := getManifest(ref)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(desc.Digest)
 }

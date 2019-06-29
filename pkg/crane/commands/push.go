@@ -12,17 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package commands
 
 import (
-	"fmt"
-	"github.com/google/go-containerregistry/pkg/crane/commands"
-	"os"
+	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	if err := commands.Root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func init() { Root.AddCommand(NewCmdPush()) }
+
+// NewCmdPush creates a new cobra.Command for the push subcommand.
+func NewCmdPush() *cobra.Command {
+	return &cobra.Command{
+		Use:   "push",
+		Short: "Push image contents as a tarball to a remote registry",
+		Args:  cobra.ExactArgs(2),
+		Run: func(_ *cobra.Command, args []string) {
+			api.Push(args[0], args[1])
+		},
 	}
 }

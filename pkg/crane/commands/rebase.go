@@ -12,16 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package commands
 
 import (
-	"fmt"
-	"log"
-
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/crane/api"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +29,7 @@ func NewCmdRebase() *cobra.Command {
 		Short: "Rebase an image onto a new base image",
 		Args:  cobra.NoArgs,
 		Run: func(*cobra.Command, []string) {
-			rebase(orig, oldBase, newBase, rebased)
+			api.Rebase(orig, oldBase, newBase, rebased)
 		},
 	}
 	rebaseCmd.Flags().StringVarP(&orig, "original", "", "", "Original image to rebase")
@@ -48,45 +42,4 @@ func NewCmdRebase() *cobra.Command {
 	rebaseCmd.MarkFlagRequired("new_base")
 	rebaseCmd.MarkFlagRequired("rebased")
 	return rebaseCmd
-}
-
-func rebase(orig, oldBase, newBase, rebased string) {
-	if orig == "" || oldBase == "" || newBase == "" || rebased == "" {
-		log.Fatalln("Must provide --original, --old_base, --new_base and --rebased")
-	}
-
-	origImg, _, err := getImage(orig)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	oldBaseImg, _, err := getImage(oldBase)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	newBaseImg, _, err := getImage(newBase)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	rebasedTag, err := name.NewTag(rebased)
-	if err != nil {
-		log.Fatalf("parsing tag %q: %v", rebased, err)
-	}
-
-	rebasedImg, err := mutate.Rebase(origImg, oldBaseImg, newBaseImg)
-	if err != nil {
-		log.Fatalf("rebasing: %v", err)
-	}
-
-	dig, err := rebasedImg.Digest()
-	if err != nil {
-		log.Fatalf("digesting rebased: %v", err)
-	}
-
-	if err := remote.Write(rebasedTag, rebasedImg, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
-		log.Fatalf("writing image %q: %v", rebasedTag, err)
-	}
-	fmt.Print(dig.String())
 }

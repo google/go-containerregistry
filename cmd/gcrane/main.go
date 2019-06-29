@@ -16,9 +16,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/google/go-containerregistry/pkg/crane/commands"
 	"os"
 
-	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/gcrane"
 )
 
@@ -30,7 +30,7 @@ func main() {
 	}
 
 	// Use crane for everything else so that this can be a drop-in replacement.
-	for _, cmd := range crane.Root.Commands() {
+	for _, cmd := range commands.Root.Commands() {
 		if _, ok := gcrCmds[cmd.Use]; !ok {
 			gcrane.Root.AddCommand(cmd)
 		}

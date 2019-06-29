@@ -1,5 +1,3 @@
-// Copyright 2018 Google LLC All Rights Reserved.
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -12,17 +10,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package commands
 
-import (
-	"fmt"
-	"github.com/google/go-containerregistry/pkg/crane/commands"
-	"os"
-)
+import "github.com/spf13/cobra"
 
-func main() {
-	if err := commands.Root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+// Root is the top-level cobra.Command for crane.
+var Root = &cobra.Command{
+	Use:               "crane",
+	Short:             "Crane is a tool for managing container images",
+	Run:               func(cmd *cobra.Command, _ []string) { cmd.Usage() },
+	DisableAutoGenTag: true,
 }

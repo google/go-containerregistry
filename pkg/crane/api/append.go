@@ -12,44 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package api
 
 import (
-	"log"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/spf13/cobra"
+	"log"
 )
 
-func init() { Root.AddCommand(NewCmdAppend()) }
-
-// NewCmdAppend creates a new cobra.Command for the append subcommand.
-func NewCmdAppend() *cobra.Command {
-	var baseRef, newTag, newLayer, outFile string
-	appendCmd := &cobra.Command{
-		Use:   "append",
-		Short: "Append contents of a tarball to a remote image",
-		Args:  cobra.NoArgs,
-		Run: func(_ *cobra.Command, args []string) {
-			doAppend(baseRef, newTag, newLayer, outFile)
-		},
-	}
-	appendCmd.Flags().StringVarP(&baseRef, "base", "b", "", "Name of base image to append to")
-	appendCmd.Flags().StringVarP(&newTag, "new_tag", "t", "", "Tag to apply to resulting image")
-	appendCmd.Flags().StringVarP(&newLayer, "new_layer", "f", "", "Path to tarball to append to image")
-	appendCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
-
-	appendCmd.MarkFlagRequired("base")
-	appendCmd.MarkFlagRequired("new_tag")
-	appendCmd.MarkFlagRequired("new_layer")
-	return appendCmd
-}
-
-func doAppend(src, dst, tar, output string) {
+func Append(src string, dst string, tar string, output string) {
 	srcRef, err := name.ParseReference(src)
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", src, err)

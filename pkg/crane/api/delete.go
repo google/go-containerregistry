@@ -12,17 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package api
 
 import (
-	"fmt"
-	"github.com/google/go-containerregistry/pkg/crane/commands"
-	"os"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"log"
 )
 
-func main() {
-	if err := commands.Root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func Delete(refStr string) {
+	ref, err := name.ParseReference(refStr)
+	if err != nil {
+		log.Fatalf("parsing reference %q: %v", refStr, err)
+	}
+
+	if err := remote.Delete(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+		log.Fatalf("deleting image %q: %v", ref, err)
 	}
 }

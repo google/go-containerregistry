@@ -12,34 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package api
 
 import (
 	"fmt"
 	"log"
-
-	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdConfig()) }
-
-// NewCmdConfig creates a new cobra.Command for the config subcommand.
-func NewCmdConfig() *cobra.Command {
-	return &cobra.Command{
-		Use:   "config",
-		Short: "Get the config of an image",
-		Args:  cobra.ExactArgs(1),
-		Run:   config,
-	}
-}
-
-func config(_ *cobra.Command, args []string) {
-	ref := args[0]
-	i, _, err := getImage(ref)
+func Config(ref string) {
+	img, _, err := getImage(ref)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	config, err := i.RawConfigFile()
+	config, err := img.RawConfigFile()
 	if err != nil {
 		log.Fatalln(err)
 	}

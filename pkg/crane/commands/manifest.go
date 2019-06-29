@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package commands
 
 import (
-	"fmt"
-	"log"
-
+	"github.com/google/go-containerregistry/pkg/crane/api"
 	"github.com/spf13/cobra"
 )
 
@@ -29,15 +27,8 @@ func NewCmdManifest() *cobra.Command {
 		Use:   "manifest",
 		Short: "Get the manifest of an image",
 		Args:  cobra.ExactArgs(1),
-		Run:   manifest,
+		Run: func(_ *cobra.Command, args []string) {
+			api.Manifest(args[0])
+		},
 	}
-}
-
-func manifest(_ *cobra.Command, args []string) {
-	ref := args[0]
-	desc, err := getManifest(ref)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Print(string(desc.Manifest))
 }

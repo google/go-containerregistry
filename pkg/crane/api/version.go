@@ -12,17 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package api
 
 import (
 	"fmt"
-	"github.com/google/go-containerregistry/pkg/crane/commands"
-	"os"
+	"log"
+	"os/exec"
+	"strings"
 )
 
-func main() {
-	if err := commands.Root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+// Version can be set via:
+// -ldflags="-X 'github.com/google/go-containerregistry/pkg/crane/api.Version=$TAG'"
+var Version string
+
+func PrintVersion() {
+	if Version == "" {
+		// If Version is unset, use the current commit.
+		hash, err := exec.Command("git", "rev-parse", "HEAD").Output()
+		if err != nil {
+			log.Fatalf("error parsing git commit: %v", err)
+		}
+		Version = strings.TrimSpace(string(hash))
 	}
+	fmt.Println(Version)
 }

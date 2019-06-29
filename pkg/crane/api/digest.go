@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package api
 
 import (
 	"fmt"
-	"github.com/google/go-containerregistry/pkg/crane/commands"
-	"os"
+	"log"
 )
 
-func main() {
-	if err := commands.Root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func Digest(ref string) {
+	desc, err := getManifest(ref)
+	if err != nil {
+		log.Fatal(err)
 	}
+	fmt.Println(desc.Digest)
 }

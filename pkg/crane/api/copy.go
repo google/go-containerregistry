@@ -12,33 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package api
 
 import (
-	"log"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/spf13/cobra"
+	"log"
 )
 
-func init() { Root.AddCommand(NewCmdCopy()) }
-
-// NewCmdCopy creates a new cobra.Command for the copy subcommand.
-func NewCmdCopy() *cobra.Command {
-	return &cobra.Command{
-		Use:     "copy",
-		Aliases: []string{"cp"},
-		Short:   "Efficiently copy a remote image from src to dst",
-		Args:    cobra.ExactArgs(2),
-		Run:     doCopy,
-	}
-}
-
-func doCopy(_ *cobra.Command, args []string) {
-	src, dst := args[0], args[1]
+func Copy(src string, dst string) {
 	srcRef, err := name.ParseReference(src)
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", src, err)

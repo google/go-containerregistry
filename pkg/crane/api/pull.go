@@ -12,18 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package api
 
 import (
 	"fmt"
-	"log"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/spf13/cobra"
+	"log"
 )
 
 // Tag applied to images that were pulled by digest. This denotes that the
@@ -31,24 +29,7 @@ import (
 // ":latest" tag which might be misleading.
 const iWasADigestTag = "i-was-a-digest"
 
-func init() { Root.AddCommand(NewCmdPull()) }
-
-// NewCmdPull creates a new cobra.Command for the pull subcommand.
-func NewCmdPull() *cobra.Command {
-	var cachePath string
-	pullCmd := &cobra.Command{
-		Use:   "pull",
-		Short: "Pull a remote image by reference and store its contents in a tarball",
-		Args:  cobra.ExactArgs(2),
-		Run: func(_ *cobra.Command, args []string) {
-			pull(args[0], args[1], cachePath)
-		},
-	}
-	pullCmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
-	return pullCmd
-}
-
-func pull(src, dst, cachePath string) {
+func Pull(src string, dst string, cachePath string) {
 	ref, err := name.ParseReference(src)
 	if err != nil {
 		log.Fatalf("parsing tag %q: %v", src, err)

@@ -12,33 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package api
 
 import (
 	"fmt"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"log"
 )
 
-func getImage(r string) (v1.Image, name.Reference, error) {
-	ref, err := name.ParseReference(r)
+func List(ref string) {
+	repo, err := name.NewRepository(ref)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing reference %q: %v", r, err)
+		log.Fatalf("parsing repo %q: %v", ref, err)
 	}
-	img, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	if err != nil {
-		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
-	}
-	return img, ref, nil
-}
 
-func getManifest(r string) (*remote.Descriptor, error) {
-	ref, err := name.ParseReference(r)
+	tags, err := remote.List(repo, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
-		return nil, fmt.Errorf("parsing reference %q: %v", r, err)
+		log.Fatalf("reading tags for %q: %v", repo, err)
 	}
-	return remote.Get(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+
+	for _, tag := range tags {
+		fmt.Println(tag)
+	}
 }

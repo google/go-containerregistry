@@ -12,15 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package commands
 
 import (
-	"fmt"
-	"log"
-
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/crane/api"
 	"github.com/spf13/cobra"
 )
 
@@ -32,23 +27,8 @@ func NewCmdList() *cobra.Command {
 		Use:   "ls",
 		Short: "List the tags in a repo",
 		Args:  cobra.ExactArgs(1),
-		Run:   ls,
-	}
-}
-
-func ls(_ *cobra.Command, args []string) {
-	r := args[0]
-	repo, err := name.NewRepository(r)
-	if err != nil {
-		log.Fatalf("parsing repo %q: %v", r, err)
-	}
-
-	tags, err := remote.List(repo, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	if err != nil {
-		log.Fatalf("reading tags for %q: %v", repo, err)
-	}
-
-	for _, tag := range tags {
-		fmt.Println(tag)
+		Run: func(_ *cobra.Command, args []string) {
+			api.List(args[0])
+		},
 	}
 }

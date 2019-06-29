@@ -12,17 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package commands
 
 import (
-	"fmt"
-	"github.com/google/go-containerregistry/pkg/crane/commands"
-	"os"
+	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	if err := commands.Root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func init() { Root.AddCommand(NewCmdConfig()) }
+
+// NewCmdConfig creates a new cobra.Command for the config subcommand.
+func NewCmdConfig() *cobra.Command {
+	return &cobra.Command{
+		Use:   "config",
+		Short: "Get the config of an image",
+		Args:  cobra.ExactArgs(1),
+		Run: func(_ *cobra.Command, args []string) {
+			api.Config(args[0])
+		},
 	}
 }
