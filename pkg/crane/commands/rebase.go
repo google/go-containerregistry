@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func NewCmdRebase() *cobra.Command {
 		Short: "Rebase an image onto a new base image",
 		Args:  cobra.NoArgs,
 		Run: func(*cobra.Command, []string) {
-			api.Rebase(orig, oldBase, newBase, rebased)
+			crane.Rebase(orig, oldBase, newBase, rebased)
 		},
 	}
 	rebaseCmd.Flags().StringVarP(&orig, "original", "", "", "Original image to rebase")

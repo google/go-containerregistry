@@ -12,17 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package crane
 
 import (
 	"fmt"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"log"
 )
 
-func Manifest(ref string) {
-	desc, err := getManifest(ref)
+func List(ref string) {
+	repo, err := name.NewRepository(ref)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("parsing repo %q: %v", ref, err)
 	}
-	fmt.Print(string(desc.Manifest))
+
+	tags, err := remote.List(repo, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err != nil {
+		log.Fatalf("reading tags for %q: %v", repo, err)
+	}
+
+	for _, tag := range tags {
+		fmt.Println(tag)
+	}
 }

@@ -12,33 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package crane
 
 import (
-	"fmt"
-
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"io"
+	"log"
+	"os"
 )
 
-func getImage(refStr string) (v1.Image, name.Reference, error) {
-	reference, err := name.ParseReference(refStr)
+func Export(src string, dst string) {
+	srcRef, err := name.ParseReference(src)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing reference %q: %v", refStr, err)
+		log.Fatalf("parsing reference %q: %v", src, err)
 	}
-	img, err := remote.Image(reference, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	img, err := remote.Image(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
-		return nil, nil, fmt.Errorf("reading image %q: %v", reference, err)
+		log.Fatalf("reading image %q: %v", srcRef, err)
 	}
-	return img, reference, nil
+
+	fs := mutate.Extract(img)
+
+	out, err := openFile(dst)
+	if err != nil {
+		log.Fatalf("failed to open %s: %v", dst, err)
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, fs); err != nil {
+		log.Fatal(err)
+	}
 }
 
-func getManifest(refStr string) (*remote.Descriptor, error) {
-	ref, err := name.ParseReference(refStr)
-	if err != nil {
-		return nil, fmt.Errorf("parsing reference %q: %v", refStr, err)
+func openFile(s string) (*os.File, error) {
+	if s == "-" {
+		return os.Stdout, nil
 	}
-	return remote.Get(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return os.Create(s)
 }

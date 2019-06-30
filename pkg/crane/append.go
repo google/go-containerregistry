@@ -12,44 +12,50 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package crane
 
 import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"io"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"log"
-	"os"
 )
 
-func Export(src string, dst string) {
+func Append(src string, dst string, tar string, output string) {
 	srcRef, err := name.ParseReference(src)
 	if err != nil {
 		log.Fatalf("parsing reference %q: %v", src, err)
 	}
-	img, err := remote.Image(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	srcImage, err := remote.Image(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		log.Fatalf("reading image %q: %v", srcRef, err)
 	}
 
-	fs := mutate.Extract(img)
-
-	out, err := openFile(dst)
+	dstTag, err := name.NewTag(dst)
 	if err != nil {
-		log.Fatalf("failed to open %s: %v", dst, err)
+		log.Fatalf("parsing tag %q: %v", dst, err)
 	}
-	defer out.Close()
 
-	if _, err := io.Copy(out, fs); err != nil {
-		log.Fatal(err)
+	layer, err := tarball.LayerFromFile(tar)
+	if err != nil {
+		log.Fatalf("reading tar %q: %v", tar, err)
 	}
-}
 
-func openFile(s string) (*os.File, error) {
-	if s == "-" {
-		return os.Stdout, nil
+	image, err := mutate.AppendLayers(srcImage, layer)
+	if err != nil {
+		log.Fatalf("appending layer: %v", err)
 	}
-	return os.Create(s)
+
+	if output != "" {
+		if err := tarball.WriteToFile(output, dstTag, image); err != nil {
+			log.Fatalf("writing output %q: %v", output, err)
+		}
+		return
+	}
+
+	if err := remote.Write(dstTag, image, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+		log.Fatalf("writing image %q: %v", dstTag, err)
+	}
 }

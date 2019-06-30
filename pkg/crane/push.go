@@ -12,17 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package crane
 
 import (
-	"fmt"
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"log"
 )
 
-func Digest(ref string) {
-	desc, err := getManifest(ref)
+func Push(src string, dst string) {
+	t, err := name.NewTag(dst)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("parsing tag %q: %v", dst, err)
 	}
-	fmt.Println(desc.Digest)
+	log.Printf("Pushing %v", t)
+
+	i, err := tarball.ImageFromPath(src, nil)
+	if err != nil {
+		log.Fatalf("reading image %q: %v", src, err)
+	}
+
+	if err := remote.Write(t, i, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+		log.Fatalf("writing image %q: %v", t, err)
+	}
 }

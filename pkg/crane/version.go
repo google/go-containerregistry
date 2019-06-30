@@ -12,22 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package crane
 
 import (
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"fmt"
 	"log"
+	"os/exec"
+	"strings"
 )
 
-func Delete(refStr string) {
-	ref, err := name.ParseReference(refStr)
-	if err != nil {
-		log.Fatalf("parsing reference %q: %v", refStr, err)
-	}
+// Version can be set via:
+// -ldflags="-X 'github.com/google/go-containerregistry/pkg/crane/api.Version=$TAG'"
+var Version string
 
-	if err := remote.Delete(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
-		log.Fatalf("deleting image %q: %v", ref, err)
+func PrintVersion() {
+	if Version == "" {
+		// If Version is unset, use the current commit.
+		hash, err := exec.Command("git", "rev-parse", "HEAD").Output()
+		if err != nil {
+			log.Fatalf("error parsing git commit: %v", err)
+		}
+		Version = strings.TrimSpace(string(hash))
 	}
+	fmt.Println(Version)
 }

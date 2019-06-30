@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func NewCmdCopy() *cobra.Command {
 		Short:   "Efficiently copy a remote image from src to dst",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			api.Copy(args[0], args[1])
+			crane.Copy(args[0], args[1])
 		},
 	}
 }

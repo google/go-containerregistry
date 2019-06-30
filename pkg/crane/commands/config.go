@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func NewCmdConfig() *cobra.Command {
 		Short: "Get the config of an image",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			api.Config(args[0])
+			crane.Config(args[0])
 		},
 	}
 }

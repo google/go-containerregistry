@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func NewCmdDelete() *cobra.Command {
 		Short: "Delete an image reference from its registry",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			api.Delete(args[0])
+			crane.Delete(args[0])
 		},
 	}
 }

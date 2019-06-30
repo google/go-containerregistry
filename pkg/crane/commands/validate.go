@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func NewCmdValidate() *cobra.Command {
 		Short: "Validate that an image is well-formed",
 		Args:  cobra.ExactArgs(0),
 		Run: func(_ *cobra.Command, args []string) {
-			api.Validate(tarballPath, remoteRef, daemonRef)
+			crane.Validate(tarballPath, remoteRef, daemonRef)
 		},
 	}
 	validateCmd.Flags().StringVar(&tarballPath, "tarball", "", "Path to tarball to validate")

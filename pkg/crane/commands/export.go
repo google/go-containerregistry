@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +33,7 @@ func NewCmdExport() *cobra.Command {
   crane export ubuntu ubuntu.tar`,
 		Args: cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
-			api.Export(args[0], args[1])
+			crane.Export(args[0], args[1])
 		},
 	}
 

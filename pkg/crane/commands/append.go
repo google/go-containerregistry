@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func NewCmdAppend() *cobra.Command {
 		Short: "Append contents of a tarball to a remote image",
 		Args:  cobra.NoArgs,
 		Run: func(_ *cobra.Command, args []string) {
-			api.Append(baseRef, newTag, newLayer, outFile)
+			crane.Append(baseRef, newTag, newLayer, outFile)
 		},
 	}
 	appendCmd.Flags().StringVarP(&baseRef, "base", "b", "", "Name of base image to append to")

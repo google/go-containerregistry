@@ -12,23 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package commands
+package crane
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/spf13/cobra"
+	"fmt"
+	"log"
 )
 
-func init() { Root.AddCommand(NewCmdList()) }
-
-// NewCmdList creates a new cobra.Command for the ls subcommand.
-func NewCmdList() *cobra.Command {
-	return &cobra.Command{
-		Use:   "ls",
-		Short: "List the tags in a repo",
-		Args:  cobra.ExactArgs(1),
-		Run: func(_ *cobra.Command, args []string) {
-			crane.List(args[0])
-		},
+func Manifest(ref string) {
+	desc, err := getManifest(ref)
+	if err != nil {
+		log.Fatal(err)
 	}
+	fmt.Print(string(desc.Manifest))
 }

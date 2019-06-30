@@ -12,29 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package crane
 
 import (
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"log"
 )
 
-func Push(src string, dst string) {
-	t, err := name.NewTag(dst)
+func Delete(refStr string) {
+	ref, err := name.ParseReference(refStr)
 	if err != nil {
-		log.Fatalf("parsing tag %q: %v", dst, err)
-	}
-	log.Printf("Pushing %v", t)
-
-	i, err := tarball.ImageFromPath(src, nil)
-	if err != nil {
-		log.Fatalf("reading image %q: %v", src, err)
+		log.Fatalf("parsing reference %q: %v", refStr, err)
 	}
 
-	if err := remote.Write(t, i, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
-		log.Fatalf("writing image %q: %v", t, err)
+	if err := remote.Delete(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+		log.Fatalf("deleting image %q: %v", ref, err)
 	}
 }

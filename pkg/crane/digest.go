@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package crane
 
 import (
 	"fmt"
 	"log"
 )
 
-func Config(ref string) {
-	img, _, err := getImage(ref)
+func Digest(ref string) {
+	desc, err := getManifest(ref)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
-	config, err := img.RawConfigFile()
-	if err != nil {
-		log.Fatalln(err)
-	}
-	fmt.Print(string(config))
+	fmt.Println(desc.Digest)
 }

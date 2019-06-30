@@ -12,50 +12,54 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package crane
 
 import (
+	"fmt"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"log"
 )
 
-func Append(src string, dst string, tar string, output string) {
-	srcRef, err := name.ParseReference(src)
-	if err != nil {
-		log.Fatalf("parsing reference %q: %v", src, err)
-	}
-	srcImage, err := remote.Image(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-	if err != nil {
-		log.Fatalf("reading image %q: %v", srcRef, err)
+func Rebase(orig string, oldBase string, newBase string, rebased string) {
+	if orig == "" || oldBase == "" || newBase == "" || rebased == "" {
+		log.Fatalln("Must provide --original, --old_base, --new_base and --rebased")
 	}
 
-	dstTag, err := name.NewTag(dst)
+	origImg, _, err := getImage(orig)
 	if err != nil {
-		log.Fatalf("parsing tag %q: %v", dst, err)
+		log.Fatalln(err)
 	}
 
-	layer, err := tarball.LayerFromFile(tar)
+	oldBaseImg, _, err := getImage(oldBase)
 	if err != nil {
-		log.Fatalf("reading tar %q: %v", tar, err)
+		log.Fatalln(err)
 	}
 
-	image, err := mutate.AppendLayers(srcImage, layer)
+	newBaseImg, _, err := getImage(newBase)
 	if err != nil {
-		log.Fatalf("appending layer: %v", err)
+		log.Fatalln(err)
 	}
 
-	if output != "" {
-		if err := tarball.WriteToFile(output, dstTag, image); err != nil {
-			log.Fatalf("writing output %q: %v", output, err)
-		}
-		return
+	rebasedTag, err := name.NewTag(rebased)
+	if err != nil {
+		log.Fatalf("parsing tag %q: %v", rebased, err)
 	}
 
-	if err := remote.Write(dstTag, image, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
-		log.Fatalf("writing image %q: %v", dstTag, err)
+	rebasedImg, err := mutate.Rebase(origImg, oldBaseImg, newBaseImg)
+	if err != nil {
+		log.Fatalf("rebasing: %v", err)
 	}
+
+	dig, err := rebasedImg.Digest()
+	if err != nil {
+		log.Fatalf("digesting rebased: %v", err)
+	}
+
+	if err := remote.Write(rebasedTag, rebasedImg, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+		log.Fatalf("writing image %q: %v", rebasedTag, err)
+	}
+	fmt.Print(dig.String())
 }

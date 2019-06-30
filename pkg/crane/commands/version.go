@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func NewCmdVersion() *cobra.Command {
 		Short: "Print the version",
 		Args:  cobra.NoArgs,
 		Run: func(_ *cobra.Command, _ []string) {
-			api.PrintVersion()
+			crane.PrintVersion()
 		},
 	}
 }

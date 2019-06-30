@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func NewCmdManifest() *cobra.Command {
 		Short: "Get the manifest of an image",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			api.Manifest(args[0])
+			crane.Manifest(args[0])
 		},
 	}
 }

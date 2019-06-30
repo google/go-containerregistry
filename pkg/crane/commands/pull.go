@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func NewCmdPull() *cobra.Command {
 		Short: "Pull a remote image by reference and store its contents in a tarball",
 		Args:  cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
-			api.Pull(args[0], args[1], cachePath)
+			crane.Pull(args[0], args[1], cachePath)
 		},
 	}
 	pullCmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")

@@ -15,7 +15,7 @@
 package commands
 
 import (
-	"github.com/google/go-containerregistry/pkg/crane/api"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func NewCmdPush() *cobra.Command {
 		Short: "Push image contents as a tarball to a remote registry",
 		Args:  cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
-			api.Push(args[0], args[1])
+			crane.Push(args[0], args[1])
 		},
 	}
 }
