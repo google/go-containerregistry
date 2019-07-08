@@ -12,13 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package cmd
 
-// Manifest returns the manifest for the remote image or index ref.
-func Manifest(ref string) ([]byte, error) {
-	desc, err := getManifest(ref)
-	if err != nil {
-		return nil, err
+import (
+	"fmt"
+	"log"
+
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/spf13/cobra"
+)
+
+func init() { Root.AddCommand(NewCmdList()) }
+
+// NewCmdList creates a new cobra.Command for the ls subcommand.
+func NewCmdList() *cobra.Command {
+	return &cobra.Command{
+		Use:   "ls",
+		Short: "List the tags in a repo",
+		Args:  cobra.ExactArgs(1),
+		Run: func(_ *cobra.Command, args []string) {
+			repo := args[0]
+			tags, err := crane.ListTags(repo)
+			if err != nil {
+				log.Fatalf("reading tags for %s: %v", repo, err)
+			}
+
+			for _, tag := range tags {
+				fmt.Println(tag)
+			}
+		},
 	}
-	return desc.Manifest, nil
 }

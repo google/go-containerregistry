@@ -12,22 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package cmd
 
 import (
 	"fmt"
+	"log"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/spf13/cobra"
 )
 
-// ListTags returns the tags in repository src.
-func ListTags(src string) ([]string, error) {
-	repo, err := name.NewRepository(src)
-	if err != nil {
-		return nil, fmt.Errorf("parsing repo %q: %v", src, err)
-	}
+func init() { Root.AddCommand(NewCmdManifest()) }
 
-	return remote.List(repo, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+// NewCmdManifest creates a new cobra.Command for the manifest subcommand.
+func NewCmdManifest() *cobra.Command {
+	return &cobra.Command{
+		Use:   "manifest",
+		Short: "Get the manifest of an image",
+		Args:  cobra.ExactArgs(1),
+		Run: func(_ *cobra.Command, args []string) {
+			src := args[0]
+			manifest, err := crane.Manifest(src)
+			if err != nil {
+				log.Fatalf("fetching manifest %s: %v", src, err)
+			}
+			fmt.Print(string(manifest))
+		},
+	}
 }

@@ -16,14 +16,12 @@ package crane
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/cache"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/spf13/cobra"
 )
 
 // Tag applied to images that were pulled by digest. This denotes that the
@@ -31,36 +29,21 @@ import (
 // ":latest" tag which might be misleading.
 const iWasADigestTag = "i-was-a-digest"
 
-func init() { Root.AddCommand(NewCmdPull()) }
-
-// NewCmdPull creates a new cobra.Command for the pull subcommand.
-func NewCmdPull() *cobra.Command {
-	var cachePath string
-	pullCmd := &cobra.Command{
-		Use:   "pull",
-		Short: "Pull a remote image by reference and store its contents in a tarball",
-		Args:  cobra.ExactArgs(2),
-		Run: func(_ *cobra.Command, args []string) {
-			pull(args[0], args[1], cachePath)
-		},
-	}
-	pullCmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
-	return pullCmd
-}
-
-func pull(src, dst, cachePath string) {
+// Pull returns a v1.Image of the remote image src.
+func Pull(src string) (v1.Image, error) {
 	ref, err := name.ParseReference(src)
 	if err != nil {
-		log.Fatalf("parsing tag %q: %v", src, err)
+		return nil, fmt.Errorf("parsing tag %q: %v", src, err)
 	}
-	log.Printf("Pulling %v", ref)
 
-	i, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+}
+
+// Save writes the v1.Image img as a tarball at path with tag src.
+func Save(img v1.Image, src, path string) error {
+	ref, err := name.ParseReference(src)
 	if err != nil {
-		log.Fatalf("reading image %q: %v", ref, err)
-	}
-	if cachePath != "" {
-		i = cache.Image(i, cache.NewFilesystemCache(cachePath))
+		return fmt.Errorf("parsing ref %q: %v", src, err)
 	}
 
 	// WriteToFile wants a tag to write to the tarball, but we might have
@@ -71,16 +54,14 @@ func pull(src, dst, cachePath string) {
 	if !ok {
 		d, ok := ref.(name.Digest)
 		if !ok {
-			log.Fatal("ref wasn't a tag or digest")
+			return fmt.Errorf("ref wasn't a tag or digest")
 		}
 		s := fmt.Sprintf("%s:%s", d.Repository.Name(), iWasADigestTag)
 		tag, err = name.NewTag(s)
 		if err != nil {
-			log.Fatalf("parsing digest as tag (%s): %v", s, err)
+			return fmt.Errorf("parsing digest as tag (%s): %v", s, err)
 		}
 	}
 
-	if err := tarball.WriteToFile(dst, tag, i); err != nil {
-		log.Fatalf("writing image %q: %v", dst, err)
-	}
+	return tarball.WriteToFile(path, tag, img)
 }

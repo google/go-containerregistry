@@ -14,30 +14,11 @@
 
 package crane
 
-import (
-	"fmt"
-	"log"
-
-	"github.com/spf13/cobra"
-)
-
-func init() { Root.AddCommand(NewCmdDigest()) }
-
-// NewCmdDigest creates a new cobra.Command for the digest subcommand.
-func NewCmdDigest() *cobra.Command {
-	return &cobra.Command{
-		Use:   "digest",
-		Short: "Get the digest of an image",
-		Args:  cobra.ExactArgs(1),
-		Run:   digest,
-	}
-}
-
-func digest(_ *cobra.Command, args []string) {
-	ref := args[0]
+// Digest returns the sha256 hash of the remote image at ref.
+func Digest(ref string) (string, error) {
 	desc, err := getManifest(ref)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
-	fmt.Println(desc.Digest)
+	return desc.Digest.String(), nil
 }

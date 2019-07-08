@@ -12,13 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package cmd
 
-// Manifest returns the manifest for the remote image or index ref.
-func Manifest(ref string) ([]byte, error) {
-	desc, err := getManifest(ref)
-	if err != nil {
-		return nil, err
+import (
+	"fmt"
+	"log"
+
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/spf13/cobra"
+)
+
+func init() { Root.AddCommand(NewCmdConfig()) }
+
+// NewCmdConfig creates a new cobra.Command for the config subcommand.
+func NewCmdConfig() *cobra.Command {
+	return &cobra.Command{
+		Use:   "config",
+		Short: "Get the config of an image",
+		Args:  cobra.ExactArgs(1),
+		Run: func(_ *cobra.Command, args []string) {
+			cfg, err := crane.Config(args[0])
+			if err != nil {
+				log.Fatalf("fetching config: %v", err)
+			}
+			fmt.Print(string(cfg))
+		},
 	}
-	return desc.Manifest, nil
 }

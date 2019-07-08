@@ -12,13 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package cmd
 
-// Manifest returns the manifest for the remote image or index ref.
-func Manifest(ref string) ([]byte, error) {
-	desc, err := getManifest(ref)
-	if err != nil {
-		return nil, err
+import (
+	"log"
+
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/spf13/cobra"
+)
+
+func init() { Root.AddCommand(NewCmdCopy()) }
+
+// NewCmdCopy creates a new cobra.Command for the copy subcommand.
+func NewCmdCopy() *cobra.Command {
+	return &cobra.Command{
+		Use:     "copy",
+		Aliases: []string{"cp"},
+		Short:   "Efficiently copy a remote image from src to dst",
+		Args:    cobra.ExactArgs(2),
+		Run: func(_ *cobra.Command, args []string) {
+			src, dst := args[0], args[1]
+			if err := crane.Copy(src, dst); err != nil {
+				log.Fatal(err)
+			}
+		},
 	}
-	return desc.Manifest, nil
 }

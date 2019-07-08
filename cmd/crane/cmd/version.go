@@ -1,4 +1,4 @@
-package crane
+package cmd
 
 import (
 	"fmt"

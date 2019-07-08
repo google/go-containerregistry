@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package cmd
 
 import (
 	"fmt"
 	"log"
 
-	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 	"github.com/spf13/cobra"
@@ -38,7 +37,22 @@ func NewCmdValidate() *cobra.Command {
 		Short: "Validate that an image is well-formed",
 		Args:  cobra.ExactArgs(0),
 		Run: func(_ *cobra.Command, args []string) {
-			doValidate(tarballPath, remoteRef, daemonRef)
+			for flag, maker := range map[string]func(string) (v1.Image, error){
+				tarballPath: makeTarball,
+				remoteRef:   crane.Pull,
+				daemonRef:   makeDaemon,
+			} {
+				img, err := maker(flag)
+				if err != nil {
+					log.Fatalf("failed to read image %s: %v", flag, err)
+				}
+
+				if err := validate.Image(img); err != nil {
+					fmt.Printf("FAIL: %s: %v\n", flag, err)
+				} else {
+					fmt.Printf("PASS: %s\n", flag)
+				}
+			}
 		},
 	}
 	validateCmd.Flags().StringVar(&tarballPath, "tarball", "", "Path to tarball to validate")
@@ -48,38 +62,8 @@ func NewCmdValidate() *cobra.Command {
 	return validateCmd
 }
 
-func doValidate(tarballPath, remoteRef, daemonRef string) {
-	for flag, maker := range map[string]func(string) (v1.Image, error){
-		tarballPath: makeTarball,
-		remoteRef:   makeRemote,
-		daemonRef:   makeDaemon,
-	} {
-		if flag != "" {
-			img, err := maker(flag)
-			if err != nil {
-				log.Fatalf("failed to read image %s: %v", flag, err)
-			}
-
-			if err := validate.Image(img); err != nil {
-				fmt.Printf("FAIL: %s: %v\n", flag, err)
-			} else {
-				fmt.Printf("PASS: %s\n", flag)
-			}
-		}
-	}
-}
-
 func makeTarball(path string) (v1.Image, error) {
 	return tarball.ImageFromPath(path, nil)
-}
-
-func makeRemote(remoteRef string) (v1.Image, error) {
-	ref, err := name.ParseReference(remoteRef)
-	if err != nil {
-		return nil, fmt.Errorf("parsing remote ref %q: %v", remoteRef, err)
-	}
-
-	return remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }
 
 func makeDaemon(daemonRef string) (v1.Image, error) {
