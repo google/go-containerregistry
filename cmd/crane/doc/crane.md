@@ -19,6 +19,7 @@ crane [flags]
 ### SEE ALSO
 
 * [crane append](crane_append.md)	 - Append contents of a tarball to a remote image
+* [crane completion](crane_completion.md)	 - Output shell completion code (default Bash)
 * [crane config](crane_config.md)	 - Get the config of an image
 * [crane copy](crane_copy.md)	 - Efficiently copy a remote image from src to dst
 * [crane delete](crane_delete.md)	 - Delete an image reference from its registry
