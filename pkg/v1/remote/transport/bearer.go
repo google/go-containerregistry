@@ -65,18 +65,9 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		// we are redirected, only set it when the authorization header matches
 		// the registry with which we are interacting.
 		// In case of redirect http.Client can use an empty Host, check URL too.
-		canonicalHeaderHost, err := bt.canonicalAddress(in.Host)
-		if err != nil {
-			return nil, err
-		}
-		canonicalURLHost, err := bt.canonicalAddress(in.URL.Host)
-		if err != nil {
-			return nil, err
-		}
-		canonicalRegistryHost, err := bt.canonicalAddress(bt.registry.RegistryStr())
-		if err != nil {
-			return nil, err
-		}
+		canonicalHeaderHost := bt.canonicalAddress(in.Host)
+		canonicalURLHost := bt.canonicalAddress(in.URL.Host)
+		canonicalRegistryHost := bt.canonicalAddress(bt.registry.RegistryStr())
 		if canonicalHeaderHost == canonicalRegistryHost || canonicalURLHost == canonicalRegistryHost {
 			in.Header.Set("Authorization", hdr)
 
@@ -164,7 +155,7 @@ func (bt *bearerTransport) refresh() error {
 	return nil
 }
 
-func (bt *bearerTransport) canonicalAddress(host string) (address string, err error) {
+func (bt *bearerTransport) canonicalAddress(host string) (address string) {
 	// The host may be any one of:
 	// - hostname
 	// - hostname:port
@@ -177,14 +168,14 @@ func (bt *bearerTransport) canonicalAddress(host string) (address string, err er
 	if strings.Count(host, ":") == 1 || (strings.Count(host, ":") >= 2 && strings.Contains(host, "]:")) {
 		hostname, port, err := net.SplitHostPort(host)
 		if err != nil {
-			return "", err
+			return host
 		}
 		if port == "" {
 			port = portMap[bt.scheme]
 		}
 
-		return net.JoinHostPort(hostname, port), nil
+		return net.JoinHostPort(hostname, port)
 	}
 
-	return net.JoinHostPort(host, portMap[bt.scheme]), nil
+	return net.JoinHostPort(host, portMap[bt.scheme])
 }

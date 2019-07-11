@@ -385,10 +385,7 @@ func TestCanonicalAddressResolution(t *testing.T) {
 	}}
 
 	for _, tt := range tests {
-		got, err := tt.bt.canonicalAddress(tt.address)
-		if err != nil {
-			t.Errorf("Unexpected error during bt.canonicalAddress: %v", err)
-		}
+		got := tt.bt.canonicalAddress(tt.address)
 		if got != tt.want {
 			t.Errorf("Wrong canonical host: wanted %v got %v", tt.want, got)
 		}
