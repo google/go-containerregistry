@@ -174,7 +174,7 @@ func (bt *bearerTransport) canonicalAddress(host string) (address string, err er
 	// - [ipv6]:port
 	// As net.SplitHostPort returns an error if the host does not contain a port, we should only attempt
 	// to call it when we know that the address contains a port
-	if strings.Count(host, ":") == 1 || (strings.Count(host, ":") >= 2 && strings.Contains(host, "]")) {
+	if strings.Count(host, ":") == 1 || (strings.Count(host, ":") >= 2 && strings.Contains(host, "]:")) {
 		hostname, port, err := net.SplitHostPort(host)
 		if err != nil {
 			return "", err

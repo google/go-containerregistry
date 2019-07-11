@@ -317,6 +317,24 @@ func TestCanonicalAddressResolution(t *testing.T) {
 			registry: registry,
 			scheme:   "http",
 		},
+		address: "registry.example.com:",
+		want:    "registry.example.com:80",
+	}, {
+		bt: &bearerTransport{
+			inner:    &http.Transport{},
+			bearer:   bearer,
+			registry: registry,
+			scheme:   "https",
+		},
+		address: "registry.example.com:",
+		want:    "registry.example.com:443",
+	}, {
+		bt: &bearerTransport{
+			inner:    &http.Transport{},
+			bearer:   bearer,
+			registry: registry,
+			scheme:   "http",
+		},
 		address: "2001:db8::1",
 		want:    "[2001:db8::1]:80",
 	}, {
@@ -346,6 +364,24 @@ func TestCanonicalAddressResolution(t *testing.T) {
 		},
 		address: "[2001:db8::1]:12345",
 		want:    "[2001:db8::1]:12345",
+	}, {
+		bt: &bearerTransport{
+			inner:    &http.Transport{},
+			bearer:   bearer,
+			registry: registry,
+			scheme:   "http",
+		},
+		address: "[2001:db8::1]:",
+		want:    "[2001:db8::1]:80",
+	}, {
+		bt: &bearerTransport{
+			inner:    &http.Transport{},
+			bearer:   bearer,
+			registry: registry,
+			scheme:   "https",
+		},
+		address: "[2001:db8::1]:",
+		want:    "[2001:db8::1]:443",
 	}}
 
 	for _, tt := range tests {
