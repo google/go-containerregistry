@@ -15,10 +15,10 @@
 package google
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 )
 
 // WithTransport is a functional option for overriding the default transport
@@ -48,7 +48,7 @@ func WithAuthFromKeychain(keys authn.Keychain) ListerOption {
 			return err
 		}
 		if auth == authn.Anonymous {
-			log.Println("No matching credentials were found, falling back on anonymous")
+			logs.Warn.Println("No matching credentials were found, falling back on anonymous")
 		}
 		l.auth = auth
 		return nil

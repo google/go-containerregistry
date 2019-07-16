@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+// Package logs exposes the loggers used by this library.
+package logs
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/google/go-containerregistry/cmd/crane/cmd"
-	"github.com/google/go-containerregistry/pkg/logs"
+	"io/ioutil"
+	"log"
 )
 
-func init() {
-	logs.Warn.SetOutput(os.Stderr)
-	logs.Progress.SetOutput(os.Stderr)
-}
+var (
+	// Warn is used to log non-fatal errors.
+	Warn = log.New(ioutil.Discard, "", log.LstdFlags)
 
-func main() {
-	if err := cmd.Root.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-}
+	// Progress is used to log notable, successful events.
+	Progress = log.New(ioutil.Discard, "", log.LstdFlags)
+)
