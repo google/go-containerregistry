@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -225,7 +226,7 @@ func (c *copier) copyRepo(ctx context.Context, oldRepo name.Repository, tags *go
 		// we just need to copy everything.
 		//
 		// TODO: refactor remote.Error to expose response code?
-		log.Printf("failed to list %s: %v", newRepo, err)
+		logs.Warn.Printf("failed to list %s: %v", newRepo, err)
 	} else {
 		have = haveTags.Manifests
 	}

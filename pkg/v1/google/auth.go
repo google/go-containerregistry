@@ -19,12 +19,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"golang.org/x/oauth2"
 	googauth "golang.org/x/oauth2/google"
 )
@@ -62,7 +62,7 @@ func NewGcloudAuthenticator() (authn.Authenticator, error) {
 	if _, err := exec.LookPath("gcloud"); err != nil {
 		// TODO(#390): Use better logger.
 		// gcloud is not available, fall back to anonymous
-		log.Println("gcloud binary not found")
+		logs.Warn.Println("gcloud binary not found")
 		return authn.Anonymous, nil
 	}
 

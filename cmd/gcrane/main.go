@@ -20,7 +20,13 @@ import (
 
 	crane "github.com/google/go-containerregistry/cmd/crane/cmd"
 	"github.com/google/go-containerregistry/pkg/gcrane"
+	"github.com/google/go-containerregistry/pkg/logs"
 )
+
+func init() {
+	logs.Warn.SetOutput(os.Stderr)
+	logs.Progress.SetOutput(os.Stderr)
+}
 
 func main() {
 	// Maintain a map of google-specific commands that we "override".

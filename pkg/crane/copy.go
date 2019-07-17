@@ -19,6 +19,7 @@ import (
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -30,7 +31,7 @@ func Copy(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", src, err)
 	}
-	log.Printf("Pulling %v", srcRef)
+	logs.Progress.Printf("Pulling %v", srcRef)
 
 	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
@@ -42,7 +43,7 @@ func Copy(src, dst string) error {
 		return fmt.Errorf("getting creds for %q: %v", srcRef, err)
 	}
 
-	log.Printf("Pushing %v", dstRef)
+	logs.Progress.Printf("Pushing %v", dstRef)
 
 	switch desc.MediaType {
 	case types.OCIImageIndex, types.DockerManifestList:

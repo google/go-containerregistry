@@ -3,8 +3,8 @@ package cache
 
 import (
 	"errors"
-	"log"
 
+	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
@@ -63,7 +63,7 @@ func (i *image) Layers() ([]v1.Layer, error) {
 		}
 		if cl, err := i.c.Get(digest); err == nil {
 			// Layer found in the cache.
-			log.Printf("Layer %s found (compressed) in cache", digest)
+			logs.Progress.Printf("Layer %s found (compressed) in cache", digest)
 			out = append(out, cl)
 			continue
 		} else if err != nil && err != ErrNotFound {
@@ -78,7 +78,7 @@ func (i *image) Layers() ([]v1.Layer, error) {
 		}
 		if cl, err := i.c.Get(diffID); err == nil {
 			// Layer found in the cache.
-			log.Printf("Layer %s found (uncompressed) in cache", diffID)
+			logs.Progress.Printf("Layer %s found (uncompressed) in cache", diffID)
 			out = append(out, cl)
 		} else if err != nil && err != ErrNotFound {
 			return nil, err
