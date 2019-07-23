@@ -1,15 +1,16 @@
-package registry
+package registry_test
 
 import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 func TestTLS(t *testing.T) {
-	s, tp, err := TLS("test.com")
+	s, tp, err := registry.TLS("test.com")
 	if err != nil {
 		t.Fatal(err)
 	}
