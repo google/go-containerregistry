@@ -16,10 +16,11 @@ import (
 	"time"
 )
 
-// TLS returns a httptest server, as well as a transport that has been modified to
+// TLS returns a httptest server, with a http client that has been configured to
 // send all requests to the given server. The TLS certs are generated for the given domain
 // which should correspond to the domain the container is stored in.
-func TLS(domain string) (*httptest.Server, *http.Transport, error) {
+// If you need a transport, Client().Transport is correctly configured.
+func TLS(domain string) (*httptest.Server, error) {
 
 	s := httptest.NewUnstartedServer(New())
 
@@ -41,32 +42,32 @@ func TLS(domain string) (*httptest.Server, *http.Transport, error) {
 
 	priv, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	b, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	pc := &bytes.Buffer{}
 	if err := pem.Encode(pc, &pem.Block{Type: "CERTIFICATE", Bytes: b}); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	ek, err := x509.MarshalECPrivateKey(priv)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	pk := &bytes.Buffer{}
 	if err := pem.Encode(pk, &pem.Block{Type: "EC PRIVATE KEY", Bytes: ek}); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	c, err := tls.X509KeyPair(pc.Bytes(), pk.Bytes())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	s.TLS = &tls.Config{
 		Certificates: []tls.Certificate{c},
@@ -86,6 +87,6 @@ func TLS(domain string) (*httptest.Server, *http.Transport, error) {
 	}
 	s.Client().Transport = t
 
-	return s, t, nil
+	return s, nil
 
 }

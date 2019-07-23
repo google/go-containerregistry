@@ -10,7 +10,7 @@ import (
 )
 
 func TestTLS(t *testing.T) {
-	s, tp, err := registry.TLS("test.com")
+	s, err := registry.TLS("test.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestTLS(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to parse digest: %v", err)
 	}
-	if err := remote.Write(d, i, remote.WithTransport(tp)); err != nil {
+	if err := remote.Write(d, i, remote.WithTransport(s.Client().Transport)); err != nil {
 		t.Fatalf("Unable to write image to remove: %s", err)
 	}
 }
