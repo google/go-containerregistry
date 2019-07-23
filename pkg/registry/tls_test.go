@@ -11,53 +11,38 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package registry_test
 
 import (
-	"bytes"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-func TestPushAndPullContainer(t *testing.T) {
-	s := httptest.NewServer(registry.New())
-	defer s.Close()
-
-	r := strings.TrimPrefix(s.URL, "http://") + "/foo:latest"
-	d, err := name.NewTag(r)
+func TestTLS(t *testing.T) {
+	s, err := registry.TLS("registry.example.com")
 	if err != nil {
-		t.Fatalf("Unable to create tag: %v", err)
+		t.Fatal(err)
 	}
+	defer s.Close()
 
 	i, err := random.Image(1024, 1)
 	if err != nil {
-		t.Fatalf("Unable to make random image: %v", err)
+		t.Fatalf("Unable to make image: %v", err)
 	}
-
-	if err := remote.Write(d, i); err != nil {
-		t.Fatalf("Error writing image : %v", err)
-	}
-
-	ref, err := name.ParseReference(r)
+	rd, err := i.Digest()
 	if err != nil {
-		t.Fatalf("Error parsing tag  %v", err)
+		t.Fatalf("Unable to get image digest: %v", err)
 	}
 
-	ri, err := remote.Image(ref)
+	d, err := name.NewDigest("registry.example.com/foo@" + rd.String())
 	if err != nil {
-		t.Fatalf("Error reading image %v", err)
+		t.Fatalf("Unable to parse digest: %v", err)
 	}
-
-	b := &bytes.Buffer{}
-	if err := tarball.Write(ref, ri, b); err != nil {
-		t.Fatalf("Error writing image to tarball %v", err)
+	if err := remote.Write(d, i, remote.WithTransport(s.Client().Transport)); err != nil {
+		t.Fatalf("Unable to write image to remote: %s", err)
 	}
 }
