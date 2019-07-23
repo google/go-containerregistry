@@ -1,3 +1,16 @@
+// Copyright 2018 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package registry_test
 
 import (
@@ -10,7 +23,7 @@ import (
 )
 
 func TestTLS(t *testing.T) {
-	s, err := registry.TLS("test.com")
+	s, err := registry.TLS("registry.example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,11 +38,11 @@ func TestTLS(t *testing.T) {
 		t.Fatalf("Unable to get image digest: %v", err)
 	}
 
-	d, err := name.NewDigest("test.com/foo@" + rd.String())
+	d, err := name.NewDigest("registry.example.com/foo@" + rd.String())
 	if err != nil {
 		t.Fatalf("Unable to parse digest: %v", err)
 	}
 	if err := remote.Write(d, i, remote.WithTransport(s.Client().Transport)); err != nil {
-		t.Fatalf("Unable to write image to remove: %s", err)
+		t.Fatalf("Unable to write image to remote: %s", err)
 	}
 }
