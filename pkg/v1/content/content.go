@@ -26,36 +26,41 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-// Image creates a image with the given contents. These images are reproducible and should be consistent.
+// Layer creates a layer from a single file map. These layers are reproducible and consistent.
+func Layer(content map[string][]byte) (v1.Layer, error) {
+	b := &bytes.Buffer{}
+	w := tar.NewWriter(b)
+
+	fn := []string{}
+	for f := range content {
+		fn = append(fn, f)
+	}
+	sort.Strings(fn)
+
+	for _, f := range fn {
+		c := content[f]
+		if err := w.WriteHeader(&tar.Header{
+			Name: f,
+			Size: int64(len(c)),
+		}); err != nil {
+			return nil, err
+		}
+		if _, err := w.Write(c); err != nil {
+			return nil, err
+		}
+	}
+	if err := w.Close(); err != nil {
+		return nil, err
+	}
+	return tarball.LayerFromReader(b)
+}
+
+// Image creates a image with the given filemaps as its contents. These images are reproducible and consistent.
 // The layers are applied from the begging to the end of the specified maps - the last map will be the topmost layer.
 func Image(content ...map[string][]byte) (v1.Image, error) {
 	tl := []v1.Layer{}
 	for _, l := range content {
-		b := &bytes.Buffer{}
-		w := tar.NewWriter(b)
-
-		fn := []string{}
-		for f := range l {
-			fn = append(fn, f)
-		}
-		sort.Strings(fn)
-
-		for _, f := range fn {
-			c := l[f]
-			if err := w.WriteHeader(&tar.Header{
-				Name: f,
-				Size: int64(len(c)),
-			}); err != nil {
-				return nil, err
-			}
-			if _, err := w.Write(c); err != nil {
-				return nil, err
-			}
-		}
-		if err := w.Close(); err != nil {
-			return nil, err
-		}
-		y, err := tarball.LayerFromReader(b)
+		y, err := Layer(l)
 		if err != nil {
 			return nil, err
 		}
