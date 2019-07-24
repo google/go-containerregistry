@@ -117,12 +117,16 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 		b := &bytes.Buffer{}
 		io.Copy(b, req.Body)
 		rd := sha256.Sum256(b.Bytes())
-		d := "sha256:" + hex.EncodeToString(rd[:])
-		m.manifests[repo][target] = manifest{
+		digest := "sha256:" + hex.EncodeToString(rd[:])
+		mf := manifest{
 			blob:        b.Bytes(),
 			contentType: req.Header.Get("Content-Type"),
 		}
-		resp.Header().Set("Docker-Content-Digest", d)
+		// Allow future references by target (tag) and immutable digest.
+		// See https://docs.docker.com/engine/reference/commandline/pull/#pull-an-image-by-digest-immutable-identifier.
+		m.manifests[repo][target] = mf
+		m.manifests[repo][digest] = mf
+		resp.Header().Set("Docker-Content-Digest", digest)
 		resp.WriteHeader(http.StatusCreated)
 		return nil
 	}
