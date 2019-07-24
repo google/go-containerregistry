@@ -14,6 +14,8 @@
 package registry_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -24,6 +26,11 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/registry"
 )
+
+func sha256String(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
+}
 
 func TestCalls(t *testing.T) {
 	tcs := []struct {
@@ -218,10 +225,17 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusNotFound,
 		},
 		{
-			Description: "get manifest",
+			Description: "get manifest by tag",
 			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
 			Method:      "GET",
 			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusOK,
+		},
+		{
+			Description: "get manifest by digest",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/manifests/sha256:" + sha256String("foo"),
 			Code:        http.StatusOK,
 		},
 		{
@@ -310,6 +324,7 @@ func TestCalls(t *testing.T) {
 				if resp.StatusCode != http.StatusCreated {
 					t.Fatalf("Error uploading manifest got status: %d", resp.StatusCode)
 				}
+				t.Logf("created manifest with digest %v", resp.Header.Get("Docker-Content-Digest"))
 			}
 
 			for digest, contents := range tc.Digests {
