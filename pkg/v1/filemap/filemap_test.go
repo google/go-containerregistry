@@ -75,18 +75,13 @@ func TestLayer(t *testing.T) {
 		t.Run(tc.Name+" is reproducible", func(t *testing.T) {
 			l1, _ := filemap.Layer(tc.FileMap)
 			l2, _ := filemap.Layer(tc.FileMap)
-
 			d1, _ := l1.Digest()
 			d2, _ := l2.Digest()
-
 			if d1 != d2 {
 				t.Fatalf("Non matching digests, want %q, got %q", d1, d2)
 			}
-
 		})
-
 	}
-
 }
 
 func TestImage(t *testing.T) {
@@ -131,7 +126,6 @@ func TestImage(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error calling image: %v", err)
 			}
-
 			d, err := i.Digest()
 			if err != nil {
 				t.Fatalf("Error calling digest: %v", err)
@@ -143,14 +137,11 @@ func TestImage(t *testing.T) {
 		t.Run(tc.Name+" is reproducible", func(t *testing.T) {
 			i1, _ := filemap.Image(tc.FileMap)
 			i2, _ := filemap.Image(tc.FileMap)
-
 			d1, _ := i1.Digest()
 			d2, _ := i2.Digest()
-
 			if d1 != d2 {
 				t.Fatalf("Non matching digests, want %q, got %q", d1, d2)
 			}
-
 		})
 	}
 }
