@@ -18,6 +18,7 @@ package content
 import (
 	"archive/tar"
 	"bytes"
+	"sort"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -26,13 +27,21 @@ import (
 )
 
 // Image creates a image with the given contents. These images are reproducible and should be consistent.
+// The layers are applied from the begging to the end of the specified maps - the last map will be the topmost layer.
 func Image(content ...map[string][]byte) (v1.Image, error) {
-
 	tl := []v1.Layer{}
 	for _, l := range content {
 		b := &bytes.Buffer{}
 		w := tar.NewWriter(b)
-		for f, c := range l {
+
+		fn := []string{}
+		for f := range l {
+			fn = append(fn, f)
+		}
+		sort.Strings(fn)
+
+		for _, f := range fn {
+			c := l[f]
 			if err := w.WriteHeader(&tar.Header{
 				Name: f,
 				Size: int64(len(c)),
