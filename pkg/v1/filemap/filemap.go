@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package content allows you to create images directly from contents.
-package content
+// Package filemap allows you to create images directly from filemaps.
+package filemap
 
 import (
 	"archive/tar"
@@ -27,18 +27,19 @@ import (
 )
 
 // Layer creates a layer from a single file map. These layers are reproducible and consistent.
-func Layer(content map[string][]byte) (v1.Layer, error) {
+// A filemap is a path -> file content map representing a file system.
+func Layer(filemap map[string][]byte) (v1.Layer, error) {
 	b := &bytes.Buffer{}
 	w := tar.NewWriter(b)
 
 	fn := []string{}
-	for f := range content {
+	for f := range filemap {
 		fn = append(fn, f)
 	}
 	sort.Strings(fn)
 
 	for _, f := range fn {
-		c := content[f]
+		c := filemap[f]
 		if err := w.WriteHeader(&tar.Header{
 			Name: f,
 			Size: int64(len(c)),
@@ -56,16 +57,12 @@ func Layer(content map[string][]byte) (v1.Layer, error) {
 }
 
 // Image creates a image with the given filemaps as its contents. These images are reproducible and consistent.
-// The layers are applied from the begging to the end of the specified maps - the last map will be the topmost layer.
-func Image(content ...map[string][]byte) (v1.Image, error) {
-	tl := []v1.Layer{}
-	for _, l := range content {
-		y, err := Layer(l)
-		if err != nil {
-			return nil, err
-		}
-		tl = append(tl, y)
+// A filemap is a path -> file content map representing a file system.
+func Image(filemap map[string][]byte) (v1.Image, error) {
+	y, err := Layer(filemap)
+	if err != nil {
+		return nil, err
 	}
 
-	return mutate.AppendLayers(empty.Image, tl...)
+	return mutate.AppendLayers(empty.Image, y)
 }

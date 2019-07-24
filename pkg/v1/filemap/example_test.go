@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package content_test
+package filemap_test
 
 import (
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/v1/content"
+	"github.com/google/go-containerregistry/pkg/v1/filemap"
 )
 
 func Example() {
 	c := map[string][]byte{
 		"/binary": []byte("binary contents"),
 	}
-	i, _ := content.Image(c)
+	i, _ := filemap.Image(c)
 	d, _ := i.Digest()
 	fmt.Println(d)
 	// Output: sha256:d68299f4ce695504a7d9288b8f1a6686c0fcb64a7542e898be2d11305bba6717
