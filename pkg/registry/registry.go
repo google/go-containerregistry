@@ -11,13 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
+
 // Package registry implements a docker V2 registry and the OCI distribution specification.
 //
 // It is designed to be used anywhere a low dependency container registry is needed, with an
 // initial focus on tests.
 //
 // Its goal is to be standards compliant and its strictness will increase over time.
+//
+// This is currently a low flightmiles system. It's likely quite safe to use in tests; If you're using it
+// in production, please let us know how and send us CL's for integration tests.
 package registry
 
 import (
