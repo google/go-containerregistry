@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package filemap_test
+package crane_test
 
 import (
 	"testing"
 
-	"github.com/google/go-containerregistry/pkg/v1/filemap"
+	"github.com/google/go-containerregistry/pkg/crane"
 )
 
 func TestLayer(t *testing.T) {
@@ -59,7 +59,7 @@ func TestLayer(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
-			l, err := filemap.Layer(tc.FileMap)
+			l, err := crane.Layer(tc.FileMap)
 			if err != nil {
 				t.Fatalf("Error calling layer: %v", err)
 			}
@@ -73,8 +73,8 @@ func TestLayer(t *testing.T) {
 			}
 		})
 		t.Run(tc.Name+" is reproducible", func(t *testing.T) {
-			l1, _ := filemap.Layer(tc.FileMap)
-			l2, _ := filemap.Layer(tc.FileMap)
+			l1, _ := crane.Layer(tc.FileMap)
+			l2, _ := crane.Layer(tc.FileMap)
 			d1, _ := l1.Digest()
 			d2, _ := l2.Digest()
 			if d1 != d2 {
@@ -122,7 +122,7 @@ func TestImage(t *testing.T) {
 	}}
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
-			i, err := filemap.Image(tc.FileMap)
+			i, err := crane.Image(tc.FileMap)
 			if err != nil {
 				t.Fatalf("Error calling image: %v", err)
 			}
@@ -135,8 +135,8 @@ func TestImage(t *testing.T) {
 			}
 		})
 		t.Run(tc.Name+" is reproducible", func(t *testing.T) {
-			i1, _ := filemap.Image(tc.FileMap)
-			i2, _ := filemap.Image(tc.FileMap)
+			i1, _ := crane.Image(tc.FileMap)
+			i2, _ := crane.Image(tc.FileMap)
 			d1, _ := i1.Digest()
 			d2, _ := i2.Digest()
 			if d1 != d2 {
