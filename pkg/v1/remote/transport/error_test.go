@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestTemporary(t *testing.T) {
@@ -80,12 +81,15 @@ func TestCheckErrorNotError(t *testing.T) {
 	tests := []struct {
 		code int
 		body string
+		msg  string
 	}{{
 		code: http.StatusBadRequest,
 		body: "",
+		msg:  "unsupported status code 400",
 	}, {
 		code: http.StatusUnauthorized,
 		body: "Not JSON",
+		msg:  "unsupported status code 401; body: Not JSON",
 	}}
 
 	for _, test := range tests {
@@ -94,10 +98,21 @@ func TestCheckErrorNotError(t *testing.T) {
 			Body:       ioutil.NopCloser(bytes.NewBufferString(test.body)),
 		}
 
-		if err := CheckError(resp, http.StatusOK); err == nil {
-			t.Errorf("CheckError(%d, %s) = nil, wanted error", test.code, test.body)
-		} else if se, ok := err.(*Error); ok {
-			t.Errorf("CheckError(%d, %s) = %v, wanted another type", test.code, test.body, se)
+		err := CheckError(resp, http.StatusOK)
+		if err == nil {
+			t.Fatalf("CheckError(%d, %s) = nil, wanted error", test.code, test.body)
+		}
+		se, ok := err.(*Error)
+		if !ok {
+			t.Fatalf("CheckError(%d, %s) = %v, wanted error type", test.code, test.body, err)
+		}
+
+		if se.StatusCode != test.code {
+			t.Errorf("Incorrect status code, got %d, want %d", se.StatusCode, test.code)
+		}
+
+		if se.Error() != test.msg {
+			t.Errorf("Incorrect message, got %q, want %q", se.Error(), test.msg)
 		}
 	}
 }
@@ -114,12 +129,15 @@ func TestCheckErrorWithError(t *testing.T) {
 				Code:    NameInvalidErrorCode,
 				Message: "a message for you",
 			}},
+			StatusCode: 400,
 		},
 		msg: "NAME_INVALID: a message for you",
 	}, {
-		code:  http.StatusBadRequest,
-		error: &Error{},
-		msg:   "<empty transport.Error response>",
+		code: http.StatusBadRequest,
+		error: &Error{
+			StatusCode: 400,
+		},
+		msg: "unsupported status code 400",
 	}, {
 		code: http.StatusBadRequest,
 		error: &Error{
@@ -131,6 +149,7 @@ func TestCheckErrorWithError(t *testing.T) {
 				Message: "another message for you",
 				Detail:  "with some details",
 			}},
+			StatusCode: 400,
 		},
 		msg: "multiple errors returned: NAME_INVALID: a message for you;SIZE_INVALID: another message for you; with some details",
 	}}
@@ -149,7 +168,7 @@ func TestCheckErrorWithError(t *testing.T) {
 			t.Errorf("CheckError(%d, %s) = nil, wanted error", test.code, string(b))
 		} else if se, ok := err.(*Error); !ok {
 			t.Errorf("CheckError(%d, %s) = %T, wanted *transport.Error", test.code, string(b), se)
-		} else if diff := cmp.Diff(test.error, se); diff != "" {
+		} else if diff := cmp.Diff(test.error, se, cmpopts.IgnoreUnexported(Error{})); diff != "" {
 			t.Errorf("CheckError(%d, %s); (-want +got) %s", test.code, string(b), diff)
 		} else if diff := cmp.Diff(test.msg, test.error.Error()); diff != "" {
 			t.Errorf("CheckError(%d, %s).Error(); (-want +got) %s", test.code, string(b), diff)

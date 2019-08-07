@@ -870,6 +870,7 @@ func TestWriteWithErrors(t *testing.T) {
 			Code:    transport.NameInvalidErrorCode,
 			Message: "some explanation of how things were messed up.",
 		}},
+		StatusCode: 400,
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -908,7 +909,7 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Error("Write() = nil; wanted error")
 	} else if se, ok := err.(*transport.Error); !ok {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)
-	} else if diff := cmp.Diff(expectedError, se); diff != "" {
+	} else if diff := cmp.Diff(expectedError, se, cmpopts.IgnoreUnexported(transport.Error{})); diff != "" {
 		t.Errorf("Write(); (-want +got) = %s", diff)
 	}
 }
