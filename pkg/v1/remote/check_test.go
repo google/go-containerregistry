@@ -1,3 +1,17 @@
+// Copyright 2019 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package remote
 
 import (
@@ -8,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
 )
 
 func TestCheckPushPermission(t *testing.T) {
@@ -17,6 +30,9 @@ func TestCheckPushPermission(t *testing.T) {
 		wantErr bool
 	}{{
 		http.StatusCreated,
+		false,
+	}, {
+		http.StatusAccepted,
 		false,
 	}, {
 		http.StatusForbidden,
@@ -28,6 +44,7 @@ func TestCheckPushPermission(t *testing.T) {
 
 		expectedRepo := "write/time"
 		initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+		somewhereElse := fmt.Sprintf("/v2/%s/blobs/uploads/somewhere/else", expectedRepo)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
 			case "/v2/":
@@ -38,6 +55,10 @@ func TestCheckPushPermission(t *testing.T) {
 				}
 				w.Header().Set("Location", "somewhere/else")
 				http.Error(w, "", c.status)
+			case somewhereElse:
+				if r.Method != http.MethodDelete {
+					t.Errorf("Method; got %v, want %v", r.Method, http.MethodDelete)
+				}
 			default:
 				t.Fatalf("Unexpected path: %v", r.URL.Path)
 			}
@@ -51,23 +72,6 @@ func TestCheckPushPermission(t *testing.T) {
 		ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 		if err := CheckPushPermission(ref, authn.DefaultKeychain, http.DefaultTransport); (err != nil) != c.wantErr {
 			t.Errorf("CheckPermission(%d): got error = %v, want err = %t", c.status, err, c.wantErr)
-		}
-	}
-}
-
-func TestCheckPushPermission_Real(t *testing.T) {
-	// Tests should not run in an environment where these registries can
-	// be pushed to.
-	for _, r := range []name.Reference{
-		mustNewTag(t, "ubuntu"),
-		mustNewTag(t, "google/cloud-sdk"),
-		mustNewTag(t, "microsoft/dotnet:sdk"),
-		mustNewTag(t, "gcr.io/non-existent-project/made-up"),
-		mustNewTag(t, "gcr.io/google-containers/foo"),
-		mustNewTag(t, "quay.io/username/reponame"),
-	} {
-		if err := CheckPushPermission(r, authn.DefaultKeychain, http.DefaultTransport); err == nil {
-			t.Errorf("CheckPushPermission(%s) returned nil", r)
 		}
 	}
 }
