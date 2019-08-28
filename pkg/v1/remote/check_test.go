@@ -32,6 +32,9 @@ func TestCheckPushPermission(t *testing.T) {
 		http.StatusCreated,
 		false,
 	}, {
+		http.StatusAccepted,
+		false,
+	}, {
 		http.StatusForbidden,
 		true,
 	}, {
@@ -41,6 +44,7 @@ func TestCheckPushPermission(t *testing.T) {
 
 		expectedRepo := "write/time"
 		initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+		somewhereElse := fmt.Sprintf("/v2/%s/blobs/uploads/somewhere/else", expectedRepo)
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
 			case "/v2/":
@@ -51,6 +55,10 @@ func TestCheckPushPermission(t *testing.T) {
 				}
 				w.Header().Set("Location", "somewhere/else")
 				http.Error(w, "", c.status)
+			case somewhereElse:
+				if r.Method != http.MethodDelete {
+					t.Errorf("Method; got %v, want %v", r.Method, http.MethodDelete)
+				}
 			default:
 				t.Fatalf("Unexpected path: %v", r.URL.Path)
 			}
