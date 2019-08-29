@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -208,6 +209,16 @@ func recursiveCopy(src, dst string) error {
 	return g.Wait()
 }
 
+func notFoundError(err error) bool {
+	if err, ok := err.(*transport.Error); ok {
+		if err.StatusCode == 404 {
+			return true
+		}
+	}
+
+	return false
+}
+
 // copyRepo figures out the name for our destination repo (newRepo), lists the
 // contents of newRepo, calculates the diff of what needs to be copied, then
 // starts a goroutine to copy each image we need, and waits for them to finish.
@@ -222,10 +233,10 @@ func (c *copier) copyRepo(ctx context.Context, oldRepo name.Repository, tags *go
 	have := make(map[string]google.ManifestInfo)
 	haveTags, err := google.List(newRepo, google.WithAuth(c.dstAuth))
 	if err != nil {
-		// Possibly, we could see a 404.  If we get an error here, log it and assume
-		// we just need to copy everything.
-		//
-		// TODO: refactor remote.Error to expose response code?
+		if !notFoundError(err) {
+			return err
+		}
+		// This is a 404 code, so we just need to copy everything.
 		logs.Warn.Printf("failed to list %s: %v", newRepo, err)
 	} else {
 		have = haveTags.Manifests
