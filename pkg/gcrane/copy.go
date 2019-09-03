@@ -21,6 +21,8 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/internal/legacy"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
@@ -59,22 +61,8 @@ func doCopy(args []string, recursive bool) {
 			log.Fatalf("failed to copy images: %v", err)
 		}
 	} else {
-		srcAuth, dstAuth, err := parseRefAuths(src, dst)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// First, try to copy as an index.
-		// If that fails, try to copy as an image.
-		// We have to try this second because fallback logic exists in the registry
-		// to convert an index to an image.
-		//
-		// TODO(#407): Refactor crane so we can just call into that logic in the
-		// single-image case.
-		if err := copyIndex(src, dst, srcAuth, dstAuth); err != nil {
-			if err := copyImage(src, dst, srcAuth, dstAuth); err != nil {
-				log.Fatalf("failed to copy image: %v", err)
-			}
+		if err := crane.Copy(src, dst); err != nil {
+			log.Fatalf("failed to copy image: %v", err)
 		}
 	}
 }
@@ -129,6 +117,29 @@ func copyImage(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
 
 	if err := remote.Write(dstRef, img, remote.WithAuth(dstAuth)); err != nil {
 		return fmt.Errorf("writing image %q: %v", dst, err)
+	}
+
+	return nil
+}
+
+func copySchema1Image(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
+	srcRef, err := name.ParseReference(src)
+	if err != nil {
+		return fmt.Errorf("parsing reference %q: %v", src, err)
+	}
+
+	dstRef, err := name.ParseReference(dst)
+	if err != nil {
+		return fmt.Errorf("parsing reference %q: %v", dst, err)
+	}
+
+	desc, err := remote.Get(srcRef, remote.WithAuth(srcAuth))
+	if err != nil {
+		return fmt.Errorf("reading image %q: %v", src, err)
+	}
+
+	if err := legacy.CopySchema1(desc, srcRef, dstRef, srcAuth, dstAuth); err != nil {
+		return fmt.Errorf("writing schema 1 image %q: %v", dst, err)
 	}
 
 	return nil
@@ -282,12 +293,17 @@ func (c *copier) copyRepo(ctx context.Context, oldRepo name.Repository, tags *go
 // copyImages starts a goroutine for each tag that points to the image
 // oldRepo@digest, or just copies the image by digest if there are no tags.
 func (c *copier) copyImages(ctx context.Context, digest string, manifest google.ManifestInfo, oldRepo, newRepo name.Repository) error {
+	copyFunc := copyImage
+	if manifest.MediaType == string(types.DockerManifestSchema1) ||
+		manifest.MediaType == string(types.DockerManifestSchema1Signed) {
+		copyFunc = copySchema1Image
+	}
 	// We only have to explicitly copy by digest if there are no tags pointing to this manifest.
 	if len(manifest.Tags) == 0 {
 		srcImg := fmt.Sprintf("%s@%s", oldRepo, digest)
 		dstImg := fmt.Sprintf("%s@%s", newRepo, digest)
 
-		return copyImage(srcImg, dstImg, c.srcAuth, c.dstAuth)
+		return copyFunc(srcImg, dstImg, c.srcAuth, c.dstAuth)
 	}
 
 	// Copy all the tags.
@@ -298,7 +314,7 @@ func (c *copier) copyImages(ctx context.Context, digest string, manifest google.
 			srcImg := fmt.Sprintf("%s:%s", oldRepo, tag)
 			dstImg := fmt.Sprintf("%s:%s", newRepo, tag)
 
-			return copyImage(srcImg, dstImg, c.srcAuth, c.dstAuth)
+			return copyFunc(srcImg, dstImg, c.srcAuth, c.dstAuth)
 		})
 	}
 	return g.Wait()

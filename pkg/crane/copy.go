@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/internal/legacy"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -49,6 +50,11 @@ func Copy(src, dst string) error {
 		if err := copyIndex(desc, dstRef); err != nil {
 			return fmt.Errorf("failed to copy index: %v", err)
 		}
+	case types.DockerManifestSchema1, types.DockerManifestSchema1Signed:
+		// Handle schema 1 images separately.
+		if err := copySchema1(desc, srcRef, dstRef); err != nil {
+			return fmt.Errorf("failed to copy schema 1 image: %v", err)
+		}
 	default:
 		// Assume anything else is an image, since some registries don't set mediaTypes properly.
 		if err := copyImage(desc, dstRef); err != nil {
@@ -73,4 +79,17 @@ func copyIndex(desc *remote.Descriptor, dstRef name.Reference) error {
 		return err
 	}
 	return remote.WriteIndex(dstRef, idx, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+}
+
+func copySchema1(desc *remote.Descriptor, srcRef, dstRef name.Reference) error {
+	srcAuth, err := authn.DefaultKeychain.Resolve(srcRef.Context().Registry)
+	if err != nil {
+		return err
+	}
+	dstAuth, err := authn.DefaultKeychain.Resolve(dstRef.Context().Registry)
+	if err != nil {
+		return err
+	}
+
+	return legacy.CopySchema1(desc, srcRef, dstRef, srcAuth, dstAuth)
 }
