@@ -58,3 +58,19 @@ func TestManifestWithBadHash(t *testing.T) {
 		t.Errorf("Expected error parsing manifest, but got: %v", bad)
 	}
 }
+
+func TestParseIndexManifest(t *testing.T) {
+	got, err := ParseIndexManifest(strings.NewReader(`{}`))
+	if err != nil {
+		t.Errorf("Unexpected error parsing manifest: %v", err)
+	}
+
+	want := IndexManifest{}
+	if diff := cmp.Diff(want, *got); diff != "" {
+		t.Errorf("ParseIndexManifest({}); (-want +got) %s", diff)
+	}
+
+	if got, err := ParseIndexManifest(strings.NewReader("{")); err == nil {
+		t.Errorf("expected error, got: %v", got)
+	}
+}

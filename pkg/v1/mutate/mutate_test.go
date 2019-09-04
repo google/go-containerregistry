@@ -393,7 +393,35 @@ func TestAppendStreamableLayer(t *testing.T) {
 	if h.String() != wantDigest {
 		t.Errorf("Image digest got %q, want %q", h, wantDigest)
 	}
+}
 
+func TestCanonical(t *testing.T) {
+	source := sourceImage(t)
+	img, err := Canonical(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cf, err := img.ConfigFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, s := range []string{
+		cf.Container,
+		cf.Config.Hostname,
+		cf.ContainerConfig.Hostname,
+		cf.DockerVersion,
+	} {
+		if s != "" {
+			t.Errorf("non-zeroed string: %v", s)
+		}
+	}
+
+	expectedLayerTime := time.Unix(0, 0)
+	layers := getLayers(t, img)
+	for _, layer := range layers {
+		assertMTime(t, layer, expectedLayerTime)
+	}
 }
 
 func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {

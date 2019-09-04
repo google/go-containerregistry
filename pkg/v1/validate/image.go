@@ -114,9 +114,9 @@ func validateLayers(img v1.Image) error {
 
 	digests := []v1.Hash{}
 	diffids := []v1.Hash{}
+	udiffids := []v1.Hash{}
 	sizes := []int64{}
 	for _, layer := range layers {
-		// TODO: Test layer.Uncompressed.
 		compressed, err := layer.Compressed()
 		if err != nil {
 			return err
@@ -190,10 +190,20 @@ func validateLayers(img v1.Image) error {
 			Hex:       hex.EncodeToString(diffider.Sum(make([]byte, 0, diffider.Size()))),
 		}
 
+		ur, err := layer.Uncompressed()
+		if err != nil {
+			return err
+		}
+		udffid, _, err := v1.SHA256(ur)
+		if err != nil {
+			return err
+		}
+
 		// Compute all of these first before we call Config() and Manifest() to allow
 		// for lazy access e.g. for stream.Layer.
 		digests = append(digests, digest)
 		diffids = append(diffids, diffid)
+		udiffids = append(udiffids, udffid)
 		sizes = append(sizes, size)
 	}
 
@@ -221,6 +231,18 @@ func validateLayers(img v1.Image) error {
 		if err != nil {
 			return err
 		}
+		mediaType, err := layer.MediaType()
+		if err != nil {
+			return err
+		}
+
+		if _, err := img.LayerByDigest(digest); err != nil {
+			return err
+		}
+
+		if _, err := img.LayerByDiffID(diffid); err != nil {
+			return err
+		}
 
 		if digest != digests[i] {
 			errs = append(errs, fmt.Sprintf("mismatched layer[%d] digest: Digest()=%s, SHA256(Compressed())=%s", i, digest, digests[i]))
@@ -232,6 +254,10 @@ func validateLayers(img v1.Image) error {
 
 		if diffid != diffids[i] {
 			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Gunzip(Compressed()))=%s", i, diffid, diffids[i]))
+		}
+
+		if diffid != udiffids[i] {
+			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Uncompressed())=%s", i, diffid, udiffids[i]))
 		}
 
 		if cf.RootFS.DiffIDs[i] != diffids[i] {
@@ -246,6 +272,9 @@ func validateLayers(img v1.Image) error {
 			errs = append(errs, fmt.Sprintf("mismatched layer[%d] size: Manifest.Layers[%d].Size=%d, len(Compressed())=%d", i, i, m.Layers[i].Size, sizes[i]))
 		}
 
+		if m.Layers[i].MediaType != mediaType {
+			errs = append(errs, fmt.Sprintf("mismatched layer[%d] mediaType: Manifest.Layers[%d].MediaType=%s, layer.MediaType()=%s", i, i, m.Layers[i].MediaType, mediaType))
+		}
 	}
 	if len(errs) != 0 {
 		return errors.New(strings.Join(errs, "\n"))

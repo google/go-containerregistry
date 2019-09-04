@@ -50,9 +50,9 @@ func TestWriteImage(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error loading image: %v", err.Error())
 	}
-	tag, err := name.NewTag("test_image_2:latest", name.WeakValidation)
+	tag, err := name.NewTag("test_image_2:latest")
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Fatal(err)
 	}
 	response, err := Write(tag, image)
 	if err != nil {
@@ -60,5 +60,13 @@ func TestWriteImage(t *testing.T) {
 	}
 	if !strings.Contains(response, "Loaded") {
 		t.Errorf("Error loading image. Response: %s", response)
+	}
+
+	dst, err := name.NewTag("hello:world")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Tag(tag, dst); err != nil {
+		t.Errorf("Error tagging image: %v", err)
 	}
 }

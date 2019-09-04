@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2019 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package v1
 
 import (
-	"io"
+	"strings"
+	"testing"
 
-	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-cmp/cmp"
 )
 
-// Export writes the filesystem contents (as a tarball) of img to w.
-func Export(img v1.Image, w io.Writer) error {
-	fs := mutate.Extract(img)
-	_, err := io.Copy(w, fs)
-	return err
+func TestParseConfig(t *testing.T) {
+	got, err := ParseConfigFile(strings.NewReader("{}"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ConfigFile{}
+
+	if diff := cmp.Diff(want, *got); diff != "" {
+		t.Errorf("ParseConfigFile({}); (-want +got) %s", diff)
+	}
+
+	if got, err := ParseConfigFile(strings.NewReader("{")); err == nil {
+		t.Errorf("expected error, got: %v", got)
+	}
 }

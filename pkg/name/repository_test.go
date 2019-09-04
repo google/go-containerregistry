@@ -37,6 +37,7 @@ var goodWeakValidationRepositoryNames = []string{
 var badRepositoryNames = []string{
 	"white space",
 	"b@char/image",
+	"",
 }
 
 func TestNewRepositoryStrictValidation(t *testing.T) {
@@ -111,5 +112,11 @@ func TestRepositoryScopes(t *testing.T) {
 	actualScope := repository.Scope(testAction)
 	if actualScope != expectedScope {
 		t.Errorf("scope was incorrect for %v. Wanted: `%s` Got: `%s`", repository, expectedScope, actualScope)
+	}
+}
+
+func TestRepositoryBadDefaulting(t *testing.T) {
+	if _, err := NewRepository("index.docker.io/foo", StrictValidation); !IsErrBadName(err) {
+		t.Errorf("IsBadErrName == false: %v", err)
 	}
 }
