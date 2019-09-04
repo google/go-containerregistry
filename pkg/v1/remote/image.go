@@ -15,7 +15,6 @@
 package remote
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -174,18 +173,12 @@ func (rl *remoteImageLayer) Manifest() (*v1.Manifest, error) {
 
 // MediaType implements v1.Layer
 func (rl *remoteImageLayer) MediaType() (types.MediaType, error) {
-	m, err := rl.Manifest()
+	bd, err := partial.BlobDescriptor(rl, rl.digest)
 	if err != nil {
 		return "", err
 	}
 
-	for _, layer := range m.Layers {
-		if layer.Digest == rl.digest {
-			return layer.MediaType, nil
-		}
-	}
-
-	return "", fmt.Errorf("unable to find layer with digest: %v", rl.digest)
+	return bd.MediaType, nil
 }
 
 // Size implements partial.CompressedLayer
