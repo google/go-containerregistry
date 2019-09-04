@@ -316,14 +316,14 @@ func (c *compressedImage) RawManifest() ([]byte, error) {
 
 // compressedLayerFromTarball implements partial.CompressedLayer
 type compressedLayerFromTarball struct {
-	digest   v1.Hash
+	desc     v1.Descriptor
 	opener   Opener
 	filePath string
 }
 
 // Digest implements partial.CompressedLayer
 func (clft *compressedLayerFromTarball) Digest() (v1.Hash, error) {
-	return clft.digest, nil
+	return clft.desc.Digest, nil
 }
 
 // Compressed implements partial.CompressedLayer
@@ -333,18 +333,12 @@ func (clft *compressedLayerFromTarball) Compressed() (io.ReadCloser, error) {
 
 // MediaType implements partial.CompressedLayer
 func (clft *compressedLayerFromTarball) MediaType() (types.MediaType, error) {
-	return types.DockerLayer, nil
+	return clft.desc.MediaType, nil
 }
 
 // Size implements partial.CompressedLayer
 func (clft *compressedLayerFromTarball) Size() (int64, error) {
-	r, err := clft.Compressed()
-	if err != nil {
-		return -1, err
-	}
-	defer r.Close()
-	_, i, err := v1.SHA256(r)
-	return i, err
+	return clft.desc.Size, nil
 }
 
 func (c *compressedImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
@@ -356,7 +350,7 @@ func (c *compressedImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, err
 		if l.Digest == h {
 			fp := c.imgDescriptor.Layers[i]
 			return &compressedLayerFromTarball{
-				digest:   h,
+				desc:     l,
 				opener:   c.opener,
 				filePath: fp,
 			}, nil
