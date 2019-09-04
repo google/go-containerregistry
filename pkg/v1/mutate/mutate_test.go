@@ -153,13 +153,19 @@ func TestNoopCondition(t *testing.T) {
 	}
 }
 
-func TestAppendWithHistory(t *testing.T) {
+func TestAppendWithAddendum(t *testing.T) {
 	source := sourceImage(t)
 
 	addendum := Addendum{
 		Layer: mockLayer{},
 		History: v1.History{
 			Author: "dave",
+		},
+		URLs: []string{
+			"example.com",
+		},
+		Annotations: map[string]string{
+			"foo": "bar",
 		},
 	}
 
@@ -182,6 +188,19 @@ func TestAppendWithHistory(t *testing.T) {
 
 	if diff := cmp.Diff(cf.History[1], addendum.History); diff != "" {
 		t.Fatalf("the appended history is not the same (-got, +want) %s", diff)
+	}
+
+	m, err := result.Manifest()
+	if err != nil {
+		t.Fatalf("failed to get manifest: %v", err)
+	}
+
+	if diff := cmp.Diff(m.Layers[1].URLs, addendum.URLs); diff != "" {
+		t.Fatalf("the appended URLs is not the same (-got, +want) %s", diff)
+	}
+
+	if diff := cmp.Diff(m.Layers[1].Annotations, addendum.Annotations); diff != "" {
+		t.Fatalf("the appended Annotations is not the same (-got, +want) %s", diff)
 	}
 }
 
