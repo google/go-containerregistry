@@ -95,8 +95,7 @@ func TestTarLayer(t *testing.T) {
 }
 
 func TestRandomLayer(t *testing.T) {
-	fileName := "foo.txt"
-	l, err := Layer(1024, fileName, types.DockerLayer)
+	l, err := Layer(1024, types.DockerLayer)
 	if err != nil {
 		t.Fatalf("Layer: %v", err)
 	}
@@ -114,12 +113,8 @@ func TestRandomLayer(t *testing.T) {
 	}
 	defer rc.Close()
 	tr := tar.NewReader(rc)
-	h, err := tr.Next()
-	if err != nil {
+	if _, err := tr.Next(); err != nil {
 		t.Fatalf("tar.Next: %v", err)
-	}
-	if h.Name != fileName {
-		t.Errorf("header.Name != %s", fileName)
 	}
 
 	if n, err := io.Copy(ioutil.Discard, tr); err != nil {

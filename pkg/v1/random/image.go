@@ -18,9 +18,12 @@ import (
 	"archive/tar"
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/ioutil"
+	mrand "math/rand"
 	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -56,8 +59,7 @@ var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)
 func Image(byteSize, layers int64) (v1.Image, error) {
 	layerz := make(map[v1.Hash]partial.UncompressedLayer)
 	for i := int64(0); i < layers; i++ {
-		fileName := fmt.Sprintf("random_file_%d.txt", i)
-		layer, err := Layer(byteSize, fileName, types.DockerLayer)
+		layer, err := Layer(byteSize, types.DockerLayer)
 		if err != nil {
 			return nil, err
 		}
@@ -126,9 +128,16 @@ func (i *image) LayerByDiffID(diffID v1.Hash) (partial.UncompressedLayer, error)
 }
 
 // Layer returns a layer with pseudo-randomly generated content.
-func Layer(byteSize int64, fileName string, mt types.MediaType) (v1.Layer, error) {
+func Layer(byteSize int64, mt types.MediaType) (v1.Layer, error) {
+	fileName := fmt.Sprintf("random_file_%d.txt", mrand.Int())
+
+	// Hash the contents as we write it out to the buffer.
 	var b bytes.Buffer
-	tw := tar.NewWriter(&b)
+	hasher := sha256.New()
+	mw := io.MultiWriter(&b, hasher)
+
+	// Write a single file with a random name and random contents.
+	tw := tar.NewWriter(mw)
 	if err := tw.WriteHeader(&tar.Header{
 		Name:     fileName,
 		Size:     byteSize,
@@ -142,14 +151,15 @@ func Layer(byteSize int64, fileName string, mt types.MediaType) (v1.Layer, error
 	if err := tw.Close(); err != nil {
 		return nil, err
 	}
-	bts := b.Bytes()
-	h, _, err := v1.SHA256(bytes.NewReader(bts))
-	if err != nil {
-		return nil, err
+
+	h := v1.Hash{
+		Algorithm: "sha256",
+		Hex:       hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
 	}
+
 	return partial.UncompressedToLayer(&uncompressedLayer{
 		diffID:    h,
 		mediaType: mt,
-		content:   bts,
+		content:   b.Bytes(),
 	})
 }
