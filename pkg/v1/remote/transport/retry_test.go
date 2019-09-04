@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/internal/retry"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 type mockTransport struct {
@@ -69,7 +68,7 @@ func TestRetryTransport(t *testing.T) {
 			errs: test.errs,
 		}
 
-		tr := NewRetry(&mt, WithRetryBackoff(wait.Backoff{Steps: 3}), WithRetryPredicate(retry.IsTemporary))
+		tr := NewRetry(&mt, WithRetryBackoff(retry.Backoff{Steps: 3}), WithRetryPredicate(retry.IsTemporary))
 
 		tr.RoundTrip(nil)
 		if mt.count != test.count {
