@@ -29,10 +29,10 @@ import (
 )
 
 // uncompressedLayer implements partial.UncompressedLayer from raw bytes.
-// TODO(mattmoor): Consider moving this into a library.
 type uncompressedLayer struct {
-	diffID  v1.Hash
-	content []byte
+	diffID    v1.Hash
+	mediaType types.MediaType
+	content   []byte
 }
 
 // DiffID implements partial.UncompressedLayer
@@ -47,10 +47,7 @@ func (ul *uncompressedLayer) Uncompressed() (io.ReadCloser, error) {
 
 // MediaType returns the media type of the layer
 func (ul *uncompressedLayer) MediaType() (types.MediaType, error) {
-	// Technically the media type should be 'application/tar' but given that our
-	// v1.Layer doesn't force consumers to care about whether the layer is compressed
-	// we should be fine returning the DockerLayer media type
-	return types.DockerLayer, nil
+	return ul.mediaType, nil
 }
 
 var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)
@@ -59,30 +56,16 @@ var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)
 func Image(byteSize, layers int64) (v1.Image, error) {
 	layerz := make(map[v1.Hash]partial.UncompressedLayer)
 	for i := int64(0); i < layers; i++ {
-		var b bytes.Buffer
-		tw := tar.NewWriter(&b)
-		if err := tw.WriteHeader(&tar.Header{
-			Name:     fmt.Sprintf("random_file_%d.txt", i),
-			Size:     byteSize,
-			Typeflag: tar.TypeRegA,
-		}); err != nil {
-			return nil, err
-		}
-		if _, err := io.CopyN(tw, rand.Reader, byteSize); err != nil {
-			return nil, err
-		}
-		if err := tw.Close(); err != nil {
-			return nil, err
-		}
-		bts := b.Bytes()
-		h, _, err := v1.SHA256(bytes.NewReader(bts))
+		fileName := fmt.Sprintf("random_file_%d.txt", i)
+		layer, err := Layer(byteSize, fileName, types.DockerLayer)
 		if err != nil {
 			return nil, err
 		}
-		layerz[h] = &uncompressedLayer{
-			diffID:  h,
-			content: bts,
+		diffid, err := layer.DiffID()
+		if err != nil {
+			return nil, err
 		}
+		layerz[diffid] = layer
 	}
 
 	cfg := &v1.ConfigFile{}
@@ -140,4 +123,33 @@ func (i *image) LayerByDiffID(diffID v1.Hash) (partial.UncompressedLayer, error)
 		return nil, fmt.Errorf("unknown diff_id: %v", diffID)
 	}
 	return l, nil
+}
+
+// Layer returns a layer with pseudo-randomly generated content.
+func Layer(byteSize int64, fileName string, mt types.MediaType) (v1.Layer, error) {
+	var b bytes.Buffer
+	tw := tar.NewWriter(&b)
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     fileName,
+		Size:     byteSize,
+		Typeflag: tar.TypeRegA,
+	}); err != nil {
+		return nil, err
+	}
+	if _, err := io.CopyN(tw, rand.Reader, byteSize); err != nil {
+		return nil, err
+	}
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+	bts := b.Bytes()
+	h, _, err := v1.SHA256(bytes.NewReader(bts))
+	if err != nil {
+		return nil, err
+	}
+	return partial.UncompressedToLayer(&uncompressedLayer{
+		diffID:    h,
+		mediaType: mt,
+		content:   bts,
+	})
 }
