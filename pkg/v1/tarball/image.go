@@ -214,9 +214,10 @@ func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, error) {
 
 // uncompressedLayerFromTarball implements partial.UncompressedLayer
 type uncompressedLayerFromTarball struct {
-	diffID   v1.Hash
-	opener   Opener
-	filePath string
+	diffID    v1.Hash
+	mediaType types.MediaType
+	opener    Opener
+	filePath  string
 }
 
 // DiffID implements partial.UncompressedLayer
@@ -230,10 +231,7 @@ func (ulft *uncompressedLayerFromTarball) Uncompressed() (io.ReadCloser, error) 
 }
 
 func (ulft *uncompressedLayerFromTarball) MediaType() (types.MediaType, error) {
-	// Technically the media type should be 'application/tar' but given that our
-	// v1.Layer doesn't force consumers to care about whether the layer is compressed
-	// we should be fine returning the DockerLayer media type
-	return types.DockerLayer, nil
+	return ulft.mediaType, nil
 }
 
 func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer, error) {
@@ -243,10 +241,19 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 	}
 	for idx, diffID := range cfg.RootFS.DiffIDs {
 		if diffID == h {
+			// Technically the media type should be 'application/tar' but given that our
+			// v1.Layer doesn't force consumers to care about whether the layer is compressed
+			// we should be fine returning the DockerLayer media type
+			mt := types.DockerLayer
+			if bd, ok := i.imgDescriptor.LayerSources[h]; ok {
+				// Overwrite the mediaType for foreign layers.
+				mt = bd.MediaType
+			}
 			return &uncompressedLayerFromTarball{
-				diffID:   diffID,
-				opener:   i.opener,
-				filePath: i.imgDescriptor.Layers[idx],
+				diffID:    diffID,
+				mediaType: mt,
+				opener:    i.opener,
+				filePath:  i.imgDescriptor.Layers[idx],
 			}, nil
 		}
 	}
