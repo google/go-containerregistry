@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package tarball
+package tarball_test
 
 import (
 	"io/ioutil"
@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
 func TestWrite(t *testing.T) {
@@ -45,14 +46,14 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating test tag.")
 	}
-	if err := WriteToFile(fp.Name(), tag, randImage); err != nil {
+	if err := tarball.WriteToFile(fp.Name(), tag, randImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 
 	// Make sure the image is valid and can be loaded.
 	// Load it both by nil and by its name.
 	for _, it := range []*name.Tag{nil, &tag} {
-		tarImage, err := ImageFromPath(fp.Name(), it)
+		tarImage, err := tarball.ImageFromPath(fp.Name(), it)
 		if err != nil {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
 		}
@@ -79,7 +80,7 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error generating tag: %v", err)
 	}
-	if _, err := ImageFromPath(fp.Name(), &fakeTag); err == nil {
+	if _, err := tarball.ImageFromPath(fp.Name(), &fakeTag); err == nil {
 		t.Errorf("Expected error loading tag %v from image", fakeTag)
 	}
 }
@@ -119,7 +120,7 @@ func TestMultiWriteSameImage(t *testing.T) {
 	refToImage[dig3] = randImage
 
 	// Write the images with both tags to the tarball
-	if err := MultiWriteToFile(fp.Name(), refToImage); err != nil {
+	if err := tarball.MultiWriteToFile(fp.Name(), refToImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 	for ref := range refToImage {
@@ -128,7 +129,7 @@ func TestMultiWriteSameImage(t *testing.T) {
 			continue
 		}
 
-		tarImage, err := ImageFromPath(fp.Name(), &tag)
+		tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)
 		if err != nil {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
 		}
@@ -198,7 +199,7 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 	refToImage[dig3] = randImage3
 
 	// Write both images to the tarball.
-	if err := MultiWriteToFile(fp.Name(), refToImage); err != nil {
+	if err := tarball.MultiWriteToFile(fp.Name(), refToImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 	for ref, img := range refToImage {
@@ -207,7 +208,7 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 			continue
 		}
 
-		tarImage, err := ImageFromPath(fp.Name(), &tag)
+		tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)
 		if err != nil {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
 		}

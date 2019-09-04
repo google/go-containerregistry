@@ -27,6 +27,8 @@ import (
 	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -57,74 +59,24 @@ var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)
 
 // Image returns a pseudo-randomly generated Image.
 func Image(byteSize, layers int64) (v1.Image, error) {
-	layerz := make(map[v1.Hash]partial.UncompressedLayer)
+	adds := make([]mutate.Addendum, 0, 5)
 	for i := int64(0); i < layers; i++ {
 		layer, err := Layer(byteSize, types.DockerLayer)
 		if err != nil {
 			return nil, err
 		}
-		diffid, err := layer.DiffID()
-		if err != nil {
-			return nil, err
-		}
-		layerz[diffid] = layer
-	}
-
-	cfg := &v1.ConfigFile{}
-
-	// Some clients check this.
-	cfg.RootFS.Type = "layers"
-
-	// It is ok that iteration order is random in Go, because this is the random image anyways.
-	for k := range layerz {
-		cfg.RootFS.DiffIDs = append(cfg.RootFS.DiffIDs, k)
-	}
-
-	for i := int64(0); i < layers; i++ {
-		cfg.History = append(cfg.History, v1.History{
-			Author:    "random.Image",
-			Comment:   fmt.Sprintf("this is a random history %d", i),
-			CreatedBy: "random",
-			Created:   v1.Time{time.Now()},
+		adds = append(adds, mutate.Addendum{
+			Layer: layer,
+			History: v1.History{
+				Author:    "random.Image",
+				Comment:   fmt.Sprintf("this is a random history %d", i),
+				CreatedBy: "random",
+				Created:   v1.Time{time.Now()},
+			},
 		})
 	}
 
-	return partial.UncompressedToImage(&image{
-		config: cfg,
-		layers: layerz,
-	})
-}
-
-// image is pseudo-randomly generated.
-type image struct {
-	config *v1.ConfigFile
-	layers map[v1.Hash]partial.UncompressedLayer
-}
-
-var _ partial.UncompressedImageCore = (*image)(nil)
-
-// RawConfigFile implements partial.UncompressedImageCore
-func (i *image) RawConfigFile() ([]byte, error) {
-	return partial.RawConfigFile(i)
-}
-
-// ConfigFile implements v1.Image
-func (i *image) ConfigFile() (*v1.ConfigFile, error) {
-	return i.config, nil
-}
-
-// MediaType implements partial.UncompressedImageCore
-func (i *image) MediaType() (types.MediaType, error) {
-	return types.DockerManifestSchema2, nil
-}
-
-// LayerByDiffID implements partial.UncompressedImageCore
-func (i *image) LayerByDiffID(diffID v1.Hash) (partial.UncompressedLayer, error) {
-	l, ok := i.layers[diffID]
-	if !ok {
-		return nil, fmt.Errorf("unknown diff_id: %v", diffID)
-	}
-	return l, nil
+	return mutate.Append(empty.Image, adds...)
 }
 
 // Layer returns a layer with pseudo-randomly generated content.
