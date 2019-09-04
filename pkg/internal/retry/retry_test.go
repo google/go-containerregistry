@@ -17,8 +17,6 @@ package retry
 import (
 	"fmt"
 	"testing"
-
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 type temp struct{}
@@ -55,7 +53,7 @@ func TestRetry(t *testing.T) {
 	}} {
 		// Make sure we retry 5 times if we shouldRetry.
 		steps := 5
-		backoff := wait.Backoff{
+		backoff := Backoff{
 			Steps: steps,
 		}
 
@@ -78,10 +76,10 @@ func TestRetry(t *testing.T) {
 
 // Make sure we don't panic.
 func TestNil(t *testing.T) {
-	if err := Retry(nil, nil, wait.Backoff{}); err == nil {
+	if err := Retry(nil, nil, Backoff{}); err == nil {
 		t.Errorf("got nil when passing in nil f")
 	}
-	if err := Retry(func() error { return nil }, nil, wait.Backoff{}); err == nil {
+	if err := Retry(func() error { return nil }, nil, Backoff{}); err == nil {
 		t.Errorf("got nil when passing in nil p")
 	}
 }
