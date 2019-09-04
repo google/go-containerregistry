@@ -40,8 +40,10 @@ const whiteoutPrefix = ".wh."
 // Addendum contains layers and history to be appended
 // to a base image
 type Addendum struct {
-	Layer   v1.Layer
-	History v1.History
+	Layer       v1.Layer
+	History     v1.History
+	URLs        []string
+	Annotations map[string]string
 }
 
 // AppendLayers applies layers to a base image
@@ -179,6 +181,9 @@ func (i *image) compute() error {
 		if d.MediaType, err = add.Layer.MediaType(); err != nil {
 			return err
 		}
+
+		d.Annotations = add.Annotations
+		d.URLs = add.URLs
 
 		manifestLayers = append(manifestLayers, d)
 		digestMap[d.Digest] = add.Layer
