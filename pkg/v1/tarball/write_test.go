@@ -23,8 +23,11 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 func TestWrite(t *testing.T) {
@@ -71,7 +74,9 @@ func TestWrite(t *testing.T) {
 			t.Errorf("Manifests not equal. (-rand +tar) %s", diff)
 		}
 
-		assertImageLayersMatchManifestLayers(t, tarImage)
+		if err := validate.Image(tarImage); err != nil {
+			t.Errorf("validate.Image: %v", err)
+		}
 		assertLayersAreIdentical(t, randImage, tarImage)
 	}
 
@@ -147,7 +152,10 @@ func TestMultiWriteSameImage(t *testing.T) {
 			t.Errorf("Manifests not equal. (-rand +tar) %s", diff)
 		}
 
-		assertImageLayersMatchManifestLayers(t, tarImage)
+		if err := validate.Image(tarImage); err != nil {
+			t.Errorf("validate.Image: %v", err)
+		}
+
 		assertLayersAreIdentical(t, randImage, tarImage)
 	}
 }
@@ -226,42 +234,65 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 			t.Errorf("Manifests not equal. (-rand +tar) %s", diff)
 		}
 
-		assertImageLayersMatchManifestLayers(t, tarImage)
+		if err := validate.Image(tarImage); err != nil {
+			t.Errorf("validate.Image: %v", err)
+		}
 		assertLayersAreIdentical(t, img, tarImage)
 	}
 }
 
-func assertImageLayersMatchManifestLayers(t *testing.T, i v1.Image) {
-	t.Helper()
-
-	layers, err := i.Layers()
+func TestWriteForeignLayers(t *testing.T) {
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
 	if err != nil {
-		t.Fatalf("error getting layers: %v", err)
+		t.Fatalf("Error creating temp file.")
 	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
 
-	digestsFromImage := make([]v1.Hash, len(layers))
-
-	for i, layer := range layers {
-		digest, err := layer.Digest()
-		if err != nil {
-			t.Fatalf("error getting digests: %v", err)
-		}
-		digestsFromImage[i] = digest
-	}
-
-	m, err := i.Manifest()
+	// Make a random image
+	randImage, err := random.Image(256, 1)
 	if err != nil {
-		t.Fatalf("error getting layers to compare: %v", err)
+		t.Fatalf("Error creating random image.")
+	}
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag.")
+	}
+	randLayer, err := random.Layer(512, types.DockerForeignLayer)
+	if err != nil {
+		t.Fatalf("random.Layer: %v", err)
+	}
+	img, err := mutate.Append(randImage, mutate.Addendum{
+		Layer: randLayer,
+		URLs: []string{
+			"example.com",
+		},
+	})
+	if err := tarball.WriteToFile(fp.Name(), tag, img); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 
-	digestsFromManifest := make([]v1.Hash, 0, len(m.Layers))
-	for _, layer := range m.Layers {
-		digestsFromManifest = append(digestsFromManifest, layer.Digest)
+	tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)
+	if err != nil {
+		t.Fatalf("Unexpected error reading tarball: %v", err)
 	}
 
-	if diff := cmp.Diff(digestsFromImage, digestsFromManifest); diff != "" {
-		t.Fatalf("image.Layers() are not in the same order as "+
-			"the image.Manifest().Layers (-image +manifest) %s", diff)
+	if err := validate.Image(tarImage); err != nil {
+		t.Fatalf("validate.Image(): %v", err)
+	}
+
+	m, err := tarImage.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := m.Layers[1].MediaType, types.DockerForeignLayer; got != want {
+		t.Errorf("Wrong MediaType: %s != %s", got, want)
+	}
+	if got, want := m.Layers[1].URLs[0], "example.com"; got != want {
+		t.Errorf("Wrong URLs: %s != %s", got, want)
 	}
 }
 
