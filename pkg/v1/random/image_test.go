@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 func TestManifestAndConfig(t *testing.T) {
@@ -43,6 +44,10 @@ func TestManifestAndConfig(t *testing.T) {
 	}
 	if got := int64(len(config.RootFS.DiffIDs)); got != want {
 		t.Fatalf("num diff ids; got %v, want %v", got, want)
+	}
+
+	if err := validate.Image(img); err != nil {
+		t.Errorf("failed to validate: %v", err)
 	}
 }
 
@@ -86,5 +91,39 @@ func TestTarLayer(t *testing.T) {
 		if _, err := tr.Next(); err != io.EOF {
 			t.Errorf("Layer contained more files; got %v, want EOF", err)
 		}
+	}
+}
+
+func TestRandomLayer(t *testing.T) {
+	l, err := Layer(1024, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("Layer: %v", err)
+	}
+	mediaType, err := l.MediaType()
+	if err != nil {
+		t.Fatalf("MediaType: %v", err)
+	}
+	if got, want := mediaType, types.DockerLayer; got != want {
+		t.Errorf("MediaType(); got %q, want %q", got, want)
+	}
+
+	rc, err := l.Uncompressed()
+	if err != nil {
+		t.Fatalf("Uncompressed(): %v", err)
+	}
+	defer rc.Close()
+	tr := tar.NewReader(rc)
+	if _, err := tr.Next(); err != nil {
+		t.Fatalf("tar.Next: %v", err)
+	}
+
+	if n, err := io.Copy(ioutil.Discard, tr); err != nil {
+		t.Errorf("Reading tar layer: %v", err)
+	} else if n != 1024 {
+		t.Errorf("Layer was %d bytes, want 1024", n)
+	}
+
+	if _, err := tr.Next(); err != io.EOF {
+		t.Errorf("Layer contained more files; got %v, want EOF", err)
 	}
 }
