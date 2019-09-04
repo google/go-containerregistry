@@ -32,6 +32,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -39,6 +40,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -1166,5 +1168,64 @@ func TestWriteIndex(t *testing.T) {
 
 	if err := WriteIndex(tag, idx); err != nil {
 		t.Errorf("WriteIndex() = %v", err)
+	}
+}
+
+// If we actually attempt to read the contents, this will fail the test.
+type fakeForeignLayer struct {
+	t *testing.T
+}
+
+func (l *fakeForeignLayer) MediaType() (types.MediaType, error) {
+	return types.DockerForeignLayer, nil
+}
+
+func (l *fakeForeignLayer) Size() (int64, error) {
+	return 0, nil
+}
+
+func (l *fakeForeignLayer) Digest() (v1.Hash, error) {
+	return v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("a", 64)}, nil
+}
+
+func (l *fakeForeignLayer) DiffID() (v1.Hash, error) {
+	return v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("a", 64)}, nil
+}
+
+func (l *fakeForeignLayer) Compressed() (io.ReadCloser, error) {
+	l.t.Helper()
+	l.t.Errorf("foreign layer not skipped: Compressed")
+	return nil, nil
+}
+
+func (l *fakeForeignLayer) Uncompressed() (io.ReadCloser, error) {
+	l.t.Helper()
+	l.t.Errorf("foreign layer not skipped: Uncompressed")
+	return nil, nil
+}
+
+func TestSkipForeignLayers(t *testing.T) {
+	// Set up an image with a foreign layer.
+	base := setupImage(t)
+	img, err := mutate.AppendLayers(base, &fakeForeignLayer{t: t})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set up a fake registry.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dst := fmt.Sprintf("%s/test/foreign/upload", u.Host)
+	ref, err := name.ParseReference(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Write(ref, img); err != nil {
+		t.Errorf("failed to Write: %v", err)
 	}
 }
