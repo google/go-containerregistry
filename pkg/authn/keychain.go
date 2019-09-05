@@ -24,13 +24,17 @@ import (
 	"runtime"
 
 	"github.com/google/go-containerregistry/pkg/logs"
-	"github.com/google/go-containerregistry/pkg/name"
 )
+
+type Target interface {
+	String() string
+	RegistryStr() string
+}
 
 // Keychain is an interface for resolving an image reference to a credential.
 type Keychain interface {
 	// Resolve looks up the most appropriate credential for the specified registry.
-	Resolve(name.Registry) (Authenticator, error)
+	Resolve(Target) (Authenticator, error)
 }
 
 // defaultKeychain implements Keychain with the semantics of the standard Docker
@@ -97,7 +101,7 @@ var (
 )
 
 // Resolve implements Keychain.
-func (dk *defaultKeychain) Resolve(reg name.Registry) (Authenticator, error) {
+func (dk *defaultKeychain) Resolve(target Target) (Authenticator, error) {
 	dir, err := configDir()
 	if err != nil {
 		logs.Warn.Printf("Unable to determine config dir: %v", err)
@@ -119,21 +123,21 @@ func (dk *defaultKeychain) Resolve(reg name.Registry) (Authenticator, error) {
 	// Per-registry credential helpers take precedence.
 	if cf.CredHelper != nil {
 		for _, form := range domainForms {
-			if entry, ok := cf.CredHelper[fmt.Sprintf(form, reg.Name())]; ok {
-				return &helper{name: entry, domain: reg, r: &defaultRunner{}}, nil
+			if entry, ok := cf.CredHelper[fmt.Sprintf(form, target.RegistryStr())]; ok {
+				return &helper{name: entry, domain: target.RegistryStr(), r: &defaultRunner{}}, nil
 			}
 		}
 	}
 
 	// A global credential helper is next in precedence.
 	if cf.CredStore != "" {
-		return &helper{name: cf.CredStore, domain: reg, r: &defaultRunner{}}, nil
+		return &helper{name: cf.CredStore, domain: target.RegistryStr(), r: &defaultRunner{}}, nil
 	}
 
 	// Lastly, the 'auths' section directly contains basic auth entries.
 	if cf.Auths != nil {
 		for _, form := range domainForms {
-			if entry, ok := cf.Auths[fmt.Sprintf(form, reg.Name())]; ok {
+			if entry, ok := cf.Auths[fmt.Sprintf(form, target.RegistryStr())]; ok {
 				if entry.Auth != "" {
 					return &auth{entry.Auth}, nil
 				} else if entry.Username != "" {

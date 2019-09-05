@@ -18,12 +18,10 @@ import (
 	"errors"
 	"os/exec"
 	"testing"
-
-	"github.com/google/go-containerregistry/pkg/name"
 )
 
 var (
-	testDomain, _ = name.NewRegistry("foo.dev", name.WeakValidation)
+	testDomain = "foo.dev"
 )
 
 // errorRunner implements runner to always return an execution error.

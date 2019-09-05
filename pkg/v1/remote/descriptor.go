@@ -84,7 +84,7 @@ func Get(ref name.Reference, options ...Option) (*Descriptor, error) {
 // Handle options and fetch the manifest with the acceptable MediaTypes in the
 // Accept header.
 func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*Descriptor, error) {
-	o, err := makeOptions(ref.Context().Registry, options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return nil, err
 	}
