@@ -100,11 +100,16 @@ func TestTextMarshalling(t *testing.T) {
 		Algorithm: "sha256",
 		Hex:       strings.Repeat("a", 64),
 	}
+	g := &Hash{}
 	text, err := h.MarshalText()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.UnmarshalText(text); err != nil {
+	if err := g.UnmarshalText(text); err != nil {
 		t.Fatal(err)
+	}
+
+	if h.String() != g.String() {
+		t.Errorf("mismatched hash: %s != %s", h, g)
 	}
 }
