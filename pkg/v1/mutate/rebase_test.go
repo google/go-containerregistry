@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mutate
+package mutate_test
 
 import (
 	"testing"
 	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 )
 
@@ -65,7 +66,7 @@ func TestRebase(t *testing.T) {
 		CreatedBy: "test",
 		Comment:   "this is a test",
 	}
-	orig, err := Append(oldBase, Addendum{
+	orig, err := mutate.Append(oldBase, mutate.Addendum{
 		Layer:   topLayers[0],
 		History: topHistory,
 	})
@@ -85,7 +86,7 @@ func TestRebase(t *testing.T) {
 	newBaseLayerDigests := layerDigests(t, newBase)
 
 	// Rebase original image onto new base.
-	rebased, err := Rebase(orig, oldBase, newBase)
+	rebased, err := mutate.Rebase(orig, oldBase, newBase)
 	if err != nil {
 		t.Fatalf("Rebase: %v", err)
 	}
