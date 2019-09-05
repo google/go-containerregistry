@@ -18,15 +18,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
-	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 // remoteImage accesses an image from a remote registry
@@ -102,11 +99,7 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 		return nil, err
 	}
 
-	cl, err := r.LayerByDigest(m.Config.Digest)
-	if err != nil {
-		return nil, err
-	}
-	body, err := cl.Compressed()
+	body, err := r.fetchBlob(m.Config.Digest)
 	if err != nil {
 		return nil, err
 	}
@@ -119,40 +112,29 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 	return r.config, nil
 }
 
-// remoteLayer implements partial.CompressedLayer
-type remoteLayer struct {
+// remoteImageLayer implements partial.CompressedLayer
+type remoteImageLayer struct {
 	ri     *remoteImage
 	digest v1.Hash
 }
 
 // Digest implements partial.CompressedLayer
-func (rl *remoteLayer) Digest() (v1.Hash, error) {
+func (rl *remoteImageLayer) Digest() (v1.Hash, error) {
 	return rl.digest, nil
 }
 
 // Compressed implements partial.CompressedLayer
-func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
-	u := rl.ri.url("blobs", rl.digest.String())
-	resp, err := rl.ri.Client.Get(u.String())
-	if err != nil {
-		return nil, err
-	}
-
-	if err := transport.CheckError(resp, http.StatusOK); err != nil {
-		resp.Body.Close()
-		return nil, err
-	}
-
-	return v1util.VerifyReadCloser(resp.Body, rl.digest)
+func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
+	return rl.ri.fetchBlob(rl.digest)
 }
 
 // Manifest implements partial.WithManifest so that we can use partial.BlobSize below.
-func (rl *remoteLayer) Manifest() (*v1.Manifest, error) {
+func (rl *remoteImageLayer) Manifest() (*v1.Manifest, error) {
 	return partial.Manifest(rl.ri)
 }
 
 // MediaType implements v1.Layer
-func (rl *remoteLayer) MediaType() (types.MediaType, error) {
+func (rl *remoteImageLayer) MediaType() (types.MediaType, error) {
 	m, err := rl.Manifest()
 	if err != nil {
 		return "", err
@@ -168,25 +150,25 @@ func (rl *remoteLayer) MediaType() (types.MediaType, error) {
 }
 
 // Size implements partial.CompressedLayer
-func (rl *remoteLayer) Size() (int64, error) {
+func (rl *remoteImageLayer) Size() (int64, error) {
 	// Look up the size of this digest in the manifest to avoid a request.
 	return partial.BlobSize(rl, rl.digest)
 }
 
 // ConfigFile implements partial.WithManifestAndConfigFile so that we can use partial.BlobToDiffID below.
-func (rl *remoteLayer) ConfigFile() (*v1.ConfigFile, error) {
+func (rl *remoteImageLayer) ConfigFile() (*v1.ConfigFile, error) {
 	return partial.ConfigFile(rl.ri)
 }
 
 // DiffID implements partial.WithDiffID so that we don't recompute a DiffID that we already have
 // available in our ConfigFile.
-func (rl *remoteLayer) DiffID() (v1.Hash, error) {
+func (rl *remoteImageLayer) DiffID() (v1.Hash, error) {
 	return partial.BlobToDiffID(rl, rl.digest)
 }
 
 // LayerByDigest implements partial.CompressedLayer
 func (r *remoteImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
-	return &remoteLayer{
+	return &remoteImageLayer{
 		ri:     r,
 		digest: h,
 	}, nil

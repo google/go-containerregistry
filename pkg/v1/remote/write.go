@@ -481,3 +481,22 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 	// to commit the image.
 	return w.commitImage(ii)
 }
+
+// WriteLayer uploads the provided Layer to the specified name.Digest.
+func WriteLayer(ref name.Digest, layer v1.Layer, options ...Option) error {
+	o, err := makeOptions(ref.Context().Registry, options...)
+	if err != nil {
+		return err
+	}
+	scopes := scopesForUploadingImage(ref, []v1.Layer{layer})
+	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
+	if err != nil {
+		return err
+	}
+	w := writer{
+		ref:    ref,
+		client: &http.Client{Transport: tr},
+	}
+
+	return w.uploadOne(layer)
+}

@@ -17,6 +17,7 @@ package remote
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -27,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 var defaultPlatform = v1.Platform{
@@ -86,24 +88,16 @@ func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*
 	if err != nil {
 		return nil, err
 	}
-
-	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, []string{ref.Scope(transport.PullScope)})
+	f, err := makeFetcher(ref, o)
 	if err != nil {
 		return nil, err
 	}
-
-	f := fetcher{
-		Ref:    ref,
-		Client: &http.Client{Transport: tr},
-	}
-
 	b, desc, err := f.fetchManifest(ref, acceptable)
 	if err != nil {
 		return nil, err
 	}
-
 	return &Descriptor{
-		fetcher:    f,
+		fetcher:    *f,
 		Manifest:   b,
 		Descriptor: *desc,
 		platform:   o.platform,
@@ -195,6 +189,17 @@ type fetcher struct {
 	Client *http.Client
 }
 
+func makeFetcher(ref name.Reference, o *options) (*fetcher, error) {
+	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, []string{ref.Scope(transport.PullScope)})
+	if err != nil {
+		return nil, err
+	}
+	return &fetcher{
+		Ref:    ref,
+		Client: &http.Client{Transport: tr},
+	}, nil
+}
+
 // url returns a url.Url for the specified path in the context of this remote image reference.
 func (f *fetcher) url(resource, identifier string) url.URL {
 	return url.URL{
@@ -268,4 +273,34 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 	}
 
 	return manifest, &desc, nil
+}
+
+func (f *fetcher) fetchBlob(h v1.Hash) (io.ReadCloser, error) {
+	u := f.url("blobs", h.String())
+	resp, err := f.Client.Get(u.String())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := transport.CheckError(resp, http.StatusOK); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+
+	return v1util.VerifyReadCloser(resp.Body, h)
+}
+
+func (f *fetcher) headBlob(h v1.Hash) (*http.Response, error) {
+	u := f.url("blobs", h.String())
+	resp, err := f.Client.Head(u.String())
+	if err != nil {
+		return nil, err
+	}
+
+	if err := transport.CheckError(resp, http.StatusOK); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+
+	return resp, nil
 }
