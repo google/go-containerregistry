@@ -26,9 +26,11 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 const bogusDigest = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
@@ -476,5 +478,34 @@ func TestPullingManifestListNoMatch(t *testing.T) {
 	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 	if _, err := Image(tag, WithPlatform(platform)); err == nil {
 		t.Errorf("Image succeeded, wanted err")
+	}
+}
+
+func TestValidate(t *testing.T) {
+	img, err := random.Image(1024, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tag, err := name.NewTag("gcr.io/foo/bar")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reg, err := registry.TLS("gcr.io")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Write(tag, img, WithTransport(reg.Client().Transport)); err != nil {
+		t.Fatal(err)
+	}
+
+	img, err = Image(tag, WithTransport(reg.Client().Transport))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validate.Image(img); err != nil {
+		t.Errorf("failed to validate remote.Image: %v", err)
 	}
 }
