@@ -145,7 +145,9 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 	}
 
 	// The lastErr for most pulls will be the same (the first error), but for
-	// foreign layers we'll want to surface the last one.
+	// foreign layers we'll want to surface the last one, since we try to pull
+	// from the registry first, which would often fail.
+	// TODO: Maybe we don't want to try pulling from the registry first?
 	var lastErr error
 	for _, u := range urls {
 		resp, err := rl.ri.Client.Get(u.String())
