@@ -269,32 +269,32 @@ func TestBadInputs(t *testing.T) {
 	}
 	valid := fmt.Sprintf("%s/some/image", u.Host)
 
+	// e drops the first parameter so we can use the result of a function
+	// that returns two values as an expression above. This is a bit of a go quirk.
+	e := func(_ interface{}, err error) error {
+		return err
+	}
+
 	for _, err := range []error{
 		crane.Push(nil, invalid),
 		crane.Delete(invalid),
-		crane.Delete(valid),
+		crane.Delete(valid), // 404
 		crane.Save(nil, invalid, ""),
 		crane.Copy(invalid, invalid),
 		crane.Copy(valid, invalid),
-		crane.Copy(valid, valid),
+		crane.Copy(valid, valid), // 404
 		// These return multiple values, which are hard to use as expressions.
 		e(crane.Pull(invalid)),
 		e(crane.Digest(invalid)),
 		e(crane.Manifest(invalid)),
 		e(crane.Config(invalid)),
-		e(crane.Config(valid)),
+		e(crane.Config(valid)), // 404
 		e(crane.ListTags(invalid)),
-		e(crane.ListTags(valid)),
+		e(crane.ListTags(valid)), // 404
 		e(crane.Append(nil, invalid)),
 	} {
 		if err == nil {
 			t.Error("expected err, got nil")
 		}
 	}
-}
-
-// e drops the first parameter so we can use the result of a function
-// that returns two values as an expression above. This is a bit of a go quirk.
-func e(_ interface{}, err error) error {
-	return err
 }
