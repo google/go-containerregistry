@@ -125,7 +125,7 @@ func TestMultiWriteSameImage(t *testing.T) {
 	refToImage[dig3] = randImage
 
 	// Write the images with both tags to the tarball
-	if err := tarball.MultiWriteToFile(fp.Name(), refToImage); err != nil {
+	if err := tarball.MultiRefWriteToFile(fp.Name(), refToImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 	for ref := range refToImage {
@@ -207,7 +207,7 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 	refToImage[dig3] = randImage3
 
 	// Write both images to the tarball.
-	if err := tarball.MultiWriteToFile(fp.Name(), refToImage); err != nil {
+	if err := tarball.MultiRefWriteToFile(fp.Name(), refToImage); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 	for ref, img := range refToImage {
