@@ -123,7 +123,7 @@ func TestImagePullSecrets(t *testing.T) {
 		Type: corev1.SecretTypeDockercfg,
 		Data: map[string][]byte{
 			corev1.DockerConfigKey: []byte(
-				fmt.Sprintf(`{"fake.registry.io": {"auth": "%s"}, "fake.registry.io/more/specific": {"auth": "%s"}}`,
+				fmt.Sprintf(`{"fake.registry.io": {"auth": %q}, "fake.registry.io/more/specific": {"auth": %q}}`,
 					base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
 					base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass))),
 			),
