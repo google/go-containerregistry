@@ -27,6 +27,11 @@ This can be composed with `gcrane delete` to actually garbage collect them:
 gcrane gc gcr.io/${PROJECT_ID}/repo | xargs -n1 gcrane delete
 ```
 
+## purge
+
+`gcrane purge` is used to remove images that match a tag regex, and can optionally skip images with certain tags.
+This supports a `-r` flag to purge images recursively, as well as flags for dry-run and concurrency.
+
 <!--
 TODO: implement this.
 
