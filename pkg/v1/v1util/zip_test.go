@@ -66,29 +66,29 @@ func TestIsGzipped(t *testing.T) {
 }
 
 var (
-	readErr = fmt.Errorf("Read failed")
+	errRead = fmt.Errorf("Read failed")
 )
 
 type failReader struct{}
 
 func (f failReader) Read(_ []byte) (int, error) {
-	return 0, readErr
+	return 0, errRead
 }
 
 func TestReadErrors(t *testing.T) {
 	fr := failReader{}
-	if _, err := IsGzipped(fr); err != readErr {
-		t.Errorf("IsGzipped: expected readErr, got %v", err)
+	if _, err := IsGzipped(fr); err != errRead {
+		t.Errorf("IsGzipped: expected errRead, got %v", err)
 	}
 
 	frc := ioutil.NopCloser(fr)
-	if _, err := GunzipReadCloser(frc); err != readErr {
-		t.Errorf("GunzipReadCloser: expected readErr, got %v", err)
+	if _, err := GunzipReadCloser(frc); err != errRead {
+		t.Errorf("GunzipReadCloser: expected errRead, got %v", err)
 	}
 
 	zr := GzipReadCloser(ioutil.NopCloser(fr))
-	if _, err := zr.Read(nil); err != readErr {
-		t.Errorf("GzipReadCloser: expected readErr, got %v", err)
+	if _, err := zr.Read(nil); err != errRead {
+		t.Errorf("GzipReadCloser: expected errRead, got %v", err)
 	}
 
 	zr = GzipReadCloserLevel(ioutil.NopCloser(strings.NewReader("zip me")), -10)

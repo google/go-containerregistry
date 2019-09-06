@@ -12,7 +12,9 @@ go:
 git:
   depth: 1
 
-install: true
+install:
+  # Lint!
+  - go get -v -u golang.org/x/lint/golint
 
 services:
   - docker
@@ -22,6 +24,7 @@ script:
   - find . -name "*.go" | grep -v vendor/ | xargs gofmt -d -e -l
 
   - go clean -i
+  - golint ./pkg/...
   - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
   # Verify that generated crane docs are up-to-date.

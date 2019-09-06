@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/internal/retry/wait"
 )
 
+// Backoff is an alias for wait.Backoff.
 type Backoff = wait.Backoff
 
 // This is implemented by several errors in the net package as well as our

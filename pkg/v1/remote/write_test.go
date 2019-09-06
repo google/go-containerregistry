@@ -462,7 +462,7 @@ func TestDedupeLayers(t *testing.T) {
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 	uploadPath := "/upload"
 	commitPath := "/commit"
-	var numUploads int32 = 0
+	var numUploads int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
 			http.Error(w, "NotFound", http.StatusNotFound)

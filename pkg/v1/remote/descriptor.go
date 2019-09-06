@@ -43,6 +43,7 @@ type ErrSchema1 struct {
 	schema string
 }
 
+// NewErrSchema1 returns an ErrSchema1 with the unexpected MediaType.
 func NewErrSchema1(schema types.MediaType) error {
 	return &ErrSchema1{
 		schema: string(schema),
