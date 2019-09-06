@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 )
 
 var (
@@ -86,6 +87,9 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			return err
 		}
 
+		// Store foreign layer info.
+		layerSources := make(map[v1.Hash]v1.Descriptor)
+
 		// Write the layers.
 		layers, err := img.Layers()
 		if err != nil {
@@ -96,6 +100,19 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			d, err := l.Digest()
 			if err != nil {
 				return err
+			}
+
+			// Add to LayerSources if it's a foreign layer.
+			desc, err := partial.BlobDescriptor(img, d)
+			if err != nil {
+				return err
+			}
+			if !desc.MediaType.IsDistributable() {
+				diffid, err := partial.BlobToDiffID(img, d)
+				if err != nil {
+					return err
+				}
+				layerSources[diffid] = desc
 			}
 
 			// Munge the file name to appease ancient technology.
@@ -125,9 +142,10 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 
 		// Generate the tar descriptor and write it.
 		sitd := singleImageTarDescriptor{
-			Config:   cfgName.String(),
-			RepoTags: tags,
-			Layers:   layerFiles,
+			Config:       cfgName.String(),
+			RepoTags:     tags,
+			Layers:       layerFiles,
+			LayerSources: layerSources,
 		}
 
 		td = append(td, sitd)

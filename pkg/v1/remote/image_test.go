@@ -18,9 +18,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path"
 	"strings"
 	"testing"
 
@@ -28,6 +30,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
@@ -507,5 +510,124 @@ func TestValidate(t *testing.T) {
 
 	if err := validate.Image(img); err != nil {
 		t.Errorf("failed to validate remote.Image: %v", err)
+	}
+}
+
+func TestPullingForeignLayer(t *testing.T) {
+	img := randomImage(t)
+	expectedRepo := "foo/bar"
+	foreignPath := "/foreign/path"
+
+	foreignLayer, err := random.Layer(1024, types.DockerForeignLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	foreignServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case foreignPath:
+			compressed, err := foreignLayer.Compressed()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := io.Copy(w, compressed); err != nil {
+				t.Fatal(err)
+			}
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer foreignServer.Close()
+	fu, err := url.Parse(foreignServer.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", foreignServer.URL, err)
+	}
+
+	img, err = mutate.Append(img, mutate.Addendum{
+		Layer: foreignLayer,
+		URLs: []string{
+			"http://" + path.Join(fu.Host, foreignPath),
+		},
+	})
+
+	// Set up a fake registry that will respond 404 to the foreign layer,
+	// but serve everything else correctly.
+	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, mustConfigName(t, img))
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	foreignLayerDigest := mustManifest(t, img).Layers[1].Digest
+	foreignLayerPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, foreignLayerDigest)
+	layerDigest := mustManifest(t, img).Layers[0].Digest
+	layerPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, layerDigest)
+
+	layer, err := img.LayerByDigest(layerDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case configPath:
+			if r.Method != http.MethodGet {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			w.Write(mustRawConfigFile(t, img))
+		case manifestPath:
+			if r.Method != http.MethodGet {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			w.Write(mustRawManifest(t, img))
+		case layerPath:
+			compressed, err := layer.Compressed()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := io.Copy(w, compressed); err != nil {
+				t.Fatal(err)
+			}
+			w.WriteHeader(http.StatusOK)
+		case foreignLayerPath:
+			// Not here!
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	// Pull from the registry and ensure that everything Validates; i.e. that
+	// we pull the layer from the foreignServer.
+	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+	rmt, err := Image(tag, WithTransport(http.DefaultTransport))
+	if err != nil {
+		t.Errorf("Image() = %v", err)
+	}
+
+	if err := validate.Image(rmt); err != nil {
+		t.Errorf("failed to validate foreign image: %v", err)
+	}
+
+	// Set up a fake registry and write what we pulled to it.
+	// This ensures we get coverage for the remoteLayer.MediaType path.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err = url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dst := fmt.Sprintf("%s/test/foreign/upload", u.Host)
+	ref, err := name.ParseReference(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Write(ref, rmt); err != nil {
+		t.Errorf("failed to Write: %v", err)
 	}
 }

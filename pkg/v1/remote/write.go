@@ -69,6 +69,16 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 	for _, l := range ls {
 		l := l
 
+		// Handle foreign layers.
+		mt, err := l.MediaType()
+		if err != nil {
+			return err
+		}
+		if !mt.IsDistributable() {
+			// TODO(jonjohnsonjr): Add "allow-nondistributable-artifacts" option.
+			continue
+		}
+
 		// Streaming layers calculate their digests while uploading them. Assume
 		// an error here indicates we need to upload the layer.
 		h, err := l.Digest()
