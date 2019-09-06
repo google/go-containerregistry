@@ -26,14 +26,21 @@ import (
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 
+// Target represents a registry or repository that can be authenticated against.
 type Target interface {
+	// String returns the full string representation of the target, e.g.
+	// gcr.io/my-project or just gcr.io.
 	String() string
+
+	// RegistryStr returns just the registry portion of the target, e.g. for
+	// gcr.io/my-project, this should just return gcr.io. This is needed to
+	// pull out an appropriate hostname.
 	RegistryStr() string
 }
 
 // Keychain is an interface for resolving an image reference to a credential.
 type Keychain interface {
-	// Resolve looks up the most appropriate credential for the specified registry.
+	// Resolve looks up the most appropriate credential for the specified target.
 	Resolve(Target) (Authenticator, error)
 }
 
