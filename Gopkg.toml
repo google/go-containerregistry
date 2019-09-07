@@ -25,10 +25,6 @@ required = [
   name = "k8s.io/api"
   version = "kubernetes-1.15.3"
 
-[[override]]
-  name = "k8s.io/kubernetes"
-  version = "1.15.3"
-
 [[constraint]]
   name = "github.com/docker/docker"
   revision = "71cd53e4a197b303c6ba086bd584ffd67a884281"

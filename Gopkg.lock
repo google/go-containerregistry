@@ -751,21 +751,6 @@
   revision = "e3762e86a74c878ffed47484592986685639c2cd"
 
 [[projects]]
-  digest = "1:e64e3b86306c530c1303d1fe7086d30ab00c338d7afe1bf58da7c098007139da"
-  name = "k8s.io/kubernetes"
-  packages = [
-    "pkg/credentialprovider",
-    "pkg/credentialprovider/aws",
-    "pkg/credentialprovider/azure",
-    "pkg/credentialprovider/gcp",
-    "pkg/credentialprovider/secrets",
-    "pkg/version",
-  ]
-  pruneopts = "NUT"
-  revision = "2d3c76f9091b6bec110a5e63777c332469e0cba2"
-  version = "v1.15.3"
-
-[[projects]]
   branch = "master"
   digest = "1:94200bdf759648846fb4e38e4d438a0b91faa44c6cb485f2402d90341260c817"
   name = "k8s.io/legacy-cloud-providers"
@@ -797,6 +782,14 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/Azure/azure-sdk-for-go/services/containerregistry/mgmt/2017-10-01/containerregistry",
+    "github.com/Azure/go-autorest/autorest",
+    "github.com/Azure/go-autorest/autorest/adal",
+    "github.com/Azure/go-autorest/autorest/azure",
+    "github.com/aws/aws-sdk-go/aws",
+    "github.com/aws/aws-sdk-go/aws/request",
+    "github.com/aws/aws-sdk-go/aws/session",
+    "github.com/aws/aws-sdk-go/service/ecr",
     "github.com/docker/docker/api/types",
     "github.com/docker/docker/client",
     "github.com/google/go-cmp/cmp",
@@ -805,20 +798,24 @@
     "github.com/pkg/errors",
     "github.com/spf13/cobra",
     "github.com/spf13/cobra/doc",
+    "github.com/spf13/pflag",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/google",
     "golang.org/x/sync/errgroup",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/util/net",
+    "k8s.io/apimachinery/pkg/util/sets",
+    "k8s.io/apimachinery/pkg/util/wait",
+    "k8s.io/apimachinery/pkg/version",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/rest",
+    "k8s.io/client-go/tools/cache",
     "k8s.io/code-generator/cmd/deepcopy-gen",
-    "k8s.io/kubernetes/pkg/credentialprovider",
-    "k8s.io/kubernetes/pkg/credentialprovider/aws",
-    "k8s.io/kubernetes/pkg/credentialprovider/azure",
-    "k8s.io/kubernetes/pkg/credentialprovider/gcp",
-    "k8s.io/kubernetes/pkg/credentialprovider/secrets",
+    "k8s.io/klog",
+    "k8s.io/legacy-cloud-providers/azure/auth",
+    "sigs.k8s.io/yaml",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
