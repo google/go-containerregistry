@@ -14,6 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package credentialprovider supplies interfaces and implementations for
-// docker registry providers to expose their authentication scheme.
-package credentialprovider // import "k8s.io/kubernetes/pkg/credentialprovider"
+// Package gcp_credentials contains  implementations of DockerConfigProvider
+// for Google Cloud Platform.
+package gcp_credentials

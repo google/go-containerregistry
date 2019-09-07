@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package gcp_credentials contains  implementations of DockerConfigProvider
-// for Google Cloud Platform.
-package gcp_credentials // import "k8s.io/kubernetes/pkg/credentialprovider/gcp"
+// +k8s:openapi-gen=true
+
+// Package version supplies version information collected at build time to
+// kubernetes components.
+package version

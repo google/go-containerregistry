@@ -33,7 +33,7 @@ import (
 	"k8s.io/klog"
 	"sigs.k8s.io/yaml"
 
-	"k8s.io/kubernetes/pkg/credentialprovider"
+	"github.com/google/go-containerregistry/pkg/internal/k8s/credentialprovider"
 	"k8s.io/legacy-cloud-providers/azure/auth"
 )
 

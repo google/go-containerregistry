@@ -19,8 +19,8 @@ package secrets
 import (
 	"encoding/json"
 
-	"k8s.io/api/core/v1"
-	"k8s.io/kubernetes/pkg/credentialprovider"
+	"github.com/google/go-containerregistry/pkg/internal/k8s/credentialprovider"
+	v1 "k8s.io/api/core/v1"
 )
 
 // MakeDockerKeyring inspects the passedSecrets to see if they contain any DockerConfig secrets.  If they do,

@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/internal/k8s/credentialprovider"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/klog"
-	"k8s.io/kubernetes/pkg/credentialprovider"
 )
 
 const (
