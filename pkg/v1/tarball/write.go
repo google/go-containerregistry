@@ -42,7 +42,7 @@ func WriteToFile(p string, ref name.Reference, img v1.Image) error {
 // MultiWriteToFile writes in the compressed format to a tarball, on disk.
 // This is just syntactic sugar wrapping tarball.MultiWrite with a new file.
 func MultiWriteToFile(p string, tagToImage map[name.Tag]v1.Image) error {
-	var refToImage map[name.Reference]v1.Image = make(map[name.Reference]v1.Image, len(tagToImage))
+	refToImage := make(map[name.Reference]v1.Image, len(tagToImage))
 	for i, d := range tagToImage {
 		refToImage[i] = d
 	}
@@ -72,7 +72,7 @@ func Write(ref name.Reference, img v1.Image, w io.Writer) error {
 // One file for each layer, named after the layer's SHA.
 // One file for the config blob, named after its SHA.
 func MultiWrite(tagToImage map[name.Tag]v1.Image, w io.Writer) error {
-	var refToImage map[name.Reference]v1.Image = make(map[name.Reference]v1.Image, len(tagToImage))
+	refToImage := make(map[name.Reference]v1.Image, len(tagToImage))
 	for i, d := range tagToImage {
 		refToImage[i] = d
 	}
