@@ -270,6 +270,9 @@ func TestWriteForeignLayers(t *testing.T) {
 			"example.com",
 		},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := tarball.WriteToFile(fp.Name(), tag, img); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}

@@ -536,8 +536,8 @@ func TestStreamBlob(t *testing.T) {
 		if err != nil {
 			t.Errorf("RawConfigFile() = %v", err)
 		}
-		if bytes.Compare(got, want) != 0 {
-			t.Errorf("bytes.Compare(); got %v, want %v", got, want)
+		if !bytes.Equal(got, want) {
+			t.Errorf("bytes.Equal(); got %v, want %v", got, want)
 		}
 		w.Header().Set("Location", expectedCommitLocation)
 		http.Error(w, "Created", http.StatusCreated)
@@ -685,8 +685,8 @@ func TestUploadOne(t *testing.T) {
 			if err != nil {
 				t.Errorf("RawConfigFile() = %v", err)
 			}
-			if bytes.Compare(got, want) != 0 {
-				t.Errorf("bytes.Compare(); got %v, want %v", got, want)
+			if !bytes.Equal(got, want) {
+				t.Errorf("bytes.Equal(); got %v, want %v", got, want)
 			}
 			w.Header().Set("Location", commitPath)
 			http.Error(w, "Initiated", http.StatusAccepted)
@@ -795,8 +795,8 @@ func TestCommitImage(t *testing.T) {
 		if err != nil {
 			t.Errorf("RawManifest() = %v", err)
 		}
-		if bytes.Compare(got, want) != 0 {
-			t.Errorf("bytes.Compare(); got %v, want %v", got, want)
+		if !bytes.Equal(got, want) {
+			t.Errorf("bytes.Equal(); got %v, want %v", got, want)
 		}
 		mt, err := img.MediaType()
 		if err != nil {

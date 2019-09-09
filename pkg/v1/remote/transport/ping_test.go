@@ -207,7 +207,7 @@ func TestPingHttpFallback(t *testing.T) {
 }
 
 func mustRegistry(r string) name.Registry {
-	reg, err := name.NewRegistry(r, name.WeakValidation)
+	reg, err := name.NewRegistry(r)
 	if err != nil {
 		panic(err)
 	}
@@ -215,7 +215,7 @@ func mustRegistry(r string) name.Registry {
 }
 
 func mustInsecureRegistry(r string) name.Registry {
-	reg, err := name.NewInsecureRegistry(r, name.WeakValidation)
+	reg, err := name.NewRegistry(r, name.Insecure)
 	if err != nil {
 		panic(err)
 	}

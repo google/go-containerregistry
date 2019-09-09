@@ -244,7 +244,7 @@ func recursiveCopy(src, dst string) error {
 				if err := backoffErrors(func() error {
 					return c.copyImages(ctx, task)
 				}); err != nil {
-					return fmt.Errorf("Failed to copy %q: %v", task.digest, err)
+					return fmt.Errorf("failed to copy %q: %v", task.digest, err)
 				}
 			}
 			return nil
