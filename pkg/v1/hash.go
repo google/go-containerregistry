@@ -68,7 +68,7 @@ func (h Hash) MarshalText() (text []byte, err error) {
 	return []byte(h.String()), nil
 }
 
-// MarshalText implements encoding.TextUnmarshaler. This is required to use
+// UnmarshalText implements encoding.TextUnmarshaler. This is required to use
 // v1.Hash as a key in a map when unmarshalling JSON.
 func (h *Hash) UnmarshalText(text []byte) error {
 	return h.parse(string(text))
