@@ -43,8 +43,8 @@ type ErrSchema1 struct {
 	schema string
 }
 
-// NewErrSchema1 returns an ErrSchema1 with the unexpected MediaType.
-func NewErrSchema1(schema types.MediaType) error {
+// newErrSchema1 returns an ErrSchema1 with the unexpected MediaType.
+func newErrSchema1(schema types.MediaType) error {
 	return &ErrSchema1{
 		schema: string(schema),
 	}
@@ -118,7 +118,7 @@ func (d *Descriptor) Image() (v1.Image, error) {
 	case types.DockerManifestSchema1, types.DockerManifestSchema1Signed:
 		// We don't care to support schema 1 images:
 		// https://github.com/google/go-containerregistry/issues/377
-		return nil, NewErrSchema1(d.MediaType)
+		return nil, newErrSchema1(d.MediaType)
 	case types.OCIImageIndex, types.DockerManifestList:
 		// We want an image but the registry has an index, resolve it to an image.
 		return d.remoteIndex().imageByPlatform(d.platform)
@@ -148,7 +148,7 @@ func (d *Descriptor) ImageIndex() (v1.ImageIndex, error) {
 	case types.DockerManifestSchema1, types.DockerManifestSchema1Signed:
 		// We don't care to support schema 1 images:
 		// https://github.com/google/go-containerregistry/issues/377
-		return nil, NewErrSchema1(d.MediaType)
+		return nil, newErrSchema1(d.MediaType)
 	case types.OCIManifestSchema1, types.DockerManifestSchema2:
 		// We want an index but the registry has an image, nothing we can do.
 		return nil, fmt.Errorf("unexpected media type for ImageIndex(): %s; call Image() instead", d.MediaType)
