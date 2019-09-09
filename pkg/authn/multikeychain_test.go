@@ -85,12 +85,12 @@ func TestMultiKeychain(t *testing.T) {
 	}
 }
 
-type fixedKeychain map[Target]Authenticator
+type fixedKeychain map[Resource]Authenticator
 
 var _ Keychain = (fixedKeychain)(nil)
 
 // Resolve implements Keychain.
-func (fk fixedKeychain) Resolve(target Target) (Authenticator, error) {
+func (fk fixedKeychain) Resolve(target Resource) (Authenticator, error) {
 	if auth, ok := fk[target]; ok {
 		return auth, nil
 	}

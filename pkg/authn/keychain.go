@@ -26,8 +26,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 
-// Target represents a registry or repository that can be authenticated against.
-type Target interface {
+// Resource represents a registry or repository that can be authenticated against.
+type Resource interface {
 	// String returns the full string representation of the target, e.g.
 	// gcr.io/my-project or just gcr.io.
 	String() string
@@ -41,7 +41,7 @@ type Target interface {
 // Keychain is an interface for resolving an image reference to a credential.
 type Keychain interface {
 	// Resolve looks up the most appropriate credential for the specified target.
-	Resolve(Target) (Authenticator, error)
+	Resolve(Resource) (Authenticator, error)
 }
 
 // defaultKeychain implements Keychain with the semantics of the standard Docker
@@ -108,7 +108,7 @@ var (
 )
 
 // Resolve implements Keychain.
-func (dk *defaultKeychain) Resolve(target Target) (Authenticator, error) {
+func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	dir, err := configDir()
 	if err != nil {
 		logs.Warn.Printf("Unable to determine config dir: %v", err)

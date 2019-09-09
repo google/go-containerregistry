@@ -153,7 +153,7 @@ type keychain struct {
 }
 
 // Resolve implements authn.Keychain
-func (kc *keychain) Resolve(target authn.Target) (authn.Authenticator, error) {
+func (kc *keychain) Resolve(target authn.Resource) (authn.Authenticator, error) {
 	var (
 		creds []credentialprovider.LazyAuthConfiguration
 		found bool

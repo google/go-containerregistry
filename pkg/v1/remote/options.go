@@ -33,7 +33,7 @@ type options struct {
 	platform  v1.Platform
 }
 
-func makeOptions(target authn.Target, opts ...Option) (*options, error) {
+func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 	o := &options{
 		auth:      authn.Anonymous,
 		transport: http.DefaultTransport,

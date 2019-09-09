@@ -27,7 +27,7 @@ func NewMultiKeychain(kcs ...Keychain) Keychain {
 }
 
 // Resolve implements Keychain.
-func (mk *multiKeychain) Resolve(target Target) (Authenticator, error) {
+func (mk *multiKeychain) Resolve(target Resource) (Authenticator, error) {
 	for _, kc := range mk.keychains {
 		auth, err := kc.Resolve(target)
 		if err != nil {

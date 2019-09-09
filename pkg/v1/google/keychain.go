@@ -47,7 +47,7 @@ type googleKeychain struct{}
 //
 // In general, we don't worry about that here because we expect to use the same
 // gcloud configuration in the scope of this one process.
-func (gk *googleKeychain) Resolve(target authn.Target) (authn.Authenticator, error) {
+func (gk *googleKeychain) Resolve(target authn.Resource) (authn.Authenticator, error) {
 	// Only authenticate GCR so it works with authn.NewMultiKeychain to fallback.
 	if !strings.HasSuffix(target.RegistryStr(), "gcr.io") {
 		return authn.Anonymous, nil

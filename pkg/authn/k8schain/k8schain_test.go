@@ -146,7 +146,7 @@ func TestImagePullSecrets(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		auth   authn.Authenticator
-		target authn.Target
+		target authn.Resource
 	}{{
 		name:   "registry",
 		auth:   &authn.Basic{Username: username, Password: password},
