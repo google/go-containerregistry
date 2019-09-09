@@ -25,6 +25,11 @@ type Image interface {
 	// The order of the list is oldest/base layer first, and most-recent/top layer last.
 	Layers() ([]Layer, error)
 
+	// CompressedLayers returns the ordered collection of compressed filesystem layers that
+	// comprise this image. The order of the list is oldest/base layer first, and
+	// most-recent/top layer last. CompressedLayers are useful for optimized pushing.
+	CompressedLayers() ([]Layer, error)
+
 	// MediaType of this image's manifest.
 	MediaType() (types.MediaType, error)
 

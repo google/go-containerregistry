@@ -32,13 +32,16 @@ type options struct {
 	keychain  authn.Keychain
 	transport http.RoundTripper
 	platform  v1.Platform
+
+	pushCompressedLayers bool
 }
 
 func makeOptions(reg name.Registry, opts ...Option) (*options, error) {
 	o := &options{
-		auth:      authn.Anonymous,
-		transport: http.DefaultTransport,
-		platform:  defaultPlatform,
+		auth:                 authn.Anonymous,
+		transport:            http.DefaultTransport,
+		platform:             defaultPlatform,
+		pushCompressedLayers: false,
 	}
 
 	for _, option := range opts {
@@ -105,6 +108,17 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 func WithPlatform(p v1.Platform) Option {
 	return func(o *options) error {
 		o.platform = p
+		return nil
+	}
+}
+
+// WithLayerCompression is a functional option that specifies whether the
+// layers should be compressed or not.
+//
+// By default, layers will be pulled out of the image uncompressed.
+func WithLayerCompression() Option {
+	return func(o *options) error {
+		o.pushCompressedLayers = true
 		return nil
 	}
 }

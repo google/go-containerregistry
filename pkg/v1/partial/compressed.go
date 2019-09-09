@@ -122,6 +122,12 @@ func (i *compressedImageExtender) Layers() ([]v1.Layer, error) {
 	return ls, nil
 }
 
+// CompressedLayers implements v1.Image
+func (i *compressedImageExtender) CompressedLayers() ([]v1.Layer, error) {
+	// layers are already compressed
+	return i.Layers()
+}
+
 // LayerByDigest implements v1.Image
 func (i *compressedImageExtender) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	cl, err := i.CompressedImageCore.LayerByDigest(h)

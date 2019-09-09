@@ -916,6 +916,164 @@ func TestWriteWithErrors(t *testing.T) {
 	}
 }
 
+func TestWriteMulti(t *testing.T) {
+	img := setupImage(t)
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatal("unable to get layer count from img")
+	}
+
+	expectedRepo := "write/time"
+	receivedAPICalls := map[string]int{}
+	expectedAPICalls := map[string]int{}
+
+	// we should only write the blobs once (same registry)
+	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
+	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	expectedAPICalls[initiatePath] = len(layers) + 1 // one for each layer, + the config layer
+	manifestPathOne := fmt.Sprintf("/v2/%s/manifests/tagone", expectedRepo)
+	expectedAPICalls[manifestPathOne] = 1
+	manifestPathTwo := fmt.Sprintf("/v2/%s/manifests/tagtwo", expectedRepo)
+	expectedAPICalls[manifestPathTwo] = 1
+	expectedAPICalls["/v2/"] = 3 // pings when creating transports
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead &&
+			strings.HasPrefix(r.URL.Path, headPathPrefix) &&
+			r.URL.Path != initiatePath {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
+
+		receivedAPICalls[r.URL.Path]++
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case initiatePath:
+			if r.Method != http.MethodPost {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+			}
+			http.Error(w, "Mounted", http.StatusCreated)
+		case manifestPathOne, manifestPathTwo:
+			if r.Method != http.MethodPut {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
+			}
+			http.Error(w, "Created", http.StatusCreated)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	var tags []name.Reference
+	tagStrs := []string{"tagone", "tagtwo"}
+	for _, tagStr := range tagStrs {
+		tag, err := name.NewTag(fmt.Sprintf("%s/%s:%s", u.Host, expectedRepo, tagStr), name.WeakValidation)
+		if err != nil {
+			t.Fatalf("NewTag() = %v", err)
+		}
+		tags = append(tags, tag)
+	}
+
+	if err := WriteMulti(tags, img); err != nil {
+		t.Errorf("Write() = %v", err)
+	}
+
+	if len(receivedAPICalls) != len(expectedAPICalls) {
+		t.Errorf("Expected %d distinct API calls but got %d", len(expectedAPICalls), len(receivedAPICalls))
+	}
+
+	for u, called := range receivedAPICalls {
+		if called != expectedAPICalls[u] {
+			t.Errorf("Expected %d API call to %s but received %d", expectedAPICalls[u], u, called)
+		}
+	}
+}
+
+func TestWriteLayersCompressed(t *testing.T) {
+	repo := "some/repo"
+	img := setupImage(t)
+
+	numUncompressed := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// ensure the blob is not cached
+		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, fmt.Sprintf("/v2/%s/blobs/sha256:", repo)) {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
+
+		switch r.URL.Path {
+		case "/v2/":
+			// 200 for pings
+			http.Error(w, "", http.StatusOK)
+			return
+		case "/v2/some/repo/blobs/uploads/":
+			// clone the URL to not modify it in flight
+			u, err := url.Parse(r.URL.String())
+			if err != nil {
+				t.Fatalf("url.Parse(%s): %v", r.URL.String(), err)
+			}
+			u.Path = "/v2/blob/new"
+
+			w.Header().Set("Location", u.String())
+			w.WriteHeader(http.StatusAccepted)
+			return
+		case "/v2/blob/new":
+			// validate that body is gzipped
+			body, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("Error reading request body: %v", err)
+			}
+
+			filetype := http.DetectContentType(body)
+			if filetype != "application/x-gzip" {
+				numUncompressed++
+			}
+
+			// need to supply url to commit layer
+			// clone the URL to not modify it in flight
+			u, err := url.Parse(r.URL.String())
+			if err != nil {
+				t.Fatalf("url.Parse(%s): %v", r.URL.String(), err)
+			}
+			u.Path = "/v2/blob/commit"
+			w.Header().Set("Location", u.String())
+			http.Error(w, "Created", http.StatusCreated)
+			return
+		case "/v2/blob/commit":
+			http.Error(w, "Done", http.StatusCreated)
+			return
+		default:
+			http.Error(w, fmt.Sprintf("unhandled path: %s", r.URL.Path), http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	if numUncompressed > 1 {
+		t.Errorf("expected only the config layer to be uncompressed but found %d uncompressed layers", numUncompressed)
+	}
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	ref, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, repo), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewTag() = %v", err)
+	}
+
+	err = writeLayers(ref, img, WithLayerCompression())
+	if err != nil {
+		t.Errorf("writeLayers(%v, %v) = %v", ref, img, err)
+	}
+}
+
 func TestScopesForUploadingImage(t *testing.T) {
 	referenceToUpload, err := name.NewTag("example.com/sample/sample:latest", name.WeakValidation)
 	if err != nil {

@@ -247,6 +247,26 @@ func (i *image) Layers() ([]v1.Layer, error) {
 	return ls, nil
 }
 
+func (i *image) CompressedLayers() ([]v1.Layer, error) {
+	compressedLayers := []v1.Layer{}
+
+	layers, err := i.Layers()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, l := range layers {
+		cl, err := partial.ToCompressedLayer(l)
+		if err != nil {
+			return nil, err
+		}
+
+		compressedLayers = append(compressedLayers, cl)
+	}
+
+	return compressedLayers, nil
+}
+
 // ConfigName returns the hash of the image's config file.
 func (i *image) ConfigName() (v1.Hash, error) {
 	if err := i.compute(); err != nil {
