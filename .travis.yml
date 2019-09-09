@@ -15,6 +15,7 @@ git:
 install:
   # Lint!
   - go get -v -u golang.org/x/lint/golint
+  - go get honnef.co/go/tools/cmd/staticcheck
 
 services:
   - docker
@@ -25,6 +26,7 @@ script:
 
   - go clean -i
   - golint ./pkg/...
+  - staticcheck ./...
   - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
   # Verify that generated crane docs are up-to-date.
