@@ -46,7 +46,7 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		return err
 	}
 
-	o, err := makeOptions(ref.Context().Registry, options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
@@ -438,7 +438,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 		return err
 	}
 
-	o, err := makeOptions(ref.Context().Registry, options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
@@ -494,7 +494,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 
 // WriteLayer uploads the provided Layer to the specified name.Digest.
 func WriteLayer(ref name.Digest, layer v1.Layer, options ...Option) error {
-	o, err := makeOptions(ref.Context().Registry, options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}

@@ -156,8 +156,8 @@ func checkHelper(t *testing.T) {
 	if help.name != "test" {
 		t.Errorf("Resolve().name; got %v, want \"test\"", help.name)
 	}
-	if help.domain != testRegistry {
-		t.Errorf("Resolve().domain; got %v, want %v", help.domain, testRegistry)
+	if help.domain != testRegistry.RegistryStr() {
+		t.Errorf("Resolve().domain; got %v, want %v", help.domain, testRegistry.RegistryStr())
 	}
 }
 

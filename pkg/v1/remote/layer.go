@@ -58,7 +58,7 @@ func (rl *remoteLayer) MediaType() (types.MediaType, error) {
 // digest of the blob to be read and the repository portion is the repo where
 // that blob lives.
 func Layer(ref name.Digest, options ...Option) (v1.Layer, error) {
-	o, err := makeOptions(ref.Context().Registry, options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return nil, err
 	}
