@@ -38,7 +38,7 @@ import (
 
 const bogusDigest = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
-func mustDigest(t *testing.T, img manifest) v1.Hash {
+func mustDigest(t *testing.T, img Taggable) v1.Hash {
 	h, err := img.Digest()
 	if err != nil {
 		t.Fatalf("Digest() = %v", err)
@@ -54,7 +54,7 @@ func mustManifest(t *testing.T, img v1.Image) *v1.Manifest {
 	return m
 }
 
-func mustRawManifest(t *testing.T, img manifest) []byte {
+func mustRawManifest(t *testing.T, img Taggable) []byte {
 	m, err := img.RawManifest()
 	if err != nil {
 		t.Fatalf("RawManifest() = %v", err)
