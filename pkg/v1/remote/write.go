@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -41,15 +42,20 @@ type manifest interface {
 
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, options ...Option) error {
+	log.Println("WRITE-PROFILING Write start")
 	ls, err := img.Layers()
 	if err != nil {
 		return err
 	}
 
+	log.Println("WRITE-PROFILING pulled layers")
+
 	o, err := makeOptions(ref.Context().Registry, options...)
 	if err != nil {
 		return err
 	}
+
+	log.Println("WRITE-PROFILING made options")
 
 	scopes := scopesForUploadingImage(ref, ls)
 	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
@@ -60,6 +66,8 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		ref:    ref,
 		client: &http.Client{Transport: tr},
 	}
+
+	log.Println("WRITE-PROFILING created writer")
 
 	// Upload individual layers in goroutines and collect any errors.
 	// If we can dedupe by the layer digest, try to do so. If we can't determine
@@ -90,6 +98,8 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 			}
 			uploaded[h] = true
 		}
+
+		log.Printf("WRITE-PROFILING got digest for %s\n", h.String())
 
 		g.Go(func() error {
 			return w.uploadOne(l)
@@ -122,11 +132,15 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		if err := g.Wait(); err != nil {
 			return err
 		}
+
+		log.Println("WRITE-PROFILING done waiting for layers + config")
 	}
 
 	// With all of the constituent elements uploaded, upload the manifest
 	// to commit the image.
-	return w.commitImage(img)
+	err = w.commitImage(img)
+	log.Println("WRITE-PROFILING committed")
+	return err
 }
 
 // writer writes the elements of an image to a remote image reference.
