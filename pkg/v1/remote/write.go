@@ -19,15 +19,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/internal/retry"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -62,10 +65,11 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 	if err != nil {
 		return err
 	}
-	w := writer{
-		ref:    ref,
-		client: &http.Client{Transport: tr},
+	w, err := newWriter(ref, &http.Client{Transport: tr})
+	if err != nil {
+		return err
 	}
+	defer w.Close()
 
 	log.Println("WRITE-PROFILING created writer")
 
@@ -168,6 +172,27 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 type writer struct {
 	ref    name.Reference
 	client *http.Client
+
+	layerCachePath string      // this is where the cached layers will be stored
+	layerCache     cache.Cache // a cache to store compressed layers
+}
+
+func newWriter(ref name.Reference, client *http.Client) (*writer, error) {
+	cacheDir, err := ioutil.TempDir("", "go-containerregistry-layercache")
+	if err != nil {
+		return nil, err
+	}
+
+	return &writer{
+		ref:            ref,
+		client:         client,
+		layerCachePath: cacheDir,
+		layerCache:     cache.NewFilesystemCache(cacheDir),
+	}, nil
+}
+
+func (w *writer) Close() error {
+	return os.RemoveAll(w.layerCachePath)
 }
 
 // url returns a url.Url for the specified path in the context of this remote image reference.
@@ -352,6 +377,35 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		}
 
 		mount = h.String()
+
+		// cache the compressed layer, so the network op is as fast as possible (some registries lock in weird ways)
+		cachedLayer, err := w.layerCache.Put(l)
+		if err != nil {
+			return err
+		}
+
+		// get a compressed reader
+		compressedReadCloser, err := cachedLayer.Compressed()
+		if err != nil {
+			return err
+		}
+		// as the reader gets read, it'll compress and also write to the file
+		_, err = ioutil.ReadAll(compressedReadCloser)
+		if err != nil {
+			return err
+		}
+
+		l, err = w.layerCache.Get(h)
+		if err != nil {
+			return err
+		}
+		newDigest, err := l.Digest()
+		if err != nil {
+			panic(err)
+		}
+		if newDigest.String() != digest {
+			log.Printf("digest changed from %s to %s\n", digest, newDigest.String())
+		}
 	}
 	if ml, ok := l.(*MountableLayer); ok {
 		if w.ref.Context().RegistryStr() == ml.Reference.Context().RegistryStr() {
@@ -494,10 +548,11 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 	if err != nil {
 		return err
 	}
-	w := writer{
-		ref:    ref,
-		client: &http.Client{Transport: tr},
+	w, err := newWriter(ref, &http.Client{Transport: tr})
+	if err != nil {
+		return err
 	}
+	defer w.Close()
 
 	for _, desc := range index.Manifests {
 		ref, err := name.ParseReference(fmt.Sprintf("%s@%s", ref.Context(), desc.Digest), name.StrictValidation)
@@ -550,10 +605,11 @@ func WriteLayer(ref name.Digest, layer v1.Layer, options ...Option) error {
 	if err != nil {
 		return err
 	}
-	w := writer{
-		ref:    ref,
-		client: &http.Client{Transport: tr},
+	w, err := newWriter(ref, &http.Client{Transport: tr})
+	if err != nil {
+		return err
 	}
+	defer w.Close()
 
 	return w.uploadOne(layer)
 }
