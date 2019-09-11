@@ -74,6 +74,30 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 	// the digest for whatever reason, we can't dedupe and might re-upload.
 	var g errgroup.Group
 	uploaded := map[v1.Hash]bool{}
+
+	// precompute digests in parallel
+	// computing digests is expensive, and the next stage does it serially
+	// since digests are cached, there is no need to store them in an array
+	for _, l := range ls {
+		l := l
+
+		g.Go(func() error {
+			h, err := l.Digest()
+			if err != nil {
+				return err
+			}
+			log.Printf("WRITE-PROFILING got first digest for %s\n", h.String())
+			return nil
+		})
+	}
+	err = g.Wait()
+	if err != nil {
+		return err
+	}
+
+	log.Println("WRITE-PROFILING done parallel computing digests")
+
+	g = errgroup.Group{}
 	for _, l := range ls {
 		l := l
 
