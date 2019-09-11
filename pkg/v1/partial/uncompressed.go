@@ -84,6 +84,7 @@ func (ule *uncompressedLayerExtender) calcSizeHash() {
 
 // UncompressedToLayer fills in the missing methods from an UncompressedLayer so that it implements v1.Layer
 func UncompressedToLayer(ul UncompressedLayer) (v1.Layer, error) {
+	log.Println("CREATING UNCOMPRESSED LAYER EXTENDER")
 	return &uncompressedLayerExtender{UncompressedLayer: ul}, nil
 }
 
@@ -111,6 +112,9 @@ type uncompressedImageExtender struct {
 
 	lock     sync.Mutex
 	manifest *v1.Manifest
+
+	layers    []v1.Layer
+	layerOnce sync.Once
 }
 
 // Assert that our extender type completes the v1.Image interface
@@ -199,19 +203,28 @@ func (i *uncompressedImageExtender) ConfigFile() (*v1.ConfigFile, error) {
 
 // Layers implements v1.Image
 func (i *uncompressedImageExtender) Layers() ([]v1.Layer, error) {
-	diffIDs, err := DiffIDs(i)
-	if err != nil {
-		return nil, err
-	}
-	ls := make([]v1.Layer, 0, len(diffIDs))
-	for _, h := range diffIDs {
-		l, err := i.LayerByDiffID(h)
+	var outerErr error
+	i.layerOnce.Do(func() {
+		diffIDs, err := DiffIDs(i)
 		if err != nil {
-			return nil, err
+			outerErr = err
+			return
 		}
-		ls = append(ls, l)
+		i.layers = make([]v1.Layer, 0, len(diffIDs))
+		for _, h := range diffIDs {
+			l, err := i.LayerByDiffID(h)
+			if err != nil {
+				outerErr = err
+				return
+			}
+			i.layers = append(i.layers, l)
+		}
+	})
+	if outerErr != nil {
+		return nil, outerErr
 	}
-	return ls, nil
+
+	return i.layers, nil
 }
 
 // LayerByDiffID implements v1.Image
