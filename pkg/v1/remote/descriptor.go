@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -127,7 +128,7 @@ func (d *Descriptor) Image() (v1.Image, error) {
 	default:
 		// We could just return an error here, but some registries (e.g. static
 		// registries) don't set the Content-Type headers correctly, so instead...
-		// TODO(#390): Log a warning.
+		logs.Warn.Printf("Unexpected media type for Image(): %s", d.MediaType)
 	}
 
 	// Wrap the v1.Layers returned by this v1.Image in a hint for downstream
@@ -157,7 +158,7 @@ func (d *Descriptor) ImageIndex() (v1.ImageIndex, error) {
 	default:
 		// We could just return an error here, but some registries (e.g. static
 		// registries) don't set the Content-Type headers correctly, so instead...
-		// TODO(#390): Log a warning.
+		logs.Warn.Printf("Unexpected media type for ImageIndex(): %s", d.MediaType)
 	}
 	return d.remoteIndex(), nil
 }
