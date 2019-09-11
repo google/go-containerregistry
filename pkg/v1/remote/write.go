@@ -82,11 +82,10 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		l := l
 
 		g.Go(func() error {
-			h, err := l.Digest()
+			_, err := l.Digest()
 			if err != nil {
 				return err
 			}
-			log.Printf("WRITE-PROFILING got first digest for %s\n", h.String())
 			return nil
 		})
 	}
@@ -122,8 +121,6 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 			}
 			uploaded[h] = true
 		}
-
-		log.Printf("WRITE-PROFILING got digest for %s\n", h.String())
 
 		g.Go(func() error {
 			return w.uploadOne(l)
@@ -336,8 +333,13 @@ func (w *writer) commitBlob(location, digest string) error {
 
 // uploadOne performs a complete upload of a single layer.
 func (w *writer) uploadOne(l v1.Layer) error {
+	startTime := time.Now()
 	var from, mount string
+	var digest string
 	if h, err := l.Digest(); err == nil {
+		digest = h.String()
+		log.Printf("UPLOAD-ONE-PROFILING time to get digest for %s: %s\n", digest, time.Since(startTime))
+
 		// If we know the digest, this isn't a streaming layer. Do an existence
 		// check so we can skip uploading the layer if possible.
 		existing, err := w.checkExistingBlob(h)
@@ -369,25 +371,32 @@ func (w *writer) uploadOne(l v1.Layer) error {
 			logs.Progress.Printf("mounted blob: %s", h.String())
 			return nil
 		}
+		log.Printf("UPLOAD-ONE-PROFILING upload initiated for %s\n", digest)
 
 		blob, err := l.Compressed()
 		if err != nil {
 			return err
 		}
+		log.Printf("UPLOAD-ONE-PROFILING compressed for %s\n", digest)
 		location, err = w.streamBlob(blob, location)
 		if err != nil {
 			return err
 		}
 
+		log.Printf("UPLOAD-ONE-PROFILING streamed %s\n", digest)
+
 		h, err := l.Digest()
 		if err != nil {
 			return err
 		}
-		digest := h.String()
+
+		log.Printf("UPLOAD-ONE-PROFILING again got digest %s\n", digest)
+		digest = h.String()
 
 		if err := w.commitBlob(location, digest); err != nil {
 			return err
 		}
+		log.Printf("UPLOAD-ONE-PROFILING committed %s\n", digest)
 		logs.Progress.Printf("pushed blob: %s", digest)
 		return nil
 	}
