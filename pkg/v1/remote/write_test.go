@@ -41,6 +41,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -1227,5 +1228,44 @@ func TestSkipForeignLayers(t *testing.T) {
 
 	if err := Write(ref, img); err != nil {
 		t.Errorf("failed to Write: %v", err)
+	}
+}
+
+func TestTag(t *testing.T) {
+	idx := setupIndex(t, 3)
+	// Set up a fake registry.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := fmt.Sprintf("%s/test/tag:src", u.Host)
+	srcRef, err := name.NewTag(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteIndex(srcRef, idx); err != nil {
+		t.Fatal(err)
+	}
+
+	dst := fmt.Sprintf("%s/test/tag:dst", u.Host)
+	dstRef, err := name.NewTag(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Tag(dstRef, idx); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Index(dstRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validate.Index(got); err != nil {
+		t.Errorf("Validate() = %v", err)
 	}
 }
