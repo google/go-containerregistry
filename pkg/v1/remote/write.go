@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -45,20 +44,15 @@ type manifest interface {
 
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, options ...Option) error {
-	log.Println("WRITE-PROFILING Write start")
 	ls, err := img.Layers()
 	if err != nil {
 		return err
 	}
 
-	log.Println("WRITE-PROFILING pulled layers")
-
-	o, err := makeOptions(ref.Context().Registry, options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
-
-	log.Println("WRITE-PROFILING made options")
 
 	scopes := scopesForUploadingImage(ref, ls)
 	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
@@ -70,8 +64,6 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		return err
 	}
 	defer w.Close()
-
-	log.Println("WRITE-PROFILING created writer")
 
 	// Upload individual layers in goroutines and collect any errors.
 	// If we can dedupe by the layer digest, try to do so. If we can't determine
@@ -97,8 +89,6 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 	if err != nil {
 		return err
 	}
-
-	log.Println("WRITE-PROFILING done parallel computing digests")
 
 	g = errgroup.Group{}
 	for _, l := range ls {
@@ -157,15 +147,11 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		if err := g.Wait(); err != nil {
 			return err
 		}
-
-		log.Println("WRITE-PROFILING done waiting for layers + config")
 	}
 
 	// With all of the constituent elements uploaded, upload the manifest
 	// to commit the image.
-	err = w.commitImage(img)
-	log.Println("WRITE-PROFILING committed")
-	return err
+	return w.commitImage(img)
 }
 
 // writer writes the elements of an image to a remote image reference.
@@ -360,11 +346,7 @@ func (w *writer) commitBlob(location, digest string) error {
 func (w *writer) uploadOne(l v1.Layer) error {
 	startTime := time.Now()
 	var from, mount string
-	var digest string
 	if h, err := l.Digest(); err == nil {
-		digest = h.String()
-		log.Printf("UPLOAD-ONE-PROFILING time to get digest for %s: %s\n", digest, time.Since(startTime))
-
 		// If we know the digest, this isn't a streaming layer. Do an existence
 		// check so we can skip uploading the layer if possible.
 		existing, err := w.checkExistingBlob(h)
@@ -407,27 +389,22 @@ func (w *writer) uploadOne(l v1.Layer) error {
 			logs.Progress.Printf("mounted blob: %s", h.String())
 			return nil
 		}
-		log.Printf("UPLOAD-ONE-PROFILING upload initiated for %s\n", digest)
 
 		location, err = w.streamBlob(compressedContentReader, location)
 		if err != nil {
 			return err
 		}
 
-		log.Printf("UPLOAD-ONE-PROFILING streamed %s\n", digest)
-
 		h, err := l.Digest()
 		if err != nil {
 			return err
 		}
 
-		log.Printf("UPLOAD-ONE-PROFILING again got digest %s\n", digest)
 		digest = h.String()
 
 		if err := w.commitBlob(location, digest); err != nil {
 			return err
 		}
-		log.Printf("UPLOAD-ONE-PROFILING committed %s\n", digest)
 		logs.Progress.Printf("pushed blob: %s", digest)
 		return nil
 	}
@@ -516,7 +493,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 		return err
 	}
 
-	o, err := makeOptions(ref.Context().Registry, options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
@@ -573,7 +550,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 
 // WriteLayer uploads the provided Layer to the specified name.Digest.
 func WriteLayer(ref name.Digest, layer v1.Layer, options ...Option) error {
-	o, err := makeOptions(ref.Context().Registry, options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}

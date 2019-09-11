@@ -17,7 +17,6 @@ package partial
 import (
 	"bytes"
 	"io"
-	"log"
 	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -84,7 +83,6 @@ func (ule *uncompressedLayerExtender) calcSizeHash() {
 
 // UncompressedToLayer fills in the missing methods from an UncompressedLayer so that it implements v1.Layer
 func UncompressedToLayer(ul UncompressedLayer) (v1.Layer, error) {
-	log.Println("CREATING UNCOMPRESSED LAYER EXTENDER")
 	return &uncompressedLayerExtender{UncompressedLayer: ul}, nil
 }
 
@@ -127,7 +125,6 @@ func (i *uncompressedImageExtender) Digest() (v1.Hash, error) {
 
 // Manifest implements v1.Image
 func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
-	log.Println("MANIFEST-PROFILING start")
 	i.lock.Lock()
 	defer i.lock.Unlock()
 	if i.manifest != nil {
@@ -138,13 +135,11 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("MANIFEST-PROFILING RawConfigFile")
 
 	cfgHash, cfgSize, err := v1.SHA256(bytes.NewReader(b))
 	if err != nil {
 		return nil, err
 	}
-	log.Println("MANIFEST-PROFILING cfgHash")
 
 	m := &v1.Manifest{
 		SchemaVersion: 2,
@@ -160,7 +155,6 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("MANIFEST-PROFILING Layers")
 
 	m.Layers = make([]v1.Descriptor, len(ls))
 	for i, l := range ls {
@@ -179,8 +173,6 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 			Digest:    h,
 		}
 	}
-
-	log.Println("MANIFEST-PROFILING filled descriptors")
 
 	i.manifest = m
 	return i.manifest, nil
