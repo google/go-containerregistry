@@ -28,6 +28,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -1228,4 +1229,32 @@ func TestSkipForeignLayers(t *testing.T) {
 	if err := Write(ref, img); err != nil {
 		t.Errorf("failed to Write: %v", err)
 	}
+}
+
+func TestPerf(t *testing.T) {
+	// set up the registry
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+
+	// start timing before loading the image, since we might want to mess with the loading stage and that should be factored in
+	startTime := time.Now()
+
+	// load the image
+	img, err := tarball.ImageFromPath("./testdata/testimage.tar", nil)
+	if err != nil {
+		t.Fatalf("loading image from path (did you forget to run setup.sh in pkg/v1/remote/testdata ?): %v", err)
+	}
+
+	tagStr := strings.TrimPrefix(s.URL+"/test/image:tag", "http://")
+	tag, err := name.NewTag(tagStr)
+	if err != nil {
+		t.Fatalf("parsing tag (%s): %v", tagStr, err)
+	}
+
+	err = Write(tag, img)
+	if err != nil {
+		t.Fatalf("pushing tag one: %v", err)
+	}
+
+	t.Fatalf("time: %s", time.Since(startTime))
 }
