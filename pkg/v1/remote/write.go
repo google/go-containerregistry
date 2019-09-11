@@ -367,12 +367,12 @@ func (w *writer) uploadOne(l v1.Layer) error {
 }
 
 // commitImage does a PUT of the image's manifest.
-func (w *writer) commitImage(man Taggable) error {
-	raw, err := man.RawManifest()
+func (w *writer) commitImage(t Taggable) error {
+	raw, err := t.RawManifest()
 	if err != nil {
 		return err
 	}
-	mt, err := man.MediaType()
+	mt, err := t.MediaType()
 	if err != nil {
 		return err
 	}
@@ -396,7 +396,7 @@ func (w *writer) commitImage(man Taggable) error {
 		return err
 	}
 
-	digest, err := man.Digest()
+	digest, err := t.Digest()
 	if err != nil {
 		return err
 	}
@@ -522,9 +522,10 @@ func Tag(tag name.Tag, t Taggable, options ...Option) error {
 
 	// TODO: This *always* does a token exchange. For some registries,
 	// that's pretty slow. Some ideas;
-	// * Tag takes a list of tags.
+	// * Tag could take a list of tags.
 	// * Allow callers to pass in a transport.Transport, typecheck
 	//   it to allow them to reuse the transport across multiple calls.
+	// * WithTag option to do multiple manifest PUTs in commitImage.
 	tr, err := transport.New(tag.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
