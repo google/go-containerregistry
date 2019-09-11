@@ -160,14 +160,16 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 			}
 
 			w.WriteHeader(http.StatusUnauthorized)
-			return
 		}))
 	defer server.Close()
 
 	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
 	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
 	if err != nil {
-		t.Errorf("Unexpected error during NewRegistry: %v", err)
+		t.Fatalf("Unexpected error during NewRegistry: %v", err)
 	}
 
 	bearer := &authn.Bearer{Token: initialToken}

@@ -256,16 +256,14 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 		if digest.String() != dgst.DigestStr() {
 			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.Ref)
 		}
-	} else {
-		// Do nothing for tags; I give up.
-		//
-		// We'd like to validate that the "Docker-Content-Digest" header matches what is returned by the registry,
-		// but so many registries implement this incorrectly that it's not worth checking.
-		//
-		// For reference:
-		// https://github.com/docker/distribution/issues/2395
-		// https://github.com/GoogleContainerTools/kaniko/issues/298
 	}
+	// Do nothing for tags; I give up.
+	//
+	// We'd like to validate that the "Docker-Content-Digest" header matches what is returned by the registry,
+	// but so many registries implement this incorrectly that it's not worth checking.
+	//
+	// For reference:
+	// https://github.com/GoogleContainerTools/kaniko/issues/298
 
 	// Return all this info since we have to calculate it anyway.
 	desc := v1.Descriptor{

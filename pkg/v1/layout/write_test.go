@@ -164,6 +164,9 @@ func TestOptions(t *testing.T) {
 		t.Fatal(err)
 	}
 	temp, err := Write(tmp, empty.Index)
+	if err != nil {
+		t.Fatal(err)
+	}
 	annotations := map[string]string{
 		"foo": "bar",
 	}

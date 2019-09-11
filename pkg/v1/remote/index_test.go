@@ -206,7 +206,7 @@ func TestIndex(t *testing.T) {
 	}
 
 	// Test that index works as expected.
-	if got, want := mustRawManifest(t, rmt), mustRawManifest(t, idx); bytes.Compare(got, want) != 0 {
+	if got, want := mustRawManifest(t, rmt), mustRawManifest(t, idx); !bytes.Equal(got, want) {
 		t.Errorf("RawManifest() = %v, want %v", got, want)
 	}
 	if diff := cmp.Diff(mustIndexManifest(t, idx), mustIndexManifest(t, rmt)); diff != "" {
@@ -224,10 +224,10 @@ func TestIndex(t *testing.T) {
 	}
 
 	// Test that child works as expected.
-	if got, want := mustRawManifest(t, rmtChild), mustRawManifest(t, child); bytes.Compare(got, want) != 0 {
+	if got, want := mustRawManifest(t, rmtChild), mustRawManifest(t, child); !bytes.Equal(got, want) {
 		t.Errorf("RawManifest() = %v, want %v", got, want)
 	}
-	if got, want := mustRawConfigFile(t, rmtChild), mustRawConfigFile(t, child); bytes.Compare(got, want) != 0 {
+	if got, want := mustRawConfigFile(t, rmtChild), mustRawConfigFile(t, child); !bytes.Equal(got, want) {
 		t.Errorf("RawConfigFile() = %v, want %v", got, want)
 	}
 	// Make sure caching the manifest works for child.

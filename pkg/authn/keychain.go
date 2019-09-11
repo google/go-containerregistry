@@ -152,7 +152,7 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 				} else {
 					// TODO(mattmoor): Support identitytoken
 					// TODO(mattmoor): Support registrytoken
-					return nil, fmt.Errorf("Unsupported entry in \"auths\" section of %q", file)
+					return nil, fmt.Errorf("unsupported entry in \"auths\" section of %q", file)
 				}
 			}
 		}
