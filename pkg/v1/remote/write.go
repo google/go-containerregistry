@@ -41,91 +41,17 @@ type manifest interface {
 
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, options ...Option) error {
-	return WriteMulti([]name.Reference{ref}, img, options...)
-}
-
-// WriteMulti pushes the provided img to multiple specified image references.
-func WriteMulti(refs []name.Reference, img v1.Image, options ...Option) error {
-	// dedupe registries
-	dedupedRefs := map[string]name.Reference{}
-	for _, ref := range refs {
-		dedupedRefs[ref.Context().Registry.Name()] = ref
-	}
-
-	var g errgroup.Group
-	for _, ref := range dedupedRefs {
-		ref := ref
-		g.Go(func() error {
-			return writeLayers(ref, img, options...)
-		})
-	}
-	err := g.Wait()
+	ls, err := img.Layers()
 	if err != nil {
 		return err
 	}
 
-	g = errgroup.Group{}
-	for _, ref := range refs {
-		ref := ref
-		g.Go(func() error {
-			o, err := makeOptions(ref.Context().Registry, options...)
-			if err != nil {
-				return err
-			}
-
-			var ls []v1.Layer
-			if o.pushCompressedLayers {
-				ls, err = img.CompressedLayers()
-			} else {
-				ls, err = img.Layers()
-			}
-			if err != nil {
-				return err
-			}
-
-			scopes := scopesForUploadingImage(ref, ls)
-			tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
-			if err != nil {
-				return err
-			}
-			w := writer{
-				ref:    ref,
-				client: &http.Client{Transport: tr},
-			}
-
-			// With all of the constituent elements uploaded, upload the manifest
-			// to commit the image.
-			err = w.commitImage(img)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
-	}
-	return g.Wait()
-}
-
-func writeLayers(ref name.Reference, img v1.Image, options ...Option) error {
 	o, err := makeOptions(ref.Context().Registry, options...)
 	if err != nil {
 		return err
 	}
 
-	var layers []v1.Layer
-	if o.pushCompressedLayers {
-		// NOTE: this is pretty expensive because it compresses the layers
-		layers, err = img.CompressedLayers()
-		if err != nil {
-			return err
-		}
-	} else {
-		layers, err = img.Layers()
-		if err != nil {
-			return err
-		}
-	}
-
-	scopes := scopesForUploadingImage(ref, layers)
+	scopes := scopesForUploadingImage(ref, ls)
 	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
@@ -140,7 +66,7 @@ func writeLayers(ref name.Reference, img v1.Image, options ...Option) error {
 	// the digest for whatever reason, we can't dedupe and might re-upload.
 	var g errgroup.Group
 	uploaded := map[v1.Hash]bool{}
-	for _, l := range layers {
+	for _, l := range ls {
 		l := l
 
 		// Handle foreign layers.
@@ -197,7 +123,10 @@ func writeLayers(ref name.Reference, img v1.Image, options ...Option) error {
 			return err
 		}
 	}
-	return nil
+
+	// With all of the constituent elements uploaded, upload the manifest
+	// to commit the image.
+	return w.commitImage(img)
 }
 
 // writer writes the elements of an image to a remote image reference.

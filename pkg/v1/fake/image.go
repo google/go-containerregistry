@@ -2,7 +2,6 @@
 package fake
 
 import (
-	"errors"
 	sync "sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -392,10 +391,6 @@ func (fake *FakeImage) Layers() ([]v1.Layer, error) {
 	}
 	fakeReturns := fake.layersReturns
 	return fakeReturns.result1, fakeReturns.result2
-}
-
-func (fake *FakeImage) CompressedLayers() ([]v1.Layer, error) {
-	return nil, errors.New("CompressedLayers not implemented for fake.FakeImage")
 }
 
 func (fake *FakeImage) LayersCallCount() int {
