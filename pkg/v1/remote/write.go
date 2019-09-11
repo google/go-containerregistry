@@ -377,41 +377,23 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		}
 
 		mount = h.String()
-
-		// cache the compressed layer, so the network op is as fast as possible (some registries lock in weird ways)
-		cachedLayer, err := w.layerCache.Put(l)
-		if err != nil {
-			return err
-		}
-
-		// get a compressed reader
-		compressedReadCloser, err := cachedLayer.Compressed()
-		if err != nil {
-			return err
-		}
-		// as the reader gets read, it'll compress and also write to the file
-		_, err = ioutil.ReadAll(compressedReadCloser)
-		if err != nil {
-			return err
-		}
-
-		l, err = w.layerCache.Get(h)
-		if err != nil {
-			return err
-		}
-		newDigest, err := l.Digest()
-		if err != nil {
-			panic(err)
-		}
-		if newDigest.String() != digest {
-			log.Printf("digest changed from %s to %s\n", digest, newDigest.String())
-		}
 	}
 	if ml, ok := l.(*MountableLayer); ok {
 		if w.ref.Context().RegistryStr() == ml.Reference.Context().RegistryStr() {
 			from = ml.Reference.Context().RepositoryStr()
 		}
 	}
+
+	// pull the layer into RAM before sending it
+	blob, err := l.Compressed()
+	if err != nil {
+		return err
+	}
+	blobContent, err := ioutil.ReadAll(blob)
+	if err != nil {
+		return err
+	}
+	compressedContentReader := ioutil.NopCloser(bytes.NewBuffer(blobContent))
 
 	tryUpload := func() error {
 		location, mounted, err := w.initiateUpload(from, mount)
@@ -427,12 +409,7 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		}
 		log.Printf("UPLOAD-ONE-PROFILING upload initiated for %s\n", digest)
 
-		blob, err := l.Compressed()
-		if err != nil {
-			return err
-		}
-		log.Printf("UPLOAD-ONE-PROFILING compressed for %s\n", digest)
-		location, err = w.streamBlob(blob, location)
+		location, err = w.streamBlob(compressedContentReader, location)
 		if err != nil {
 			return err
 		}
