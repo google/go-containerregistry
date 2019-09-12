@@ -85,6 +85,12 @@ func Get(ref name.Reference, options ...Option) (*Descriptor, error) {
 
 // Handle options and fetch the manifest with the acceptable MediaTypes in the
 // Accept header.
+//
+// TODO: We should make it easy to turn a Descriptor into a Taggable so you can:
+// desc, _ := remote.Get(ref)
+// _ = remote.Tag(tag, desc)
+//
+// Go doesn't make this easy since the struct field names conflict with the methods names.
 func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*Descriptor, error) {
 	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
