@@ -49,7 +49,7 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		return err
 	}
 
-	o, err := makeOptions(ref.Context(), options...)
+	o, err := makeOptions(ref.Context().Registry, options...)
 	if err != nil {
 		return err
 	}
@@ -78,10 +78,9 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		l := l
 
 		g.Go(func() error {
-			_, err := l.Digest()
-			if err != nil {
-				return err
-			}
+			// Streaming layers calculate their digests while uploading them. Assume
+			// an error here indicates we need to upload the layer.
+			_, _ = l.Digest()
 			return nil
 		})
 	}
@@ -344,7 +343,6 @@ func (w *writer) commitBlob(location, digest string) error {
 
 // uploadOne performs a complete upload of a single layer.
 func (w *writer) uploadOne(l v1.Layer) error {
-	startTime := time.Now()
 	var from, mount string
 	if h, err := l.Digest(); err == nil {
 		// If we know the digest, this isn't a streaming layer. Do an existence
@@ -375,6 +373,7 @@ func (w *writer) uploadOne(l v1.Layer) error {
 	if err != nil {
 		return err
 	}
+	blob.Close()
 	compressedContentReader := ioutil.NopCloser(bytes.NewBuffer(blobContent))
 
 	tryUpload := func() error {
@@ -400,7 +399,7 @@ func (w *writer) uploadOne(l v1.Layer) error {
 			return err
 		}
 
-		digest = h.String()
+		digest := h.String()
 
 		if err := w.commitBlob(location, digest); err != nil {
 			return err
@@ -493,7 +492,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 		return err
 	}
 
-	o, err := makeOptions(ref.Context(), options...)
+	o, err := makeOptions(ref.Context().Registry, options...)
 	if err != nil {
 		return err
 	}
@@ -550,7 +549,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 
 // WriteLayer uploads the provided Layer to the specified name.Digest.
 func WriteLayer(ref name.Digest, layer v1.Layer, options ...Option) error {
-	o, err := makeOptions(ref.Context(), options...)
+	o, err := makeOptions(ref.Context().Registry, options...)
 	if err != nil {
 		return err
 	}
