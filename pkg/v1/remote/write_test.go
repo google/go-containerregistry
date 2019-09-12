@@ -1229,3 +1229,30 @@ func TestSkipForeignLayers(t *testing.T) {
 		t.Errorf("failed to Write: %v", err)
 	}
 }
+
+func BenchmarkWrite(b *testing.B) {
+	// unfortunately the registry _and_ the img have caching behaviour, so we need a new registry
+	// and image every iteration of benchmarking.
+	for i := 0; i < b.N; i++ {
+		// set up the registry
+		s := httptest.NewServer(registry.New())
+		defer s.Close()
+
+		// load the image
+		img, err := random.Image(50*1024*1024, 10)
+		if err != nil {
+			b.Fatalf("random.Image(...): %v", err)
+		}
+
+		tagStr := strings.TrimPrefix(s.URL+"/test/image:tag", "http://")
+		tag, err := name.NewTag(tagStr)
+		if err != nil {
+			b.Fatalf("parsing tag (%s): %v", tagStr, err)
+		}
+
+		err = Write(tag, img)
+		if err != nil {
+			b.Fatalf("pushing tag one: %v", err)
+		}
+	}
+}
