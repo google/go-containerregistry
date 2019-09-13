@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -75,7 +76,7 @@ func validateChildren(idx v1.ImageIndex) error {
 				errs = append(errs, fmt.Sprintf("failed to validate image MediaType[%d](%s): %v", i, desc.Digest, err))
 			}
 		default:
-			return fmt.Errorf("todo: validate index Blob()")
+			logs.Warn.Printf("Unexpected manifest: %s", desc.MediaType)
 		}
 	}
 
