@@ -64,6 +64,10 @@ func (i *layoutIndex) Digest() (v1.Hash, error) {
 	return partial.Digest(i)
 }
 
+func (i *layoutIndex) Size() (int64, error) {
+	return partial.Size(i)
+}
+
 func (i *layoutIndex) IndexManifest() (*v1.IndexManifest, error) {
 	var index v1.IndexManifest
 	err := json.Unmarshal(i.rawIndex, &index)
