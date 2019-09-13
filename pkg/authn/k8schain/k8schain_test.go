@@ -109,6 +109,7 @@ func TestAttachedServiceAccount(t *testing.T) {
 
 func TestImagePullSecrets(t *testing.T) {
 	username, password := "foo", "bar"
+	specificUser, specificPass := "very", "specific"
 	client := fakeclient.NewSimpleClientset(&corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
@@ -122,8 +123,9 @@ func TestImagePullSecrets(t *testing.T) {
 		Type: corev1.SecretTypeDockercfg,
 		Data: map[string][]byte{
 			corev1.DockerConfigKey: []byte(
-				fmt.Sprintf(`{"fake.registry.io": {"auth": "%s"}}`,
-					base64.StdEncoding.EncodeToString([]byte(username+":"+password))),
+				fmt.Sprintf(`{"fake.registry.io": {"auth": %q}, "fake.registry.io/more/specific": {"auth": %q}}`,
+					base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
+					base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass))),
 			),
 		},
 	})
@@ -136,24 +138,41 @@ func TestImagePullSecrets(t *testing.T) {
 		t.Fatalf("New() = %v", err)
 	}
 
-	reg, err := name.NewRegistry("fake.registry.io", name.WeakValidation)
+	repo, err := name.NewRepository("fake.registry.io/more/specific", name.WeakValidation)
 	if err != nil {
 		t.Errorf("NewRegistry() = %v", err)
 	}
 
-	auth, err := kc.Resolve(reg)
-	if err != nil {
-		t.Errorf("Resolve(%v) = %v", reg, err)
-	}
-	got, err := auth.Authorization()
-	if err != nil {
-		t.Errorf("Authorization() = %v", err)
-	}
-	want, err := (&authn.Basic{Username: username, Password: password}).Authorization()
-	if err != nil {
-		t.Errorf("Authorization() = %v", err)
-	}
-	if got != want {
-		t.Errorf("Resolve() = %v, want %v", got, want)
+	for _, tc := range []struct {
+		name   string
+		auth   authn.Authenticator
+		target authn.Resource
+	}{{
+		name:   "registry",
+		auth:   &authn.Basic{Username: username, Password: password},
+		target: repo.Registry,
+	}, {
+		name:   "repo",
+		auth:   &authn.Basic{Username: specificUser, Password: specificPass},
+		target: repo,
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
+			auth, err := kc.Resolve(tc.target)
+			if err != nil {
+				t.Errorf("Resolve(%v) = %v", tc.target, err)
+			}
+			got, err := auth.Authorization()
+			if err != nil {
+				t.Errorf("Authorization() = %v", err)
+			}
+			want, err := tc.auth.Authorization()
+			if err != nil {
+				t.Errorf("Authorization() = %v", err)
+			}
+			if got != want {
+				t.Errorf("Resolve() = %v, want %v", got, want)
+			}
+		})
 	}
 }

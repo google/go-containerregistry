@@ -38,7 +38,7 @@ import (
 
 const bogusDigest = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
-func mustDigest(t *testing.T, img manifest) v1.Hash {
+func mustDigest(t *testing.T, img Taggable) v1.Hash {
 	h, err := img.Digest()
 	if err != nil {
 		t.Fatalf("Digest() = %v", err)
@@ -54,7 +54,7 @@ func mustManifest(t *testing.T, img v1.Image) *v1.Manifest {
 	return m
 }
 
-func mustRawManifest(t *testing.T, img manifest) []byte {
+func mustRawManifest(t *testing.T, img Taggable) []byte {
 	m, err := img.RawManifest()
 	if err != nil {
 		t.Fatalf("RawManifest() = %v", err)
@@ -292,7 +292,7 @@ func TestAcceptHeaders(t *testing.T) {
 	if err != nil {
 		t.Errorf("RawManifest() = %v", err)
 	}
-	if got, want := manifest, mustRawManifest(t, img); bytes.Compare(got, want) != 0 {
+	if got, want := manifest, mustRawManifest(t, img); !bytes.Equal(got, want) {
 		t.Errorf("RawManifest() = %v, want %v", got, want)
 	}
 }
@@ -340,10 +340,10 @@ func TestImage(t *testing.T) {
 		t.Errorf("Image() = %v", err)
 	}
 
-	if got, want := mustRawManifest(t, rmt), mustRawManifest(t, img); bytes.Compare(got, want) != 0 {
+	if got, want := mustRawManifest(t, rmt), mustRawManifest(t, img); !bytes.Equal(got, want) {
 		t.Errorf("RawManifest() = %v, want %v", got, want)
 	}
-	if got, want := mustRawConfigFile(t, rmt), mustRawConfigFile(t, img); bytes.Compare(got, want) != 0 {
+	if got, want := mustRawConfigFile(t, rmt), mustRawConfigFile(t, img); !bytes.Equal(got, want) {
 		t.Errorf("RawConfigFile() = %v, want %v", got, want)
 	}
 	// Make sure caching the manifest works.
@@ -428,10 +428,10 @@ func TestPullingManifestList(t *testing.T) {
 	}
 
 	// Test that child works as expected.
-	if got, want := mustRawManifest(t, rmtChild), mustRawManifest(t, child); bytes.Compare(got, want) != 0 {
+	if got, want := mustRawManifest(t, rmtChild), mustRawManifest(t, child); !bytes.Equal(got, want) {
 		t.Errorf("RawManifest() = %v, want %v", string(got), string(want))
 	}
-	if got, want := mustRawConfigFile(t, rmtChild), mustRawConfigFile(t, child); bytes.Compare(got, want) != 0 {
+	if got, want := mustRawConfigFile(t, rmtChild), mustRawConfigFile(t, child); !bytes.Equal(got, want) {
 		t.Errorf("RawConfigFile() = %v, want %v", got, want)
 	}
 }
@@ -550,6 +550,9 @@ func TestPullingForeignLayer(t *testing.T) {
 			"http://" + path.Join(fu.Host, foreignPath),
 		},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Set up a fake registry that will respond 404 to the foreign layer,
 	// but serve everything else correctly.

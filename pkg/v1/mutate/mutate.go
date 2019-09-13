@@ -321,7 +321,7 @@ func (i *image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
 func validate(adds []Addendum) error {
 	for _, add := range adds {
 		if add.Layer == nil {
-			return errors.New("Unable to add a nil layer to the image")
+			return errors.New("unable to add a nil layer to the image")
 		}
 	}
 	return nil
@@ -444,7 +444,7 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 
 	layers, err := img.Layers()
 	if err != nil {
-		return nil, fmt.Errorf("Error getting image layers: %v", err)
+		return nil, fmt.Errorf("getting image layers: %v", err)
 	}
 
 	// Strip away all timestamps from layers
@@ -452,24 +452,24 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 	for _, layer := range layers {
 		newLayer, err := layerTime(layer, t)
 		if err != nil {
-			return nil, fmt.Errorf("Error setting layer times: %v", err)
+			return nil, fmt.Errorf("setting layer times: %v", err)
 		}
 		newLayers = append(newLayers, newLayer)
 	}
 
 	newImage, err = AppendLayers(newImage, newLayers...)
 	if err != nil {
-		return nil, fmt.Errorf("Error appending layers: %v", err)
+		return nil, fmt.Errorf("appending layers: %v", err)
 	}
 
 	ocf, err := img.ConfigFile()
 	if err != nil {
-		return nil, fmt.Errorf("Error getting original config file: %v", err)
+		return nil, fmt.Errorf("getting original config file: %v", err)
 	}
 
 	cf, err := newImage.ConfigFile()
 	if err != nil {
-		return nil, fmt.Errorf("Error setting config file: %v", err)
+		return nil, fmt.Errorf("setting config file: %v", err)
 	}
 
 	cfg := cf.DeepCopy()
@@ -491,7 +491,7 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 	layerReader, err := layer.Uncompressed()
 	if err != nil {
-		return nil, fmt.Errorf("Error getting layer: %v", err)
+		return nil, fmt.Errorf("getting layer: %v", err)
 	}
 	w := new(bytes.Buffer)
 	tarWriter := tar.NewWriter(w)
@@ -504,17 +504,17 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("Error reading layer: %v", err)
+			return nil, fmt.Errorf("reading layer: %v", err)
 		}
 
 		header.ModTime = t
 		if err := tarWriter.WriteHeader(header); err != nil {
-			return nil, fmt.Errorf("Error writing tar header: %v", err)
+			return nil, fmt.Errorf("writing tar header: %v", err)
 		}
 
 		if header.Typeflag == tar.TypeReg {
 			if _, err = io.Copy(tarWriter, tarReader); err != nil {
-				return nil, fmt.Errorf("Error writing layer file: %v", err)
+				return nil, fmt.Errorf("writing layer file: %v", err)
 			}
 		}
 	}
@@ -530,7 +530,7 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 	}
 	layer, err = tarball.LayerFromOpener(opener)
 	if err != nil {
-		return nil, fmt.Errorf("Error creating layer: %v", err)
+		return nil, fmt.Errorf("creating layer: %v", err)
 	}
 
 	return layer, nil

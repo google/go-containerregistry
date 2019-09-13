@@ -204,7 +204,9 @@ func TestWalk(t *testing.T) {
 			}
 
 			r := recorder{}
-			err = Walk(repo, r.walk, WithAuth(authn.Anonymous))
+			if err := Walk(repo, r.walk, WithAuth(authn.Anonymous)); err != nil {
+				t.Errorf("unexpected err: %v", err)
+			}
 
 			if diff := cmp.Diff(tc.wantResult, r); diff != "" {
 				t.Errorf("Walk() wrong tags (-want +got) = %s", diff)

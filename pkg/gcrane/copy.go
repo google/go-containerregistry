@@ -37,6 +37,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// GCRBackoff returns a retry.Backoff that is suitable for use with gcr.io.
+//
 // These numbers are based on GCR's posted quotas:
 // https://cloud.google.com/container-registry/quotas
 // -  30k requests per 10 minutes.
@@ -242,7 +244,7 @@ func recursiveCopy(src, dst string) error {
 				if err := backoffErrors(func() error {
 					return c.copyImages(ctx, task)
 				}); err != nil {
-					return fmt.Errorf("Failed to copy %q: %v", task.digest, err)
+					return fmt.Errorf("failed to copy %q: %v", task.digest, err)
 				}
 			}
 			return nil

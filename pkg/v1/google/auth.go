@@ -60,7 +60,6 @@ func NewEnvAuthenticator() (authn.Authenticator, error) {
 // tokens by shelling out to the gcloud sdk.
 func NewGcloudAuthenticator() (authn.Authenticator, error) {
 	if _, err := exec.LookPath("gcloud"); err != nil {
-		// TODO(#390): Use better logger.
 		// gcloud is not available, fall back to anonymous
 		logs.Warn.Println("gcloud binary not found")
 		return authn.Anonymous, nil

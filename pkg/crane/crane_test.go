@@ -107,8 +107,7 @@ func TestCraneRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pulled, err = crane.Pull(dst)
-	if err != nil {
+	if _, err := crane.Pull(dst); err != nil {
 		t.Fatal(err)
 	}
 
