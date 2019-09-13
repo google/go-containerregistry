@@ -180,6 +180,11 @@ func (i *uncompressedImageExtender) RawManifest() ([]byte, error) {
 	return RawManifest(i)
 }
 
+// Size implements v1.Image
+func (i *uncompressedImageExtender) Size() (int64, error) {
+	return Size(i)
+}
+
 // ConfigName implements v1.Image
 func (i *uncompressedImageExtender) ConfigName() (v1.Hash, error) {
 	return ConfigName(i)
