@@ -108,6 +108,11 @@ func validateIndexManifest(idx v1.ImageIndex) error {
 		return err
 	}
 
+	size, err := idx.Size()
+	if err != nil {
+		return err
+	}
+
 	rm, err := idx.RawManifest()
 	if err != nil {
 		return err
@@ -135,6 +140,10 @@ func validateIndexManifest(idx v1.ImageIndex) error {
 
 	if diff := cmp.Diff(pm, m); diff != "" {
 		errs = append(errs, fmt.Sprintf("mismatched manifest content: (-ParseIndexManifest(RawManifest()) +Manifest()) %s", diff))
+	}
+
+	if size != int64(len(rm)) {
+		errs = append(errs, fmt.Sprintf("mismatched manifest size: Size()=%d, len(RawManifest())=%d", size, len(rm)))
 	}
 
 	if len(errs) != 0 {
