@@ -42,7 +42,7 @@ type Addendum struct {
 	Annotations map[string]string
 }
 
-// AppendLayers applies layers to a base image
+// AppendLayers applies layers to a base image.
 func AppendLayers(base v1.Image, layers ...v1.Layer) (v1.Image, error) {
 	additions := make([]Addendum, 0, len(layers))
 	for _, layer := range layers {
@@ -67,12 +67,17 @@ func Append(base v1.Image, adds ...Addendum) (v1.Image, error) {
 	}, nil
 }
 
+// Appendable is an interface that represents something that can be appended
+// to an ImageIndex. We need to be able to construct a v1.Descriptor in order
+// to append something, and this is the minimum required information for that.
 type Appendable interface {
 	MediaType() (types.MediaType, error)
 	Digest() (v1.Hash, error)
 	Size() (int64, error)
 }
 
+// IndexAddendum represents an appendable thing and all the properties that
+// we may want to override in the resulting v1.Descriptor.
 type IndexAddendum struct {
 	Add Appendable
 	v1.Descriptor

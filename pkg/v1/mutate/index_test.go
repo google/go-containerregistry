@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -80,5 +81,21 @@ func TestAppendIndex(t *testing.T) {
 
 	if got, want := m.Manifests[5].MediaType, types.OCIUncompressedRestrictedLayer; got != want {
 		t.Errorf("wrong MediaType for layer: %s != %s", got, want)
+	}
+
+	// Append the index to itself and make sure it still validates.
+	add = mutate.AppendManifests(add, mutate.IndexAddendum{
+		Add: add,
+	})
+	if err := validate.Index(add); err != nil {
+		t.Errorf("Validate() = %v", err)
+	}
+
+	// Wrap the whole thing in another index and make sure it still validates.
+	add = mutate.AppendManifests(empty.Index, mutate.IndexAddendum{
+		Add: add,
+	})
+	if err := validate.Index(add); err != nil {
+		t.Errorf("Validate() = %v", err)
 	}
 }
