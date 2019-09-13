@@ -289,6 +289,11 @@ func validateManifest(img v1.Image) error {
 		return err
 	}
 
+	size, err := img.Size()
+	if err != nil {
+		return err
+	}
+
 	rm, err := img.RawManifest()
 	if err != nil {
 		return err
@@ -316,6 +321,10 @@ func validateManifest(img v1.Image) error {
 
 	if diff := cmp.Diff(pm, m); diff != "" {
 		errs = append(errs, fmt.Sprintf("mismatched manifest content: (-ParseManifest(RawManifest()) +Manifest()) %s", diff))
+	}
+
+	if size != int64(len(rm)) {
+		errs = append(errs, fmt.Sprintf("mismatched manifest size: Size()=%d, len(RawManifest())=%d", size, len(rm)))
 	}
 
 	if len(errs) != 0 {

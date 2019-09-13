@@ -279,6 +279,14 @@ func (i *image) Digest() (v1.Hash, error) {
 	return partial.Digest(i)
 }
 
+// Size implements v1.Image.
+func (i *image) Size() (int64, error) {
+	if err := i.compute(); err != nil {
+		return -1, err
+	}
+	return partial.Size(i)
+}
+
 // Manifest returns this image's Manifest object.
 func (i *image) Manifest() (*v1.Manifest, error) {
 	if err := i.compute(); err != nil {

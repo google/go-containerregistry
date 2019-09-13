@@ -83,6 +83,18 @@ type FakeImageIndex struct {
 		result1 []byte
 		result2 error
 	}
+	SizeStub        func() (int64, error)
+	sizeMutex       sync.RWMutex
+	sizeArgsForCall []struct {
+	}
+	sizeReturns struct {
+		result1 int64
+		result2 error
+	}
+	sizeReturnsOnCall map[int]struct {
+		result1 int64
+		result2 error
+	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
@@ -373,6 +385,51 @@ func (fake *FakeImageIndex) RawManifestReturnsOnCall(i int, result1 []byte, resu
 	}{result1, result2}
 }
 
+func (fake *FakeImageIndex) Size() (int64, error) {
+	fake.sizeMutex.Lock()
+	ret, specificReturn := fake.sizeReturnsOnCall[len(fake.sizeArgsForCall)]
+	fake.sizeArgsForCall = append(fake.sizeArgsForCall, struct {
+	}{})
+	fake.recordInvocation("Size", []interface{}{})
+	fake.sizeMutex.Unlock()
+	if fake.SizeStub != nil {
+		return fake.SizeStub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	fakeReturns := fake.sizeReturns
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeImageIndex) SizeCallCount() int {
+	fake.sizeMutex.RLock()
+	defer fake.sizeMutex.RUnlock()
+	return len(fake.sizeArgsForCall)
+}
+
+func (fake *FakeImageIndex) SizeReturns(result1 int64, result2 error) {
+	fake.SizeStub = nil
+	fake.sizeReturns = struct {
+		result1 int64
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeImageIndex) SizeReturnsOnCall(i int, result1 int64, result2 error) {
+	fake.SizeStub = nil
+	if fake.sizeReturnsOnCall == nil {
+		fake.sizeReturnsOnCall = make(map[int]struct {
+			result1 int64
+			result2 error
+		})
+	}
+	fake.sizeReturnsOnCall[i] = struct {
+		result1 int64
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeImageIndex) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -388,6 +445,8 @@ func (fake *FakeImageIndex) Invocations() map[string][][]interface{} {
 	defer fake.mediaTypeMutex.RUnlock()
 	fake.rawManifestMutex.RLock()
 	defer fake.rawManifestMutex.RUnlock()
+	fake.sizeMutex.RLock()
+	defer fake.sizeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value

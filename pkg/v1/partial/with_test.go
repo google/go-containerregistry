@@ -86,6 +86,27 @@ func TestManifest(t *testing.T) {
 	}
 }
 
+func TestSize(t *testing.T) {
+	img, err := random.Image(1024, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	part, err := partial.Size(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	method, err := img.Size()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(part, method); diff != "" {
+		t.Errorf("mismatched size: %v", diff)
+	}
+}
+
 func TestDiffIDToBlob(t *testing.T) {
 	img, err := random.Image(1024, 1)
 	if err != nil {

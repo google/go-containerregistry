@@ -175,6 +175,15 @@ func RawManifest(i WithManifest) ([]byte, error) {
 	return json.Marshal(m)
 }
 
+// Size is a helper for implementing v1.Image
+func Size(i WithRawManifest) (int64, error) {
+	b, err := i.RawManifest()
+	if err != nil {
+		return -1, err
+	}
+	return int64(len(b)), nil
+}
+
 // FSLayers is a helper for implementing v1.Image
 func FSLayers(i WithManifest) ([]v1.Hash, error) {
 	m, err := i.Manifest()
