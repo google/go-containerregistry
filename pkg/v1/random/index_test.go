@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 func TestRandomIndex(t *testing.T) {
@@ -26,25 +27,8 @@ func TestRandomIndex(t *testing.T) {
 		t.Fatalf("Error loading index: %v", err)
 	}
 
-	manifest, err := ii.IndexManifest()
-	if err != nil {
-		t.Fatalf("Error reading manifest: %v", err)
-	}
-
-	for _, desc := range manifest.Manifests {
-		img, err := ii.Image(desc.Digest)
-		if err != nil {
-			t.Fatalf("Image(%s): unexpected err: %v", desc.Digest, err)
-		}
-
-		digest, err := img.Digest()
-		if err != nil {
-			t.Fatalf("Image(%s).Digest(): unexpected err: %v", desc.Digest, err)
-		}
-
-		if got, want := digest.String(), desc.Digest.String(); got != want {
-			t.Errorf("Image(%s).Digest(): wrong value, got: %s, want: %s", desc.Digest, got, want)
-		}
+	if err := validate.Index(ii); err != nil {
+		t.Errorf("validate.Index() = %v", err)
 	}
 
 	digest, err := ii.Digest()
