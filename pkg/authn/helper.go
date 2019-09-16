@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -70,6 +71,7 @@ func (h *helper) Authorization() (string, error) {
 
 	var out bytes.Buffer
 	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
 	cmdErr := h.r.Run(cmd)
 
 	// If we see this specific message, it means the domain wasn't found
