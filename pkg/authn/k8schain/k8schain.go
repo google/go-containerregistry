@@ -171,5 +171,5 @@ func (kc *keychain) Resolve(target authn.Resource) (authn.Authenticator, error) 
 		return authn.Anonymous, nil
 	}
 	// TODO(mattmoor): How to support multiple credentials?
-	return lazyProvider{creds[0], reg.String()}, nil
+	return lazyProvider{creds[0], target.String()}, nil
 }
