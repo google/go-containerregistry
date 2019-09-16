@@ -1,3 +1,4 @@
+//lint:file-ignore U1000 third party
 /*
 Copyright 2016 The Kubernetes Authors.
 
