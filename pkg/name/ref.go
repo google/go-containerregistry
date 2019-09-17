@@ -45,5 +45,6 @@ func ParseReference(s string, opts ...Option) (Reference, error) {
 		return d, nil
 	}
 	// TODO: Combine above errors into something more useful?
-	return nil, NewErrBadName("could not parse reference")
+	return nil, NewErrBadName("could not parse reference: " + s)
+
 }
