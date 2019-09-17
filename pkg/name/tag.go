@@ -58,6 +58,7 @@ func (t Tag) Name() string {
 	return t.Repository.Name() + tagDelim + t.TagStr()
 }
 
+// String returns the original input string.
 func (t Tag) String() string {
 	return t.original
 }

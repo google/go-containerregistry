@@ -55,6 +55,7 @@ func (d Digest) Name() string {
 	return d.Repository.Name() + digestDelim + d.DigestStr()
 }
 
+// String returns the original input string.
 func (d Digest) String() string {
 	return d.original
 }
