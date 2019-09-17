@@ -1284,6 +1284,8 @@ func BenchmarkWrite(b *testing.B) {
 			b.Fatalf("random.Image(...): %v", err)
 		}
 
+		b.ResetTimer()
+
 		tagStr := strings.TrimPrefix(s.URL+"/test/image:tag", "http://")
 		tag, err := name.NewTag(tagStr)
 		if err != nil {
