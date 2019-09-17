@@ -83,7 +83,7 @@ type IndexAddendum struct {
 	v1.Descriptor
 }
 
-// AppendManifest appends a manifest to tbe ImageIndex.
+// AppendManifests appends a manifest to the ImageIndex.
 func AppendManifests(base v1.ImageIndex, adds ...IndexAddendum) v1.ImageIndex {
 	return &index{
 		base: base,
