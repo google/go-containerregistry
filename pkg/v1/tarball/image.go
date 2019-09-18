@@ -110,9 +110,6 @@ type singleImageTarDescriptor struct {
 	LayerSources map[v1.Hash]v1.Descriptor `json:",omitempty"`
 }
 
-// repositoriesTarDescriptor represents the repositories file inside a `docker save` tarball.
-type repositoriesTarDescriptor map[string]map[string]string
-
 // tarDescriptor is the struct used inside the `manifest.json` file of a `docker save` tarball.
 type tarDescriptor []singleImageTarDescriptor
 
