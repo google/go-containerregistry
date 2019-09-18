@@ -34,9 +34,9 @@ import (
 
 type image struct {
 	opener        Opener
-	td            *tarDescriptor
+	td            *TarDescriptor
 	config        []byte
-	imgDescriptor *singleImageTarDescriptor
+	imgDescriptor *SingleImageTarDescriptor
 
 	tag *name.Tag
 }
@@ -100,8 +100,8 @@ func (i *image) MediaType() (types.MediaType, error) {
 	return types.DockerManifestSchema2, nil
 }
 
-// singleImageTarDescriptor is the struct used to represent a single image inside a `docker save` tarball.
-type singleImageTarDescriptor struct {
+// SingleImageTarDescriptor is the struct used to represent a single image inside a `docker save` tarball.
+type SingleImageTarDescriptor struct {
 	Config   string
 	RepoTags []string
 	Layers   []string
@@ -110,10 +110,10 @@ type singleImageTarDescriptor struct {
 	LayerSources map[v1.Hash]v1.Descriptor `json:",omitempty"`
 }
 
-// tarDescriptor is the struct used inside the `manifest.json` file of a `docker save` tarball.
-type tarDescriptor []singleImageTarDescriptor
+// TarDescriptor is the struct used inside the `manifest.json` file of a `docker save` tarball.
+type TarDescriptor []SingleImageTarDescriptor
 
-func (td tarDescriptor) findSpecifiedImageDescriptor(tag *name.Tag) (*singleImageTarDescriptor, error) {
+func (td TarDescriptor) findSpecifiedImageDescriptor(tag *name.Tag) (*SingleImageTarDescriptor, error) {
 	if tag == nil {
 		if len(td) != 1 {
 			return nil, errors.New("tarball must contain only a single image to be used with tarball.Image")

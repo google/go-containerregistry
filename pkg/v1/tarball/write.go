@@ -88,8 +88,8 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
-	imageToTags := dedupRefToImage(refToImage)
-	var td tarDescriptor
+	imageToTags := DedupRefToImage(refToImage)
+	var td TarDescriptor
 
 	for img, tags := range imageToTags {
 		// Write the config.
@@ -101,7 +101,7 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		if err := WriteTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 			return err
 		}
 
@@ -153,13 +153,13 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 				return err
 			}
 
-			if err := writeTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
+			if err := WriteTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
 				return err
 			}
 		}
 
 		// Generate the tar descriptor and write it.
-		sitd := singleImageTarDescriptor{
+		sitd := SingleImageTarDescriptor{
 			Config:       cfgName.String(),
 			RepoTags:     tags,
 			Layers:       layerFiles,
@@ -173,10 +173,12 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
+	return WriteTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
 }
 
-func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
+// DedupRefToImage generates an v1.Image to list of tags from the given map from
+// fully qualified image name to the image itself.
+func DedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
 	imageToTags := make(map[v1.Image][]string)
 
 	for ref, img := range refToImage {
@@ -196,8 +198,8 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 	return imageToTags
 }
 
-// write a file to the provided writer with a corresponding tar header
-func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
+// WriteTarEntry writes a file to the provided writer with a corresponding tar header
+func WriteTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	hdr := &tar.Header{
 		Mode:     0644,
 		Typeflag: tar.TypeReg,

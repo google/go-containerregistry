@@ -15,21 +15,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/pkg/errors"
 )
-
-// singleImageTarDescriptor is the struct used to represent a single image inside a `docker save` tarball.
-type singleImageTarDescriptor struct {
-	Config   string
-	RepoTags []string
-	Layers   []string
-
-	// Tracks foreign layer info. Key is DiffID.
-	LayerSources map[v1.Hash]v1.Descriptor `json:",omitempty"`
-}
-
-// tarDescriptor is the struct used inside the `manifest.json` file of a `docker save` tarball.
-type tarDescriptor []singleImageTarDescriptor
 
 // repositoriesTarDescriptor represents the repositories file inside a `docker save` tarball.
 type repositoriesTarDescriptor map[string]map[string]string
@@ -217,8 +205,8 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
-	imageToTags := dedupRefToImage(refToImage)
-	var td tarDescriptor
+	imageToTags := tarball.DedupRefToImage(refToImage)
+	var td tarball.TarDescriptor
 	repos := make(repositoriesTarDescriptor)
 
 	for img, tags := range imageToTags {
@@ -232,7 +220,7 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := writeTarEntry(tf, cfgFileName, bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		if err := tarball.WriteTarEntry(tf, cfgFileName, bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 			return err
 		}
 		cfg, err := img.ConfigFile()
@@ -276,25 +264,25 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			if err != nil {
 				return err
 			}
-			if err := writeTarEntry(tf, layerFiles[i], bytes.NewReader(uncompressedBlob), int64(len(uncompressedBlob))); err != nil {
+			if err := tarball.WriteTarEntry(tf, layerFiles[i], bytes.NewReader(uncompressedBlob), int64(len(uncompressedBlob))); err != nil {
 				return err
 			}
 			j, err := cur.json()
 			if err != nil {
 				return err
 			}
-			if err := writeTarEntry(tf, fmt.Sprintf("%s/json", cur.config.ID), bytes.NewReader(j), int64(len(j))); err != nil {
+			if err := tarball.WriteTarEntry(tf, fmt.Sprintf("%s/json", cur.config.ID), bytes.NewReader(j), int64(len(j))); err != nil {
 				return err
 			}
 			v := cur.version()
-			if err := writeTarEntry(tf, fmt.Sprintf("%s/VERSION", cur.config.ID), bytes.NewReader(v), int64(len(v))); err != nil {
+			if err := tarball.WriteTarEntry(tf, fmt.Sprintf("%s/VERSION", cur.config.ID), bytes.NewReader(v), int64(len(v))); err != nil {
 				return err
 			}
 			prev = cur
 		}
 
 		// Generate the tar descriptor and write it.
-		sitd := singleImageTarDescriptor{
+		sitd := tarball.SingleImageTarDescriptor{
 			Config:       cfgFileName,
 			RepoTags:     tags,
 			Layers:       layerFiles,
@@ -311,50 +299,15 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes))); err != nil {
+	if err := tarball.WriteTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes))); err != nil {
 		return err
 	}
 	reposBytes, err := json.Marshal(&repos)
 	if err != nil {
 		return err
 	}
-	if err := writeTarEntry(tf, "repositories", bytes.NewReader(reposBytes), int64(len(reposBytes))); err != nil {
+	if err := tarball.WriteTarEntry(tf, "repositories", bytes.NewReader(reposBytes), int64(len(reposBytes))); err != nil {
 		return err
 	}
 	return nil
-}
-
-func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
-	imageToTags := make(map[v1.Image][]string)
-
-	for ref, img := range refToImage {
-		if tag, ok := ref.(name.Tag); ok {
-			if tags, ok := imageToTags[img]; ok && tags != nil {
-				imageToTags[img] = append(tags, tag.String())
-			} else {
-				imageToTags[img] = []string{tag.String()}
-			}
-		} else {
-			if _, ok := imageToTags[img]; !ok {
-				imageToTags[img] = nil
-			}
-		}
-	}
-
-	return imageToTags
-}
-
-// write a file to the provided writer with a corresponding tar header
-func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
-	hdr := &tar.Header{
-		Mode:     0644,
-		Typeflag: tar.TypeReg,
-		Size:     size,
-		Name:     path,
-	}
-	if err := tf.WriteHeader(hdr); err != nil {
-		return err
-	}
-	_, err := io.Copy(tf, r)
-	return err
 }
