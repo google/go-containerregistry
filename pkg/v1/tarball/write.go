@@ -212,7 +212,11 @@ func WriteV1(ref name.Reference, img v1.Image, w io.Writer) error {
 // MultiWriteV1 writes the contents of each image to the provided reader, in the V1 image tarball format.
 // The contents are written in the following format:
 // One manifest.json file at the top level containing information about several images.
-// One file for each layer, named after the layer's SHA.
+// One repositories file mapping from the image <registry>/<repo name> to <tag> to the id of the top most layer.
+// For every layer, a directory named with the layer ID is created with the following contents:
+//   layer.tar - The uncompressed layer tarball.
+//   <layer id>.json- Layer metadata json.
+//   VERSION- Schema version string. Always set to "1.0".
 // One file for the config blob, named after its SHA.
 func MultiWriteV1(tagToImage map[name.Tag]v1.Image, w io.Writer) error {
 	refToImage := make(map[name.Reference]v1.Image, len(tagToImage))
