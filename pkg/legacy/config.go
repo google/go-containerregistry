@@ -22,19 +22,9 @@ import (
 // a v1 layer. See:
 // https://github.com/moby/moby/blob/master/image/spec/v1.md
 type LayerConfigFile struct {
-	Architecture    string       `json:"architecture"`
-	Author          string       `json:"author,omitempty"`
-	Container       string       `json:"container,omitempty"`
-	Created         v1.Time      `json:"created,omitempty"`
-	Comment         string       `json:"comment,omitempty"`
-	DockerVersion   string       `json:"docker_version,omitempty"`
-	History         []v1.History `json:"history,omitempty"`
-	OS              string       `json:"os"`
-	RootFS          v1.RootFS    `json:"rootfs"`
-	Config          v1.Config    `json:"config"`
-	ContainerConfig v1.Config    `json:"container_config,omitempty"`
-	OSVersion       string       `json:"osversion,omitempty"`
-	ID              string       `json:"id,omitempty"`
-	Parent          string       `json:"parent,omitempty"`
-	Throwaway       bool         `json:"throwaway,omitempty"`
+	v1.ConfigFile
+	ID        string `json:"id,omitempty"`
+	Parent    string `json:"parent,omitempty"`
+	Throwaway bool   `json:"throwaway,omitempty"`
+	Comment   string `json:"comment,omitempty"`
 }

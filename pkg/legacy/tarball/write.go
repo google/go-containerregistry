@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 
 	"github.com/google/go-containerregistry/pkg/legacy"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -21,62 +20,6 @@ import (
 
 // repositoriesTarDescriptor represents the repositories file inside a `docker save` tarball.
 type repositoriesTarDescriptor map[string]map[string]string
-
-// WriteToFile writes in the compressed format to a tarball, on disk.
-// This is just syntactic sugar wrapping tarball.Write with a new file.
-func WriteToFile(p string, ref name.Reference, img v1.Image) error {
-	w, err := os.Create(p)
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-
-	return Write(ref, img, w)
-}
-
-// MultiWriteToFile writes in the V1 image tarball format to a tarball, on disk.
-// This is just syntactic sugar wrapping tarball.MultiWrite with a new file.
-func MultiWriteToFile(p string, tagToImage map[name.Tag]v1.Image) error {
-	refToImage := make(map[name.Reference]v1.Image, len(tagToImage))
-	for i, d := range tagToImage {
-		refToImage[i] = d
-	}
-	return MultiRefWriteToFile(p, refToImage)
-}
-
-// MultiRefWriteToFile writes in the V1 image tarball format to a tarball, on disk.
-// This is just syntactic sugar wrapping tarball.MultiRefWrite with a new file.
-func MultiRefWriteToFile(p string, refToImage map[name.Reference]v1.Image) error {
-	w, err := os.Create(p)
-	if err != nil {
-		return err
-	}
-	defer w.Close()
-
-	return MultiRefWrite(refToImage, w)
-}
-
-// Write is a wrapper to write a single image in V1 format and tag to a tarball.
-func Write(ref name.Reference, img v1.Image, w io.Writer) error {
-	return MultiRefWrite(map[name.Reference]v1.Image{ref: img}, w)
-}
-
-// MultiWrite writes the contents of each image to the provided reader, in the V1 image tarball format.
-// The contents are written in the following format:
-// One manifest.json file at the top level containing information about several images.
-// One repositories file mapping from the image <registry>/<repo name> to <tag> to the id of the top most layer.
-// For every layer, a directory named with the layer ID is created with the following contents:
-//   layer.tar - The uncompressed layer tarball.
-//   <layer id>.json- Layer metadata json.
-//   VERSION- Schema version string. Always set to "1.0".
-// One file for the config blob, named after its SHA.
-func MultiWrite(tagToImage map[name.Tag]v1.Image, w io.Writer) error {
-	refToImage := make(map[name.Reference]v1.Image, len(tagToImage))
-	for i, d := range tagToImage {
-		refToImage[i] = d
-	}
-	return MultiRefWrite(refToImage, w)
-}
 
 // v1Layer represents a layer with metadata needed by the v1 image spec https://github.com/moby/moby/blob/master/image/spec/v1.md.
 type v1Layer struct {
@@ -123,15 +66,17 @@ func newV1Layer(layer v1.Layer, parent *v1Layer, history v1.History) (*v1Layer, 
 	result := &v1Layer{
 		layer: layer,
 		config: &legacy.LayerConfigFile{
-			ID:      id,
-			Parent:  parentID,
-			Created: history.Created,
-			Comment: history.Comment,
-			Author:  history.Author,
-			ContainerConfig: v1.Config{
-				Cmd: []string{history.CreatedBy},
+			ConfigFile: v1.ConfigFile{
+				Created: history.Created,
+				Author:  history.Author,
+				ContainerConfig: v1.Config{
+					Cmd: []string{history.CreatedBy},
+				},
 			},
+			ID:        id,
+			Parent:    parentID,
 			Throwaway: history.EmptyLayer,
+			Comment:   history.Comment,
 		},
 	}
 	return result, nil
@@ -192,7 +137,12 @@ func updateLayerSources(layerSources map[v1.Hash]v1.Descriptor, layer v1.Layer, 
 	return nil
 }
 
-// MultiRefWrite writes the contents of each image to the provided reader, in the V1 image tarball format.
+// Write is a wrapper to write a single image in V1 format and tag to a tarball.
+func Write(ref name.Reference, img v1.Image, w io.Writer) error {
+	return MultiWrite(map[name.Reference]v1.Image{ref: img}, w)
+}
+
+// MultiWrite writes the contents of each image to the provided reader, in the V1 image tarball format.
 // The contents are written in the following format:
 // One manifest.json file at the top level containing information about several images.
 // One repositories file mapping from the image <registry>/<repo name> to <tag> to the id of the top most layer.
@@ -201,11 +151,11 @@ func updateLayerSources(layerSources map[v1.Hash]v1.Descriptor, layer v1.Layer, 
 //   <layer id>.json- Layer metadata json.
 //   VERSION- Schema version string. Always set to "1.0".
 // One file for the config blob, named after its SHA.
-func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
+func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
-	imageToTags := tarball.DedupRefToImage(refToImage)
+	imageToTags := dedupRefToImage(refToImage)
 	var td tarball.TarDescriptor
 	repos := make(repositoriesTarDescriptor)
 
@@ -220,7 +170,7 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := tarball.WriteTarEntry(tf, cfgFileName, bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		if err := writeTarEntry(tf, cfgFileName, bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 			return err
 		}
 		cfg, err := img.ConfigFile()
@@ -264,18 +214,18 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			if err != nil {
 				return err
 			}
-			if err := tarball.WriteTarEntry(tf, layerFiles[i], bytes.NewReader(uncompressedBlob), int64(len(uncompressedBlob))); err != nil {
+			if err := writeTarEntry(tf, layerFiles[i], bytes.NewReader(uncompressedBlob), int64(len(uncompressedBlob))); err != nil {
 				return err
 			}
 			j, err := cur.json()
 			if err != nil {
 				return err
 			}
-			if err := tarball.WriteTarEntry(tf, fmt.Sprintf("%s/json", cur.config.ID), bytes.NewReader(j), int64(len(j))); err != nil {
+			if err := writeTarEntry(tf, fmt.Sprintf("%s/json", cur.config.ID), bytes.NewReader(j), int64(len(j))); err != nil {
 				return err
 			}
 			v := cur.version()
-			if err := tarball.WriteTarEntry(tf, fmt.Sprintf("%s/VERSION", cur.config.ID), bytes.NewReader(v), int64(len(v))); err != nil {
+			if err := writeTarEntry(tf, fmt.Sprintf("%s/VERSION", cur.config.ID), bytes.NewReader(v), int64(len(v))); err != nil {
 				return err
 			}
 			prev = cur
@@ -299,15 +249,50 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := tarball.WriteTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes))); err != nil {
+	if err := writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes))); err != nil {
 		return err
 	}
 	reposBytes, err := json.Marshal(&repos)
 	if err != nil {
 		return err
 	}
-	if err := tarball.WriteTarEntry(tf, "repositories", bytes.NewReader(reposBytes), int64(len(reposBytes))); err != nil {
+	if err := writeTarEntry(tf, "repositories", bytes.NewReader(reposBytes), int64(len(reposBytes))); err != nil {
 		return err
 	}
 	return nil
+}
+
+func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
+	imageToTags := make(map[v1.Image][]string)
+
+	for ref, img := range refToImage {
+		if tag, ok := ref.(name.Tag); ok {
+			if tags, ok := imageToTags[img]; ok && tags != nil {
+				imageToTags[img] = append(tags, tag.String())
+			} else {
+				imageToTags[img] = []string{tag.String()}
+			}
+		} else {
+			if _, ok := imageToTags[img]; !ok {
+				imageToTags[img] = nil
+			}
+		}
+	}
+
+	return imageToTags
+}
+
+// Writes a file to the provided writer with a corresponding tar header
+func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
+	hdr := &tar.Header{
+		Mode:     0644,
+		Typeflag: tar.TypeReg,
+		Size:     size,
+		Name:     path,
+	}
+	if err := tf.WriteHeader(hdr); err != nil {
+		return err
+	}
+	_, err := io.Copy(tf, r)
+	return err
 }

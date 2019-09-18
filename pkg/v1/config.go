@@ -35,7 +35,6 @@ type ConfigFile struct {
 	Config          Config    `json:"config"`
 	ContainerConfig Config    `json:"container_config,omitempty"`
 	OSVersion       string    `json:"osversion,omitempty"`
-	Throwaway       bool      `json:"throwaway,omitempty"`
 }
 
 // History is one entry of a list recording how this container image was built.

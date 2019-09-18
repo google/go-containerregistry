@@ -88,7 +88,7 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
-	imageToTags := DedupRefToImage(refToImage)
+	imageToTags := dedupRefToImage(refToImage)
 	var td TarDescriptor
 
 	for img, tags := range imageToTags {
@@ -101,7 +101,7 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := WriteTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 			return err
 		}
 
@@ -153,7 +153,7 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 				return err
 			}
 
-			if err := WriteTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
+			if err := writeTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
 				return err
 			}
 		}
@@ -173,12 +173,10 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return WriteTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
+	return writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
 }
 
-// DedupRefToImage generates an v1.Image to list of tags from the given map from
-// fully qualified image name to the image itself.
-func DedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
+func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
 	imageToTags := make(map[v1.Image][]string)
 
 	for ref, img := range refToImage {
@@ -198,8 +196,8 @@ func DedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 	return imageToTags
 }
 
-// WriteTarEntry writes a file to the provided writer with a corresponding tar header
-func WriteTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
+// Writes a file to the provided writer with a corresponding tar header
+func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	hdr := &tar.Header{
 		Mode:     0644,
 		Typeflag: tar.TypeReg,
