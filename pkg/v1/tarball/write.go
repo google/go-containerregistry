@@ -200,7 +200,7 @@ func MultiWriteToFileV1(p string, tagToImage map[name.Tag]v1.Image) error {
 	for i, d := range tagToImage {
 		refToImage[i] = d
 	}
-	return MultiRefWriteToFile(p, refToImage)
+	return MultiRefWriteToFileV1(p, refToImage)
 }
 
 // MultiRefWriteToFileV1 writes in the V1 image tarball format to a tarball, on disk.
