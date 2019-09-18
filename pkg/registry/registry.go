@@ -26,6 +26,7 @@ package registry
 import (
 	"log"
 	"net/http"
+	"os"
 )
 
 type registry struct {
@@ -57,42 +58,18 @@ func (r *registry) v2(resp http.ResponseWriter, req *http.Request) *regError {
 
 func (r *registry) root(resp http.ResponseWriter, req *http.Request) {
 	if rerr := r.v2(resp, req); rerr != nil {
-		r.logf("%s %s %d %s %s", req.Method, req.URL, rerr.Status, rerr.Code, rerr.Message)
+		r.log.Printf("%s %s %d %s %s", req.Method, req.URL, rerr.Status, rerr.Code, rerr.Message)
 		rerr.Write(resp)
 		return
 	}
-	r.logf("%s %s", req.Method, req.URL)
-}
-
-func (r *registry) logf(f string, v ...interface{}) {
-	if r.log == nil {
-		log.Printf(f, v...)
-	} else {
-		r.log.Printf(f, v...)
-	}
+	r.log.Printf("%s %s", req.Method, req.URL)
 }
 
 // New returns a handler which implements the docker registry protocol.
 // It should be registered at the site root.
-func New() http.Handler {
-	return NewWithOptions(nil)
-}
-
-// Options describes the available options
-// for creating the registry.
-type Options struct {
-	// Log is used to log requests.
-	// If nil, the global logger is used.
-	Log *log.Logger
-}
-
-// NewWithOptions is the same as New but takes options.
-func NewWithOptions(opts *Options) http.Handler {
-	if opts == nil {
-		opts = &Options{}
-	}
-	v := registry{
-		log: opts.Log,
+func New(opts ...Option) http.Handler {
+	r := &registry{
+		log: log.New(os.Stderr, "", log.LstdFlags),
 		blobs: blobs{
 			contents: map[string][]byte{},
 			uploads:  map[string][]byte{},
@@ -101,5 +78,18 @@ func NewWithOptions(opts *Options) http.Handler {
 			manifests: map[string]map[string]manifest{},
 		},
 	}
-	return http.HandlerFunc(v.root)
+	for _, o := range opts {
+		o(r)
+	}
+	return http.HandlerFunc(r.root)
+}
+
+// Options describes the available options
+// for creating the registry.
+type Option func(r *registry)
+
+func Logger(l *log.Logger) Option {
+	return func(r *registry) {
+		r.log = l
+	}
 }
