@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -304,8 +305,15 @@ func TestCalls(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-		t.Run(tc.Description, func(t *testing.T) {
-			s := httptest.NewServer(registry.New())
+
+		var logger *log.Logger
+		testf := func(t *testing.T) {
+
+			r := registry.New()
+			if logger != nil {
+				r = registry.New(registry.Logger(logger))
+			}
+			s := httptest.NewServer(r)
 			defer s.Close()
 
 			for manifest, contents := range tc.Manifests {
@@ -394,6 +402,9 @@ func TestCalls(t *testing.T) {
 					t.Errorf("Incorrect header %q received, got %q, want %q", k, r, v)
 				}
 			}
-		})
+		}
+		t.Run(tc.Description, testf)
+		logger = log.New(ioutil.Discard, "", log.Ldate)
+		t.Run(tc.Description+" - custom log", testf)
 	}
 }
