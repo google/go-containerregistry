@@ -120,22 +120,8 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		}
 		layerFiles := make([]string, len(layers))
 		for i, l := range layers {
-			d, err := l.Digest()
-			if err != nil {
-				return err
-			}
-
-			// Add to LayerSources if it's a foreign layer.
-			desc, err := partial.BlobDescriptor(img, d)
-			if err != nil {
-				return err
-			}
-			if !desc.MediaType.IsDistributable() {
-				diffid, err := partial.BlobToDiffID(img, d)
-				if err != nil {
-					return err
-				}
-				layerSources[diffid] = desc
+			if err := updateLayerSources(layerSources, l, img); err != nil {
+				return errors.Wrap(err, "unable to update image metadata to include undistributable layer source information")
 			}
 
 			// Munge the file name to appease ancient technology.
@@ -143,11 +129,14 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			// tar assumes anything with a colon is a remote tape drive:
 			// https://www.gnu.org/software/tar/manual/html_section/tar_45.html
 			// Drop the algorithm prefix, e.g. "sha256:"
-			hex := d.Hex
+			d, err := l.Digest()
+			if err != nil {
+				return err
+			}
 
 			// gunzip expects certain file extensions:
 			// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
-			layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
+			layerFiles[i] = fmt.Sprintf("%s.tar.gz", d.Hex)
 
 			r, err := l.Compressed()
 			if err != nil {
@@ -241,18 +230,21 @@ type v1Layer struct {
 	layer v1.Layer
 }
 
+// json returns the raw bytes of the json metadata of the given v1Layer.
 func (l *v1Layer) json() ([]byte, error) {
 	return json.Marshal(l.config)
 }
 
+// version returns the raw bytes of the "VERSION" file of the given v1Layer.
 func (l *v1Layer) version() []byte {
 	return []byte("1.0")
 }
 
+// v1LayerID computes the v1 image format layer id for the given v1.Layer with the given v1 parent ID and raw image config.
 func v1LayerID(layer v1.Layer, parentID string, rawConfig []byte) (string, error) {
 	d, err := layer.Digest()
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "unable to get layer digest to generate v1 layer ID")
 	}
 	s := fmt.Sprintf("%s %s", d.Hex, parentID)
 	if len(rawConfig) != 0 {
@@ -262,6 +254,7 @@ func v1LayerID(layer v1.Layer, parentID string, rawConfig []byte) (string, error
 	return hex.EncodeToString(rawDigest[:]), nil
 }
 
+// newTopV1Layer creates a new v1Layer for a layer other than the top layer in a v1 image tarball.
 func newV1Layer(layer v1.Layer, parent *v1Layer, history v1.History) (*v1Layer, error) {
 	parentID := ""
 	if parent != nil {
@@ -287,6 +280,7 @@ func newV1Layer(layer v1.Layer, parent *v1Layer, history v1.History) (*v1Layer, 
 	return result, nil
 }
 
+// newTopV1Layer creates a new v1Layer for the top layer in a v1 image tarball.
 func newTopV1Layer(layer v1.Layer, parent *v1Layer, history v1.History, imgConfig *v1.ConfigFile, rawConfig []byte) (*v1Layer, error) {
 	result, err := newV1Layer(layer, parent, history)
 	if err != nil {
@@ -307,7 +301,8 @@ func newTopV1Layer(layer v1.Layer, parent *v1Layer, history v1.History, imgConfi
 	return result, nil
 }
 
-func addTags(repos repositoriesTarDescriptor, tags []string, topLayerID string) error {
+// addTags adds the given image tags to the given "repositories" file descriptor in a v1 image tarball.
+func addTags(repos repositoriesTarDescriptor, tags []string, topLayerID string) {
 	for _, t := range tags {
 		base, tag := name.SplitTag(t)
 		tagToID, ok := repos[base]
@@ -317,13 +312,38 @@ func addTags(repos repositoriesTarDescriptor, tags []string, topLayerID string) 
 		}
 		tagToID[tag] = topLayerID
 	}
+	return
+}
+
+// updateLayerSources updates the given layer digest to descriptor map with the descriptor of the given layer in the given image if it's an undistributable layer.
+func updateLayerSources(layerSources map[v1.Hash]v1.Descriptor, layer v1.Layer, img v1.Image) error {
+	d, err := layer.Digest()
+	if err != nil {
+		return err
+	}
+	// Add to LayerSources if it's a foreign layer.
+	desc, err := partial.BlobDescriptor(img, d)
+	if err != nil {
+		return err
+	}
+	if !desc.MediaType.IsDistributable() {
+		diffid, err := partial.BlobToDiffID(img, d)
+		if err != nil {
+			return err
+		}
+		layerSources[diffid] = desc
+	}
 	return nil
 }
 
 // MultiRefWriteV1 writes the contents of each image to the provided reader, in the V1 image tarball format.
 // The contents are written in the following format:
 // One manifest.json file at the top level containing information about several images.
-// One file for each layer, named after the layer's SHA.
+// One repositories file mapping from the image <registry>/<repo name> to <tag> to the id of the top most layer.
+// For every layer, a directory named with the layer ID is created with the following contents:
+//   layer.tar - The uncompressed layer tarball.
+//   <layer id>.json- Layer metadata json.
+//   VERSION- Schema version string. Always set to "1.0".
 // One file for the config blob, named after its SHA.
 func MultiRefWriteV1(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	tf := tar.NewWriter(w)
@@ -363,22 +383,8 @@ func MultiRefWriteV1(refToImage map[name.Reference]v1.Image, w io.Writer) error 
 		layerFiles := make([]string, len(layers))
 		var prev *v1Layer
 		for i, l := range layers {
-			d, err := l.Digest()
-			if err != nil {
-				return err
-			}
-
-			// Add to LayerSources if it's a foreign layer.
-			desc, err := partial.BlobDescriptor(img, d)
-			if err != nil {
-				return err
-			}
-			if !desc.MediaType.IsDistributable() {
-				diffid, err := partial.BlobToDiffID(img, d)
-				if err != nil {
-					return err
-				}
-				layerSources[diffid] = desc
+			if err := updateLayerSources(layerSources, l, img); err != nil {
+				return errors.Wrap(err, "unable to update image metadata to include undistributable layer source information")
 			}
 			var cur *v1Layer
 			if i < (len(layers) - 1) {
@@ -430,9 +436,7 @@ func MultiRefWriteV1(refToImage map[name.Reference]v1.Image, w io.Writer) error 
 		td = append(td, sitd)
 		// prev should be the top layer here. Use it to add the image tags
 		// to the tarball repositories file.
-		if err := addTags(repos, tags, prev.config.ID); err != nil {
-			return errors.Wrapf(err, "unable to add image tags to the repositories file")
-		}
+		addTags(repos, tags, prev.config.ID)
 	}
 
 	tdBytes, err := json.Marshal(td)
