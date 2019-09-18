@@ -28,19 +28,20 @@ import (
 	"net/http"
 )
 
-type v struct {
+type registry struct {
+	log       *log.Logger
 	blobs     blobs
 	manifests manifests
 }
 
 // https://docs.docker.com/registry/spec/api/#api-version-check
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#api-version-check
-func (v *v) v2(resp http.ResponseWriter, req *http.Request) *regError {
+func (r *registry) v2(resp http.ResponseWriter, req *http.Request) *regError {
 	if isBlob(req) {
-		return v.blobs.handle(resp, req)
+		return r.blobs.handle(resp, req)
 	}
 	if isManifest(req) {
-		return v.manifests.handle(resp, req)
+		return r.manifests.handle(resp, req)
 	}
 	resp.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
 	if req.URL.Path != "/v2/" && req.URL.Path != "/v2" {
@@ -54,18 +55,44 @@ func (v *v) v2(resp http.ResponseWriter, req *http.Request) *regError {
 	return nil
 }
 
-func (v *v) root(resp http.ResponseWriter, req *http.Request) {
-	if rerr := v.v2(resp, req); rerr != nil {
-		log.Printf("%s %s %d %s %s", req.Method, req.URL, rerr.Status, rerr.Code, rerr.Message)
+func (r *registry) root(resp http.ResponseWriter, req *http.Request) {
+	if rerr := r.v2(resp, req); rerr != nil {
+		r.logf("%s %s %d %s %s", req.Method, req.URL, rerr.Status, rerr.Code, rerr.Message)
 		rerr.Write(resp)
 		return
 	}
-	log.Printf("%s %s", req.Method, req.URL)
+	r.logf("%s %s", req.Method, req.URL)
 }
 
-// New returns a handler which implements the docker registry protocol. It should be registered at the site root.
+func (r *registry) logf(f string, v ...interface{}) {
+	if r.log == nil {
+		log.Printf(f, v...)
+	} else {
+		r.log.Printf(f, v...)
+	}
+}
+
+// New returns a handler which implements the docker registry protocol.
+// It should be registered at the site root.
 func New() http.Handler {
-	v := v{
+	return NewWithOptions(nil)
+}
+
+// Options describes the available options
+// for creating the registry.
+type Options struct {
+	// Log is used to log requests.
+	// If nil, the global logger is used.
+	Log *log.Logger
+}
+
+// NewWithOptions is the same as New but takes options.
+func NewWithOptions(opts *Options) http.Handler {
+	if opts == nil {
+		opts = &Options{}
+	}
+	v := registry{
+		log: opts.Log,
 		blobs: blobs{
 			contents: map[string][]byte{},
 			uploads:  map[string][]byte{},
