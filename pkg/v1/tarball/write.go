@@ -339,11 +339,12 @@ func MultiRefWriteV1(refToImage map[name.Reference]v1.Image, w io.Writer) error 
 		if err != nil {
 			return err
 		}
+		cfgFileName := fmt.Sprintf("%s.json", cfgName.Hex)
 		cfgBlob, err := img.RawConfigFile()
 		if err != nil {
 			return err
 		}
-		if err := writeTarEntry(tf, cfgName.Hex, bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		if err := writeTarEntry(tf, cfgFileName, bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 			return err
 		}
 		cfg, err := img.ConfigFile()
@@ -420,7 +421,7 @@ func MultiRefWriteV1(refToImage map[name.Reference]v1.Image, w io.Writer) error 
 
 		// Generate the tar descriptor and write it.
 		sitd := singleImageTarDescriptor{
-			Config:       cfgName.Hex,
+			Config:       cfgFileName,
 			RepoTags:     tags,
 			Layers:       layerFiles,
 			LayerSources: layerSources,
