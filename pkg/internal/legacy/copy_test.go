@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -81,9 +82,12 @@ func TestCopySchema1(t *testing.T) {
 		Manifest: b,
 		Descriptor: v1.Descriptor{
 			MediaType: types.DockerManifestSchema1,
+			Digest: v1.Hash{Algorithm: "sha256",
+				Hex: strings.Repeat("a", 64),
+			},
 		},
 	}
-	if err := putManifest(desc.Manifest, desc.MediaType, dstRef, authn.Anonymous); err != nil {
+	if err := putManifest(desc, dstRef, authn.Anonymous); err != nil {
 		t.Fatal(err)
 	}
 
