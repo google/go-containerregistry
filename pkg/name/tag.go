@@ -45,9 +45,14 @@ func (t Tag) Identifier() string {
 	return t.TagStr()
 }
 
+// explicitTag returns true if and only if a tag was explicitly specified.
+func (t Tag) explicitTag() bool {
+	return t.tag != ""
+}
+
 // TagStr returns the tag component of the Tag.
 func (t Tag) TagStr() string {
-	if t.tag != "" {
+	if t.explicitTag() {
 		return t.tag
 	}
 	return defaultTag

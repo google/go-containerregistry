@@ -37,6 +37,7 @@ type Reference interface {
 }
 
 // ParseReference parses the string as a reference, either by tag or digest.
+// If there is both a tag and a digest, the tag is discarded.
 func ParseReference(s string, opts ...Option) (Reference, error) {
 	if t, err := NewTag(s, opts...); err == nil {
 		return t, nil
@@ -46,4 +47,15 @@ func ParseReference(s string, opts ...Option) (Reference, error) {
 	}
 	return nil, NewErrBadName("could not parse reference: " + s)
 
+}
+
+// ParseWriteReference parses the string as a reference, either by tag or digest.
+// If there is both a tag and a digest, the digest is discarded.
+func ParseWriteReference(s string, opts ...Option) (Reference, error) {
+	if base, _, err := splitDigest(s); err == nil {
+		if t, err := NewTag(base, opts...); err == nil && t.explicitTag() {
+			return t, nil
+		}
+	}
+	return ParseReference(s, opts...)
 }

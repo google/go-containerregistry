@@ -11,6 +11,8 @@
 This is a golang library for working with container registries.
 It's largely based on the [Python library of the same name](https://github.com/google/containerregistry).
 
+When copying a schema v2 image, this library preserves the image's repository digest.
+
 The following diagram shows the main types that this library handles.
 ![OCI image representation](images/ociimage.jpeg)
 

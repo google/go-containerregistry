@@ -32,7 +32,7 @@ func Copy(src, dst string) error {
 		return fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
-	dstRef, err := name.ParseReference(dst)
+	dstRef, err := name.ParseWriteReference(dst)
 	if err != nil {
 		return fmt.Errorf("parsing reference for %q: %v", dst, err)
 	}

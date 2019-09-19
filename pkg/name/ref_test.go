@@ -15,6 +15,7 @@
 package name
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -38,6 +39,36 @@ func TestParseReference(t *testing.T) {
 		if err != nil {
 			t.Errorf("ParseReference(%q); %v", name, err)
 		}
+		dig, err := NewDigest(name, StrictValidation)
+		if err != nil {
+			t.Errorf("NewDigest(%q); %v", name, err)
+		}
+		if ref != dig {
+			t.Errorf("ParseReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
+		}
+	}
+
+	for _, name := range goodWeakValidationTagDigestNames {
+		ref, err := ParseReference(name, WeakValidation)
+		if err != nil {
+			t.Errorf("ParseReference(%q); %v", name, err)
+		}
+
+		dig, err := NewDigest(name, WeakValidation)
+		if err != nil {
+			t.Errorf("NewDigest(%q); %v", name, err)
+		}
+		if ref != dig {
+			t.Errorf("ParseReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
+		}
+	}
+
+	for _, name := range goodStrictValidationTagDigestNames {
+		ref, err := ParseReference(name, StrictValidation)
+		if err != nil {
+			t.Errorf("ParseReference(%q); %v", name, err)
+		}
+
 		dig, err := NewDigest(name, StrictValidation)
 		if err != nil {
 			t.Errorf("NewDigest(%q); %v", name, err)
@@ -84,6 +115,108 @@ func TestParseReference(t *testing.T) {
 	for _, name := range badTagNames {
 		if _, err := ParseReference(name, WeakValidation); err == nil {
 			t.Errorf("ParseReference(%q); expected error, got none", name)
+		}
+	}
+}
+
+func TestParseWriteReference(t *testing.T) {
+	for _, name := range goodWeakValidationDigestNames {
+		ref, err := ParseWriteReference(name, WeakValidation)
+		if err != nil {
+			t.Errorf("ParseWriteReference(%q); %v", name, err)
+		}
+		dig, err := NewDigest(name, WeakValidation)
+		if err != nil {
+			t.Errorf("NewDigest(%q); %v", name, err)
+		}
+		if ref != dig {
+			t.Errorf("ParseWriteReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
+		}
+	}
+
+	for _, name := range goodStrictValidationDigestNames {
+		ref, err := ParseWriteReference(name, StrictValidation)
+		if err != nil {
+			t.Errorf("ParseWriteReference(%q); %v", name, err)
+		}
+		dig, err := NewDigest(name, StrictValidation)
+		if err != nil {
+			t.Errorf("NewDigest(%q); %v", name, err)
+		}
+		if ref != dig {
+			t.Errorf("ParseWriteReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
+		}
+	}
+
+	for _, name := range badDigestNames {
+		if _, err := ParseWriteReference(name, WeakValidation); err == nil {
+			t.Errorf("ParseWriteReference(%q); expected error, got none", name)
+		}
+	}
+
+	for _, name := range goodWeakValidationTagNames {
+		ref, err := ParseWriteReference(name, WeakValidation)
+		if err != nil {
+			t.Errorf("ParseWriteReference(%q); %v", name, err)
+		}
+		tag, err := NewTag(name, WeakValidation)
+		if err != nil {
+			t.Errorf("NewTag(%q); %v", name, err)
+		}
+		if ref != tag {
+			t.Errorf("ParseWriteReference(%q) != NewTag(%q); got %v, want %v", name, name, ref, tag)
+		}
+	}
+
+	for _, name := range goodStrictValidationTagNames {
+		ref, err := ParseWriteReference(name, StrictValidation)
+		if err != nil {
+			t.Errorf("ParseWriteReference(%q); %v", name, err)
+		}
+		tag, err := NewTag(name, StrictValidation)
+		if err != nil {
+			t.Errorf("NewTag(%q); %v", name, err)
+		}
+		if ref != tag {
+			t.Errorf("ParseWriteReference(%q) != NewTag(%q); got %v, want %v", name, name, ref, tag)
+		}
+	}
+
+	for _, name := range goodStrictValidationTagDigestNames {
+		ref, err := ParseWriteReference(name, StrictValidation)
+		if err != nil {
+			t.Errorf("ParseWriteReference(%q); %v", name, err)
+		}
+		base := strings.Split(name, digestDelim)[0]
+
+		tag, err := NewTag(base, StrictValidation)
+		if err != nil {
+			t.Errorf("NewTag(%q); %v", base, err)
+		}
+		if ref != tag {
+			t.Errorf("ParseWriteReference(%q) != NewTag(%q); got %v, want %v", name, base, ref, tag)
+		}
+	}
+
+	for _, name := range goodWeakValidationTagDigestNames {
+		ref, err := ParseWriteReference(name, WeakValidation)
+		if err != nil {
+			t.Errorf("ParseWriteReference(%q); %v", name, err)
+		}
+		base := strings.Split(name, digestDelim)[0]
+
+		tag, err := NewTag(base, WeakValidation)
+		if err != nil {
+			t.Errorf("NewTag(%q); %v", base, err)
+		}
+		if ref != tag {
+			t.Errorf("ParseWriteReference(%q) != NewTag(%q); got %v, want %v", name, base, ref, tag)
+		}
+	}
+
+	for _, name := range badTagNames {
+		if _, err := ParseWriteReference(name, WeakValidation); err == nil {
+			t.Errorf("ParseWriteReference(%q); expected error, got none", name)
 		}
 	}
 }
