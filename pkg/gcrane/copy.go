@@ -113,7 +113,7 @@ type copier struct {
 	tasks chan task
 }
 
-func newCopier(src, dst string) (*copier, error) {
+func newCopier(src, dst string, jobs int) (*copier, error) {
 	srcRepo, err := name.NewRepository(src)
 	if err != nil {
 		return nil, fmt.Errorf("parsing repo %q: %v", src, err)
@@ -134,7 +134,8 @@ func newCopier(src, dst string) (*copier, error) {
 		return nil, fmt.Errorf("getting auth for %q: %v", dst, err)
 	}
 
-	tasks := make(chan task, 100)
+	// A queue of size 2*jobs should keep each goroutine busy.
+	tasks := make(chan task, jobs*2)
 
 	return &copier{srcRepo, dstRepo, srcAuth, dstAuth, tasks}, nil
 }
@@ -198,7 +199,7 @@ func copyIndex(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
 
 // recursiveCopy copies images from repo src to repo dst.
 func recursiveCopy(src, dst string, jobs int) error {
-	c, err := newCopier(src, dst)
+	c, err := newCopier(src, dst, jobs)
 	if err != nil {
 		return err
 	}
