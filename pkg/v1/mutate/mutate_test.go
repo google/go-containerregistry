@@ -517,3 +517,5 @@ func (m mockLayer) Compressed() (io.ReadCloser, error) {
 func (m mockLayer) Uncompressed() (io.ReadCloser, error) {
 	return ioutil.NopCloser(strings.NewReader("uncompressed")), nil
 }
+
+func (m mockLayer) Desc() (v1.Descriptor, error) { return v1.Descriptor{}, nil }

@@ -1177,6 +1177,14 @@ type fakeForeignLayer struct {
 	t *testing.T
 }
 
+func (l *fakeForeignLayer) Desc() (v1.Descriptor, error) {
+	return v1.Descriptor{
+		MediaType: types.DockerForeignLayer,
+		Size:      0,
+		Digest:    v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("a", 64)},
+	}, nil
+}
+
 func (l *fakeForeignLayer) MediaType() (types.MediaType, error) {
 	return types.DockerForeignLayer, nil
 }

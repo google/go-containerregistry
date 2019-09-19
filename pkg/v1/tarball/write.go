@@ -89,7 +89,7 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	defer tf.Close()
 
 	imageToTags := dedupRefToImage(refToImage)
-	var td TarDescriptor
+	var m Manifest
 
 	for img, tags := range imageToTags {
 		// Write the config.
@@ -159,21 +159,19 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		}
 
 		// Generate the tar descriptor and write it.
-		sitd := SingleImageTarDescriptor{
+		m = append(m, Descriptor{
 			Config:       cfgName.String(),
 			RepoTags:     tags,
 			Layers:       layerFiles,
 			LayerSources: layerSources,
-		}
-
-		td = append(td, sitd)
+		})
 	}
 
-	tdBytes, err := json.Marshal(td)
+	mBytes, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-	return writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes)))
+	return writeTarEntry(tf, "manifest.json", bytes.NewReader(mBytes), int64(len(mBytes)))
 }
 
 func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {

@@ -33,8 +33,11 @@ type UncompressedLayer interface {
 	// Uncompressed returns an io.ReadCloser for the uncompressed layer contents.
 	Uncompressed() (io.ReadCloser, error)
 
-	// Returns the mediaType for the compressed Layer
+	// Returns the mediaType for the compressed Layer.
 	MediaType() (types.MediaType, error)
+
+	// Desc returns the manifest descriptor for this layer.
+	Desc() (v1.Descriptor, error)
 }
 
 // uncompressedLayerExtender implements v1.Image using the uncompressed base properties.
@@ -42,10 +45,16 @@ type uncompressedLayerExtender struct {
 	UncompressedLayer
 	// Memoize size/hash so that the methods aren't twice as
 	// expensive as doing this manually.
-	hash          v1.Hash
-	size          int64
-	hashSizeError error
-	once          sync.Once
+	once    sync.Once
+	desc    v1.Descriptor
+	descErr error
+}
+
+func (ule *uncompressedLayerExtender) computeDesc() error {
+	ule.once.Do(func() {
+		ule.desc, ule.descErr = ule.Desc()
+	})
+	return ule.descErr
 }
 
 // Compressed implements v1.Layer
@@ -59,26 +68,18 @@ func (ule *uncompressedLayerExtender) Compressed() (io.ReadCloser, error) {
 
 // Digest implements v1.Layer
 func (ule *uncompressedLayerExtender) Digest() (v1.Hash, error) {
-	ule.calcSizeHash()
-	return ule.hash, ule.hashSizeError
+	if err := ule.computeDesc(); err != nil {
+		return v1.Hash{}, err
+	}
+	return ule.desc.Digest, nil
 }
 
 // Size implements v1.Layer
 func (ule *uncompressedLayerExtender) Size() (int64, error) {
-	ule.calcSizeHash()
-	return ule.size, ule.hashSizeError
-}
-
-func (ule *uncompressedLayerExtender) calcSizeHash() {
-	ule.once.Do(func() {
-		var r io.ReadCloser
-		r, ule.hashSizeError = ule.Compressed()
-		if ule.hashSizeError != nil {
-			return
-		}
-		defer r.Close()
-		ule.hash, ule.size, ule.hashSizeError = v1.SHA256(r)
-	})
+	if err := ule.computeDesc(); err != nil {
+		return 0, err
+	}
+	return ule.desc.Size, nil
 }
 
 // UncompressedToLayer fills in the missing methods from an UncompressedLayer so that it implements v1.Layer
@@ -155,20 +156,12 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 
 	m.Layers = make([]v1.Descriptor, len(ls))
 	for i, l := range ls {
-		sz, err := l.Size()
-		if err != nil {
-			return nil, err
-		}
-		h, err := l.Digest()
+		desc, err := l.Desc()
 		if err != nil {
 			return nil, err
 		}
 
-		m.Layers[i] = v1.Descriptor{
-			MediaType: types.DockerLayer,
-			Size:      sz,
-			Digest:    h,
-		}
+		m.Layers[i] = desc
 	}
 
 	i.manifest = m

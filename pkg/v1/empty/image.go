@@ -15,6 +15,8 @@
 package empty
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -35,6 +37,33 @@ func (i emptyImage) MediaType() (types.MediaType, error) {
 // RawConfigFile implements partial.UncompressedImageCore.
 func (i emptyImage) RawConfigFile() ([]byte, error) {
 	return partial.RawConfigFile(i)
+}
+
+// Manifest implements v1.Image.
+func (i emptyImage) Manifest() (*v1.Manifest, error) {
+	cfg, err := i.RawConfigFile()
+	if err != nil {
+		return nil, err
+	}
+	h := sha256.Sum256(cfg)
+
+	return &v1.Manifest{
+		SchemaVersion: 2,
+		MediaType:     types.DockerManifestSchema2,
+		Config: v1.Descriptor{
+			MediaType: types.DockerConfigJSON,
+			Size:      int64(len(cfg)),
+			Digest: v1.Hash{
+				Algorithm: "sha256",
+				Hex:       hex.EncodeToString(h[:]),
+			},
+		},
+	}, nil
+}
+
+// RawManifest implements partial.UncompressedImageCore.
+func (i emptyImage) RawManifest() ([]byte, error) {
+	return partial.RawManifest(i)
 }
 
 // ConfigFile implements v1.Image.

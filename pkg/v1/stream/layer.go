@@ -24,6 +24,7 @@ import (
 	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -80,6 +81,11 @@ func (l *Layer) Size() (int64, error) {
 		return 0, ErrNotComputed
 	}
 	return l.size, nil
+}
+
+// Desc implements v1.Layer
+func (l *Layer) Desc() (v1.Descriptor, error) {
+	return partial.Descriptor(l)
 }
 
 // MediaType implements v1.Layer

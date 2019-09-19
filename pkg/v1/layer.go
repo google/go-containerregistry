@@ -39,4 +39,7 @@ type Layer interface {
 
 	// MediaType returns the media type of the Layer.
 	MediaType() (types.MediaType, error)
+
+	// Desc returns the manifest descriptor for this layer.
+	Desc() (Descriptor, error)
 }

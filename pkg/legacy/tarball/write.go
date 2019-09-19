@@ -156,7 +156,7 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	defer tf.Close()
 
 	imageToTags := dedupRefToImage(refToImage)
-	var td tarball.TarDescriptor
+	var m tarball.Manifest
 	repos := make(repositoriesTarDescriptor)
 
 	for img, tags := range imageToTags {
@@ -232,24 +232,22 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		}
 
 		// Generate the tar descriptor and write it.
-		sitd := tarball.SingleImageTarDescriptor{
+		m = append(m, tarball.Descriptor{
 			Config:       cfgFileName,
 			RepoTags:     tags,
 			Layers:       layerFiles,
 			LayerSources: layerSources,
-		}
-
-		td = append(td, sitd)
+		})
 		// prev should be the top layer here. Use it to add the image tags
 		// to the tarball repositories file.
 		addTags(repos, tags, prev.config.ID)
 	}
 
-	tdBytes, err := json.Marshal(td)
+	mBytes, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-	if err := writeTarEntry(tf, "manifest.json", bytes.NewReader(tdBytes), int64(len(tdBytes))); err != nil {
+	if err := writeTarEntry(tf, "manifest.json", bytes.NewReader(mBytes), int64(len(mBytes))); err != nil {
 		return err
 	}
 	reposBytes, err := json.Marshal(&repos)

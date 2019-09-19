@@ -21,6 +21,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/google/go-containerregistry/pkg/v1/partial"
+
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/v1util"
@@ -66,6 +68,10 @@ func (l *layer) Size() (int64, error) {
 
 func (l *layer) MediaType() (types.MediaType, error) {
 	return types.DockerLayer, nil
+}
+
+func (l *layer) Desc() (v1.Descriptor, error) {
+	return partial.Descriptor(l)
 }
 
 // LayerFromFile returns a v1.Layer given a tarball
