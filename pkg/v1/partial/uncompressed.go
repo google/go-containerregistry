@@ -89,8 +89,12 @@ func (ule *uncompressedLayerExtender) Descriptor() (v1.Descriptor, error) {
 	if ule.hashSizeError != nil {
 		return v1.Descriptor{}, ule.hashSizeError
 	}
+	mt, err := ule.MediaType()
+	if err != nil {
+		return v1.Descriptor{}, err
+	}
 	return v1.Descriptor{
-		MediaType: types.DockerLayer,
+		MediaType: mt,
 		Size:      ule.size,
 		Digest:    ule.hash,
 	}, nil
