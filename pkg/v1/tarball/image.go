@@ -258,7 +258,6 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 			mt := types.DockerLayer
 			if bd, ok := i.imgDescriptor.LayerSources[h]; ok {
 				// Overwrite the mediaType for foreign layers.
-				mt = bd.MediaType
 				return &foreignUncompressedLayer{
 					uncompressedLayerFromTarball: uncompressedLayerFromTarball{
 						diffID:    diffID,
