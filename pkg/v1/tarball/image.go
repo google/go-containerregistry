@@ -227,7 +227,13 @@ type foreignUncompressedLayer struct {
 	desc v1.Descriptor
 }
 
-func (fl foreignUncompressedLayer) Descriptor() (v1.Descriptor, error) {
+type withDescriptor interface {
+	Descriptor() (v1.Descriptor, error)
+}
+
+var _ withDescriptor = (*foreignUncompressedLayer)(nil)
+
+func (fl *foreignUncompressedLayer) Descriptor() (v1.Descriptor, error) {
 	return fl.desc, nil
 }
 
