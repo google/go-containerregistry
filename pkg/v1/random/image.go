@@ -31,7 +31,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 // uncompressedLayer implements partial.UncompressedLayer from raw bytes.
@@ -54,22 +53,6 @@ func (ul *uncompressedLayer) Uncompressed() (io.ReadCloser, error) {
 // MediaType returns the media type of the layer
 func (ul *uncompressedLayer) MediaType() (types.MediaType, error) {
 	return ul.mediaType, nil
-}
-
-// Desc returns the manifest descriptor of the layer.
-func (ul *uncompressedLayer) Desc() (v1.Descriptor, error) {
-	r, err := ul.Uncompressed()
-	if err != nil {
-		return v1.Descriptor{}, err
-	}
-	r = v1util.GzipReadCloser(r)
-	defer r.Close()
-	digest, size, err := v1.SHA256(r)
-	return v1.Descriptor{
-		MediaType: ul.mediaType,
-		Digest:    digest,
-		Size:      size,
-	}, nil
 }
 
 var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)

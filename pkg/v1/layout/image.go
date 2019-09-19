@@ -129,7 +129,3 @@ func (b *compressedBlob) Size() (int64, error) {
 func (b *compressedBlob) MediaType() (types.MediaType, error) {
 	return b.desc.MediaType, nil
 }
-
-func (b *compressedBlob) Desc() (v1.Descriptor, error) {
-	return b.desc, nil
-}

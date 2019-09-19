@@ -15,7 +15,6 @@
 package remote
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -182,20 +181,6 @@ func (rl *remoteImageLayer) MediaType() (types.MediaType, error) {
 	}
 
 	return bd.MediaType, nil
-}
-
-// Desc implements the v1.Layer.
-func (rl *remoteImageLayer) Desc() (v1.Descriptor, error) {
-	m, err := rl.Manifest()
-	if err != nil {
-		return v1.Descriptor{}, err
-	}
-	for _, desc := range m.Layers {
-		if desc.Digest == rl.digest {
-			return desc, nil
-		}
-	}
-	return v1.Descriptor{}, fmt.Errorf("did not find layer with digest %v in image manifest", rl.digest)
 }
 
 // Size implements partial.CompressedLayer

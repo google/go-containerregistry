@@ -53,11 +53,6 @@ func (rl *remoteLayer) MediaType() (types.MediaType, error) {
 	return types.DockerLayer, nil
 }
 
-// Desc implements v1.Layer.
-func (rl *remoteLayer) Desc() (v1.Descriptor, error) {
-	return partial.Descriptor(rl)
-}
-
 // Layer reads the given blob reference from a registry as a Layer. A blob
 // reference here is just a punned name.Digest where the digest portion is the
 // digest of the blob to be read and the repository portion is the repo where

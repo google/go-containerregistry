@@ -25,42 +25,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-// WithMediaTypeDigestAndSize defines the subset of a v1.Layer used to
-// automatically generate a layer descriptor.
-type WithMediaTypeDigestAndSize interface {
-	// Digest returns the Hash of the compressed layer.
-	Digest() (v1.Hash, error)
-
-	// Size returns the compressed size of the Layer.
-	Size() (int64, error)
-
-	// MediaType returns the media type of the Layer.
-	MediaType() (types.MediaType, error)
-}
-
-// Descriptor is a helper to generate a descriptor containing the media type, digest & size.
-func Descriptor(i WithMediaTypeDigestAndSize) (v1.Descriptor, error) {
-	mt, err := i.MediaType()
-	if err != nil {
-		return v1.Descriptor{}, err
-	}
-	d, err := i.Digest()
-	if err != nil {
-		return v1.Descriptor{}, err
-	}
-	sz, err := i.Size()
-	if err != nil {
-		return v1.Descriptor{}, err
-	}
-	// Defaulting this to OCIConfigJSON as it should remain
-	// backwards compatible with DockerConfigJSON
-	return v1.Descriptor{
-		MediaType: mt,
-		Digest:    d,
-		Size:      sz,
-	}, nil
-}
-
 // WithRawConfigFile defines the subset of v1.Image used by these helper methods
 type WithRawConfigFile interface {
 	// RawConfigFile returns the serialized bytes of this image's config file.
@@ -120,10 +84,6 @@ func (cl *configLayer) MediaType() (types.MediaType, error) {
 	// Defaulting this to OCIConfigJSON as it should remain
 	// backwards compatible with DockerConfigJSON
 	return types.OCIConfigJSON, nil
-}
-
-func (cl *configLayer) Desc() (v1.Descriptor, error) {
-	return Descriptor(cl)
 }
 
 var _ v1.Layer = (*configLayer)(nil)

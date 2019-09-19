@@ -34,11 +34,8 @@ type CompressedLayer interface {
 	// Size returns the compressed size of the Layer.
 	Size() (int64, error)
 
-	// Returns the mediaType for the compressed Layer.
+	// Returns the mediaType for the compressed Layer
 	MediaType() (types.MediaType, error)
-
-	// Desc returns the manifest descriptor for this layer.
-	Desc() (v1.Descriptor, error)
 }
 
 // compressedLayerExtender implements v1.Image using the compressed base properties.
