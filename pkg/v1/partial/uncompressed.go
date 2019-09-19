@@ -81,6 +81,21 @@ func (ule *uncompressedLayerExtender) calcSizeHash() {
 	})
 }
 
+func (ule *uncompressedLayerExtender) Descriptor() (v1.Descriptor, error) {
+	if withDesc, ok := ule.UncompressedLayer.(withDescriptor); ok {
+		return withDesc.Descriptor()
+	}
+	ule.calcSizeHash()
+	if ule.hashSizeError != nil {
+		return v1.Descriptor{}, ule.hashSizeError
+	}
+	return v1.Descriptor{
+		MediaType: types.DockerLayer,
+		Size:      ule.size,
+		Digest:    ule.hash,
+	}, nil
+}
+
 // UncompressedToLayer fills in the missing methods from an UncompressedLayer so that it implements v1.Layer
 func UncompressedToLayer(ul UncompressedLayer) (v1.Layer, error) {
 	return &uncompressedLayerExtender{UncompressedLayer: ul}, nil
@@ -118,10 +133,6 @@ var _ v1.Image = (*uncompressedImageExtender)(nil)
 // Digest implements v1.Image
 func (i *uncompressedImageExtender) Digest() (v1.Hash, error) {
 	return Digest(i)
-}
-
-type withDescriptor interface {
-	Descriptor() (v1.Descriptor, error)
 }
 
 // Manifest implements v1.Image

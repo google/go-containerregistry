@@ -281,3 +281,7 @@ func DiffIDToBlob(wm WithManifestAndConfigFile, h v1.Hash) (v1.Hash, error) {
 type WithDiffID interface {
 	DiffID() (v1.Hash, error)
 }
+
+type withDescriptor interface {
+	Descriptor() (v1.Descriptor, error)
+}
