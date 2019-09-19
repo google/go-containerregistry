@@ -220,6 +220,17 @@ type uncompressedLayerFromTarball struct {
 	filePath  string
 }
 
+// foreignUncompressedLayer implements partial.UncompressedLayer but returns
+// a custom descriptor.
+type foreignUncompressedLayer struct {
+	uncompressedLayerFromTarball
+	desc v1.Descriptor
+}
+
+func (fl foreignUncompressedLayer) Descriptor() (v1.Descriptor, error) {
+	return fl.desc, nil
+}
+
 // DiffID implements partial.UncompressedLayer
 func (ulft *uncompressedLayerFromTarball) DiffID() (v1.Hash, error) {
 	return ulft.diffID, nil
@@ -248,6 +259,15 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 			if bd, ok := i.imgDescriptor.LayerSources[h]; ok {
 				// Overwrite the mediaType for foreign layers.
 				mt = bd.MediaType
+				return &foreignUncompressedLayer{
+					uncompressedLayerFromTarball: uncompressedLayerFromTarball{
+						diffID:    diffID,
+						mediaType: bd.MediaType,
+						opener:    i.opener,
+						filePath:  i.imgDescriptor.Layers[idx],
+					},
+					desc: bd,
+				}, nil
 			}
 			return &uncompressedLayerFromTarball{
 				diffID:    diffID,

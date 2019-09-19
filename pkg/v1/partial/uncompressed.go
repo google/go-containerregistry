@@ -120,6 +120,10 @@ func (i *uncompressedImageExtender) Digest() (v1.Hash, error) {
 	return Digest(i)
 }
 
+type withDescriptor interface {
+	Descriptor() (v1.Descriptor, error)
+}
+
 // Manifest implements v1.Image
 func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 	i.lock.Lock()
@@ -155,6 +159,15 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 
 	m.Layers = make([]v1.Descriptor, len(ls))
 	for i, l := range ls {
+		// Check if the layer implementation provides the descriptor directly.
+		if withDesc, ok := l.(withDescriptor); ok {
+			desc, err := withDesc.Descriptor()
+			if err != nil {
+				return nil, err
+			}
+			m.Layers[i] = desc
+			continue
+		}
 		sz, err := l.Size()
 		if err != nil {
 			return nil, err
