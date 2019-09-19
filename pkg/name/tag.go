@@ -28,8 +28,8 @@ const (
 // Tag stores a docker tag name in a structured form.
 type Tag struct {
 	Repository
-	tag      string
-	original string
+	tag         string
+	original    string
 }
 
 // Ensure Tag implements Reference
@@ -45,9 +45,14 @@ func (t Tag) Identifier() string {
 	return t.TagStr()
 }
 
+// explicitTag returns true if and only if a tag was explicitly specified.
+func (t Tag) explicitTag() bool {
+	return t.tag != ""
+}
+
 // TagStr returns the tag component of the Tag.
 func (t Tag) TagStr() string {
-	if t.tag != "" {
+	if t.explicitTag() {
 		return t.tag
 	}
 	return defaultTag
@@ -66,6 +71,11 @@ func (t Tag) String() string {
 // Scope returns the scope required to perform the given action on the tag.
 func (t Tag) Scope(action string) string {
 	return t.Repository.Scope(action)
+}
+
+// WriteTarget has a tag rather than a digest when both are present.
+func (t Tag) WriteTarget() Reference {
+	return t
 }
 
 func checkTag(name string) error {

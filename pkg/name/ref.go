@@ -34,6 +34,9 @@ type Reference interface {
 
 	// Scope is the scope needed to access this reference.
 	Scope(string) string
+
+	// WriteTarget has a tag rather than a digest when both are present.
+	WriteTarget() Reference
 }
 
 // ParseReference parses the string as a reference, either by tag or digest.

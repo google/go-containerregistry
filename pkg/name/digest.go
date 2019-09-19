@@ -28,8 +28,9 @@ const (
 // Digest stores a digest name in a structured form.
 type Digest struct {
 	Repository
-	digest   string
-	original string
+	digest      string
+	original    string
+	writeTarget Reference // nil if original has no tag
 }
 
 // Ensure Digest implements Reference
@@ -60,6 +61,14 @@ func (d Digest) String() string {
 	return d.original
 }
 
+// WriteTarget has a tag rather than a digest when both are present.
+func (d Digest) WriteTarget() Reference {
+	if d.writeTarget != nil {
+		return d.writeTarget
+	}
+	return d
+}
+
 func checkDigest(name string) error {
 	return checkElement("digest", name, digestChars, 7+64, 7+64)
 }
@@ -79,9 +88,13 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 		return Digest{}, err
 	}
 
+	var writeTarget Reference = nil
 	tag, err := NewTag(base, opts...)
 	if err == nil {
 		base = tag.Repository.Name()
+		if tag.explicitTag() {
+			writeTarget = tag
+		}
 	}
 
 	repo, err := NewRepository(base, opts...)
@@ -89,8 +102,9 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 		return Digest{}, err
 	}
 	return Digest{
-		Repository: repo,
-		digest:     digest,
-		original:   name,
+		Repository:  repo,
+		digest:      digest,
+		original:    name,
+		writeTarget: writeTarget,
 	}, nil
 }

@@ -31,6 +31,7 @@ func TestParseReference(t *testing.T) {
 		if ref != dig {
 			t.Errorf("ParseReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
 		}
+		checkRefIsWriteTarget(ref, t)
 	}
 
 	for _, name := range goodStrictValidationDigestNames {
@@ -45,6 +46,39 @@ func TestParseReference(t *testing.T) {
 		if ref != dig {
 			t.Errorf("ParseReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
 		}
+		checkRefIsWriteTarget(ref, t)
+	}
+
+	for _, name := range goodWeakValidationTagDigestNames {
+		ref, err := ParseReference(name, WeakValidation)
+		if err != nil {
+			t.Errorf("ParseReference(%q); %v", name, err)
+		}
+
+		dig, err := NewDigest(name, WeakValidation)
+		if err != nil {
+			t.Errorf("NewDigest(%q); %v", name, err)
+		}
+		if ref != dig {
+			t.Errorf("ParseReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
+		}
+		checkWriteTarget(ref, dig, t)
+	}
+
+	for _, name := range goodStrictValidationTagDigestNames {
+		ref, err := ParseReference(name, StrictValidation)
+		if err != nil {
+			t.Errorf("ParseReference(%q); %v", name, err)
+		}
+
+		dig, err := NewDigest(name, StrictValidation)
+		if err != nil {
+			t.Errorf("NewDigest(%q); %v", name, err)
+		}
+		if ref != dig {
+			t.Errorf("ParseReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
+		}
+		checkWriteTarget(ref, dig, t)
 	}
 
 	for _, name := range badDigestNames {
@@ -65,6 +99,7 @@ func TestParseReference(t *testing.T) {
 		if ref != tag {
 			t.Errorf("ParseReference(%q) != NewTag(%q); got %v, want %v", name, name, ref, tag)
 		}
+		checkRefIsWriteTarget(ref, t)
 	}
 
 	for _, name := range goodStrictValidationTagNames {
@@ -79,11 +114,24 @@ func TestParseReference(t *testing.T) {
 		if ref != tag {
 			t.Errorf("ParseReference(%q) != NewTag(%q); got %v, want %v", name, name, ref, tag)
 		}
+		checkRefIsWriteTarget(ref, t)
 	}
 
 	for _, name := range badTagNames {
 		if _, err := ParseReference(name, WeakValidation); err == nil {
 			t.Errorf("ParseReference(%q); expected error, got none", name)
 		}
+	}
+}
+
+func checkRefIsWriteTarget(ref Reference, t *testing.T) {
+	if ref != ref.WriteTarget() {
+		t.Errorf("ref != ref.WriteTarget(); r=%v, ref.WriteTarget()=%v", ref, ref.WriteTarget())
+	}
+}
+
+func checkWriteTarget(ref Reference, dig Digest, t *testing.T) {
+	if ref.String() != ref.WriteTarget().String()+"@"+dig.DigestStr() {
+		t.Errorf("ref.WriteTarget() is not the original ref with the digest removed; ref.String()=%v, ref.WriteTarget().String()=%v", ref.String(), ref.WriteTarget().String())
 	}
 }

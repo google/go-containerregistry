@@ -32,6 +32,7 @@ import (
 // CopySchema1 allows `[g]crane cp` to work with old images without adding
 // full support for schema 1 images to this package.
 func CopySchema1(desc *remote.Descriptor, srcRef, dstRef name.Reference, srcAuth, dstAuth authn.Authenticator) error {
+	dstRef = dstRef.WriteTarget()
 	m := schema1{}
 	if err := json.NewDecoder(bytes.NewReader(desc.Manifest)).Decode(&m); err != nil {
 		return err

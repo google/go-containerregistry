@@ -42,6 +42,7 @@ type Taggable interface {
 
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, options ...Option) error {
+	ref = ref.WriteTarget()
 	ls, err := img.Layers()
 	if err != nil {
 		return err
@@ -434,6 +435,7 @@ func scopesForUploadingImage(ref name.Reference, layers []v1.Layer) []string {
 // WriteIndex will attempt to push all of the referenced manifests before
 // attempting to push the ImageIndex, to retain referential integrity.
 func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
+	ref = ref.WriteTarget()
 	index, err := ii.IndexManifest()
 	if err != nil {
 		return err
