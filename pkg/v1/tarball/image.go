@@ -347,11 +347,6 @@ type compressedLayerFromTarball struct {
 	filePath string
 }
 
-// Desc implements partial.CompressedLayer
-func (clft *compressedLayerFromTarball) Desc() (v1.Descriptor, error) {
-	return clft.desc, nil
-}
-
 // Digest implements partial.CompressedLayer
 func (clft *compressedLayerFromTarball) Digest() (v1.Hash, error) {
 	return clft.desc.Digest, nil
