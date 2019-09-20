@@ -11,6 +11,10 @@ go:
 git:
   depth: 1
 
+cache:
+  directories:
+    - $GOPATH/pkg/mod
+
 install:
   # Lint!
   - go get -v -u golang.org/x/lint/golint
