@@ -16,6 +16,7 @@ package remote
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 
@@ -28,7 +29,7 @@ type catalog struct {
 }
 
 // GetCatalog calls /_catalog, returning the list of repositories on the registry
-func GetCatalog(target name.Registry, options ...Option) ([]string, error) {
+func GetCatalog(target name.Registry, last string, n int, options ...Option) ([]string, error) {
 
 	o, err := makeOptions(target, options...)
 	if err != nil {
@@ -40,10 +41,15 @@ func GetCatalog(target name.Registry, options ...Option) ([]string, error) {
 		return nil, err
 	}
 
+	var query string
+
+	query = fmt.Sprintf("last=%s&n=%d", url.QueryEscape(last), n)
+
 	uri := url.URL{
-		Scheme: target.Scheme(),
-		Host:   target.RegistryStr(),
-		Path:   "/v2/_catalog",
+		Scheme:   target.Scheme(),
+		Host:     target.RegistryStr(),
+		Path:     "/v2/_catalog",
+		RawQuery: query,
 	}
 
 	client := http.Client{Transport: tr}
