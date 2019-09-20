@@ -21,6 +21,8 @@ services:
 
 script:
   - ./hack/presubmit.sh
+  - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+  - cmd/registry/test.sh
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
