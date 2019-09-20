@@ -20,5 +20,8 @@ docker push localhost:1338/ubuntud:latest
 crane pull localhost:1338/ubuntud:latest ubuntu.tar
 crane push ubuntu.tar localhost:1338/ubuntuc:foo
 docker pull localhost:1338/ubuntuc:foo
+rm ubuntu.tar
+rm debiand.tar
+rm debianc.tar
 
 kill $PID

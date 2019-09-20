@@ -23,6 +23,17 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 pushd ${PROJECT_ROOT}
 trap popd EXIT
 
+go get -v -u golang.org/x/lint/golint
 golint -set_exit_status ./pkg/...
-go test ./...
+
+go get honnef.co/go/tools/cmd/staticcheck
 staticcheck ./pkg/...
+
+# Verify that all source files are correctly formatted.
+find . -name "*.go" | grep -v vendor/ | xargs gofmt -d -e -l
+
+# Verify that generated crane docs are up-to-date.
+mkdir -p /tmp/gendoc && go run cmd/crane/help/main.go --dir /tmp/gendoc && diff -Naur /tmp/gendoc/ cmd/crane/doc/
+
+go test ./...
+

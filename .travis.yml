@@ -9,6 +9,10 @@ go:
   - "1.12"
   - "1.13"
 
+env:
+  - "GO111MODULE=off"
+  - "GO111MODULE=on"
+
 git:
   depth: 1
 
@@ -16,26 +20,12 @@ cache:
   directories:
     - $GOPATH/pkg/mod
 
-install:
-  # Lint!
-  - go get -v -u golang.org/x/lint/golint
-  - go get honnef.co/go/tools/cmd/staticcheck
-
 services:
   - docker
 
 script:
-  # Verify that all source files are correctly formatted.
-  - find . -name "*.go" | grep -v vendor/ | xargs gofmt -d -e -l
-
-  - go clean -i
-  - golint -set_exit_status ./pkg/...
+  - ./hack/presubmit.sh
   - go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
-  - staticcheck ./pkg/...
-
-  # Verify that generated crane docs are up-to-date.
-  - mkdir -p /tmp/gendoc && go run cmd/crane/help/main.go --dir /tmp/gendoc && diff -Naur /tmp/gendoc/ cmd/crane/doc/
-
   - cmd/registry/test.sh
 
 after_success:
