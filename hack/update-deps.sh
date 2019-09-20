@@ -23,7 +23,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 pushd ${PROJECT_ROOT}
 trap popd EXIT
 
-dep ensure
+go mod vendor
 
 # Delete all vendored broken symlinks.
 # From https://stackoverflow.com/questions/22097130/delete-all-broken-symbolic-links-with-a-line
