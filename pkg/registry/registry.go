@@ -26,21 +26,23 @@ package registry
 import (
 	"log"
 	"net/http"
+	"os"
 )
 
-type v struct {
+type registry struct {
+	log       *log.Logger
 	blobs     blobs
 	manifests manifests
 }
 
 // https://docs.docker.com/registry/spec/api/#api-version-check
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#api-version-check
-func (v *v) v2(resp http.ResponseWriter, req *http.Request) *regError {
+func (r *registry) v2(resp http.ResponseWriter, req *http.Request) *regError {
 	if isBlob(req) {
-		return v.blobs.handle(resp, req)
+		return r.blobs.handle(resp, req)
 	}
 	if isManifest(req) {
-		return v.manifests.handle(resp, req)
+		return r.manifests.handle(resp, req)
 	}
 	resp.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
 	if req.URL.Path != "/v2/" && req.URL.Path != "/v2" {
@@ -54,18 +56,20 @@ func (v *v) v2(resp http.ResponseWriter, req *http.Request) *regError {
 	return nil
 }
 
-func (v *v) root(resp http.ResponseWriter, req *http.Request) {
-	if rerr := v.v2(resp, req); rerr != nil {
-		log.Printf("%s %s %d %s %s", req.Method, req.URL, rerr.Status, rerr.Code, rerr.Message)
+func (r *registry) root(resp http.ResponseWriter, req *http.Request) {
+	if rerr := r.v2(resp, req); rerr != nil {
+		r.log.Printf("%s %s %d %s %s", req.Method, req.URL, rerr.Status, rerr.Code, rerr.Message)
 		rerr.Write(resp)
 		return
 	}
-	log.Printf("%s %s", req.Method, req.URL)
+	r.log.Printf("%s %s", req.Method, req.URL)
 }
 
-// New returns a handler which implements the docker registry protocol. It should be registered at the site root.
-func New() http.Handler {
-	v := v{
+// New returns a handler which implements the docker registry protocol.
+// It should be registered at the site root.
+func New(opts ...Option) http.Handler {
+	r := &registry{
+		log: log.New(os.Stderr, "", log.LstdFlags),
 		blobs: blobs{
 			contents: map[string][]byte{},
 			uploads:  map[string][]byte{},
@@ -74,5 +78,18 @@ func New() http.Handler {
 			manifests: map[string]map[string]manifest{},
 		},
 	}
-	return http.HandlerFunc(v.root)
+	for _, o := range opts {
+		o(r)
+	}
+	return http.HandlerFunc(r.root)
+}
+
+// Options describes the available options
+// for creating the registry.
+type Option func(r *registry)
+
+func Logger(l *log.Logger) Option {
+	return func(r *registry) {
+		r.log = l
+	}
 }
