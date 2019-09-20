@@ -84,10 +84,11 @@ func New(opts ...Option) http.Handler {
 	return http.HandlerFunc(r.root)
 }
 
-// Options describes the available options
+// Option describes the available options
 // for creating the registry.
 type Option func(r *registry)
 
+// Logger overrides the logger used to record requests to the registry.
 func Logger(l *log.Logger) Option {
 	return func(r *registry) {
 		r.log = l
