@@ -84,9 +84,9 @@ func newV1Layer(layer v1.Layer, parent *v1Layer, history v1.History) (*v1Layer, 
 			ConfigFile: v1.ConfigFile{
 				Created: history.Created,
 				Author:  history.Author,
-				ContainerConfig: v1.Config{
-					Cmd: []string{history.CreatedBy},
-				},
+			},
+			ContainerConfig: v1.Config{
+				Cmd: []string{history.CreatedBy},
 			},
 			ID:        id,
 			Parent:    parentID,
@@ -113,7 +113,6 @@ func newTopV1Layer(layer v1.Layer, parent *v1Layer, history v1.History, imgConfi
 	result.config.DockerVersion = imgConfig.DockerVersion
 	result.config.OS = imgConfig.OS
 	result.config.Config = imgConfig.Config
-	result.config.ContainerConfig = imgConfig.ContainerConfig
 	result.config.Created = imgConfig.Created
 	return result, nil
 }

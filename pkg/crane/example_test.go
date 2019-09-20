@@ -27,5 +27,5 @@ func Example() {
 	i, _ := crane.Image(c)
 	d, _ := i.Digest()
 	fmt.Println(d)
-	// Output: sha256:7f384dc9f331568b53484d1a31b85188be61c1161e37c5988abe304969268a8c
+	// Output: sha256:09fb0c6289cefaad8c74c7e5fd6758ad6906ab8f57f1350d9f4eb5a7df45ff8b
 }

@@ -357,7 +357,7 @@ func TestAppendStreamableLayer(t *testing.T) {
 	if err != nil {
 		t.Errorf("Digest: %v", err)
 	}
-	wantDigest := "sha256:3ce401493b0faa0f0640afb50975aba3c3f8cc237ff17a5b3a0720dea5514eb7"
+	wantDigest := "sha256:14d140947afedc6901b490265a08bc8ebe7f9d9faed6fdf19a451f054a7dd746"
 	if h.String() != wantDigest {
 		t.Errorf("Image digest got %q, want %q", h, wantDigest)
 	}
@@ -377,7 +377,6 @@ func TestCanonical(t *testing.T) {
 	for _, s := range []string{
 		cf.Container,
 		cf.Config.Hostname,
-		cf.ContainerConfig.Hostname,
 		cf.DockerVersion,
 	} {
 		if s != "" {
