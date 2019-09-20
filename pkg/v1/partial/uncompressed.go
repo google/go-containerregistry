@@ -81,19 +81,24 @@ func (ule *uncompressedLayerExtender) calcSizeHash() {
 	})
 }
 
-func (ule *uncompressedLayerExtender) Descriptor() (v1.Descriptor, error) {
+// Descriptor returns the layer manifest descriptor for this uncompressed layer.
+// The embedded UncompressedLayer is checked to see if it has a Descriptor
+// function which is returned if it exists. The underlying descriptor provides
+// foreign layer data like URLs. Otherwise, a new descriptor is
+// generated.
+func (ule *uncompressedLayerExtender) Descriptor() (*v1.Descriptor, error) {
 	if withDesc, ok := ule.UncompressedLayer.(withDescriptor); ok {
 		return withDesc.Descriptor()
 	}
 	ule.calcSizeHash()
 	if ule.hashSizeError != nil {
-		return v1.Descriptor{}, ule.hashSizeError
+		return nil, ule.hashSizeError
 	}
 	mt, err := ule.MediaType()
 	if err != nil {
-		return v1.Descriptor{}, err
+		return nil, err
 	}
-	return v1.Descriptor{
+	return &v1.Descriptor{
 		MediaType: mt,
 		Size:      ule.size,
 		Digest:    ule.hash,
@@ -180,7 +185,7 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 			if err != nil {
 				return nil, err
 			}
-			m.Layers[i] = desc
+			m.Layers[i] = *desc
 			continue
 		}
 		sz, err := l.Size()

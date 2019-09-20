@@ -221,14 +221,15 @@ type uncompressedLayerFromTarball struct {
 }
 
 // foreignUncompressedLayer implements partial.UncompressedLayer but returns
-// a custom descriptor.
+// a custom descriptor. This allows the foreign layer URLs to be included in
+// the generated image manifest for uncompressed layers.
 type foreignUncompressedLayer struct {
 	uncompressedLayerFromTarball
 	desc v1.Descriptor
 }
 
-func (fl *foreignUncompressedLayer) Descriptor() (v1.Descriptor, error) {
-	return fl.desc, nil
+func (fl *foreignUncompressedLayer) Descriptor() (*v1.Descriptor, error) {
+	return &fl.desc, nil
 }
 
 // DiffID implements partial.UncompressedLayer

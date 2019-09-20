@@ -1,3 +1,16 @@
+// Copyright 2019 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package tarball
 
 import (
@@ -9,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/legacy"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -103,10 +117,24 @@ func newTopV1Layer(layer v1.Layer, parent *v1Layer, history v1.History, imgConfi
 	return result, nil
 }
 
+// splitTag splits the given tagged image name <registry>/<repository>:<tag>
+// into <registry>/<repository> and <tag>.
+func splitTag(name string) (string, string) {
+	// Split on ":"
+	parts := strings.Split(name, ":")
+	// Verify that we aren't confusing a tag for a hostname w/ port for the purposes of weak validation.
+	if len(parts) > 1 && !strings.Contains(parts[len(parts)-1], "/") {
+		base := strings.Join(parts[:len(parts)-1], ":")
+		tag := parts[len(parts)-1]
+		return base, tag
+	}
+	return name, ""
+}
+
 // addTags adds the given image tags to the given "repositories" file descriptor in a v1 image tarball.
 func addTags(repos repositoriesTarDescriptor, tags []string, topLayerID string) {
 	for _, t := range tags {
-		base, tag := name.SplitTag(t)
+		base, tag := splitTag(t)
 		tagToID, ok := repos[base]
 		if !ok {
 			tagToID = make(map[string]string)

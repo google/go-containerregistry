@@ -72,24 +72,19 @@ func checkTag(name string) error {
 	return checkElement("tag", name, tagChars, 1, 127)
 }
 
-// SplitTag splits the given tagged image name <registry>/<repository>:<tag>
-// into <registry>/<repository> and <tag>.
-func SplitTag(name string) (string, string) {
+// NewTag returns a new Tag representing the given name, according to the given strictness.
+func NewTag(name string, opts ...Option) (Tag, error) {
+	opt := makeOptions(opts...)
+	base := name
+	tag := ""
+
 	// Split on ":"
 	parts := strings.Split(name, tagDelim)
 	// Verify that we aren't confusing a tag for a hostname w/ port for the purposes of weak validation.
 	if len(parts) > 1 && !strings.Contains(parts[len(parts)-1], regRepoDelimiter) {
-		base := strings.Join(parts[:len(parts)-1], tagDelim)
-		tag := parts[len(parts)-1]
-		return base, tag
+		base = strings.Join(parts[:len(parts)-1], tagDelim)
+		tag = parts[len(parts)-1]
 	}
-	return name, ""
-}
-
-// NewTag returns a new Tag representing the given name, according to the given strictness.
-func NewTag(name string, opts ...Option) (Tag, error) {
-	opt := makeOptions(opts...)
-	base, tag := SplitTag(name)
 
 	// We don't require a tag, but if we get one check it's valid,
 	// even when not being strict.

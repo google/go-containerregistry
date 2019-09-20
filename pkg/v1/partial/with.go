@@ -282,6 +282,10 @@ type WithDiffID interface {
 	DiffID() (v1.Hash, error)
 }
 
+// withDescriptor allows partial layer implementations to provide a layer
+// descriptor to the partial image manifest builder. This allows partial
+// uncompressed layers to provide foreign layer metadata like URLs to the
+// uncompressed image manifest.
 type withDescriptor interface {
-	Descriptor() (v1.Descriptor, error)
+	Descriptor() (*v1.Descriptor, error)
 }
