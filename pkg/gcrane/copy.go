@@ -65,26 +65,28 @@ func init() { Root.AddCommand(NewCmdCopy()) }
 // NewCmdCopy creates a new cobra.Command for the copy subcommand.
 func NewCmdCopy() *cobra.Command {
 	recursive := false
+	jobs := 1
 	cmd := &cobra.Command{
 		Use:     "copy",
 		Aliases: []string{"cp"},
 		Short:   "Efficiently copy a remote image from src to dst",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cc *cobra.Command, args []string) {
-			doCopy(args, recursive)
+			doCopy(args, recursive, jobs)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
+	cmd.Flags().IntVarP(&jobs, "jobs", "j", runtime.GOMAXPROCS(0), "The maximum number of concurrent copies")
 
 	return cmd
 }
 
-func doCopy(args []string, recursive bool) {
+func doCopy(args []string, recursive bool, jobs int) {
 	src, dst := args[0], args[1]
 
 	if recursive {
-		if err := recursiveCopy(src, dst); err != nil {
+		if err := recursiveCopy(src, dst, jobs); err != nil {
 			log.Fatalf("failed to copy images: %v", err)
 		}
 	} else {
@@ -111,7 +113,7 @@ type copier struct {
 	tasks chan task
 }
 
-func newCopier(src, dst string) (*copier, error) {
+func newCopier(src, dst string, jobs int) (*copier, error) {
 	srcRepo, err := name.NewRepository(src)
 	if err != nil {
 		return nil, fmt.Errorf("parsing repo %q: %v", src, err)
@@ -132,7 +134,8 @@ func newCopier(src, dst string) (*copier, error) {
 		return nil, fmt.Errorf("getting auth for %q: %v", dst, err)
 	}
 
-	tasks := make(chan task, 100)
+	// A queue of size 2*jobs should keep each goroutine busy.
+	tasks := make(chan task, jobs*2)
 
 	return &copier{srcRepo, dstRepo, srcAuth, dstAuth, tasks}, nil
 }
@@ -195,8 +198,8 @@ func copyIndex(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
 }
 
 // recursiveCopy copies images from repo src to repo dst.
-func recursiveCopy(src, dst string) error {
-	c, err := newCopier(src, dst)
+func recursiveCopy(src, dst string, jobs int) error {
+	c, err := newCopier(src, dst, jobs)
 	if err != nil {
 		return err
 	}
@@ -232,11 +235,8 @@ func recursiveCopy(src, dst string) error {
 		return nil
 	})
 
-	// TODO: Set this via flag?
-	workers := runtime.GOMAXPROCS(0)
-
 	// Pull items off of c.tasks and copy the images.
-	for i := 0; i < workers; i++ {
+	for i := 0; i < jobs; i++ {
 		g.Go(func() error {
 			for task := range c.tasks {
 				// If we hit an error when trying to copy the images,
