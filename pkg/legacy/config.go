@@ -23,6 +23,9 @@ import (
 // https://github.com/moby/moby/blob/master/image/spec/v1.md
 type LayerConfigFile struct {
 	v1.ConfigFile
+
+	ContainerConfig v1.Config `json:"container_config,omitempty"`
+
 	ID        string `json:"id,omitempty"`
 	Parent    string `json:"parent,omitempty"`
 	Throwaway bool   `json:"throwaway,omitempty"`
