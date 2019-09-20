@@ -29,6 +29,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/internal/retry"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
@@ -140,61 +141,82 @@ func newCopier(src, dst string, jobs int) (*copier, error) {
 	return &copier{srcRepo, dstRepo, srcAuth, dstAuth, tasks}, nil
 }
 
-func copyImage(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
+func copyImage(src, dst string, srcAuth, dstAuth authn.Authenticator) (remote.Taggable, error) {
 	srcRef, err := name.ParseReference(src)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", src, err)
+		return nil, fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
 	dstRef, err := name.ParseReference(dst)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", dst, err)
+		return nil, fmt.Errorf("parsing reference %q: %v", dst, err)
 	}
 
 	img, err := remote.Image(srcRef, remote.WithAuth(srcAuth))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return remote.Write(dstRef, img, remote.WithAuth(dstAuth))
+	if err := remote.Write(dstRef, img, remote.WithAuth(dstAuth)); err != nil {
+		return nil, err
+	}
+
+	return img, nil
 }
 
-func copySchema1Image(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
+// taggable implements remote.Taggable
+type taggable struct {
+	desc *remote.Descriptor
+}
+
+func (t *taggable) MediaType() (types.MediaType, error) { return t.desc.MediaType, nil }
+func (t *taggable) RawManifest() ([]byte, error)        { return t.desc.Manifest, nil }
+func (t *taggable) Digest() (v1.Hash, error)            { return t.desc.Digest, nil }
+
+func copySchema1Image(src, dst string, srcAuth, dstAuth authn.Authenticator) (remote.Taggable, error) {
 	srcRef, err := name.ParseReference(src)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", src, err)
+		return nil, fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
 	dstRef, err := name.ParseReference(dst)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", dst, err)
+		return nil, fmt.Errorf("parsing reference %q: %v", dst, err)
 	}
 
 	desc, err := remote.Get(srcRef, remote.WithAuth(srcAuth))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return legacy.CopySchema1(desc, srcRef, dstRef, srcAuth, dstAuth)
+	if err := legacy.CopySchema1(desc, srcRef, dstRef, srcAuth, dstAuth); err != nil {
+		return nil, err
+	}
+
+	return &taggable{desc}, nil
 }
 
-func copyIndex(src, dst string, srcAuth, dstAuth authn.Authenticator) error {
+func copyIndex(src, dst string, srcAuth, dstAuth authn.Authenticator) (remote.Taggable, error) {
 	srcRef, err := name.ParseReference(src)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", src, err)
+		return nil, fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
 	dstRef, err := name.ParseReference(dst)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", dst, err)
+		return nil, fmt.Errorf("parsing reference %q: %v", dst, err)
 	}
 
 	idx, err := remote.Index(srcRef, remote.WithAuth(srcAuth))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return remote.WriteIndex(dstRef, idx, remote.WithAuth(dstAuth))
+	if err := remote.WriteIndex(dstRef, idx, remote.WithAuth(dstAuth)); err != nil {
+		return nil, err
+	}
+
+	return idx, nil
 }
 
 // recursiveCopy copies images from repo src to repo dst.
@@ -333,7 +355,8 @@ func (c *copier) copyRepo(ctx context.Context, oldRepo name.Repository, tags *go
 // copyImages starts a goroutine for each tag that points to the image
 // oldRepo@digest, or just copies the image by digest if there are no tags.
 func (c *copier) copyImages(ctx context.Context, t task) error {
-	copyFunc := copyImage
+	var copyFunc func(src, dst string, srcAuth, dstAuth authn.Authenticator) (remote.Taggable, error)
+
 	switch types.MediaType(t.manifest.MediaType) {
 	case types.OCIImageIndex, types.DockerManifestList:
 		copyFunc = copyIndex
@@ -347,17 +370,29 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 		srcImg := fmt.Sprintf("%s@%s", t.oldRepo, t.digest)
 		dstImg := fmt.Sprintf("%s@%s", t.newRepo, t.digest)
 
-		return copyFunc(srcImg, dstImg, c.srcAuth, c.dstAuth)
+		_, err := copyFunc(srcImg, dstImg, c.srcAuth, c.dstAuth)
+		return err
 	}
 
-	// Copy all the tags.
-	for _, tag := range t.manifest.Tags {
-		srcImg := fmt.Sprintf("%s:%s", t.oldRepo, tag)
-		dstImg := fmt.Sprintf("%s:%s", t.newRepo, tag)
+	// We only need to push the whole image once.
+	tag := t.manifest.Tags[0]
+	srcImg := fmt.Sprintf("%s:%s", t.oldRepo, tag)
+	dstImg := fmt.Sprintf("%s:%s", t.newRepo, tag)
 
-		// TODO(#349): We only need to copy one image, really. The rest can be
-		// done via a quicker PUT with the tag.
-		if err := copyFunc(srcImg, dstImg, c.srcAuth, c.dstAuth); err != nil {
+	taggable, err := copyFunc(srcImg, dstImg, c.srcAuth, c.dstAuth)
+	if err != nil {
+		return err
+	}
+
+	// Copy the rest of the tags.
+	for _, tag := range t.manifest.Tags[1:] {
+		dstImg := fmt.Sprintf("%s:%s", t.newRepo, tag)
+		t, err := name.NewTag(dstImg)
+		if err != nil {
+			return err
+		}
+
+		if err := remote.Tag(t, taggable, remote.WithAuth(c.dstAuth)); err != nil {
 			return err
 		}
 	}
