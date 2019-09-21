@@ -30,20 +30,18 @@ type catalog struct {
 
 // GetCatalog calls /_catalog, returning the list of repositories on the registry
 func GetCatalog(target name.Registry, last string, n int, options ...Option) ([]string, error) {
-
 	o, err := makeOptions(target, options...)
 	if err != nil {
 		return nil, err
 	}
+
 	scopes := []string{target.Scope(transport.PullScope)}
 	tr, err := transport.New(target, o.auth, o.transport, scopes)
 	if err != nil {
 		return nil, err
 	}
 
-	var query string
-
-	query = fmt.Sprintf("last=%s&n=%d", url.QueryEscape(last), n)
+	query := fmt.Sprintf("last=%s&n=%d", url.QueryEscape(last), n)
 
 	uri := url.URL{
 		Scheme:   target.Scheme(),
@@ -63,13 +61,10 @@ func GetCatalog(target name.Registry, last string, n int, options ...Option) ([]
 		return nil, err
 	}
 
-	parsed := catalog{}
+	var parsed catalog
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
 		return nil, err
 	}
 
-	//TKTK:JM iterate through results with "last"
 	return parsed.Repos, nil
 }
-
-//TKTK:JM write tests
