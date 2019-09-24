@@ -66,16 +66,8 @@ func checkDigest(name string) error {
 
 // NewDigest returns a new Digest representing the given name.
 func NewDigest(name string, opts ...Option) (Digest, error) {
-	// Split on "@"
-	parts := strings.Split(name, digestDelim)
-	if len(parts) != 2 {
-		return Digest{}, NewErrBadName("a digest must contain exactly one '@' separator (e.g. registry/repository@digest) saw: %s", name)
-	}
-	base := parts[0]
-	digest := parts[1]
-
-	// Always check that the digest is valid.
-	if err := checkDigest(digest); err != nil {
+	base, digest, err := splitDigest(name)
+	if err != nil {
 		return Digest{}, err
 	}
 
@@ -93,4 +85,20 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 		digest:     digest,
 		original:   name,
 	}, nil
+}
+
+func splitDigest(name string) (string, string, error) {
+	// Split on "@"
+	parts := strings.Split(name, digestDelim)
+	if len(parts) != 2 {
+		return "", "", NewErrBadName("a digest must contain exactly one '@' separator (e.g. registry/repository@digest) saw: %s", name)
+	}
+	base, digest := parts[0], parts[1]
+
+	// Always check that the digest is valid.
+	if err := checkDigest(digest); err != nil {
+		return "", "", err
+	}
+
+	return base, digest, nil
 }

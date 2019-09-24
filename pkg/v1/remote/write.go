@@ -377,7 +377,23 @@ func (w *writer) commitImage(t Taggable) error {
 		return err
 	}
 
-	u := w.url(fmt.Sprintf("/v2/%s/manifests/%s", w.ref.Context().RepositoryStr(), w.ref.Identifier()))
+	digest, err := t.Digest()
+	if err != nil {
+		return err
+	}
+
+	if d, ok := w.ref.(name.Digest); ok {
+		if digest.String() != d.DigestStr() {
+			return fmt.Errorf("incorrect digest in target reference %s: was not equal to the repository digest %s", w.ref, digest.String())
+		}
+	}
+
+	commitRef := w.ref
+	if tag, err := name.NewTag(w.ref.String(), name.PreferTagOverDigest); err == nil {
+		commitRef = tag
+	}
+
+	u := w.url(fmt.Sprintf("/v2/%s/manifests/%s", commitRef.Context().RepositoryStr(), commitRef.Identifier()))
 
 	// Make the request to PUT the serialized manifest
 	req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(raw))
@@ -393,11 +409,6 @@ func (w *writer) commitImage(t Taggable) error {
 	defer resp.Body.Close()
 
 	if err := transport.CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
-		return err
-	}
-
-	digest, err := t.Digest()
-	if err != nil {
 		return err
 	}
 

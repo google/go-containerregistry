@@ -48,8 +48,12 @@ func Save(img v1.Image, src, path string) error {
 
 	// WriteToFile wants a tag to write to the tarball, but we might have
 	// been given a digest.
-	// If the original ref was a tag, use that. Otherwise, if it was a
+	// If the original ref had a tag, use that. Otherwise, if it was a
 	// digest, tag the image with :i-was-a-digest instead.
+	if tag, err := name.NewTag(ref.String(), name.PreferTagOverDigest); err == nil {
+		ref = tag
+	}
+
 	tag, ok := ref.(name.Tag)
 	if !ok {
 		d, ok := ref.(name.Digest)

@@ -15,6 +15,7 @@
 package name
 
 import (
+	"fmt"
 	"path"
 	"strings"
 	"testing"
@@ -68,7 +69,7 @@ func TestNewDigestStrictValidation(t *testing.T) {
 		}
 	}
 
-	for _, name := range append(goodWeakValidationDigestNames, badDigestNames...) {
+	for _, name := range appendSlices(goodWeakValidationDigestNames, goodWeakValidationTagDigestNames, badDigestNames) {
 		if repo, err := NewDigest(name, StrictValidation); err == nil {
 			t.Errorf("`%s` should be an invalid Digest name, got Digest: %#v", name, repo)
 		}
@@ -78,7 +79,8 @@ func TestNewDigestStrictValidation(t *testing.T) {
 func TestNewDigest(t *testing.T) {
 	t.Parallel()
 
-	for _, name := range append(goodStrictValidationDigestNames, append(goodWeakValidationDigestNames, goodWeakValidationTagDigestNames...)...) {
+	for _, name := range appendSlices(goodStrictValidationDigestNames, goodWeakValidationDigestNames, goodStrictValidationTagDigestNames,
+		goodWeakValidationTagDigestNames) {
 		if _, err := NewDigest(name, WeakValidation); err != nil {
 			t.Errorf("`%s` should be a valid Digest name, got error: %v", name, err)
 		}
@@ -144,5 +146,41 @@ func TestDigestScopes(t *testing.T) {
 	actualScope := digest.Scope(testAction)
 	if actualScope != expectedScope {
 		t.Errorf("scope was incorrect for %v. Wanted: `%s` Got: `%s`", digest, expectedScope, actualScope)
+	}
+}
+
+func TestTagRetrieval(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range goodStrictValidationTagDigestNames {
+		d, err := NewDigest(name, StrictValidation)
+		if err != nil {
+			t.Errorf("`%s` should be a valid Digest name, got error: %v", name, err)
+		}
+
+		tag, err := NewTag(d.String(), PreferTagOverDigest)
+		if err != nil {
+			t.Errorf("failed to retrieve tag from %#v", d)
+		}
+		if fmt.Sprintf("%s%s%s", tag.Name(), digestDelim, d.DigestStr()) != name {
+			t.Errorf("incorrect tagged reference %v", tag)
+		}
+	}
+
+	for _, name := range appendSlices(goodStrictValidationTagDigestNames, goodWeakValidationTagDigestNames) {
+		d, err := NewDigest(name, WeakValidation)
+		if err != nil {
+			t.Errorf("`%s` should be a valid Digest name, got error: %v", name, err)
+		}
+
+		tag, err := NewTag(d.String(), PreferTagOverDigest)
+		if err != nil {
+			t.Errorf("failed to retrieve tag from %#v", d)
+		}
+		reconstitutedName := fmt.Sprintf("%s%s%s", tag.Name(), digestDelim, d.DigestStr())
+		normalisedName := fmt.Sprintf("%s%s%s%s%s", d.Context(), tagDelim, tag.Identifier(), digestDelim, d.DigestStr())
+		if reconstitutedName != normalisedName {
+			t.Errorf("incorrect tagged reference %v: expected reconstituted name %s to equal normalised original name %s", tag.Name(), reconstitutedName, normalisedName)
+		}
 	}
 }

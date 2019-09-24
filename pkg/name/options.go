@@ -17,6 +17,7 @@ package name
 type options struct {
 	strict   bool // weak by default
 	insecure bool // secure by default
+	preferTagOverDigest bool // prefer digest over tag by default
 }
 
 func makeOptions(opts ...Option) options {
@@ -46,4 +47,10 @@ func WeakValidation(opts *options) {
 // Insecure is an Option that allows image references to be fetched without TLS.
 func Insecure(opts *options) {
 	opts.insecure = true
+}
+
+// PreferTagOverDigest is an Option that allows image references containing both
+// a tag and a digest to be parsed as tagged rather than digested.
+func PreferTagOverDigest(opts *options) {
+	opts.preferTagOverDigest = true
 }

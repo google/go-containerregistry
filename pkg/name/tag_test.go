@@ -53,11 +53,19 @@ func TestNewTagStrictValidation(t *testing.T) {
 		}
 	}
 
-	for _, name := range append(goodWeakValidationTagNames, badTagNames...) {
+	for _, name := range appendSlices(goodWeakValidationTagNames, goodWeakValidationDigestNames, goodStrictValidationDigestNames,
+		goodWeakValidationTagDigestNames, goodStrictValidationTagDigestNames, badTagNames) {
 		if tag, err := NewTag(name, StrictValidation); err == nil {
 			t.Errorf("`%s` should be an invalid Tag name, got Tag: %#v", name, tag)
 		}
 	}
+}
+
+func appendSlices(a []string, b ...[]string) []string {
+	for _, i := range b {
+		a = append(a, i...)
+	}
+	return a
 }
 
 func TestNewTag(t *testing.T) {
@@ -69,7 +77,8 @@ func TestNewTag(t *testing.T) {
 		}
 	}
 
-	for _, name := range badTagNames {
+	for _, name := range appendSlices(goodWeakValidationDigestNames, goodStrictValidationDigestNames, goodWeakValidationTagDigestNames,
+		goodStrictValidationTagDigestNames, badTagNames) {
 		if tag, err := NewTag(name, WeakValidation); err == nil {
 			t.Errorf("`%s` should be an invalid Tag name, got Tag: %#v", name, tag)
 		}

@@ -81,6 +81,36 @@ func TestParseReference(t *testing.T) {
 		}
 	}
 
+	for _, name := range goodWeakValidationTagDigestNames {
+		ref, err := ParseReference(name, WeakValidation)
+		if err != nil {
+			t.Errorf("ParseReference(%q); %v", name, err)
+		}
+
+		dig, err := NewDigest(name, WeakValidation)
+		if err != nil {
+			t.Errorf("NewDigest(%q); %v", name, err)
+		}
+		if ref != dig {
+			t.Errorf("ParseReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
+		}
+	}
+
+	for _, name := range goodStrictValidationTagDigestNames {
+		ref, err := ParseReference(name, StrictValidation)
+		if err != nil {
+			t.Errorf("ParseReference(%q); %v", name, err)
+		}
+
+		dig, err := NewDigest(name, StrictValidation)
+		if err != nil {
+			t.Errorf("NewDigest(%q); %v", name, err)
+		}
+		if ref != dig {
+			t.Errorf("ParseReference(%q) != NewDigest(%q); got %v, want %v", name, name, ref, dig)
+		}
+	}
+
 	for _, name := range badTagNames {
 		if _, err := ParseReference(name, WeakValidation); err == nil {
 			t.Errorf("ParseReference(%q); expected error, got none", name)
