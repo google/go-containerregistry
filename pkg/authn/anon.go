@@ -19,7 +19,7 @@ type anonymous struct{}
 
 // Authorization implements Authenticator.
 func (a *anonymous) Authorization() (*AuthConfig, error) {
-	return nil, nil
+	return &AuthConfig{}, nil
 }
 
 // Anonymous is a singleton Authenticator for providing anonymous auth.

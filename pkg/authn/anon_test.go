@@ -23,7 +23,8 @@ func TestAnonymous(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Authorization() = %v", err)
 	}
-	if cfg != nil {
-		t.Errorf("Authorization(); got %v, wanted nil", cfg)
+	want := AuthConfig{}
+	if *cfg != want {
+		t.Errorf("Authorization(); got %v, wanted {}", cfg)
 	}
 }
