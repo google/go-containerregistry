@@ -33,7 +33,7 @@ var _ http.RoundTripper = (*basicTransport)(nil)
 // RoundTrip implements http.RoundTripper
 func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	if bt.auth != authn.Anonymous {
-		cfg, err := bt.auth.Authorization()
+		auth, err := bt.auth.Authorization()
 		if err != nil {
 			return nil, err
 		}
@@ -44,10 +44,15 @@ func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		// the host with which we are interacting.
 		// In case of redirect http.Client can use an empty Host, check URL too.
 		if in.Host == bt.target || in.URL.Host == bt.target {
-			delimited := fmt.Sprintf("%s:%s", cfg.Username, cfg.Password)
-			encoded := base64.StdEncoding.EncodeToString([]byte(delimited))
-			hdr := fmt.Sprintf("Basic %s", encoded)
-			in.Header.Set("Authorization", hdr)
+			if bearer := auth.RegistryToken; bearer != "" {
+				hdr := fmt.Sprintf("Bearer %s", bearer)
+				in.Header.Set("Authorization", hdr)
+			} else if user, pass := auth.Username, auth.Password; user != "" && pass != "" {
+				delimited := fmt.Sprintf("%s:%s", user, pass)
+				encoded := base64.StdEncoding.EncodeToString([]byte(delimited))
+				hdr := fmt.Sprintf("Basic %s", encoded)
+				in.Header.Set("Authorization", hdr)
+			}
 		}
 	}
 	in.Header.Set("User-Agent", transportName)

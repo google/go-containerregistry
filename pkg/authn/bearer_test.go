@@ -21,12 +21,11 @@ import (
 func TestBearer(t *testing.T) {
 	anon := &Bearer{Token: "bazinga"}
 
-	got, err := anon.Authorization()
+	auth, err := anon.Authorization()
 	if err != nil {
 		t.Errorf("Authorization() = %v", err)
 	}
-	want := "Bearer bazinga"
-	if got != want {
+	if got, want := auth.RegistryToken, "bazinga"; got != want {
 		t.Errorf("Authorization(); got %v, want %v", got, want)
 	}
 }

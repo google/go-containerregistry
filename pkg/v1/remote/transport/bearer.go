@@ -55,7 +55,7 @@ var portMap = map[string]string{
 // RoundTrip implements http.RoundTripper
 func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	sendRequest := func() (*http.Response, error) {
-		hdr, err := bt.bearer.Authorization()
+		auth, err := bt.bearer.Authorization()
 		if err != nil {
 			return nil, err
 		}
@@ -69,6 +69,7 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		canonicalURLHost := bt.canonicalAddress(in.URL.Host)
 		canonicalRegistryHost := bt.canonicalAddress(bt.registry.RegistryStr())
 		if canonicalHeaderHost == canonicalRegistryHost || canonicalURLHost == canonicalRegistryHost {
+			hdr := fmt.Sprintf("Bearer %s", auth.RegistryToken)
 			in.Header.Set("Authorization", hdr)
 
 			// When we ping() the registry, we determine whether to use http or https
@@ -101,8 +102,12 @@ func (bt *bearerTransport) refresh() error {
 	content, err := func() ([]byte, error) {
 		// If the secret being stored is an identity token, the Username should be set to <token>.
 		// https://github.com/docker/cli/blob/0f337f1dfe574eb12eab8bb102a24f714cc79d86/docs/reference/commandline/login.md#credential-helper-protocol
-		if basic, ok := bt.basic.(*authn.Basic); ok && basic.Username == "<token>" {
-			return bt.refreshOauth(basic)
+		auth, err := bt.basic.Authorization()
+		if err != nil {
+			return nil, err
+		}
+		if auth.Username == "<token>" {
+			return bt.refreshOauth(auth)
 		}
 		return bt.refreshBasic()
 	}()
@@ -162,7 +167,7 @@ func (bt *bearerTransport) canonicalAddress(host string) (address string) {
 }
 
 // https://docs.docker.com/registry/spec/auth/oauth/
-func (bt *bearerTransport) refreshOauth(basic *authn.Basic) ([]byte, error) {
+func (bt *bearerTransport) refreshOauth(auth *authn.AuthConfig) ([]byte, error) {
 	u, err := url.Parse(bt.realm)
 	if err != nil {
 		return nil, err
@@ -174,7 +179,7 @@ func (bt *bearerTransport) refreshOauth(basic *authn.Basic) ([]byte, error) {
 	v.Set("service", bt.service)
 	v.Set("client_id", transportName)
 	v.Set("grant_type", "refresh_token")
-	v.Set("refresh_token", basic.Password)
+	v.Set("refresh_token", auth.Password)
 
 	client := http.Client{Transport: bt.inner}
 	resp, err := client.PostForm(u.String(), v)

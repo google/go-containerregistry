@@ -177,7 +177,7 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
 		bearer:   bearer,
-		basic:    &authn.Basic{},
+		basic:    &authn.Basic{Username: "foo", Password: "bar"},
 		registry: registry,
 		realm:    server.URL,
 		scheme:   "http",

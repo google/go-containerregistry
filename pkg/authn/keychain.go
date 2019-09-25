@@ -15,8 +15,6 @@
 package authn
 
 import (
-	"encoding/json"
-
 	"github.com/docker/cli/cli/config"
 )
 
@@ -59,11 +57,11 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 		return nil, err
 	}
 
-	b, err := json.Marshal(cfg)
-	if err != nil {
-		return nil, err
-	}
 	// TODO: remove this for sure
+	// b, err := json.Marshal(cfg)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	// log.Println(string(b))
 
 	// TODO: Do we need this?
