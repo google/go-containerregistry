@@ -42,7 +42,7 @@ type Keychain interface {
 type defaultKeychain struct{}
 
 var (
-	// Export an instance of the default keychain.
+	// DefaultKeychain implements Keychain by interpreting the docker config file.
 	DefaultKeychain Keychain = &defaultKeychain{}
 )
 
