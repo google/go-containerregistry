@@ -102,7 +102,7 @@ func TestAttachedServiceAccount(t *testing.T) {
 	if err != nil {
 		t.Errorf("Authorization() = %v", err)
 	}
-	if got != want {
+	if *got != *want {
 		t.Errorf("Resolve() = %v, want %v", got, want)
 	}
 }
@@ -170,7 +170,7 @@ func TestImagePullSecrets(t *testing.T) {
 			if err != nil {
 				t.Errorf("Authorization() = %v", err)
 			}
-			if got != want {
+			if *got != *want {
 				t.Errorf("Resolve() = %v, want %v", got, want)
 			}
 		})

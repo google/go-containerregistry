@@ -15,6 +15,8 @@
 package transport
 
 import (
+	"encoding/base64"
+	"fmt"
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -30,18 +32,23 @@ var _ http.RoundTripper = (*basicTransport)(nil)
 
 // RoundTrip implements http.RoundTripper
 func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
-	hdr, err := bt.auth.Authorization()
-	if err != nil {
-		return nil, err
-	}
+	if bt.auth != authn.Anonymous {
+		cfg, err := bt.auth.Authorization()
+		if err != nil {
+			return nil, err
+		}
 
-	// http.Client handles redirects at a layer above the http.RoundTripper
-	// abstraction, so to avoid forwarding Authorization headers to places
-	// we are redirected, only set it when the authorization header matches
-	// the host with which we are interacting.
-	// In case of redirect http.Client can use an empty Host, check URL too.
-	if hdr != "" && (in.Host == bt.target || in.URL.Host == bt.target) {
-		in.Header.Set("Authorization", hdr)
+		// http.Client handles redirects at a layer above the http.RoundTripper
+		// abstraction, so to avoid forwarding Authorization headers to places
+		// we are redirected, only set it when the authorization header matches
+		// the host with which we are interacting.
+		// In case of redirect http.Client can use an empty Host, check URL too.
+		if in.Host == bt.target || in.URL.Host == bt.target {
+			delimited := fmt.Sprintf("%s:%s", cfg.Username, cfg.Password)
+			encoded := base64.StdEncoding.EncodeToString([]byte(delimited))
+			hdr := fmt.Sprintf("Basic %s", encoded)
+			in.Header.Set("Authorization", hdr)
+		}
 	}
 	in.Header.Set("User-Agent", transportName)
 	return bt.inner.RoundTrip(in)

@@ -26,8 +26,15 @@ type Basic struct {
 }
 
 // Authorization implements Authenticator.
-func (b *Basic) Authorization() (string, error) {
+func (b *Basic) Authorization() (*AuthConfig, error) {
+	return &AuthConfig{
+		Username: b.Username,
+		Password: b.Password,
+	}, nil
+}
+
+func (b *Basic) String() (string, error) {
 	delimited := fmt.Sprintf("%s:%s", b.Username, b.Password)
 	encoded := base64.StdEncoding.EncodeToString([]byte(delimited))
-	return fmt.Sprintf("Basic %s", encoded), nil
+	return encoded, nil
 }

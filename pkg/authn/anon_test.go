@@ -19,11 +19,11 @@ import (
 )
 
 func TestAnonymous(t *testing.T) {
-	hdr, err := Anonymous.Authorization()
+	cfg, err := Anonymous.Authorization()
 	if err != nil {
-		t.Errorf("Authorization() = %v", err)
+		t.Fatalf("Authorization() = %v", err)
 	}
-	if hdr != "" {
-		t.Errorf("Authorization(); got %v, wanted empty string", hdr)
+	if cfg != nil {
+		t.Errorf("Authorization(); got %v, wanted nil", cfg)
 	}
 }

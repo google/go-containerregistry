@@ -18,8 +18,8 @@ package authn
 type anonymous struct{}
 
 // Authorization implements Authenticator.
-func (a *anonymous) Authorization() (string, error) {
-	return "", nil
+func (a *anonymous) Authorization() (*AuthConfig, error) {
+	return nil, nil
 }
 
 // Anonymous is a singleton Authenticator for providing anonymous auth.
