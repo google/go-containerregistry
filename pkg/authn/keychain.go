@@ -16,6 +16,7 @@ package authn
 
 import (
 	"github.com/docker/cli/cli/config"
+	"github.com/docker/cli/cli/config/types"
 )
 
 // Resource represents a registry or repository that can be authenticated against.
@@ -57,16 +58,17 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 		return nil, err
 	}
 
-	// TODO: remove this for sure
-	// b, err := json.Marshal(cfg)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// log.Println(string(b))
-
-	// TODO: Do we need this?
-	if cfg.Username == "" && cfg.Auth == "" && cfg.IdentityToken == "" && cfg.RegistryToken == "" {
+	empty := types.AuthConfig{}
+	if cfg == empty {
 		return Anonymous, nil
 	}
-	return &Basic{Username: cfg.Username, Password: cfg.Password}, nil
+	return &auth{
+		cfg: AuthConfig{
+			Username:      cfg.Username,
+			Password:      cfg.Password,
+			Auth:          cfg.Auth,
+			IdentityToken: cfg.IdentityToken,
+			RegistryToken: cfg.RegistryToken,
+		},
+	}, nil
 }

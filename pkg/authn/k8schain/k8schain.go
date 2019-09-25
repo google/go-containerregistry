@@ -139,8 +139,6 @@ func (lp lazyProvider) Authorization() (*authn.AuthConfig, error) {
 		Username:      authConfig.Username,
 		Password:      authConfig.Password,
 		Auth:          authConfig.Auth,
-		Email:         authConfig.Email,
-		ServerAddress: authConfig.ServerAddress,
 		IdentityToken: authConfig.IdentityToken,
 		RegistryToken: authConfig.RegistryToken,
 	}, nil

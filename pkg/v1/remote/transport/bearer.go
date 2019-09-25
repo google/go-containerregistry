@@ -98,6 +98,8 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	return res, err
 }
 
+// TODO(jonjohnsonjr): Can we just use this?
+// https://github.com/docker/distribution/blob/master/registry/client/auth/session.go
 func (bt *bearerTransport) refresh() error {
 	content, err := func() ([]byte, error) {
 		// If the secret being stored is an identity token, the Username should be set to <token>.
