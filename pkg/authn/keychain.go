@@ -16,7 +16,6 @@ package authn
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/docker/cli/cli/config"
 )
@@ -64,7 +63,8 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println(string(b))
+	// TODO: remove this for sure
+	// log.Println(string(b))
 
 	// TODO: Do we need this?
 	if cfg.Username == "" && cfg.Auth == "" && cfg.IdentityToken == "" && cfg.RegistryToken == "" {
