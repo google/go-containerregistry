@@ -66,10 +66,10 @@ func TestBasicTransportRegistryToken(t *testing.T) {
 		auth authn.Authenticator
 		hdr  string
 	}{{
-		auth: &authn.Auth{Config: authn.AuthConfig{RegistryToken: token}},
+		auth: authn.FromConfig(authn.AuthConfig{RegistryToken: token}),
 		hdr:  "Bearer mytoken",
 	}, {
-		auth: &authn.Auth{Config: authn.AuthConfig{Auth: token}},
+		auth: authn.FromConfig(authn.AuthConfig{Auth: token}),
 		hdr:  "Basic mytoken",
 	}, {
 		auth: authn.Anonymous,

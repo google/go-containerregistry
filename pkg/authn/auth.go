@@ -14,12 +14,16 @@
 
 package authn
 
-// Auth is an Authenticator that simply returns the wrapped AuthConfig.
-type Auth struct {
-	Config AuthConfig
+// auth is an Authenticator that simply returns the wrapped AuthConfig.
+type auth struct {
+	config AuthConfig
+}
+
+func FromConfig(cfg AuthConfig) Authenticator {
+	return &auth{cfg}
 }
 
 // Authorization implements Authenticator.
-func (a *Auth) Authorization() (*AuthConfig, error) {
-	return &a.Config, nil
+func (a *auth) Authorization() (*AuthConfig, error) {
+	return &a.config, nil
 }
