@@ -14,7 +14,7 @@
 
 package authn
 
-// Auth implements Authenticator.
+// Auth is an Authenticator that simply returns the wrapped AuthConfig.
 type Auth struct {
 	Config AuthConfig
 }
