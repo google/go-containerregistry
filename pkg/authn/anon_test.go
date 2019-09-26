@@ -15,6 +15,7 @@
 package authn
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -23,8 +24,8 @@ func TestAnonymous(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Authorization() = %v", err)
 	}
-	want := AuthConfig{}
-	if *cfg != want {
+	want := &AuthConfig{}
+	if !reflect.DeepEqual(cfg, want) {
 		t.Errorf("Authorization(); got %v, wanted {}", cfg)
 	}
 }
