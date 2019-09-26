@@ -44,11 +44,15 @@ type defaultKeychain struct{}
 var (
 	// DefaultKeychain implements Keychain by interpreting the docker config file.
 	DefaultKeychain Keychain = &defaultKeychain{}
+
+	// This should generally just be "", but for testing it's nice to redirect
+	// to a temporary file. If it's "", docker/cli will handle defaulting for us.
+	configDir = ""
 )
 
 // Resolve implements Keychain.
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
-	cf, err := config.Load("")
+	cf, err := config.Load(configDir)
 	if err != nil {
 		return nil, err
 	}
