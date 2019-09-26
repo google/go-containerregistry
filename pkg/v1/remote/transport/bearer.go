@@ -108,7 +108,7 @@ func (bt *bearerTransport) refresh() error {
 		if err != nil {
 			return nil, err
 		}
-		if auth.Username == "<token>" {
+		if auth.IdentityToken != "" {
 			return bt.refreshOauth(auth)
 		}
 		return bt.refreshBasic()
@@ -181,7 +181,7 @@ func (bt *bearerTransport) refreshOauth(auth *authn.AuthConfig) ([]byte, error) 
 	v.Set("service", bt.service)
 	v.Set("client_id", transportName)
 	v.Set("grant_type", "refresh_token")
-	v.Set("refresh_token", auth.Password)
+	v.Set("refresh_token", auth.IdentityToken)
 
 	client := http.Client{Transport: bt.inner}
 	resp, err := client.PostForm(u.String(), v)

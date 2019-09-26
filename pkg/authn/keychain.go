@@ -62,8 +62,8 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	if cfg == empty {
 		return Anonymous, nil
 	}
-	return &auth{
-		cfg: AuthConfig{
+	return &Auth{
+		Config: AuthConfig{
 			Username:      cfg.Username,
 			Password:      cfg.Password,
 			Auth:          cfg.Auth,

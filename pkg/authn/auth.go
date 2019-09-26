@@ -14,12 +14,12 @@
 
 package authn
 
-// auth implements Authenticator AuthConfig
-type auth struct {
-	cfg AuthConfig
+// Auth implements Authenticator.
+type Auth struct {
+	Config AuthConfig
 }
 
 // Authorization implements Authenticator.
-func (a *auth) Authorization() (*AuthConfig, error) {
-	return &a.cfg, nil
+func (a *Auth) Authorization() (*AuthConfig, error) {
+	return &a.Config, nil
 }
