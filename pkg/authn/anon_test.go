@@ -15,15 +15,17 @@
 package authn
 
 import (
+	"reflect"
 	"testing"
 )
 
 func TestAnonymous(t *testing.T) {
-	hdr, err := Anonymous.Authorization()
+	cfg, err := Anonymous.Authorization()
 	if err != nil {
-		t.Errorf("Authorization() = %v", err)
+		t.Fatalf("Authorization() = %v", err)
 	}
-	if hdr != "" {
-		t.Errorf("Authorization(); got %v, wanted empty string", hdr)
+	want := &AuthConfig{}
+	if !reflect.DeepEqual(cfg, want) {
+		t.Errorf("Authorization(); got %v, wanted {}", cfg)
 	}
 }

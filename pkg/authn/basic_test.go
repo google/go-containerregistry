@@ -15,18 +15,19 @@
 package authn
 
 import (
+	"reflect"
 	"testing"
 )
 
 func TestBasic(t *testing.T) {
-	anon := &Basic{Username: "foo", Password: "bar"}
+	basic := &Basic{Username: "foo", Password: "bar"}
 
-	got, err := anon.Authorization()
+	got, err := basic.Authorization()
 	if err != nil {
-		t.Errorf("Authorization() = %v", err)
+		t.Fatalf("Authorization() = %v", err)
 	}
-	want := "Basic Zm9vOmJhcg=="
-	if got != want {
+	want := &AuthConfig{Username: "foo", Password: "bar"}
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Authorization(); got %v, want %v", got, want)
 	}
 }

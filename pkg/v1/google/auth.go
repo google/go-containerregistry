@@ -82,13 +82,15 @@ type tokenSourceAuth struct {
 }
 
 // Authorization implements authn.Authenticator.
-func (tsa *tokenSourceAuth) Authorization() (string, error) {
+func (tsa *tokenSourceAuth) Authorization() (*authn.AuthConfig, error) {
 	token, err := tsa.Token()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return "Bearer " + token.AccessToken, nil
+	return &authn.AuthConfig{
+		RegistryToken: token.AccessToken,
+	}, nil
 }
 
 // gcloudOutput represents the output of the gcloud command we invoke.

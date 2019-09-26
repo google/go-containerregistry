@@ -129,7 +129,7 @@ func TestGcloudSuccess(t *testing.T) {
 		t.Fatalf("Authorization got error %v", err)
 	}
 
-	if want, got := "Bearer mytoken", token; want != got {
+	if got, want := token.RegistryToken, "mytoken"; got != want {
 		t.Errorf("wanted token %q, got %q", want, got)
 	}
 }

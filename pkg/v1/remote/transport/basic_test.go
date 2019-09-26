@@ -60,6 +60,51 @@ func TestBasicTransport(t *testing.T) {
 	}
 }
 
+func TestBasicTransportRegistryToken(t *testing.T) {
+	token := "mytoken"
+	for _, tc := range []struct {
+		auth authn.Authenticator
+		hdr  string
+	}{{
+		auth: authn.FromConfig(authn.AuthConfig{RegistryToken: token}),
+		hdr:  "Bearer mytoken",
+	}, {
+		auth: authn.FromConfig(authn.AuthConfig{Auth: token}),
+		hdr:  "Basic mytoken",
+	}, {
+		auth: authn.Anonymous,
+		hdr:  "",
+	}} {
+		server := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				hdr := r.Header.Get("Authorization")
+				want := tc.hdr
+				if hdr != want {
+					t.Errorf("Header.Get(Authorization); got %v, want %s", hdr, want)
+				}
+				if r.URL.Path == "/v2/auth" {
+					http.Redirect(w, r, "/redirect", http.StatusMovedPermanently)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+		defer server.Close()
+
+		inner := &http.Transport{
+			Proxy: func(req *http.Request) (*url.URL, error) {
+				return url.Parse(server.URL)
+			},
+		}
+
+		client := http.Client{Transport: &basicTransport{inner: inner, auth: tc.auth, target: "gcr.io"}}
+
+		_, err := client.Get("http://gcr.io/v2/auth")
+		if err != nil {
+			t.Errorf("Unexpected error during Get: %v", err)
+		}
+	}
+}
+
 func TestBasicTransportWithEmptyAuthnCred(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

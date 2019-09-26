@@ -17,6 +17,7 @@ package k8schain
 import (
 	"encoding/base64"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -102,7 +103,7 @@ func TestAttachedServiceAccount(t *testing.T) {
 	if err != nil {
 		t.Errorf("Authorization() = %v", err)
 	}
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Resolve() = %v, want %v", got, want)
 	}
 }
@@ -170,7 +171,7 @@ func TestImagePullSecrets(t *testing.T) {
 			if err != nil {
 				t.Errorf("Authorization() = %v", err)
 			}
-			if got != want {
+			if !reflect.DeepEqual(got, want) {
 				t.Errorf("Resolve() = %v, want %v", got, want)
 			}
 		})

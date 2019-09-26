@@ -133,19 +133,15 @@ func NewNoClient() (authn.Keychain, error) {
 type lazyProvider credentialprovider.LazyAuthConfiguration
 
 // Authorization implements Authenticator.
-func (lp lazyProvider) Authorization() (string, error) {
+func (lp lazyProvider) Authorization() (*authn.AuthConfig, error) {
 	authConfig := credentialprovider.LazyProvide(credentialprovider.LazyAuthConfiguration(lp))
-	if authConfig.Auth != "" {
-		return "Basic " + authConfig.Auth, nil
-	}
-	if authConfig.Username != "" {
-		basic := authn.Basic{
-			Username: authConfig.Username,
-			Password: authConfig.Password,
-		}
-		return basic.Authorization()
-	}
-	return authn.Anonymous.Authorization()
+	return &authn.AuthConfig{
+		Username:      authConfig.Username,
+		Password:      authConfig.Password,
+		Auth:          authConfig.Auth,
+		IdentityToken: authConfig.IdentityToken,
+		RegistryToken: authConfig.RegistryToken,
+	}, nil
 }
 
 type keychain struct {
