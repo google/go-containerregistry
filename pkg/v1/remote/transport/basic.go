@@ -52,6 +52,9 @@ func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 				encoded := base64.StdEncoding.EncodeToString([]byte(delimited))
 				hdr := fmt.Sprintf("Basic %s", encoded)
 				in.Header.Set("Authorization", hdr)
+			} else if token := auth.Auth; token != "" {
+				hdr := fmt.Sprintf("Basic %s", token)
+				in.Header.Set("Authorization", hdr)
 			}
 		}
 	}

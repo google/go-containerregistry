@@ -15,7 +15,6 @@
 package transport
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -63,33 +62,46 @@ func TestBasicTransport(t *testing.T) {
 
 func TestBasicTransportRegistryToken(t *testing.T) {
 	token := "mytoken"
-	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			hdr := r.Header.Get("Authorization")
-			want := fmt.Sprintf("Bearer %s", token)
-			if hdr != want {
-				t.Errorf("Header.Get(Authorization); got %v, want %s", hdr, want)
-			}
-			if r.URL.Path == "/v2/auth" {
-				http.Redirect(w, r, "/redirect", http.StatusMovedPermanently)
-				return
-			}
-			w.WriteHeader(http.StatusOK)
-		}))
-	defer server.Close()
+	for _, tc := range []struct {
+		auth authn.Authenticator
+		hdr  string
+	}{{
+		auth: &authn.Auth{Config: authn.AuthConfig{RegistryToken: token}},
+		hdr:  "Bearer mytoken",
+	}, {
+		auth: &authn.Auth{Config: authn.AuthConfig{Auth: token}},
+		hdr:  "Basic mytoken",
+	}, {
+		auth: authn.Anonymous,
+		hdr:  "",
+	}} {
+		server := httptest.NewServer(
+			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				hdr := r.Header.Get("Authorization")
+				want := tc.hdr
+				if hdr != want {
+					t.Errorf("Header.Get(Authorization); got %v, want %s", hdr, want)
+				}
+				if r.URL.Path == "/v2/auth" {
+					http.Redirect(w, r, "/redirect", http.StatusMovedPermanently)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+		defer server.Close()
 
-	inner := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
-	}
+		inner := &http.Transport{
+			Proxy: func(req *http.Request) (*url.URL, error) {
+				return url.Parse(server.URL)
+			},
+		}
 
-	auth := &authn.Auth{Config: authn.AuthConfig{RegistryToken: token}}
-	client := http.Client{Transport: &basicTransport{inner: inner, auth: auth, target: "gcr.io"}}
+		client := http.Client{Transport: &basicTransport{inner: inner, auth: tc.auth, target: "gcr.io"}}
 
-	_, err := client.Get("http://gcr.io/v2/auth")
-	if err != nil {
-		t.Errorf("Unexpected error during Get: %v", err)
+		_, err := client.Get("http://gcr.io/v2/auth")
+		if err != nil {
+			t.Errorf("Unexpected error during Get: %v", err)
+		}
 	}
 }
 
