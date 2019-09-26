@@ -19,6 +19,7 @@ type auth struct {
 	config AuthConfig
 }
 
+// FromConfig returns an Authenticator that just returns the given AuthConfig.
 func FromConfig(cfg AuthConfig) Authenticator {
 	return &auth{cfg}
 }
