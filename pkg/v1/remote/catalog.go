@@ -28,8 +28,8 @@ type catalog struct {
 	Repos []string `json:"repositories"`
 }
 
-// GetCatalog calls /_catalog, returning the list of repositories on the registry
-func GetCatalog(target name.Registry, last string, n int, options ...Option) ([]string, error) {
+// GetCatalogPage calls /_catalog, returning the list of repositories on the registry
+func GetCatalogPage(target name.Registry, last string, n int, options ...Option) ([]string, error) {
 	o, err := makeOptions(target, options...)
 	if err != nil {
 		return nil, err
