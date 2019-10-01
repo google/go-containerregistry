@@ -22,8 +22,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/internal/compare"
 )
 
 func TestLayerFromFile(t *testing.T) {
@@ -40,12 +39,9 @@ func TestLayerFromFile(t *testing.T) {
 		t.Fatalf("Unable to create layer from compressed tar file: %v", err)
 	}
 
-	assertDigestsAreEqual(t, tarLayer, tarGzLayer)
-	assertDiffIDsAreEqual(t, tarLayer, tarGzLayer)
-	assertCompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
-	assertUncompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
-	assertSizesAreEqual(t, tarLayer, tarGzLayer)
-	assertMediaTypesAreEqual(t, tarLayer, tarGzLayer)
+	if err := compare.Layers(tarLayer, tarGzLayer); err != nil {
+		t.Errorf("compare.Layers: %v", err)
+	}
 }
 
 func TestLayerFromOpenerReader(t *testing.T) {
@@ -76,12 +72,9 @@ func TestLayerFromOpenerReader(t *testing.T) {
 		t.Fatalf("Unable to create layer from tar file: %v", err)
 	}
 
-	assertDigestsAreEqual(t, tarLayer, tarGzLayer)
-	assertDiffIDsAreEqual(t, tarLayer, tarGzLayer)
-	assertCompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
-	assertUncompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
-	assertSizesAreEqual(t, tarLayer, tarGzLayer)
-	assertMediaTypesAreEqual(t, tarLayer, tarGzLayer)
+	if err := compare.Layers(tarLayer, tarGzLayer); err != nil {
+		t.Errorf("compare.Layers: %v", err)
+	}
 }
 
 func TestLayerFromReader(t *testing.T) {
@@ -106,139 +99,8 @@ func TestLayerFromReader(t *testing.T) {
 		t.Fatalf("Unable to create layer from tar file: %v", err)
 	}
 
-	assertDigestsAreEqual(t, tarLayer, tarGzLayer)
-	assertDiffIDsAreEqual(t, tarLayer, tarGzLayer)
-	assertCompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
-	assertUncompressedStreamsAreEqual(t, tarLayer, tarGzLayer)
-	assertSizesAreEqual(t, tarLayer, tarGzLayer)
-	assertMediaTypesAreEqual(t, tarLayer, tarGzLayer)
-}
-
-func assertDigestsAreEqual(t *testing.T, a, b v1.Layer) {
-	t.Helper()
-
-	sa, err := a.Digest()
-	if err != nil {
-		t.Fatalf("Unable to fetch digest for layer: %v", err)
-	}
-
-	sb, err := b.Digest()
-	if err != nil {
-		t.Fatalf("Unable to fetch digest for layer: %v", err)
-	}
-
-	if sa != sb {
-		t.Fatalf("Digest of each layer is different - %v != %v", sa, sb)
-	}
-}
-
-func assertDiffIDsAreEqual(t *testing.T, a, b v1.Layer) {
-	t.Helper()
-
-	sa, err := a.DiffID()
-	if err != nil {
-		t.Fatalf("Unable to fetch diffID for layer: %v", err)
-	}
-
-	sb, err := b.DiffID()
-	if err != nil {
-		t.Fatalf("Unable to fetch diffID for layer: %v", err)
-	}
-
-	if sa != sb {
-		t.Fatalf("diffID of each layer is different - %v != %v", sa, sb)
-	}
-}
-
-func assertCompressedStreamsAreEqual(t *testing.T, a, b v1.Layer) {
-	t.Helper()
-
-	sa, err := a.Compressed()
-	if err != nil {
-		t.Fatalf("Unable to fetch compressed for layer: %v", err)
-	}
-
-	saBytes, err := ioutil.ReadAll(sa)
-	if err != nil {
-		t.Fatalf("Unable to read bytes for layer: %v", err)
-	}
-
-	sb, err := b.Compressed()
-	if err != nil {
-		t.Fatalf("Unable to fetch compressed for layer: %v", err)
-	}
-
-	sbBytes, err := ioutil.ReadAll(sb)
-	if err != nil {
-		t.Fatalf("Unable to read bytes for layer: %v", err)
-	}
-
-	if diff := cmp.Diff(saBytes, sbBytes); diff != "" {
-		t.Fatalf("Compressed streams were different: %v", diff)
-	}
-}
-
-func assertUncompressedStreamsAreEqual(t *testing.T, a, b v1.Layer) {
-	t.Helper()
-
-	sa, err := a.Uncompressed()
-	if err != nil {
-		t.Fatalf("Unable to fetch uncompressed for layer: %v", err)
-	}
-
-	saBytes, err := ioutil.ReadAll(sa)
-	if err != nil {
-		t.Fatalf("Unable to read bytes for layer: %v", err)
-	}
-
-	sb, err := b.Uncompressed()
-	if err != nil {
-		t.Fatalf("Unable to fetch uncompressed for layer: %v", err)
-	}
-
-	sbBytes, err := ioutil.ReadAll(sb)
-	if err != nil {
-		t.Fatalf("Unable to read bytes for layer: %v", err)
-	}
-
-	if diff := cmp.Diff(saBytes, sbBytes); diff != "" {
-		t.Fatalf("Uncompressed streams were different: %v", diff)
-	}
-}
-
-func assertMediaTypesAreEqual(t *testing.T, a, b v1.Layer) {
-	t.Helper()
-
-	ma, err := a.MediaType()
-	if err != nil {
-		t.Fatalf("Unable to fetch MediaType for layer: %v", err)
-	}
-
-	mb, err := b.MediaType()
-	if err != nil {
-		t.Fatalf("Unable to fetch MediaType for layer: %v", err)
-	}
-
-	if ma != mb {
-		t.Fatalf("MediaType of each layer is different - %s != %s", ma, mb)
-	}
-}
-
-func assertSizesAreEqual(t *testing.T, a, b v1.Layer) {
-	t.Helper()
-
-	sa, err := a.Size()
-	if err != nil {
-		t.Fatalf("Unable to fetch size for layer: %v", err)
-	}
-
-	sb, err := b.Size()
-	if err != nil {
-		t.Fatalf("Unable to fetch size for layer: %v", err)
-	}
-
-	if sa != sb {
-		t.Fatalf("Size of each layer is different - %d != %d", sa, sb)
+	if err := compare.Layers(tarLayer, tarGzLayer); err != nil {
+		t.Errorf("compare.Layers: %v", err)
 	}
 }
 
