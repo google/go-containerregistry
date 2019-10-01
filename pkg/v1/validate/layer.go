@@ -19,17 +19,74 @@ import (
 	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 func Layer(layer v1.Layer) error {
-	compressed, err := layer.Compressed()
+	cl, err := computeLayer(layer)
 	if err != nil {
 		return err
+	}
+
+	errs := []string{}
+
+	digest, err := layer.Digest()
+	if err != nil {
+		return err
+	}
+	diffid, err := layer.DiffID()
+	if err != nil {
+		return err
+	}
+	size, err := layer.Size()
+	if err != nil {
+		return err
+	}
+
+	if digest != cl.digest {
+		errs = append(errs, fmt.Sprintf("mismatched digest: Digest()=%s, SHA256(Compressed())=%s", digest, cl.digest))
+	}
+
+	if diffid != cl.diffid {
+		errs = append(errs, fmt.Sprintf("mismatched diffid: DiffID()=%s, SHA256(Gunzip(Compressed()))=%s", diffid, cl.diffid))
+	}
+
+	if diffid != cl.uncompressedDiffid {
+		errs = append(errs, fmt.Sprintf("mismatched diffid: DiffID()=%s, SHA256(Uncompressed())=%s", diffid, cl.uncompressedDiffid))
+	}
+
+	if size != cl.size {
+		errs = append(errs, fmt.Sprintf("mismatched size: Size()=%d, len(Compressed())=%d", size, cl.size))
+	}
+
+	if len(errs) != 0 {
+		return errors.New(strings.Join(errs, "\n"))
+	}
+
+	return nil
+}
+
+type computedLayer struct {
+	// Calculated from Compressed stream.
+	digest v1.Hash
+	size   int64
+	diffid v1.Hash
+
+	// Calculated from Uncompressed stream.
+	uncompressedDiffid v1.Hash
+	uncompressedSize   int64
+}
+
+func computeLayer(layer v1.Layer) (*computedLayer, error) {
+	compressed, err := layer.Compressed()
+	if err != nil {
+		return nil, err
 	}
 
 	// Keep track of compressed digest.
@@ -59,7 +116,7 @@ func Layer(layer v1.Layer) error {
 	// Read the bytes through gzip.Reader to compute the DiffID.
 	uncompressed, err := gzip.NewReader(pr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	diffider := sha256.New()
 	hashUncompressed := io.TeeReader(uncompressed, diffider)
@@ -73,21 +130,21 @@ func Layer(layer v1.Layer) error {
 			break
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if _, ok := files[hdr.Name]; ok {
-			return fmt.Errorf("duplicate file path: %s", hdr.Name)
+			return nil, fmt.Errorf("duplicate file path: %s", hdr.Name)
 		}
 		files[hdr.Name] = struct{}{}
 	}
 
 	// Discard any trailing padding that the tar.Reader doesn't consume.
 	if _, err := io.Copy(ioutil.Discard, hashUncompressed); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := uncompressed.Close(); err != nil {
-		return err
+		return nil, err
 	}
 
 	digest := v1.Hash{
@@ -102,10 +159,18 @@ func Layer(layer v1.Layer) error {
 
 	ur, err := layer.Uncompressed()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	udffid, _, err := v1.SHA256(ur)
+	udiffid, usize, err := v1.SHA256(ur)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	return &computedLayer{
+		digest:             digest,
+		diffid:             diffid,
+		size:               size,
+		uncompressedDiffid: udiffid,
+		uncompressedSize:   usize,
+	}, nil
 }
