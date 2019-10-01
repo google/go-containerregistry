@@ -28,6 +28,8 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
+// Layer validates that the values return by its methods are consistent with the
+// contents returned by Compressed and Uncompressed.
 func Layer(layer v1.Layer) error {
 	cl, err := computeLayer(layer)
 	if err != nil {

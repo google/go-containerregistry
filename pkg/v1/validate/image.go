@@ -110,7 +110,6 @@ func validateLayers(img v1.Image) error {
 	diffids := []v1.Hash{}
 	udiffids := []v1.Hash{}
 	sizes := []int64{}
-	usizes := []int64{}
 	for _, layer := range layers {
 		cl, err := computeLayer(layer)
 		if err != nil {
@@ -122,7 +121,6 @@ func validateLayers(img v1.Image) error {
 		diffids = append(diffids, cl.diffid)
 		udiffids = append(udiffids, cl.uncompressedDiffid)
 		sizes = append(sizes, cl.size)
-		usizes = append(usizes, cl.uncompressedSize)
 	}
 
 	cf, err := img.ConfigFile()
