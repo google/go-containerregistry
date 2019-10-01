@@ -24,6 +24,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+// Images compares the given images to each other and returns an error if they
+// differ.
 func Images(imgs ...v1.Image) error {
 	if len(imgs) < 2 {
 		return fmt.Errorf("comparing %d images makes no sense", len(imgs))

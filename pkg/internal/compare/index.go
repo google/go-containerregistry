@@ -24,6 +24,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+// Indexes compares the given indexes to each other and returns an error if
+// they differ.
 func Indexes(idxs ...v1.ImageIndex) error {
 	if len(idxs) < 2 {
 		return fmt.Errorf("comparing %d indexes makes no sense", len(idxs))

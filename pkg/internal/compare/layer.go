@@ -23,8 +23,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-// Layers compares the layers given to each other. Note that this does not compare
-// the actual contents (by calling Compressed or Uncompressed).
+// Layers compares the given layers to each other and returns an error if they
+// differ.  Note that this does not compare the actual contents (by calling
+// Compressed or Uncompressed).
 func Layers(layers ...v1.Layer) error {
 	if len(layers) < 2 {
 		return fmt.Errorf("comparing %d layers makes no sense", len(layers))
