@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/internal/compare"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 func TestLayerFromFile(t *testing.T) {
@@ -41,6 +42,13 @@ func TestLayerFromFile(t *testing.T) {
 
 	if err := compare.Layers(tarLayer, tarGzLayer); err != nil {
 		t.Errorf("compare.Layers: %v", err)
+	}
+
+	if err := validate.Layer(tarLayer); err != nil {
+		t.Errorf("validate.Layer(tarLayer): %v", err)
+	}
+	if err := validate.Layer(tarGzLayer); err != nil {
+		t.Errorf("validate.Layer(tarGzLayer): %v", err)
 	}
 }
 
