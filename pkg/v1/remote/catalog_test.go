@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -71,7 +70,7 @@ func TestGetCatalogPage(t *testing.T) {
 				t.Fatalf("name.NewRegistry(%v) = %v", u.Host, err)
 			}
 
-			repos, err := GetCatalog(reg, "", 100, WithAuthFromKeychain(authn.DefaultKeychain))
+			repos, err := GetCatalogPage(reg, "", 100)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("GetCatalog() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
 			}
