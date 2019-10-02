@@ -25,7 +25,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
-func TestGetCatalog(t *testing.T) {
+func TestGetCatalogPage(t *testing.T) {
 	cases := []struct {
 		name         string
 		responseBody []byte
