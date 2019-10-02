@@ -41,13 +41,7 @@ func TestEqualImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Images(a, a, a); err != nil {
+	if err := Images(a, a); err != nil {
 		t.Errorf("got err: %v", err)
-	}
-}
-
-func TestSanityCheckImages(t *testing.T) {
-	if err := Images(); err == nil {
-		t.Errorf("comparing nothing makes no sense")
 	}
 }

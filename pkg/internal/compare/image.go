@@ -26,11 +26,7 @@ import (
 
 // Images compares the given images to each other and returns an error if they
 // differ.
-func Images(imgs ...v1.Image) error {
-	if len(imgs) < 2 {
-		return fmt.Errorf("comparing %d images makes no sense", len(imgs))
-	}
-
+func Images(a, b v1.Image) error {
 	digests := []v1.Hash{}
 	manifests := []*v1.Manifest{}
 	cns := []v1.Hash{}
@@ -40,7 +36,7 @@ func Images(imgs ...v1.Image) error {
 
 	errs := []string{}
 
-	for i, img := range imgs {
+	for i, img := range []v1.Image{a, b} {
 		layers, err := img.Layers()
 		if err != nil {
 			return err
@@ -103,12 +99,11 @@ func Images(imgs ...v1.Image) error {
 			if len(layerss[j]) > i {
 				layers = append(layers, layerss[j][i])
 			} else {
-				// If we have fewer layers than the first image, report an error,
-				// even though something else will catch it, we don't have to panic.
-				errs = append(errs, fmt.Sprintf("len(image[%d].Layers()) < len(image[0].Layers())", j))
+				// If we have fewer layers than the first image, abort with an error so we don't panic.
+				return fmt.Errorf("len(image[%d].Layers()) < len(image[0].Layers())", j)
 			}
 		}
-		if err := Layers(layers...); err != nil {
+		if err := Layers(layers[0], layers[1]); err != nil {
 			errs = append(errs, err.Error())
 		}
 	}

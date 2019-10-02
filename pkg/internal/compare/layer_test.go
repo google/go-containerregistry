@@ -42,13 +42,7 @@ func TestEqualLayers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Layers(a, a, a); err != nil {
+	if err := Layers(a, a); err != nil {
 		t.Errorf("got err: %v", err)
-	}
-}
-
-func TestSanityCheckLayers(t *testing.T) {
-	if err := Layers(); err == nil {
-		t.Errorf("comparing nothing makes no sense")
 	}
 }

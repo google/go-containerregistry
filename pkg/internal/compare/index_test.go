@@ -41,13 +41,7 @@ func TestEqualIndexes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Indexes(a, a, a); err != nil {
+	if err := Indexes(a, a); err != nil {
 		t.Errorf("got err: %v", err)
-	}
-}
-
-func TestSanityCheckIndexes(t *testing.T) {
-	if err := Indexes(); err == nil {
-		t.Errorf("comparing nothing makes no sense")
 	}
 }

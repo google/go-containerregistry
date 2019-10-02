@@ -26,11 +26,7 @@ import (
 
 // Indexes compares the given indexes to each other and returns an error if
 // they differ.
-func Indexes(idxs ...v1.ImageIndex) error {
-	if len(idxs) < 2 {
-		return fmt.Errorf("comparing %d indexes makes no sense", len(idxs))
-	}
-
+func Indexes(a, b v1.ImageIndex) error {
 	digests := []v1.Hash{}
 	manifests := []*v1.IndexManifest{}
 	sizes := []int64{}
@@ -38,7 +34,7 @@ func Indexes(idxs ...v1.ImageIndex) error {
 
 	errs := []string{}
 
-	for i, idx := range idxs {
+	for i, idx := range []v1.ImageIndex{a, b} {
 		digest, err := idx.Digest()
 		if err != nil {
 			return err

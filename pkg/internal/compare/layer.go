@@ -26,18 +26,14 @@ import (
 // Layers compares the given layers to each other and returns an error if they
 // differ.  Note that this does not compare the actual contents (by calling
 // Compressed or Uncompressed).
-func Layers(layers ...v1.Layer) error {
-	if len(layers) < 2 {
-		return fmt.Errorf("comparing %d layers makes no sense", len(layers))
-	}
-
+func Layers(a, b v1.Layer) error {
 	digests := []v1.Hash{}
 	diffids := []v1.Hash{}
 	sizes := []int64{}
 	mts := []types.MediaType{}
 	errs := []string{}
 
-	for i, layer := range layers {
+	for i, layer := range []v1.Layer{a, b} {
 		digest, err := layer.Digest()
 		if err != nil {
 			return err
