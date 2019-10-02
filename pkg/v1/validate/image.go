@@ -15,15 +15,9 @@
 package validate
 
 import (
-	"archive/tar"
 	"bytes"
-	"compress/gzip"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
@@ -117,94 +111,16 @@ func validateLayers(img v1.Image) error {
 	udiffids := []v1.Hash{}
 	sizes := []int64{}
 	for _, layer := range layers {
-		compressed, err := layer.Compressed()
+		cl, err := computeLayer(layer)
 		if err != nil {
 			return err
 		}
-
-		// Keep track of compressed digest.
-		digester := sha256.New()
-		// Everything read from compressed is written to digester to compute digest.
-		hashCompressed := io.TeeReader(compressed, digester)
-
-		// Call io.Copy to write from the layer Reader through to the tarReader on
-		// the other side of the pipe.
-		pr, pw := io.Pipe()
-		var size int64
-		go func() {
-			n, err := io.Copy(pw, hashCompressed)
-			if err != nil {
-				pw.CloseWithError(err)
-				return
-			}
-			size = n
-
-			// Now close the compressed reader, to flush the gzip stream
-			// and calculate digest/diffID/size. This will cause pr to
-			// return EOF which will cause readers of the Compressed stream
-			// to finish reading.
-			pw.CloseWithError(compressed.Close())
-		}()
-
-		// Read the bytes through gzip.Reader to compute the DiffID.
-		uncompressed, err := gzip.NewReader(pr)
-		if err != nil {
-			return err
-		}
-		diffider := sha256.New()
-		hashUncompressed := io.TeeReader(uncompressed, diffider)
-
-		// Ensure there aren't duplicate file paths.
-		tarReader := tar.NewReader(hashUncompressed)
-		files := make(map[string]struct{})
-		for {
-			hdr, err := tarReader.Next()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return err
-			}
-			if _, ok := files[hdr.Name]; ok {
-				return fmt.Errorf("duplicate file path: %s", hdr.Name)
-			}
-			files[hdr.Name] = struct{}{}
-		}
-
-		// Discard any trailing padding that the tar.Reader doesn't consume.
-		if _, err := io.Copy(ioutil.Discard, hashUncompressed); err != nil {
-			return err
-		}
-
-		if err := uncompressed.Close(); err != nil {
-			return err
-		}
-
-		digest := v1.Hash{
-			Algorithm: "sha256",
-			Hex:       hex.EncodeToString(digester.Sum(make([]byte, 0, digester.Size()))),
-		}
-
-		diffid := v1.Hash{
-			Algorithm: "sha256",
-			Hex:       hex.EncodeToString(diffider.Sum(make([]byte, 0, diffider.Size()))),
-		}
-
-		ur, err := layer.Uncompressed()
-		if err != nil {
-			return err
-		}
-		udffid, _, err := v1.SHA256(ur)
-		if err != nil {
-			return err
-		}
-
 		// Compute all of these first before we call Config() and Manifest() to allow
 		// for lazy access e.g. for stream.Layer.
-		digests = append(digests, digest)
-		diffids = append(diffids, diffid)
-		udiffids = append(udiffids, udffid)
-		sizes = append(sizes, size)
+		digests = append(digests, cl.digest)
+		diffids = append(diffids, cl.diffid)
+		udiffids = append(udiffids, cl.uncompressedDiffid)
+		sizes = append(sizes, cl.size)
 	}
 
 	cf, err := img.ConfigFile()

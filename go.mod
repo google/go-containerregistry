@@ -36,12 +36,12 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.4.0 // indirect
-	golang.org/x/lint v0.0.0-20190909230951-414d861bb4ac // indirect
+	golang.org/x/lint v0.0.0-20190930215403-16217165b5de // indirect
 	golang.org/x/oauth2 v0.0.0-20180724155351-3d292e4d0cdc
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
-	golang.org/x/tools v0.0.0-20190926165942-a8d5d34286bd // indirect
+	golang.org/x/tools v0.0.0-20191001184121-329c8d646ebe // indirect
 	google.golang.org/appengine v1.1.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
