@@ -42,7 +42,7 @@ func TestEqualLayers(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Layers(a, a); err != nil {
+	if err := Layers(a, a, a); err != nil {
 		t.Errorf("got err: %v", err)
 	}
 }

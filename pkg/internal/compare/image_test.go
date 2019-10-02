@@ -41,7 +41,7 @@ func TestEqualImages(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := Images(a, a); err != nil {
+	if err := Images(a, a, a); err != nil {
 		t.Errorf("got err: %v", err)
 	}
 }
