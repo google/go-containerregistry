@@ -34,7 +34,7 @@ func Indexes(a, b v1.ImageIndex) error {
 
 	errs := []string{}
 
-	for i, idx := range []v1.ImageIndex{a, b} {
+	for _, idx := range []v1.ImageIndex{a, b} {
 		digest, err := idx.Digest()
 		if err != nil {
 			return err
@@ -58,27 +58,25 @@ func Indexes(a, b v1.ImageIndex) error {
 			return err
 		}
 		mts = append(mts, mt)
+	}
 
-		if i > 0 {
-			if want, got := digests[i-1], digests[i]; want != got {
-				errs = append(errs, fmt.Sprintf("image[%d].Digest() != image[%d].Digest(); %s != %s", i-1, i, want, got))
-			}
-			if want, got := manifests[i-1], manifests[i]; !reflect.DeepEqual(want, got) {
-				errs = append(errs, fmt.Sprintf("image[%d].Manifest() != image[%d].Manifest(); %v != %v", i-1, i, want, got))
-			}
-			if want, got := sizes[i-1], sizes[i]; want != got {
-				errs = append(errs, fmt.Sprintf("image[%d].Size() != image[%d].Size(); %d != %d", i-1, i, want, got))
-			}
-			if want, got := mts[i-1], mts[i]; want != got {
-				errs = append(errs, fmt.Sprintf("image[%d].MediaType() != image[%d].MediaType(); %s != %s", i-1, i, want, got))
-			}
-		}
+	if want, got := digests[0], digests[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.Digest() != b.Digest(); %s != %s", want, got))
+	}
+	if want, got := manifests[0], manifests[1]; !reflect.DeepEqual(want, got) {
+		errs = append(errs, fmt.Sprintf("a.Manifest() != b.Manifest(); %v != %v", want, got))
+	}
+	if want, got := sizes[0], sizes[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.Size() != b.Size(); %d != %d", want, got))
+	}
+	if want, got := mts[0], mts[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.MediaType() != b.MediaType(); %s != %s", want, got))
 	}
 
 	// TODO(jonjohnsonjr): Iterate over Manifest and compare Image and ImageIndex results.
 
 	if len(errs) != 0 {
-		return errors.New(strings.Join(errs, "\n\n"))
+		return errors.New("Indexes differ:\n" + strings.Join(errs, "\n"))
 	}
 
 	return nil

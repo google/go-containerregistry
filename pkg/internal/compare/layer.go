@@ -33,7 +33,7 @@ func Layers(a, b v1.Layer) error {
 	mts := []types.MediaType{}
 	errs := []string{}
 
-	for i, layer := range []v1.Layer{a, b} {
+	for _, layer := range []v1.Layer{a, b} {
 		digest, err := layer.Digest()
 		if err != nil {
 			return err
@@ -57,25 +57,23 @@ func Layers(a, b v1.Layer) error {
 			return err
 		}
 		mts = append(mts, mt)
+	}
 
-		if i > 0 {
-			if want, got := digests[i-1], digests[i]; want != got {
-				errs = append(errs, fmt.Sprintf("layer[%d].Digest() != layer[%d].Digest(); %s != %s", i-1, i, want, got))
-			}
-			if want, got := diffids[i-1], diffids[i]; want != got {
-				errs = append(errs, fmt.Sprintf("layer[%d].DiffID() != layer[%d].DiffID(); %s != %s", i-1, i, want, got))
-			}
-			if want, got := sizes[i-1], sizes[i]; want != got {
-				errs = append(errs, fmt.Sprintf("layer[%d].Size() != layer[%d].Size(); %d != %d", i-1, i, want, got))
-			}
-			if want, got := mts[i-1], mts[i]; want != got {
-				errs = append(errs, fmt.Sprintf("layer[%d].MediaType() != layer[%d].MediaType(); %s != %s", i-1, i, want, got))
-			}
-		}
+	if want, got := digests[0], digests[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.Digest() != b.Digest(); %s != %s", want, got))
+	}
+	if want, got := diffids[0], diffids[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.DiffID() != b.DiffID(); %s != %s", want, got))
+	}
+	if want, got := sizes[0], sizes[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.Size() != b.Size(); %d != %d", want, got))
+	}
+	if want, got := mts[0], mts[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.MediaType() != b.MediaType(); %s != %s", want, got))
 	}
 
 	if len(errs) != 0 {
-		return errors.New(strings.Join(errs, "\n\n"))
+		return errors.New("Layers differ:\n" + strings.Join(errs, "\n"))
 	}
 
 	return nil

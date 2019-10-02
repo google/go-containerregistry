@@ -36,7 +36,7 @@ func Images(a, b v1.Image) error {
 
 	errs := []string{}
 
-	for i, img := range []v1.Image{a, b} {
+	for _, img := range []v1.Image{a, b} {
 		layers, err := img.Layers()
 		if err != nil {
 			return err
@@ -72,44 +72,39 @@ func Images(a, b v1.Image) error {
 			return err
 		}
 		mts = append(mts, mt)
-
-		if i > 0 {
-			if want, got := digests[i-1], digests[i]; want != got {
-				errs = append(errs, fmt.Sprintf("image[%d].Digest() != image[%d].Digest(); %s != %s", i-1, i, want, got))
-			}
-			if want, got := cns[i-1], cns[i]; want != got {
-				errs = append(errs, fmt.Sprintf("image[%d].ConfigName() != image[%d].ConfigName(); %s != %s", i-1, i, want, got))
-			}
-			if want, got := manifests[i-1], manifests[i]; !reflect.DeepEqual(want, got) {
-				errs = append(errs, fmt.Sprintf("image[%d].Manifest() != image[%d].Manifest(); %v != %v", i-1, i, want, got))
-			}
-			if want, got := sizes[i-1], sizes[i]; want != got {
-				errs = append(errs, fmt.Sprintf("image[%d].Size() != image[%d].Size(); %d != %d", i-1, i, want, got))
-			}
-			if want, got := mts[i-1], mts[i]; want != got {
-				errs = append(errs, fmt.Sprintf("image[%d].MediaType() != image[%d].MediaType(); %s != %s", i-1, i, want, got))
-			}
-		}
 	}
 
-	// Compare layers all at once.
-	for i := 0; i < len(layerss[0]); i++ {
-		layers := []v1.Layer{}
-		for j := 0; j < len(layerss); j++ {
-			if len(layerss[j]) > i {
-				layers = append(layers, layerss[j][i])
-			} else {
-				// If we have fewer layers than the first image, abort with an error so we don't panic.
-				return fmt.Errorf("len(image[%d].Layers()) < len(image[0].Layers())", j)
+	if want, got := digests[0], digests[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.Digest() != b.Digest(); %s != %s", want, got))
+	}
+	if want, got := cns[0], cns[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.ConfigName() != b.ConfigName(); %s != %s", want, got))
+	}
+	if want, got := manifests[0], manifests[1]; !reflect.DeepEqual(want, got) {
+		errs = append(errs, fmt.Sprintf("a.Manifest() != b.Manifest(); %v != %v", want, got))
+	}
+	if want, got := sizes[0], sizes[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.Size() != b.Size(); %d != %d", want, got))
+	}
+	if want, got := mts[0], mts[1]; want != got {
+		errs = append(errs, fmt.Sprintf("a.MediaType() != b.MediaType(); %s != %s", want, got))
+	}
+
+	if len(layerss[0]) != len(layerss[1]) {
+		// If we have fewer layers than the first image, abort with an error so we don't panic.
+		return errors.New("len(a.Layers()) != len(b.Layers())")
+	} else {
+		// Compare each layer.
+		for i := 0; i < len(layerss[0]); i++ {
+			if err := Layers(layerss[0][i], layerss[1][i]); err != nil {
+				// Wrap the error in newlines to delineate layer errors.
+				errs = append(errs, fmt.Sprintf("\n%v\n", err))
 			}
-		}
-		if err := Layers(layers[0], layers[1]); err != nil {
-			errs = append(errs, err.Error())
 		}
 	}
 
 	if len(errs) != 0 {
-		return errors.New(strings.Join(errs, "\n\n"))
+		return errors.New("Images differ:\n" + strings.Join(errs, "\n"))
 	}
 
 	return nil
