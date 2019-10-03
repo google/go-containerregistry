@@ -142,7 +142,12 @@ func probeIncremental(tag name.Tag, img v1.Image) (tarball.LayerFilter, error) {
 			return nil, err
 		}
 
-		if _, err := write(tag, probe, discardLayers); err != nil {
+		probeTag, err := name.NewTag(fmt.Sprintf("%s:%s-layer_%d_probe", tag.Context(), tag.Identifier(), i))
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := write(probeTag, probe, discardLayers); err != nil {
 			return func(layer v1.Layer) (bool, error) {
 				diffid, err := layers[i].DiffID()
 				if err != nil {
