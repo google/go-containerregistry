@@ -78,3 +78,20 @@ func Write(tag name.Tag, img v1.Image) (string, error) {
 	}
 	return response, nil
 }
+
+func import_config(img v1.Image) error {
+	layers, err := img.Layers()
+	if err != nil {
+		return err
+	}
+	diffids := make([]v1.Hash, len(layers))
+	for i, layer := range layers {
+		diffid, err := layer.DiffID()
+		if err != nil {
+			return err
+		}
+
+		diffids[i] = diffid
+	}
+	return nil
+}
