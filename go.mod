@@ -7,6 +7,7 @@ require (
 	github.com/Azure/azure-sdk-for-go v19.1.1+incompatible // indirect
 	github.com/Azure/go-autorest v10.15.5+incompatible // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
+	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/aws/aws-sdk-go v1.15.90 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/docker/cli v0.0.0-20190925022749-754388324470

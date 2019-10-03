@@ -15,19 +15,22 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/pkg/errors"
 )
 
 // ImageLoader is an interface for testing.
@@ -80,15 +83,38 @@ func write(tag name.Tag, img v1.Image, lf tarball.LayerFilter) (string, error) {
 	// write the image in docker save format first, then load it
 	resp, err := cli.ImageLoad(context.Background(), pr, false)
 	if err != nil {
-		return "", errors.Wrapf(err, "error loading image")
+		return "", fmt.Errorf("loading image: %v", err)
 	}
 	defer resp.Body.Close()
-	b, readErr := ioutil.ReadAll(resp.Body)
-	response := string(b)
-	if readErr != nil {
-		return response, errors.Wrapf(err, "error reading load response body")
+
+	var buf bytes.Buffer
+	r := io.TeeReader(resp.Body, &buf)
+
+	// Let's try to parse this thing as a structured response.
+	if resp.JSON {
+		decoder := json.NewDecoder(r)
+		for {
+			var msg jsonmessage.JSONMessage
+			if err := decoder.Decode(&msg); err == io.EOF {
+				break
+			} else if err != nil {
+				return buf.String(), fmt.Errorf("reading load response body: %v", err)
+			}
+			if msg.Error != nil {
+				return buf.String(), fmt.Errorf("failed to load image: %v", msg.Error.Message)
+			}
+			if err := msg.Display(logs.Progress.Writer(), true); err != nil {
+				return buf.String(), fmt.Errorf("failed to display: %v", err)
+			}
+		}
 	}
-	return response, nil
+
+	// Copy the rest of the response.
+	if _, err := io.Copy(ioutil.Discard, r); err != nil {
+		return buf.String(), err
+	}
+
+	return buf.String(), nil
 }
 
 func discardLayers(v1.Layer) (bool, error) {
@@ -108,9 +134,10 @@ func probeIncremental(tag name.Tag, img v1.Image) (tarball.LayerFilter, error) {
 	// Set<DiffID>
 	have := make(map[v1.Hash]struct{})
 
-	for i := 1; i < len(layers); i++ {
+	probe := empty.Image
+	for i := 0; i < len(layers); i++ {
 		// Image with first i layers.
-		probe, err := mutate.AppendLayers(empty.Image, layers[0:i]...)
+		probe, err = mutate.AppendLayers(empty.Image, layers[0])
 		if err != nil {
 			return nil, err
 		}
