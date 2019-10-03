@@ -90,6 +90,8 @@ func write(tag name.Tag, img v1.Image, lf tarball.LayerFilter) (string, error) {
 	var buf bytes.Buffer
 	r := io.TeeReader(resp.Body, &buf)
 
+	var displayErr error
+
 	// Let's try to parse this thing as a structured response.
 	if resp.JSON {
 		decoder := json.NewDecoder(r)
@@ -100,12 +102,7 @@ func write(tag name.Tag, img v1.Image, lf tarball.LayerFilter) (string, error) {
 			} else if err != nil {
 				return buf.String(), fmt.Errorf("reading load response body: %v", err)
 			}
-			if msg.Error != nil {
-				return buf.String(), fmt.Errorf("failed to load image: %v", msg.Error.Message)
-			}
-			if err := msg.Display(logs.Progress.Writer(), true); err != nil {
-				return buf.String(), fmt.Errorf("failed to display: %v", err)
-			}
+			displayErr = display(msg)
 		}
 	}
 
@@ -114,7 +111,21 @@ func write(tag name.Tag, img v1.Image, lf tarball.LayerFilter) (string, error) {
 		return buf.String(), err
 	}
 
-	return buf.String(), nil
+	return buf.String(), displayErr
+}
+
+func display(msg jsonmessage.JSONMessage) error {
+	if msg.Error != nil {
+		return msg.Error
+	}
+	if msg.Progress != nil {
+		logs.Progress.Printf("%s %s", msg.Status, msg.Progress)
+	} else if msg.Stream != "" {
+		logs.Progress.Print(msg.Stream)
+	} else {
+		logs.Progress.Print(msg.Status)
+	}
+	return nil
 }
 
 func discardLayers(v1.Layer) (bool, error) {
