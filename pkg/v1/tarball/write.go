@@ -29,41 +29,41 @@ import (
 
 // WriteToFile writes in the compressed format to a tarball, on disk.
 // This is just syntactic sugar wrapping tarball.Write with a new file.
-func WriteToFile(p string, ref name.Reference, img v1.Image) error {
+func WriteToFile(p string, ref name.Reference, img v1.Image, opt ...Option) error {
 	w, err := os.Create(p)
 	if err != nil {
 		return err
 	}
 	defer w.Close()
 
-	return Write(ref, img, w)
+	return Write(ref, img, w, opt...)
 }
 
 // MultiWriteToFile writes in the compressed format to a tarball, on disk.
 // This is just syntactic sugar wrapping tarball.MultiWrite with a new file.
-func MultiWriteToFile(p string, tagToImage map[name.Tag]v1.Image) error {
+func MultiWriteToFile(p string, tagToImage map[name.Tag]v1.Image, opt ...Option) error {
 	refToImage := make(map[name.Reference]v1.Image, len(tagToImage))
 	for i, d := range tagToImage {
 		refToImage[i] = d
 	}
-	return MultiRefWriteToFile(p, refToImage)
+	return MultiRefWriteToFile(p, refToImage, opt...)
 }
 
 // MultiRefWriteToFile writes in the compressed format to a tarball, on disk.
 // This is just syntactic sugar wrapping tarball.MultiRefWrite with a new file.
-func MultiRefWriteToFile(p string, refToImage map[name.Reference]v1.Image) error {
+func MultiRefWriteToFile(p string, refToImage map[name.Reference]v1.Image, opt ...Option) error {
 	w, err := os.Create(p)
 	if err != nil {
 		return err
 	}
 	defer w.Close()
 
-	return MultiRefWrite(refToImage, w)
+	return MultiRefWrite(refToImage, w, opt...)
 }
 
 // Write is a wrapper to write a single image and tag to a tarball.
-func Write(ref name.Reference, img v1.Image, w io.Writer) error {
-	return MultiRefWrite(map[name.Reference]v1.Image{ref: img}, w)
+func Write(ref name.Reference, img v1.Image, w io.Writer, opt ...Option) error {
+	return MultiRefWrite(map[name.Reference]v1.Image{ref: img}, w, opt...)
 }
 
 // MultiWrite writes the contents of each image to the provided reader, in the compressed format.
@@ -71,12 +71,12 @@ func Write(ref name.Reference, img v1.Image, w io.Writer) error {
 // One manifest.json file at the top level containing information about several images.
 // One file for each layer, named after the layer's SHA.
 // One file for the config blob, named after its SHA.
-func MultiWrite(tagToImage map[name.Tag]v1.Image, w io.Writer) error {
+func MultiWrite(tagToImage map[name.Tag]v1.Image, w io.Writer, opt ...Option) error {
 	refToImage := make(map[name.Reference]v1.Image, len(tagToImage))
 	for i, d := range tagToImage {
 		refToImage[i] = d
 	}
-	return MultiRefWrite(refToImage, w)
+	return MultiRefWrite(refToImage, w, opt...)
 }
 
 // MultiRefWrite writes the contents of each image to the provided reader, in the compressed format.
@@ -84,7 +84,12 @@ func MultiWrite(tagToImage map[name.Tag]v1.Image, w io.Writer) error {
 // One manifest.json file at the top level containing information about several images.
 // One file for each layer, named after the layer's SHA.
 // One file for the config blob, named after its SHA.
-func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
+func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer, opt ...Option) error {
+	o, err := makeOptions(opt...)
+	if err != nil {
+		return err
+	}
+
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
@@ -143,6 +148,15 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			// gunzip expects certain file extensions:
 			// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
 			layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
+
+			// We filter late because the length of layerFiles must match the diff_ids
+			// in config file.  It is ok if the file doesn't exist when the daemon
+			// already has a given layer, since it won't try to read it.
+			if keep, err := o.filter(l); err != nil {
+				return err
+			} else if !keep {
+				continue
+			}
 
 			r, err := l.Compressed()
 			if err != nil {
