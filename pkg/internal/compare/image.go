@@ -93,13 +93,13 @@ func Images(a, b v1.Image) error {
 	if len(layerss[0]) != len(layerss[1]) {
 		// If we have fewer layers than the first image, abort with an error so we don't panic.
 		return errors.New("len(a.Layers()) != len(b.Layers())")
-	} else {
-		// Compare each layer.
-		for i := 0; i < len(layerss[0]); i++ {
-			if err := Layers(layerss[0][i], layerss[1][i]); err != nil {
-				// Wrap the error in newlines to delineate layer errors.
-				errs = append(errs, fmt.Sprintf("\n%v\n", err))
-			}
+	}
+
+	// Compare each layer.
+	for i := 0; i < len(layerss[0]); i++ {
+		if err := Layers(layerss[0][i], layerss[1][i]); err != nil {
+			// Wrap the error in newlines to delineate layer errors.
+			errs = append(errs, fmt.Sprintf("\n%v\n", err))
 		}
 	}
 
