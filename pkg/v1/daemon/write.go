@@ -21,8 +21,11 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/pkg/errors"
 )
@@ -55,6 +58,15 @@ func Tag(src, dest name.Tag) error {
 
 // Write saves the image into the daemon as the given tag.
 func Write(tag name.Tag, img v1.Image) (string, error) {
+	filter, err := probeIncremental(tag, img)
+	if err != nil {
+		logs.Warn.Printf("Determining incremental load: %v", err)
+		return write(tag, img, keepLayers)
+	}
+	return write(tag, img, filter)
+}
+
+func write(tag name.Tag, img v1.Image, lf tarball.LayerFilter) (string, error) {
 	cli, err := GetImageLoader()
 	if err != nil {
 		return "", err
@@ -62,7 +74,7 @@ func Write(tag name.Tag, img v1.Image) (string, error) {
 
 	pr, pw := io.Pipe()
 	go func() {
-		pw.CloseWithError(tarball.Write(tag, img, pw))
+		pw.CloseWithError(tarball.Write(tag, img, pw, tarball.WithLayerFilter(lf)))
 	}()
 
 	// write the image in docker save format first, then load it
@@ -79,19 +91,52 @@ func Write(tag name.Tag, img v1.Image) (string, error) {
 	return response, nil
 }
 
-func import_config(img v1.Image) error {
+func discardLayers(v1.Layer) (bool, error) {
+	return false, nil
+}
+
+func keepLayers(v1.Layer) (bool, error) {
+	return true, nil
+}
+
+func probeIncremental(tag name.Tag, img v1.Image) (tarball.LayerFilter, error) {
 	layers, err := img.Layers()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	diffids := make([]v1.Hash, len(layers))
-	for i, layer := range layers {
-		diffid, err := layer.DiffID()
+
+	// Set<DiffID>
+	have := make(map[v1.Hash]struct{})
+
+	for i := 1; i < len(layers); i++ {
+		// Image with first i layers.
+		probe, err := mutate.AppendLayers(empty.Image, layers[0:i]...)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		diffids[i] = diffid
+		if _, err := write(tag, probe, discardLayers); err != nil {
+			return func(layer v1.Layer) (bool, error) {
+				diffid, err := layers[i].DiffID()
+				if err != nil {
+					return true, err
+				}
+
+				if _, ok := have[diffid]; ok {
+					return false, nil
+				}
+
+				return true, nil
+			}, nil
+		}
+
+		// We don't need to include this layer in the tarball.
+		diffid, err := layers[i].DiffID()
+		if err != nil {
+			return nil, err
+		}
+		have[diffid] = struct{}{}
 	}
-	return nil
+
+	return discardLayers, nil
 }
