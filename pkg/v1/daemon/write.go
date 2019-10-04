@@ -21,14 +21,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/term"
-	"github.com/docker/go-units"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -100,7 +95,7 @@ func write(tag name.Tag, img v1.Image, lf tarball.LayerFilter) (string, error) {
 	if resp.JSON {
 		decoder := json.NewDecoder(r)
 		for {
-			var msg jsonmessage.JSONMessage
+			var msg JSONMessage
 			if err := decoder.Decode(&msg); err == io.EOF {
 				break
 			} else if err != nil {
@@ -118,7 +113,7 @@ func write(tag name.Tag, img v1.Image, lf tarball.LayerFilter) (string, error) {
 	return buf.String(), displayErr
 }
 
-func display(msg jsonmessage.JSONMessage) error {
+func display(msg JSONMessage) error {
 	if msg.Error != nil {
 		return msg.Error
 	}
@@ -157,6 +152,7 @@ func probeIncremental(tag name.Tag, img v1.Image) (tarball.LayerFilter, error) {
 			return nil, err
 		}
 
+		// TODO: Inline the tarball stuff so we can omit RepoTags.
 		probeTag, err := name.NewTag(fmt.Sprintf("%s:%s-layer_%d_probe", tag.Context(), tag.Identifier(), i))
 		if err != nil {
 			return nil, err
@@ -188,25 +184,18 @@ func probeIncremental(tag name.Tag, img v1.Image) (tarball.LayerFilter, error) {
 	return discardLayers, nil
 }
 
+// TODO: move to a different file?
+// Inlined from github.com/docker/docker/pkg/jsonmessage to avoid pulling in
+// a ton of dependencies.
+
 // JSONMessage defines a message struct. It describes
 // the created time, where it from, status, ID of the
 // message. It's used for docker events.
-//
-// Inlined from github.com/docker/docker/pkg/jsonmessage to avoid pulling in
-// a ton of dependencies.
 type JSONMessage struct {
-	Stream          string        `json:"stream,omitempty"`
-	Status          string        `json:"status,omitempty"`
-	Progress        *JSONProgress `json:"progressDetail,omitempty"`
-	ProgressMessage string        `json:"progress,omitempty"` //deprecated
-	ID              string        `json:"id,omitempty"`
-	From            string        `json:"from,omitempty"`
-	Time            int64         `json:"time,omitempty"`
-	TimeNano        int64         `json:"timeNano,omitempty"`
-	Error           *JSONError    `json:"errorDetail,omitempty"`
-	ErrorMessage    string        `json:"error,omitempty"` //deprecated
-	// Aux contains out-of-band data, such as digests for push signing and image id after building.
-	Aux *json.RawMessage `json:"aux,omitempty"`
+	Stream   string        `json:"stream,omitempty"`
+	Status   string        `json:"status,omitempty"`
+	Progress *JSONProgress `json:"progressDetail,omitempty"`
+	Error    *JSONError    `json:"errorDetail,omitempty"`
 }
 
 // JSONProgress describes a Progress. terminalFd is the fd of the current terminal,
@@ -214,106 +203,21 @@ type JSONMessage struct {
 // value of the progress made towards Total. Total is the end value describing when
 // we made 100% progress for an operation.
 type JSONProgress struct {
-	terminalFd uintptr
-	Current    int64 `json:"current,omitempty"`
-	Total      int64 `json:"total,omitempty"`
-	Start      int64 `json:"start,omitempty"`
-	// If true, don't show xB/yB
-	HideCounts bool   `json:"hidecounts,omitempty"`
-	Units      string `json:"units,omitempty"`
-	nowFunc    func() time.Time
-	winSize    int
+	Current int64  `json:"current,omitempty"`
+	Total   int64  `json:"total,omitempty"`
+	Units   string `json:"units,omitempty"`
 }
 
 func (p *JSONProgress) String() string {
-	var (
-		width       = p.width()
-		pbBox       string
-		numbersBox  string
-		timeLeftBox string
-	)
 	if p.Current <= 0 && p.Total <= 0 {
 		return ""
 	}
-	if p.Total <= 0 {
-		switch p.Units {
-		case "":
-			current := units.HumanSize(float64(p.Current))
-			return fmt.Sprintf("%8v", current)
-		default:
-			return fmt.Sprintf("%d %s", p.Current, p.Units)
-		}
-	}
 
-	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
-	if percentage > 50 {
-		percentage = 50
-	}
-	if width > 110 {
-		// this number can't be negative gh#7136
-		numSpaces := 0
-		if 50-percentage > 0 {
-			numSpaces = 50 - percentage
-		}
-		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
-	}
-
-	switch {
-	case p.HideCounts:
-	case p.Units == "": // no units, use bytes
-		current := units.HumanSize(float64(p.Current))
-		total := units.HumanSize(float64(p.Total))
-
-		numbersBox = fmt.Sprintf("%8v/%v", current, total)
-
-		if p.Current > p.Total {
-			// remove total display if the reported current is wonky.
-			numbersBox = fmt.Sprintf("%8v", current)
-		}
-	default:
-		numbersBox = fmt.Sprintf("%d/%d %s", p.Current, p.Total, p.Units)
-
-		if p.Current > p.Total {
-			// remove total display if the reported current is wonky.
-			numbersBox = fmt.Sprintf("%d %s", p.Current, p.Units)
-		}
-	}
-
-	if p.Current > 0 && p.Start > 0 && percentage < 50 {
-		fromStart := p.now().Sub(time.Unix(p.Start, 0))
-		perEntry := fromStart / time.Duration(p.Current)
-		left := time.Duration(p.Total-p.Current) * perEntry
-		left = (left / time.Second) * time.Second
-
-		if width > 50 {
-			timeLeftBox = " " + left.String()
-		}
-	}
-	return pbBox + numbersBox + timeLeftBox
+	return fmt.Sprintf("%d / %d %s", p.Current, p.Total, p.Units)
 }
 
-// shim for testing
-func (p *JSONProgress) now() time.Time {
-	if p.nowFunc == nil {
-		p.nowFunc = func() time.Time {
-			return time.Now().UTC()
-		}
-	}
-	return p.nowFunc()
-}
-
-// shim for testing
-func (p *JSONProgress) width() int {
-	if p.winSize != 0 {
-		return p.winSize
-	}
-	ws, err := term.GetWinsize(p.terminalFd)
-	if err == nil {
-		return int(ws.Width)
-	}
-	return 200
-}
-
+// JSONError wraps a concrete Code and Message, `Code` is
+// is an integer error code, `Message` is the error message.
 type JSONError struct {
 	Code    int    `json:"code,omitempty"`
 	Message string `json:"message,omitempty"`
