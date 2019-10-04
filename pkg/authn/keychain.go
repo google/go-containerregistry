@@ -17,6 +17,7 @@ package authn
 import (
 	"github.com/docker/cli/cli/config"
 	"github.com/docker/cli/cli/config/types"
+	"github.com/google/go-containerregistry/pkg/name"
 )
 
 // Resource represents a registry or repository that can be authenticated against.
@@ -50,6 +51,10 @@ var (
 	configDir = ""
 )
 
+const (
+	defaultAuthKey = "https://" + name.DefaultRegistry + "/v1/"
+)
+
 // Resolve implements Keychain.
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	cf, err := config.Load(configDir)
@@ -57,7 +62,15 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 		return nil, err
 	}
 
-	cfg, err := cf.GetAuthConfig(target.RegistryStr())
+	// See:
+	// https://github.com/google/ko/issues/90
+	// https://github.com/moby/moby/blob/fc01c2b481097a6057bec3cd1ab2d7b4488c50c4/registry/config.go#L397-L404
+	key := target.RegistryStr()
+	if key == name.DefaultRegistry {
+		key = defaultAuthKey
+	}
+
+	cfg, err := cf.GetAuthConfig(key)
 	if err != nil {
 		return nil, err
 	}

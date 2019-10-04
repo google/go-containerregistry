@@ -27,8 +27,9 @@ import (
 )
 
 var (
-	fresh           = 0
-	testRegistry, _ = name.NewRegistry("test.io", name.WeakValidation)
+	fresh              = 0
+	testRegistry, _    = name.NewRegistry("test.io", name.WeakValidation)
+	defaultRegistry, _ = name.NewRegistry(name.DefaultRegistry, name.WeakValidation)
 )
 
 // setupConfigDir sets up an isolated configDir() for this test.
@@ -85,15 +86,26 @@ func TestVariousPaths(t *testing.T) {
 	tests := []struct {
 		content string
 		wantErr bool
+		target  name.Registry
 		cfg     *AuthConfig
 	}{{
+		target:  testRegistry,
 		content: `}{`,
 		wantErr: true,
 	}, {
+		target:  testRegistry,
 		content: `{"credsStore":"#definitely-does-not-exist"}`,
 		wantErr: true,
 	}, {
+		target:  testRegistry,
 		content: fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("foo", "bar")),
+		cfg: &AuthConfig{
+			Username: "foo",
+			Password: "bar",
+		},
+	}, {
+		target:  defaultRegistry,
+		content: fmt.Sprintf(`{"auths": {"%s": {"auth": %q}}}`, defaultAuthKey, encode("foo", "bar")),
 		cfg: &AuthConfig{
 			Username: "foo",
 			Password: "bar",
@@ -105,7 +117,7 @@ func TestVariousPaths(t *testing.T) {
 		// For some reason, these tempdirs don't get cleaned up.
 		defer os.RemoveAll(filepath.Dir(cd))
 
-		auth, err := DefaultKeychain.Resolve(testRegistry)
+		auth, err := DefaultKeychain.Resolve(test.target)
 		if test.wantErr {
 			if err == nil {
 				t.Fatal("wanted err, got nil")
