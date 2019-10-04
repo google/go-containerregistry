@@ -147,7 +147,7 @@ func probeIncremental(tag name.Tag, img v1.Image) (tarball.LayerFilter, error) {
 	probe := empty.Image
 	for i := 0; i < len(layers); i++ {
 		// Image with first i layers.
-		probe, err = mutate.AppendLayers(empty.Image, layers[0])
+		probe, err = mutate.AppendLayers(probe, layers[i])
 		if err != nil {
 			return nil, err
 		}
