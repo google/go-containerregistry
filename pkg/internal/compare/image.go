@@ -99,7 +99,7 @@ func Images(a, b v1.Image) error {
 	for i := 0; i < len(layerss[0]); i++ {
 		if err := Layers(layerss[0][i], layerss[1][i]); err != nil {
 			// Wrap the error in newlines to delineate layer errors.
-			errs = append(errs, fmt.Sprintf("\n%v\n", err))
+			errs = append(errs, fmt.Sprintf("Layers[%d]: %v\n", i, err))
 		}
 	}
 
