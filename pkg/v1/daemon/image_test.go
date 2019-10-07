@@ -18,9 +18,9 @@ import (
 	"context"
 	"io"
 	"os"
-	"reflect"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -43,7 +43,7 @@ func init() {
 }
 
 func TestImage(t *testing.T) {
-	testImage, err := tarball.ImageFromPath(imagePath, nil)
+	img, err := tarball.ImageFromPath(imagePath, nil)
 	if err != nil {
 		t.Fatalf("error loading test image: %s", err)
 	}
@@ -60,21 +60,12 @@ func TestImage(t *testing.T) {
 		} else {
 			bufferedOption = WithUnbufferedOpener()
 		}
-		daemonImage, err := Image(tag, bufferedOption)
+		dmn, err := Image(tag, bufferedOption)
 		if err != nil {
 			t.Errorf("Error loading daemon image: %s", err)
 		}
-
-		dmfst, err := daemonImage.Manifest()
-		if err != nil {
-			t.Errorf("Error getting daemon manifest: %s", err)
-		}
-		tmfst, err := testImage.Manifest()
-		if err != nil {
-			t.Errorf("Error getting test manifest: %s", err)
-		}
-		if !reflect.DeepEqual(dmfst, tmfst) {
-			t.Errorf("%v != %v", testImage, daemonImage)
+		if err := compare.Images(img, dmn); err != nil {
+			t.Errorf("compare.Images: %v", err)
 		}
 	}
 

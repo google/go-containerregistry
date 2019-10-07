@@ -15,18 +15,17 @@
 package remote
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 func TestRemoteLayer(t *testing.T) {
@@ -70,53 +69,10 @@ func TestRemoteLayer(t *testing.T) {
 		t.Errorf("reading MediaType: %v", err)
 	}
 
-	compareLayers(t, got, layer)
-}
-
-func compareLayers(t *testing.T, got, want v1.Layer) {
-	t.Helper()
-
-	gotDigest, err := got.Digest()
-	if err != nil {
-		t.Fatal(err)
+	if err := compare.Layers(got, layer); err != nil {
+		t.Errorf("compare.Layers: %v", err)
 	}
-	wantDigest, err := want.Digest()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotDigest != wantDigest {
-		t.Errorf("%s != %s", gotDigest, wantDigest)
-	}
-
-	gotSize, err := got.Size()
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantSize, err := want.Size()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotSize != wantSize {
-		t.Errorf("%d != %d", gotSize, wantSize)
-	}
-
-	rc, err := got.Compressed()
-	if err != nil {
-		t.Fatal(err)
-	}
-	gotBytes, err := ioutil.ReadAll(rc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rc, err = want.Compressed()
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantBytes, err := ioutil.ReadAll(rc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(gotBytes, wantBytes) {
-		t.Error("gotBytes != wantBytes")
+	if err := validate.Layer(got); err != nil {
+		t.Errorf("validate.Layer: %v", err)
 	}
 }

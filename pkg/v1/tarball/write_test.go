@@ -19,8 +19,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-
+	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -61,23 +60,13 @@ func TestWrite(t *testing.T) {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
 		}
 
-		tarManifest, err := tarImage.Manifest()
-		if err != nil {
-			t.Fatalf("Unexpected error reading tarball: %v", err)
-		}
-		randManifest, err := randImage.Manifest()
-		if err != nil {
-			t.Fatalf("Unexpected error reading tarball: %v", err)
-		}
-
-		if diff := cmp.Diff(randManifest, tarManifest); diff != "" {
-			t.Errorf("Manifests not equal. (-rand +tar) %s", diff)
-		}
-
 		if err := validate.Image(tarImage); err != nil {
 			t.Errorf("validate.Image: %v", err)
 		}
-		assertLayersAreIdentical(t, randImage, tarImage)
+
+		if err := compare.Images(randImage, tarImage); err != nil {
+			t.Errorf("compare.Images: %v", err)
+		}
 	}
 
 	// Try loading a different tag, it should error.
@@ -139,24 +128,13 @@ func TestMultiWriteSameImage(t *testing.T) {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
 		}
 
-		tarManifest, err := tarImage.Manifest()
-		if err != nil {
-			t.Fatalf("Unexpected error reading tarball: %v", err)
-		}
-		randManifest, err := randImage.Manifest()
-		if err != nil {
-			t.Fatalf("Unexpected error reading tarball: %v", err)
-		}
-
-		if diff := cmp.Diff(randManifest, tarManifest); diff != "" {
-			t.Errorf("Manifests not equal. (-rand +tar) %s", diff)
-		}
-
 		if err := validate.Image(tarImage); err != nil {
 			t.Errorf("validate.Image: %v", err)
 		}
 
-		assertLayersAreIdentical(t, randImage, tarImage)
+		if err := compare.Images(randImage, tarImage); err != nil {
+			t.Errorf("compare.Images: %v", err)
+		}
 	}
 }
 
@@ -221,23 +199,13 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 			t.Fatalf("Unexpected error reading tarball: %v", err)
 		}
 
-		tarManifest, err := tarImage.Manifest()
-		if err != nil {
-			t.Fatalf("Unexpected error reading tarball: %v", err)
-		}
-		randManifest, err := img.Manifest()
-		if err != nil {
-			t.Fatalf("Unexpected error reading tarball: %v", err)
-		}
-
-		if diff := cmp.Diff(randManifest, tarManifest); diff != "" {
-			t.Errorf("Manifests not equal. (-rand +tar) %s", diff)
-		}
-
 		if err := validate.Image(tarImage); err != nil {
 			t.Errorf("validate.Image: %v", err)
 		}
-		assertLayersAreIdentical(t, img, tarImage)
+
+		if err := compare.Images(img, tarImage); err != nil {
+			t.Errorf("compare.Images: %v", err)
+		}
 	}
 }
 
@@ -297,56 +265,4 @@ func TestWriteForeignLayers(t *testing.T) {
 	if got, want := m.Layers[1].URLs[0], "example.com"; got != want {
 		t.Errorf("Wrong URLs: %s != %s", got, want)
 	}
-}
-
-func assertLayersAreIdentical(t *testing.T, a, b v1.Image) {
-	t.Helper()
-
-	aLayers, err := a.Layers()
-	if err != nil {
-		t.Fatalf("error getting layers to compare: %v", err)
-	}
-
-	bLayers, err := b.Layers()
-	if err != nil {
-		t.Fatalf("error getting layers to compare: %v", err)
-	}
-
-	if diff := cmp.Diff(getDigests(t, aLayers), getDigests(t, bLayers)); diff != "" {
-		t.Fatalf("layers digests are not identical (-rand +tar) %s", diff)
-	}
-
-	if diff := cmp.Diff(getDiffIDs(t, aLayers), getDiffIDs(t, bLayers)); diff != "" {
-		t.Fatalf("layers digests are not identical (-rand +tar) %s", diff)
-	}
-}
-
-func getDigests(t *testing.T, layers []v1.Layer) []v1.Hash {
-	t.Helper()
-
-	digests := make([]v1.Hash, 0, len(layers))
-	for _, layer := range layers {
-		digest, err := layer.Digest()
-		if err != nil {
-			t.Fatalf("error getting digests: %s", err)
-		}
-		digests = append(digests, digest)
-	}
-
-	return digests
-}
-
-func getDiffIDs(t *testing.T, layers []v1.Layer) []v1.Hash {
-	t.Helper()
-
-	diffIDs := make([]v1.Hash, 0, len(layers))
-	for _, layer := range layers {
-		diffID, err := layer.DiffID()
-		if err != nil {
-			t.Fatalf("error getting diffID: %s", err)
-		}
-		diffIDs = append(diffIDs, diffID)
-	}
-
-	return diffIDs
 }
