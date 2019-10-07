@@ -337,18 +337,12 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	img := setupImage(t)
 	h := mustConfigName(t, img)
-	expectedMountRepo := "a/different/repo"
 	expectedRepo := "yet/again"
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
 		"mount": []string{h.String()},
 		"from":  []string{"baz/bar"},
 	}.Encode()
-
-	img = &mountableImage{
-		Image:     img,
-		Reference: mustNewTag(t, fmt.Sprintf("gcr.io/%s", expectedMountRepo)),
-	}
 
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -400,16 +394,6 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 		http.Error(w, "Mounted", http.StatusCreated)
 	})
 	server := httptest.NewServer(serverHandler)
-	u, err := url.Parse(server.URL)
-	if err != nil {
-		server.Close()
-		t.Fatalf("httptest.NewServer() = %v", err)
-	}
-
-	img = &mountableImage{
-		Image:     img,
-		Reference: mustNewTag(t, fmt.Sprintf("%s/%s", u.Host, expectedMountRepo)),
-	}
 
 	w, closer, err := setupWriterWithServer(server, expectedRepo)
 	if err != nil {
