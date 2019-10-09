@@ -100,6 +100,7 @@ func NewRepository(name string, opts ...Option) (Repository, error) {
 	return Repository{reg, repo}, nil
 }
 
+// Tag returns a Tag in this Repository.
 func (r Repository) Tag(identifier string) Tag {
 	t := Tag{
 		tag:        identifier,
@@ -109,6 +110,7 @@ func (r Repository) Tag(identifier string) Tag {
 	return t
 }
 
+// Digest returns a Digest in this Repository.
 func (r Repository) Digest(identifier string) Digest {
 	d := Digest{
 		digest:     identifier,

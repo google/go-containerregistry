@@ -120,3 +120,18 @@ func TestRepositoryBadDefaulting(t *testing.T) {
 		t.Errorf("IsBadErrName == false: %v", err)
 	}
 }
+
+func TestRepositoryChildren(t *testing.T) {
+	repo, err := NewRepository("ubuntu", Insecure)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tag := repo.Tag("foo")
+	if got, want := tag.Scheme(), "http"; got != want {
+		t.Errorf("tag.Scheme(): got %s want %s", got, want)
+	}
+	digest := repo.Digest("badf00d")
+	if got, want := digest.Scheme(), "http"; got != want {
+		t.Errorf("digest.Scheme(): got %s want %s", got, want)
+	}
+}
