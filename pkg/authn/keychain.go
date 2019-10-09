@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/cli/cli/config"
 	"github.com/docker/cli/cli/config/types"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -72,6 +73,7 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	if err != nil {
 		return nil, err
 	}
+	logs.Debug.Printf("defaultKeychain.Resolve(%q) = %+v", key, cfg)
 
 	empty := types.AuthConfig{}
 	if cfg == empty {
