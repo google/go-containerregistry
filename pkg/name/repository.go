@@ -99,3 +99,21 @@ func NewRepository(name string, opts ...Option) (Repository, error) {
 	}
 	return Repository{reg, repo}, nil
 }
+
+func (r Repository) Tag(identifier string) Tag {
+	t := Tag{
+		tag:        identifier,
+		Repository: r,
+	}
+	t.original = t.Name()
+	return t
+}
+
+func (r Repository) Digest(identifier string) Digest {
+	d := Digest{
+		digest:     identifier,
+		Repository: r,
+	}
+	d.original = d.Name()
+	return d
+}

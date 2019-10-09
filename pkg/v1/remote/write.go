@@ -454,7 +454,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 	}
 
 	for _, desc := range index.Manifests {
-		ref, err := name.ParseReference(fmt.Sprintf("%s@%s", ref.Context(), desc.Digest), name.StrictValidation)
+		ref := ref.Context().Digest(desc.Digest.String())
 		if err != nil {
 			return err
 		}
