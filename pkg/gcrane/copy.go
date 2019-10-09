@@ -386,13 +386,9 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 
 	// Copy the rest of the tags.
 	for _, tag := range t.manifest.Tags[1:] {
-		dstImg := fmt.Sprintf("%s:%s", t.newRepo, tag)
-		t, err := name.NewTag(dstImg)
-		if err != nil {
-			return err
-		}
+		dstImg := t.newRepo.Tag(tag)
 
-		if err := remote.Tag(t, taggable, remote.WithAuth(c.dstAuth)); err != nil {
+		if err := remote.Tag(dstImg, taggable, remote.WithAuth(c.dstAuth)); err != nil {
 			return err
 		}
 	}

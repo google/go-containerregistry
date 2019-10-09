@@ -38,23 +38,15 @@ func CopySchema1(desc *remote.Descriptor, srcRef, dstRef name.Reference, srcAuth
 	}
 
 	for _, layer := range m.FSLayers {
-		src := fmt.Sprintf("%s@%s", srcRef.Context(), layer.BlobSum)
-		blobSrc, err := name.NewDigest(src)
-		if err != nil {
-			return err
-		}
-		dst := fmt.Sprintf("%s@%s", dstRef.Context(), layer.BlobSum)
-		blobDst, err := name.NewDigest(dst)
+		src := srcRef.Context().Digest(layer.BlobSum)
+		dst := dstRef.Context().Digest(layer.BlobSum)
+
+		blob, err := remote.Layer(src, remote.WithAuth(srcAuth))
 		if err != nil {
 			return err
 		}
 
-		blob, err := remote.Layer(blobSrc, remote.WithAuth(srcAuth))
-		if err != nil {
-			return err
-		}
-
-		if err := remote.WriteLayer(blobDst, blob, remote.WithAuth(dstAuth)); err != nil {
+		if err := remote.WriteLayer(dst, blob, remote.WithAuth(dstAuth)); err != nil {
 			return err
 		}
 	}
