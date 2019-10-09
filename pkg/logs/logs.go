@@ -26,4 +26,7 @@ var (
 
 	// Progress is used to log notable, successful events.
 	Progress = log.New(ioutil.Discard, "", log.LstdFlags)
+
+	// Debug is used to log information that is useful for debugging.
+	Debug = log.New(ioutil.Discard, "", log.LstdFlags)
 )
