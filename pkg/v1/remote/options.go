@@ -57,6 +57,9 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 		o.auth = auth
 	}
 
+	// Wrap the transport in something that logs requests and responses.
+	o.transport = transport.NewLogger(o.transport)
+
 	// Wrap the transport in something that can retry network flakes.
 	o.transport = transport.NewRetry(o.transport)
 
