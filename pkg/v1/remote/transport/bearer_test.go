@@ -259,6 +259,70 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 	}
 }
 
+func TestBearerTransportOauthRefreshToken(t *testing.T) {
+	initialToken := "initial_token"
+	accessToken := "access_token"
+	refreshToken := "refresh_token"
+
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				b, err := ioutil.ReadAll(r.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(b) == 0 {
+					t.Errorf("got empty request body for POST")
+				}
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(fmt.Sprintf(`{"access_token": %q, "refresh_token": %q}`, accessToken, refreshToken)))
+				return
+			}
+
+			hdr := r.Header.Get("Authorization")
+			if hdr == "Bearer "+accessToken {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			w.WriteHeader(http.StatusUnauthorized)
+		}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Errorf("Unexpected error during NewRegistry: %v", err)
+	}
+
+	bearer := &authn.Bearer{Token: initialToken}
+	transport := &bearerTransport{
+		inner:    http.DefaultTransport,
+		basic:    authn.FromConfig(authn.AuthConfig{Username: "user", Password: "pass"}),
+		bearer:   bearer,
+		registry: registry,
+		realm:    server.URL,
+		scheme:   "http",
+		scopes:   []string{"myscope"},
+		service:  u.Host,
+	}
+	client := http.Client{Transport: transport}
+
+	res, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
+	if err != nil {
+		t.Fatalf("Unexpected error during client.Get: %v", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
+	}
+	if transport.bearer.Token != accessToken {
+		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", bearer.Token, accessToken)
+	}
+}
+
 type recorder struct {
 	reqs []*http.Request
 	resp *http.Response
