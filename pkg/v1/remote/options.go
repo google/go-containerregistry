@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
+	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
@@ -31,6 +32,7 @@ type options struct {
 	keychain  authn.Keychain
 	transport http.RoundTripper
 	platform  v1.Platform
+	nameOpts  []name.Option
 }
 
 func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
@@ -61,6 +63,17 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 	o.transport = transport.NewRetry(o.transport)
 
 	return o, nil
+}
+
+func makeNameOptions(opts ...Option) ([]name.Option, error) {
+	o := &options{}
+	for _, option := range opts {
+		if err := option(o); err != nil {
+			return nil, err
+		}
+	}
+
+	return o.nameOpts, nil
 }
 
 // WithTransport is a functional option for overriding the default transport
@@ -104,6 +117,15 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 func WithPlatform(p v1.Platform) Option {
 	return func(o *options) error {
 		o.platform = p
+		return nil
+	}
+}
+
+// WithNameOptions is options to pass to the name package when a child image
+// of a fat image is fetched.
+func WithNameOptionsForChildren(opts ...name.Option) Option {
+	return func(o *options) error {
+		o.nameOpts = opts
 		return nil
 	}
 }

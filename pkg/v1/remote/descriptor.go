@@ -120,7 +120,7 @@ func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*
 // a child image with the appropriate platform.
 //
 // See WithPlatform to set the desired platform.
-func (d *Descriptor) Image() (v1.Image, error) {
+func (d *Descriptor) Image(opts ...name.Option) (v1.Image, error) {
 	switch d.MediaType {
 	case types.DockerManifestSchema1, types.DockerManifestSchema1Signed:
 		// We don't care to support schema 1 images:
@@ -128,7 +128,7 @@ func (d *Descriptor) Image() (v1.Image, error) {
 		return nil, newErrSchema1(d.MediaType)
 	case types.OCIImageIndex, types.DockerManifestList:
 		// We want an image but the registry has an index, resolve it to an image.
-		return d.remoteIndex().imageByPlatform(d.platform)
+		return d.remoteIndex().imageByPlatform(d.platform, opts...)
 	case types.OCIManifestSchema1, types.DockerManifestSchema2:
 		// These are expected. Enumerated here to allow a default case.
 	default:

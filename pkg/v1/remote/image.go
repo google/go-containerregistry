@@ -48,7 +48,11 @@ func Image(ref name.Reference, options ...Option) (v1.Image, error) {
 		return nil, err
 	}
 
-	return desc.Image()
+	nameOpts, err := makeNameOptions(options...)
+	if err != nil {
+		return nil, err
+	}
+	return desc.Image(nameOpts...)
 }
 
 func (r *remoteImage) MediaType() (types.MediaType, error) {
