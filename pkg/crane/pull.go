@@ -56,11 +56,7 @@ func Save(img v1.Image, src, path string) error {
 		if !ok {
 			return fmt.Errorf("ref wasn't a tag or digest")
 		}
-		s := fmt.Sprintf("%s:%s", d.Repository.Name(), iWasADigestTag)
-		tag, err = name.NewTag(s)
-		if err != nil {
-			return fmt.Errorf("parsing digest as tag (%s): %v", s, err)
-		}
+		tag = d.Repository.Tag(iWasADigestTag)
 	}
 
 	return tarball.WriteToFile(path, tag, img)

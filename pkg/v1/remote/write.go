@@ -454,10 +454,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 	}
 
 	for _, desc := range index.Manifests {
-		ref, err := name.ParseReference(fmt.Sprintf("%s@%s", ref.Context(), desc.Digest), name.StrictValidation)
-		if err != nil {
-			return err
-		}
+		ref := ref.Context().Digest(desc.Digest.String())
 		exists, err := w.checkExistingManifest(desc.Digest, desc.MediaType)
 		if err != nil {
 			return err
