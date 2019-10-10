@@ -122,7 +122,7 @@ func TestRepositoryBadDefaulting(t *testing.T) {
 }
 
 func TestRepositoryChildren(t *testing.T) {
-	repo, err := NewRepository("ubuntu", Insecure)
+	repo, err := NewRepository("example.com/repo", Insecure)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,8 +130,14 @@ func TestRepositoryChildren(t *testing.T) {
 	if got, want := tag.Scheme(), "http"; got != want {
 		t.Errorf("tag.Scheme(): got %s want %s", got, want)
 	}
+	if got, want := tag.String(), "example.com/repo:foo"; got != want {
+		t.Errorf("tag.String(): got %s want %s", got, want)
+	}
 	digest := repo.Digest("badf00d")
 	if got, want := digest.Scheme(), "http"; got != want {
 		t.Errorf("digest.Scheme(): got %s want %s", got, want)
+	}
+	if got, want := digest.String(), "example.com/repo@badf00d"; got != want {
+		t.Errorf("digest.String(): got %s want %s", got, want)
 	}
 }
