@@ -15,6 +15,8 @@
 package authn
 
 import (
+	"os"
+
 	"github.com/docker/cli/cli/config"
 	"github.com/docker/cli/cli/config/types"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -45,10 +47,6 @@ type defaultKeychain struct{}
 var (
 	// DefaultKeychain implements Keychain by interpreting the docker config file.
 	DefaultKeychain Keychain = &defaultKeychain{}
-
-	// This should generally just be "", but for testing it's nice to redirect
-	// to a temporary file. If it's "", docker/cli will handle defaulting for us.
-	configDir = ""
 )
 
 const (
@@ -57,7 +55,7 @@ const (
 
 // Resolve implements Keychain.
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
-	cf, err := config.Load(configDir)
+	cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
 	if err != nil {
 		return nil, err
 	}
