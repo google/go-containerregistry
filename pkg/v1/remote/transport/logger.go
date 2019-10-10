@@ -2,6 +2,7 @@ package transport
 
 import (
 	"net/http"
+	"net/http/httputil"
 
 	"github.com/google/go-containerregistry/pkg/logs"
 )
@@ -10,7 +11,7 @@ type logTransport struct {
 	inner http.RoundTripper
 }
 
-// NewRetry returns a transport that logs requests and responses to
+// NewLogger returns a transport that logs requests and responses to
 // github.com/google/go-containerregistry/pkg/logs.Debug.
 func NewLogger(inner http.RoundTripper) http.RoundTripper {
 	return &logTransport{inner}
@@ -19,7 +20,20 @@ func NewLogger(inner http.RoundTripper) http.RoundTripper {
 func (t *logTransport) RoundTrip(in *http.Request) (out *http.Response, err error) {
 	// Inspired by: github.com/motemen/go-loghttp
 	logs.Debug.Printf("--> %s %s", in.Method, in.URL)
+	b, err := httputil.DumpRequestOut(in, true)
+	if err == nil {
+		logs.Debug.Printf(string(b))
+	}
 	out, err = t.inner.RoundTrip(in)
-	logs.Debug.Printf("<-- %d %s", out.StatusCode, out.Request.URL)
+	if err != nil {
+		logs.Debug.Printf("<-- %v %s", err, in.URL)
+	}
+	if out != nil {
+		logs.Debug.Printf("<-- %d %s", out.StatusCode, out.Request.URL)
+		b, err := httputil.DumpResponse(out, true)
+		if err == nil {
+			logs.Debug.Printf(string(b))
+		}
+	}
 	return
 }
