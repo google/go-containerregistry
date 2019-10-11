@@ -215,12 +215,11 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			return err
 		}
 		history := cfg.History
-		if len(history) != 0 && len(layers) != len(history) {
-			return errors.Errorf("image config had layer history which did not match the number of layers, got len(history)=%d, len(layers)=%d, want len(history)=len(layers)", len(history), len(layers))
-		}
 		// Create a blank config history if the config didn't have a history.
 		if len(history) == 0 && len(layers) != 0 {
 			history = make([]v1.History, len(layers))
+		} else if len(layers) != len(history) {
+			return errors.Errorf("image config had layer history which did not match the number of layers, got len(history)=%d, len(layers)=%d, want len(history)=len(layers)", len(history), len(layers))
 		}
 		layerFiles := make([]string, len(layers))
 		var prev *v1Layer
