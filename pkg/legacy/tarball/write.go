@@ -214,6 +214,14 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		if err != nil {
 			return err
 		}
+		history := cfg.History
+		if len(history) != 0 && len(layers) != len(history) {
+			return errors.Errorf("image config had layer history which did not match the number of layers, got len(history)=%d, len(layers)=%d, want len(history)=len(layers)", len(history), len(layers))
+		}
+		// Create a blank config history if the config didn't have a history.
+		if len(history) == 0 && len(layers) != 0 {
+			history = make([]v1.History, len(layers))
+		}
 		layerFiles := make([]string, len(layers))
 		var prev *v1Layer
 		for i, l := range layers {
@@ -222,9 +230,9 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			}
 			var cur *v1Layer
 			if i < (len(layers) - 1) {
-				cur, err = newV1Layer(l, prev, cfg.History[i])
+				cur, err = newV1Layer(l, prev, history[i])
 			} else {
-				cur, err = newTopV1Layer(l, prev, cfg.History[i], cfg, cfgBlob)
+				cur, err = newTopV1Layer(l, prev, history[i], cfg, cfgBlob)
 			}
 			if err != nil {
 				return err

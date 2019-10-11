@@ -320,6 +320,48 @@ func TestWriteForeignLayers(t *testing.T) {
 	}
 }
 
+func TestMultiWriteNoHistory(t *testing.T) {
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file: %v", err)
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+
+	// Make a random image
+	img, err := random.Image(256, 8)
+	if err != nil {
+		t.Fatalf("Error creating random image: %v", err)
+	}
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		t.Fatalf("Error getting image config: %v", err)
+	}
+	// Blank out the layer history.
+	cfg.History = nil
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag: %v", err)
+	}
+	o, err := os.Create(fp.Name())
+	if err != nil {
+		t.Fatalf("Error creating %q to write image tarball: %v", fp.Name(), err)
+	}
+	defer o.Close()
+	if err := Write(tag, img, o); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
+	}
+	tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)
+	if err != nil {
+		t.Fatalf("Unexpected error reading tarball: %v", err)
+	}
+	if err := validate.Image(tarImage); err != nil {
+		t.Fatalf("validate.Image(): %v", err)
+	}
+}
+
 func assertLayersAreIdentical(t *testing.T, a, b v1.Image) {
 	t.Helper()
 
