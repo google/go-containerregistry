@@ -17,6 +17,7 @@ package layout
 import (
 	"testing"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
@@ -37,6 +38,21 @@ func TestIndex(t *testing.T) {
 	}
 
 	if got, want := mt, types.OCIImageIndex; got != want {
+		t.Errorf("MediaType(); want: %v got: %v", want, got)
+	}
+
+	indexHash, _ := v1.NewHash("sha256:2b29a2b8dea3af91ea7d0154be1da0c92d55ddd098540930fc8d3db7de377fdb")
+	ii, err := idx.ImageIndex(indexHash)
+	if err != nil {
+		t.Fatalf("ImageIndex() = %v", err)
+	}
+
+	mt, err = ii.MediaType()
+	if err != nil {
+		t.Fatalf("MediaType() = %v", err)
+	}
+
+	if got, want := mt, types.DockerManifestList; got != want {
 		t.Errorf("MediaType(); want: %v got: %v", want, got)
 	}
 }

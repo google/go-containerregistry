@@ -24,6 +24,14 @@
       "annotations": {
         "org.opencontainers.image.ref.name": "3"
       }
+    },
+    {
+      "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "size": 314,
+      "digest": "sha256:2b29a2b8dea3af91ea7d0154be1da0c92d55ddd098540930fc8d3db7de377fdb",
+      "annotations": {
+        "org.opencontainers.image.ref.name": "4"
+      }
     }
   ]
 }
