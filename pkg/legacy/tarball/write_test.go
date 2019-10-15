@@ -17,6 +17,7 @@ package tarball
 import (
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -317,6 +318,77 @@ func TestWriteForeignLayers(t *testing.T) {
 	}
 	if got, want := m.Layers[1].URLs[0], "example.com"; got != want {
 		t.Errorf("Wrong URLs: %s != %s", got, want)
+	}
+}
+
+func TestMultiWriteNoHistory(t *testing.T) {
+	// Make a random image
+	img, err := random.Image(256, 8)
+	if err != nil {
+		t.Fatalf("Error creating random image: %v", err)
+	}
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		t.Fatalf("Error getting image config: %v", err)
+	}
+	// Blank out the layer history.
+	cfg.History = nil
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag: %v", err)
+	}
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file: %v", err)
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+	if err := Write(tag, img, fp); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
+	}
+	tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)
+	if err != nil {
+		t.Fatalf("Unexpected error reading tarball: %v", err)
+	}
+	if err := validate.Image(tarImage); err != nil {
+		t.Fatalf("validate.Image(): %v", err)
+	}
+}
+
+func TestMultiWriteMismatchedHistory(t *testing.T) {
+	// Make a random image
+	img, err := random.Image(256, 8)
+	if err != nil {
+		t.Fatalf("Error creating random image: %v", err)
+	}
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		t.Fatalf("Error getting image config: %v", err)
+	}
+	// Set the history such that number of history entries != layers. This
+	// should trigger an error during the image write.
+	cfg.History = make([]v1.History, 1)
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag: %v", err)
+	}
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file: %v", err)
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+	err = Write(tag, img, fp)
+	if err == nil {
+		t.Fatal("Unexpected success writing tarball, got nil, want error.")
+	}
+	want := "image config had layer history which did not match the number of layers"
+	if !strings.Contains(err.Error(), want) {
+		t.Errorf("Got unexpected error when writing image with mismatched history & layer, got %v, want substring %q", err, want)
 	}
 }
 
