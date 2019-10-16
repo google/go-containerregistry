@@ -322,7 +322,7 @@ func TestWriteForeignLayers(t *testing.T) {
 }
 
 func TestMultiWriteNoHistory(t *testing.T) {
-	// Make a random image
+	// Make a random image.
 	img, err := random.Image(256, 8)
 	if err != nil {
 		t.Fatalf("Error creating random image: %v", err)
@@ -333,6 +333,53 @@ func TestMultiWriteNoHistory(t *testing.T) {
 	}
 	// Blank out the layer history.
 	cfg.History = nil
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag: %v", err)
+	}
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file: %v", err)
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+	if err := Write(tag, img, fp); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
+	}
+	tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)
+	if err != nil {
+		t.Fatalf("Unexpected error reading tarball: %v", err)
+	}
+	if err := validate.Image(tarImage); err != nil {
+		t.Fatalf("validate.Image(): %v", err)
+	}
+}
+
+func TestMultiWriteHistoryEmptyLayers(t *testing.T) {
+	// Build a history for 2 layers that is interspersed with empty layer
+	// history.
+	h := []v1.History{
+		{EmptyLayer: true},
+		{EmptyLayer: false},
+		{EmptyLayer: true},
+		{EmptyLayer: false},
+		{EmptyLayer: true},
+	}
+	// Make a random image with the number of non-empty layers from the history
+	// above.
+	img, err := random.Image(256, int64(len(filterEmpty(h))))
+	if err != nil {
+		t.Fatalf("Error creating random image: %v", err)
+	}
+	cfg, err := img.ConfigFile()
+	if err != nil {
+		t.Fatalf("Error getting image config: %v", err)
+	}
+	// Override the config history with our custom built history that includes
+	// history for empty layers.
+	cfg.History = h
 	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
 	if err != nil {
 		t.Fatalf("Error creating test tag: %v", err)

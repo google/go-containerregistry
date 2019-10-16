@@ -170,6 +170,19 @@ func Write(ref name.Reference, img v1.Image, w io.Writer) error {
 	return MultiWrite(map[name.Reference]v1.Image{ref: img}, w)
 }
 
+// filterEmpty filters out the history corresponding to empty layers from the
+// given history.
+func filterEmpty(h []v1.History) []v1.History {
+	result := []v1.History{}
+	for _, i := range h {
+		if i.EmptyLayer {
+			continue
+		}
+		result = append(result, i)
+	}
+	return result
+}
+
 // MultiWrite writes the contents of each image to the provided reader, in the V1 image tarball format.
 // The contents are written in the following format:
 // One manifest.json file at the top level containing information about several images.
@@ -214,7 +227,7 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		history := cfg.History
+		history := filterEmpty(cfg.History)
 		// Create a blank config history if the config didn't have a history.
 		if len(history) == 0 && len(layers) != 0 {
 			history = make([]v1.History, len(layers))
