@@ -322,7 +322,7 @@ func TestWriteForeignLayers(t *testing.T) {
 }
 
 func TestMultiWriteNoHistory(t *testing.T) {
-	// Make a random image
+	// Make a random image.
 	img, err := random.Image(256, 8)
 	if err != nil {
 		t.Fatalf("Error creating random image: %v", err)
@@ -358,7 +358,7 @@ func TestMultiWriteNoHistory(t *testing.T) {
 }
 
 func TestMultiWriteHistoryEmptyLayers(t *testing.T) {
-	// Make a random image
+	// Make a random image with 2 layers.
 	img, err := random.Image(256, 2)
 	if err != nil {
 		t.Fatalf("Error creating random image: %v", err)
