@@ -30,7 +30,6 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/pkg/errors"
 )
 
 // repositoriesTarDescriptor represents the repositories file inside a `docker save` tarball.
@@ -58,7 +57,7 @@ func (l *v1Layer) version() []byte {
 func v1LayerID(layer v1.Layer, parentID string, rawConfig []byte) (string, error) {
 	d, err := layer.Digest()
 	if err != nil {
-		return "", errors.Wrap(err, "unable to get layer digest to generate v1 layer ID")
+		return "", fmt.Errorf("unable to get layer digest to generate v1 layer ID: %v", err)
 	}
 	s := fmt.Sprintf("%s %s", d.Hex, parentID)
 	if len(rawConfig) != 0 {
@@ -76,7 +75,7 @@ func newV1Layer(layer v1.Layer, parent *v1Layer, history v1.History) (*v1Layer, 
 	}
 	id, err := v1LayerID(layer, parentID, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to generate v1 layer ID")
+		return nil, fmt.Errorf("unable to generate v1 layer ID: %v", err)
 	}
 	result := &v1Layer{
 		layer: layer,
@@ -105,7 +104,7 @@ func newTopV1Layer(layer v1.Layer, parent *v1Layer, history v1.History, imgConfi
 	}
 	id, err := v1LayerID(layer, result.config.Parent, rawConfig)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to generate v1 layer ID for top layer")
+		return nil, fmt.Errorf("unable to generate v1 layer ID for top layer: %v", err)
 	}
 	result.config.ID = id
 	result.config.Architecture = imgConfig.Architecture
@@ -232,13 +231,13 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		if len(history) == 0 && len(layers) != 0 {
 			history = make([]v1.History, len(layers))
 		} else if len(layers) != len(history) {
-			return errors.Errorf("image config had layer history which did not match the number of layers, got len(history)=%d, len(layers)=%d, want len(history)=len(layers)", len(history), len(layers))
+			return fmt.Errorf("image config had layer history which did not match the number of layers, got len(history)=%d, len(layers)=%d, want len(history)=len(layers)", len(history), len(layers))
 		}
 		layerFiles := make([]string, len(layers))
 		var prev *v1Layer
 		for i, l := range layers {
 			if err := updateLayerSources(layerSources, l, img); err != nil {
-				return errors.Wrap(err, "unable to update image metadata to include undistributable layer source information")
+				return fmt.Errorf("unable to update image metadata to include undistributable layer source information: %v", err)
 			}
 			var cur *v1Layer
 			if i < (len(layers) - 1) {
