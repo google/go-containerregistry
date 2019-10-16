@@ -31,6 +31,13 @@ import (
 
 const cloudPlatformScope = "https://www.googleapis.com/auth/cloud-platform"
 
+type storageScope string
+
+const (
+	storageReadOnlyScope storageScope = "https://www.googleapis.com/auth/devstorage.read_only"
+	storageReadWriteScope = "https://www.googleapis.com/auth/devstorage.read_write"
+)
+
 // GetGcloudCmd is exposed so we can test this.
 var GetGcloudCmd = func() *exec.Cmd {
 	// This is odd, but basically what docker-credential-gcr does.
@@ -74,6 +81,29 @@ func NewGcloudAuthenticator() (authn.Authenticator, error) {
 	}
 
 	return &tokenSourceAuth{oauth2.ReuseTokenSource(token, ts)}, nil
+}
+
+
+// NewJSONKeyAuthenticator returns a Basic authenticator which uses Service Account
+// as a way of authenticating with Google Container Registry.
+// More information: https://cloud.google.com/container-registry/docs/advanced-authentication#json_key_file
+func NewJSONKeyAuthenticator(serviceAccountJSON string) authn.Authenticator {
+	return &authn.Basic{
+		Username: "_json_key",
+		Password: serviceAccountJSON,
+	}
+}
+
+// NewTokenAuthenticator returns an oauth2.TokenSource that generates access
+// tokens by using the Google SDK to produce JWT tokens from a Service Account.
+// More information: https://godoc.org/golang.org/x/oauth2/google#JWTAccessTokenSourceFromJSON
+func NewTokenAuthenticator(serviceAccountJSON string, scope storageScope) (authn.Authenticator, error) {
+	ts, err := googauth.JWTAccessTokenSourceFromJSON([]byte(serviceAccountJSON), string(scope))
+	if err != nil {
+		return nil, err
+	}
+
+	return &tokenSourceAuth{oauth2.ReuseTokenSource(nil, ts)}, nil
 }
 
 // tokenSourceAuth turns an oauth2.TokenSource into an authn.Authenticator.
