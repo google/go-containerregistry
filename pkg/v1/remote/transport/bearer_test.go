@@ -353,13 +353,9 @@ func TestSchemeOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error during NewRegistry: %v", err)
 	}
-	bearer := &authn.Bearer{Token: "does-not-matter"}
-	bt := &bearerTransport{
+	st := &schemeTransport{
 		inner:    rec,
-		bearer:   bearer,
-		basic:    &authn.Basic{},
 		registry: registry,
-		realm:    "token.example.com",
 		scheme:   "http",
 	}
 
@@ -382,7 +378,7 @@ func TestSchemeOverride(t *testing.T) {
 			t.Fatalf("Unexpected error during NewRequest: %v", err)
 		}
 
-		if _, err := bt.RoundTrip(req); err != nil {
+		if _, err := st.RoundTrip(req); err != nil {
 			t.Fatalf("Unexpected error during RoundTrip: %v", err)
 		}
 
@@ -393,129 +389,80 @@ func TestSchemeOverride(t *testing.T) {
 }
 
 func TestCanonicalAddressResolution(t *testing.T) {
-	bearer := &authn.Bearer{Token: "does-not-matter"}
-
 	registry, err := name.NewRegistry("does-not-matter", name.WeakValidation)
 	if err != nil {
 		t.Errorf("Unexpected error during NewRegistry: %v", err)
 	}
 
 	tests := []struct {
-		bt      *bearerTransport
-		address string
-		want    string
+		registry name.Registry
+		scheme   string
+		address  string
+		want     string
 	}{{
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "http",
-		},
-		address: "registry.example.com",
-		want:    "registry.example.com:80",
+		registry: registry,
+		scheme:   "http",
+		address:  "registry.example.com",
+		want:     "registry.example.com:80",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "http",
-		},
-		address: "registry.example.com:12345",
-		want:    "registry.example.com:12345",
+		registry: registry,
+		scheme:   "http",
+		address:  "registry.example.com:12345",
+		want:     "registry.example.com:12345",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "https",
-		},
-		address: "registry.example.com",
-		want:    "registry.example.com:443",
+		registry: registry,
+		scheme:   "https",
+		address:  "registry.example.com",
+		want:     "registry.example.com:443",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "https",
-		},
-		address: "registry.example.com:12345",
-		want:    "registry.example.com:12345",
+		registry: registry,
+		scheme:   "https",
+		address:  "registry.example.com:12345",
+		want:     "registry.example.com:12345",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "http",
-		},
-		address: "registry.example.com:",
-		want:    "registry.example.com:80",
+		registry: registry,
+		scheme:   "http",
+		address:  "registry.example.com:",
+		want:     "registry.example.com:80",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "https",
-		},
-		address: "registry.example.com:",
-		want:    "registry.example.com:443",
+		registry: registry,
+		scheme:   "https",
+		address:  "registry.example.com:",
+		want:     "registry.example.com:443",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "http",
-		},
-		address: "2001:db8::1",
-		want:    "[2001:db8::1]:80",
+		registry: registry,
+		scheme:   "http",
+		address:  "2001:db8::1",
+		want:     "[2001:db8::1]:80",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "https",
-		},
-		address: "2001:db8::1",
-		want:    "[2001:db8::1]:443",
+		registry: registry,
+		scheme:   "https",
+		address:  "2001:db8::1",
+		want:     "[2001:db8::1]:443",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "http",
-		},
-		address: "[2001:db8::1]:12345",
-		want:    "[2001:db8::1]:12345",
+		registry: registry,
+		scheme:   "http",
+		address:  "[2001:db8::1]:12345",
+		want:     "[2001:db8::1]:12345",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "https",
-		},
-		address: "[2001:db8::1]:12345",
-		want:    "[2001:db8::1]:12345",
+		registry: registry,
+		scheme:   "https",
+		address:  "[2001:db8::1]:12345",
+		want:     "[2001:db8::1]:12345",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "http",
-		},
-		address: "[2001:db8::1]:",
-		want:    "[2001:db8::1]:80",
+		registry: registry,
+		scheme:   "http",
+		address:  "[2001:db8::1]:",
+		want:     "[2001:db8::1]:80",
 	}, {
-		bt: &bearerTransport{
-			inner:    &http.Transport{},
-			bearer:   bearer,
-			registry: registry,
-			scheme:   "https",
-		},
-		address: "[2001:db8::1]:",
-		want:    "[2001:db8::1]:443",
+		registry: registry,
+		scheme:   "https",
+		address:  "[2001:db8::1]:",
+		want:     "[2001:db8::1]:443",
 	}}
 
 	for _, tt := range tests {
-		got := tt.bt.canonicalAddress(tt.address)
+		got := canonicalAddress(tt.address, tt.scheme)
 		if got != tt.want {
 			t.Errorf("Wrong canonical host: wanted %v got %v", tt.want, got)
 		}

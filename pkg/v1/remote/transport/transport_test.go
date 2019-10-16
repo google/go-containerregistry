@@ -15,6 +15,8 @@
 package transport
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -30,26 +32,39 @@ var (
 )
 
 func TestTransportSelectionAnonymous(t *testing.T) {
-	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-	defer server.Close()
-	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+	// Record the requests we get in the inner transport.
+	cannedResponse := http.Response{
+		Status:     http.StatusText(http.StatusOK),
+		StatusCode: http.StatusOK,
+		Body:       ioutil.NopCloser(strings.NewReader("")),
 	}
+	recorder := newRecorder(&cannedResponse, nil)
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
+	reg := testReference.Context().Registry
 
-	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := New(reg, basic, recorder, []string{testReference.Scope(PullScope)})
 	if err != nil {
 		t.Errorf("New() = %v", err)
 	}
-	// We should get back an unmodified transport
-	if tp != tprt {
-		t.Errorf("New(); got %v, want %v", tp, tprt)
+
+	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/v2/anything", reg), nil)
+	if err != nil {
+		t.Fatalf("Unexpected error during NewRequest: %v", err)
+	}
+	if _, err := tp.RoundTrip(req); err != nil {
+		t.Fatalf("Unexpected error during RoundTrip: %v", err)
+	}
+
+	if got, want := len(recorder.reqs), 2; got != want {
+		t.Fatalf("expected %d requests, got %d", want, got)
+	}
+	recorded := recorder.reqs[1]
+	if got, want := recorded.URL.Scheme, "https"; got != want {
+		t.Errorf("wrong scheme, want %s got %s", want, got)
+	}
+	if want, got := recorded.Header.Get("User-Agent"), transportName; want != got {
+		t.Errorf("wrong useragent, want %s got %s", want, got)
 	}
 }
 
