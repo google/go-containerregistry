@@ -358,8 +358,18 @@ func TestMultiWriteNoHistory(t *testing.T) {
 }
 
 func TestMultiWriteHistoryEmptyLayers(t *testing.T) {
-	// Make a random image with 2 layers.
-	img, err := random.Image(256, 2)
+	// Build a history for 2 layers that is interspersed with empty layer
+	// history.
+	h := []v1.History{
+		{EmptyLayer: true},
+		{EmptyLayer: false},
+		{EmptyLayer: true},
+		{EmptyLayer: false},
+		{EmptyLayer: true},
+	}
+	// Make a random image with the number of non-empty layers from the history
+	// above.
+	img, err := random.Image(256, int64(len(filterEmpty(h))))
 	if err != nil {
 		t.Fatalf("Error creating random image: %v", err)
 	}
@@ -367,21 +377,9 @@ func TestMultiWriteHistoryEmptyLayers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting image config: %v", err)
 	}
-	// Build a history for 2 layers that is interspersed with empty layer
-	// history.
-	cfg.History = []v1.History{
-		{
-			EmptyLayer: true,
-		},
-		{},
-		{
-			EmptyLayer: true,
-		},
-		{},
-		{
-			EmptyLayer: true,
-		},
-	}
+	// Override the config history with our custom built history that includes
+	// history for empty layers.
+	cfg.History = h
 	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
 	if err != nil {
 		t.Fatalf("Error creating test tag: %v", err)
