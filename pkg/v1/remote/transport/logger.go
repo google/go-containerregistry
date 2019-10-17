@@ -21,7 +21,9 @@ func (t *logTransport) RoundTrip(in *http.Request) (out *http.Response, err erro
 	// Inspired by: github.com/motemen/go-loghttp
 	logs.Debug.Printf("--> %s %s", in.Method, in.URL)
 	b, err := httputil.DumpRequestOut(in, true)
-	if err == nil {
+	if err != nil {
+		logs.Debug.Printf("Could not dump request: %v", err)
+	} else {
 		logs.Debug.Printf(string(b))
 	}
 	out, err = t.inner.RoundTrip(in)
@@ -31,7 +33,9 @@ func (t *logTransport) RoundTrip(in *http.Request) (out *http.Response, err erro
 	if out != nil {
 		logs.Debug.Printf("<-- %d %s", out.StatusCode, out.Request.URL)
 		b, err := httputil.DumpResponse(out, true)
-		if err == nil {
+		if err != nil {
+			logs.Debug.Printf("Could not dump response: %v", err)
+		} else {
 			logs.Debug.Printf(string(b))
 		}
 	}
