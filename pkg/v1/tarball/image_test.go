@@ -47,6 +47,20 @@ func TestManifestAndConfig(t *testing.T) {
 	}
 }
 
+func TestCompressed(t *testing.T) {
+	img, err := ImageFromPath("testdata/test_image_1.tar.gz", nil)
+	if err != nil {
+		t.Fatalf("Error loading image: %v", err)
+	}
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("Error loading manifest: %v", err)
+	}
+	if len(manifest.Layers) != 1 {
+		t.Fatalf("layers should be 1, got %d", len(manifest.Layers))
+	}
+}
+
 func TestNoManifest(t *testing.T) {
 	img, err := ImageFromPath("testdata/no_manifest.tar", nil)
 	if err == nil {

@@ -70,6 +70,13 @@ func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
 
 // Image exposes an image from the tarball at the provided path.
 func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
+	isGzipped, err := isOpenerGzipped(opener)
+	if err != nil {
+		return nil, err
+	}
+	if isGzipped {
+		return Image(newGZOpener(opener), tag)
+	}
 	img := &image{
 		opener: opener,
 		tag:    tag,
