@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -514,6 +515,10 @@ func TestValidate(t *testing.T) {
 }
 
 func TestPullingForeignLayer(t *testing.T) {
+	// For that sweet, sweet coverage in options.
+	var b bytes.Buffer
+	logs.Debug.SetOutput(&b)
+
 	img := randomImage(t)
 	expectedRepo := "foo/bar"
 	foreignPath := "/foreign/path"
