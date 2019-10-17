@@ -47,8 +47,33 @@ func TestLayerFromFile(t *testing.T) {
 	if err := validate.Layer(tarLayer); err != nil {
 		t.Errorf("validate.Layer(tarLayer): %v", err)
 	}
+
 	if err := validate.Layer(tarGzLayer); err != nil {
 		t.Errorf("validate.Layer(tarGzLayer): %v", err)
+	}
+
+	tarLayerDefaultCompression, err := LayerFromFile("testdata/content.tar", WithCompressionLevel(gzip.DefaultCompression))
+	if err != nil {
+		t.Fatalf("Unable to create layer with 'Default' compression from tar file: %v", err)
+	}
+
+	defaultDigest, err := tarLayerDefaultCompression.Digest()
+	if err != nil {
+		t.Fatal("Unable to generate digest with 'Default' compression", err)
+	}
+
+	tarLayerSpeedCompression, err := LayerFromFile("testdata/content.tar", WithCompressionLevel(gzip.BestSpeed))
+	if err != nil {
+		t.Fatalf("Unable to create layer with 'BestSpeed' compression from tar file: %v", err)
+	}
+
+	speedDigest, err := tarLayerSpeedCompression.Digest()
+	if err != nil {
+		t.Fatal("Unable to generate digest with 'BestSpeed' compression", err)
+	}
+
+	if defaultDigest.String() == speedDigest.String() {
+		t.Errorf("expected digests to differ: %s", defaultDigest.String())
 	}
 }
 
