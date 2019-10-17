@@ -128,7 +128,7 @@ func TestVariousPaths(t *testing.T) {
 		auth, err := DefaultKeychain.Resolve(test.target)
 		if test.wantErr {
 			if b.Len() != 0 {
-				t.Errorf("didn't expect any logs, got: %v", string(b.Bytes()))
+				t.Errorf("didn't expect any logs, got: %v", b.String())
 			}
 			if err == nil {
 				t.Fatal("wanted err, got nil")

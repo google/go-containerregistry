@@ -45,7 +45,7 @@ func TestLogger(t *testing.T) {
 		t.Fatalf("Unexpected error during RoundTrip: %v", err)
 	}
 
-	logged := string(b.Bytes())
+	logged := b.String()
 	if !strings.Contains(logged, canary) {
 		t.Errorf("Expected logs to contain %s, got %s", canary, logged)
 	}
@@ -65,7 +65,7 @@ func TestLoggerError(t *testing.T) {
 		t.Fatalf("Expected error during RoundTrip, got nil")
 	}
 
-	logged := string(b.Bytes())
+	logged := b.String()
 	if !strings.Contains(logged, canary) {
 		t.Errorf("Expected logs to contain %s, got %s", canary, logged)
 	}
