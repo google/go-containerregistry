@@ -30,3 +30,10 @@ var (
 	// Debug is used to log information that is useful for debugging.
 	Debug = log.New(ioutil.Discard, "", log.LstdFlags)
 )
+
+// Enabled checks to see if the logger's writer is set to something other
+// than ioutil.Discard. This allows callers to avoid expensive operations
+// that will end up in /dev/null anyway.
+func Enabled(l *log.Logger) bool {
+	return l.Writer() != ioutil.Discard
+}

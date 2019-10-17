@@ -15,7 +15,6 @@
 package remote
 
 import (
-	"io/ioutil"
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -61,7 +60,7 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 	// Wrap the transport in something that logs requests and responses.
 	// It's expensive to generate the dumps, so skip it if we're writing
 	// to nothing.
-	if logs.Debug.Writer() != ioutil.Discard {
+	if logs.Enabled(logs.Debug) {
 		o.transport = transport.NewLogger(o.transport)
 	}
 

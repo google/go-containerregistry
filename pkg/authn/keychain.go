@@ -16,7 +16,6 @@ package authn
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 
 	"github.com/docker/cli/cli/config"
@@ -75,7 +74,7 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	if err != nil {
 		return nil, err
 	}
-	if logs.Debug.Writer() != ioutil.Discard {
+	if logs.Enabled(logs.Debug) {
 		b, err := json.Marshal(cfg)
 		if err != nil {
 			logs.Debug.Printf("defaultKeychain.Resolve(%q) = %+v", key, cfg)
