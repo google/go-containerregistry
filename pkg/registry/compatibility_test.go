@@ -43,21 +43,21 @@ func TestPushAndPullContainer(t *testing.T) {
 	}
 
 	if err := remote.Write(d, i); err != nil {
-		t.Fatalf("Error writing image : %v", err)
+		t.Fatalf("Error writing image: %v", err)
 	}
 
 	ref, err := name.ParseReference(r)
 	if err != nil {
-		t.Fatalf("Error parsing tag  %v", err)
+		t.Fatalf("Error parsing tag: %v", err)
 	}
 
 	ri, err := remote.Image(ref)
 	if err != nil {
-		t.Fatalf("Error reading image %v", err)
+		t.Fatalf("Error reading image: %v", err)
 	}
 
 	b := &bytes.Buffer{}
 	if err := tarball.Write(ref, ri, b); err != nil {
-		t.Fatalf("Error writing image to tarball %v", err)
+		t.Fatalf("Error writing image to tarball: %v", err)
 	}
 }
