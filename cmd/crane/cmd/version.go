@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"log"
-	"os/exec"
-	"strings"
+	"runtime/debug"
 
 	"github.com/spf13/cobra"
 )
@@ -23,12 +21,12 @@ func NewCmdVersion() *cobra.Command {
 		Args:  cobra.NoArgs,
 		Run: func(_ *cobra.Command, _ []string) {
 			if Version == "" {
-				// If Version is unset, use the current commit.
-				hash, err := exec.Command("git", "rev-parse", "HEAD").Output()
-				if err != nil {
-					log.Fatalf("error parsing git commit: %v", err)
+				i, ok := debug.ReadBuildInfo()
+				if !ok {
+					fmt.Println("could not determine build information")
+					return
 				}
-				Version = strings.TrimSpace(string(hash))
+				Version = i.Main.Version
 			}
 			fmt.Println(Version)
 		},
