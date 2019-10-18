@@ -23,10 +23,22 @@ This repo hosts some tools built on top of the library.
 [`crane`](cmd/crane/doc/crane.md) is a tool for interacting with remote images
 and registries.
 
+#### Installation
+
+```
+GO111MODULE=on go get -u github.com/google/go-containerregistry/cmd/crane
+```
+
 ### `gcrane`
 
 [`gcrane`](cmd/gcrane/README.md) is a GCR-specific variant of `crane` that has
 richer output for the `ls` subcommand and some basic garbage collection support.
+
+#### Installation
+
+```
+GO111MODULE=on go get -u github.com/google/go-containerregistry/cmd/gcrane
+```
 
 ### `k8schain`
 
