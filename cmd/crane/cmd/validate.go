@@ -19,9 +19,7 @@ import (
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/daemon"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 	"github.com/spf13/cobra"
@@ -31,7 +29,7 @@ func init() { Root.AddCommand(NewCmdValidate()) }
 
 // NewCmdValidate creates a new cobra.Command for the validate subcommand.
 func NewCmdValidate() *cobra.Command {
-	var tarballPath, remoteRef, daemonRef string
+	var tarballPath, remoteRef string
 	validateCmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate that an image is well-formed",
@@ -40,8 +38,10 @@ func NewCmdValidate() *cobra.Command {
 			for flag, maker := range map[string]func(string) (v1.Image, error){
 				tarballPath: makeTarball,
 				remoteRef:   crane.Pull,
-				daemonRef:   makeDaemon,
 			} {
+				if flag == "" {
+					continue
+				}
 				img, err := maker(flag)
 				if err != nil {
 					log.Fatalf("failed to read image %s: %v", flag, err)
@@ -57,20 +57,10 @@ func NewCmdValidate() *cobra.Command {
 	}
 	validateCmd.Flags().StringVar(&tarballPath, "tarball", "", "Path to tarball to validate")
 	validateCmd.Flags().StringVar(&remoteRef, "remote", "", "Name of remote image to validate")
-	validateCmd.Flags().StringVar(&daemonRef, "daemon", "", "Name of image in daemon to validate")
 
 	return validateCmd
 }
 
 func makeTarball(path string) (v1.Image, error) {
 	return tarball.ImageFromPath(path, nil)
-}
-
-func makeDaemon(daemonRef string) (v1.Image, error) {
-	ref, err := name.ParseReference(daemonRef)
-	if err != nil {
-		return nil, fmt.Errorf("parsing daemon ref %q: %v", daemonRef, err)
-	}
-
-	return daemon.Image(ref)
 }
