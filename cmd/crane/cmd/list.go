@@ -27,7 +27,7 @@ func init() { Root.AddCommand(NewCmdList()) }
 // NewCmdList creates a new cobra.Command for the ls subcommand.
 func NewCmdList() *cobra.Command {
 	return &cobra.Command{
-		Use:   "ls",
+		Use:   "ls REPO",
 		Short: "List the tags in a repo",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {

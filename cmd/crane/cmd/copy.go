@@ -26,7 +26,7 @@ func init() { Root.AddCommand(NewCmdCopy()) }
 // NewCmdCopy creates a new cobra.Command for the copy subcommand.
 func NewCmdCopy() *cobra.Command {
 	return &cobra.Command{
-		Use:     "copy",
+		Use:     "copy SRC DST",
 		Aliases: []string{"cp"},
 		Short:   "Efficiently copy a remote image from src to dst",
 		Args:    cobra.ExactArgs(2),

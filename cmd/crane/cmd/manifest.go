@@ -27,7 +27,7 @@ func init() { Root.AddCommand(NewCmdManifest()) }
 // NewCmdManifest creates a new cobra.Command for the manifest subcommand.
 func NewCmdManifest() *cobra.Command {
 	return &cobra.Command{
-		Use:   "manifest",
+		Use:   "manifest IMAGE",
 		Short: "Get the manifest of an image",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {

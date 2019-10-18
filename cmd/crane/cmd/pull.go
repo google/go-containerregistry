@@ -28,7 +28,7 @@ func init() { Root.AddCommand(NewCmdPull()) }
 func NewCmdPull() *cobra.Command {
 	var cachePath string
 	pull := &cobra.Command{
-		Use:   "pull",
+		Use:   "pull IMAGE TARBALL",
 		Short: "Pull a remote image by reference and store its contents in a tarball",
 		Args:  cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
