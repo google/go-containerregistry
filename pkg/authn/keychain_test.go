@@ -15,6 +15,7 @@
 package authn
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -23,6 +24,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -112,13 +114,22 @@ func TestVariousPaths(t *testing.T) {
 		},
 	}}
 
+	var b bytes.Buffer
+	logs.Debug.SetOutput(&b)
+
 	for _, test := range tests {
 		cd := setupConfigFile(t, test.content)
 		// For some reason, these tempdirs don't get cleaned up.
 		defer os.RemoveAll(filepath.Dir(cd))
 
+		// Clear debug logs.
+		b.Reset()
+
 		auth, err := DefaultKeychain.Resolve(test.target)
 		if test.wantErr {
+			if b.Len() != 0 {
+				t.Errorf("didn't expect any logs, got: %v", b.String())
+			}
 			if err == nil {
 				t.Fatal("wanted err, got nil")
 			} else if err != nil {
@@ -136,6 +147,9 @@ func TestVariousPaths(t *testing.T) {
 
 		if !reflect.DeepEqual(cfg, test.cfg) {
 			t.Errorf("got %+v, want %+v", cfg, test.cfg)
+		}
+		if b.Len() == 0 {
+			t.Errorf("wanted logs, got nothing")
 		}
 	}
 }
