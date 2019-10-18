@@ -27,7 +27,7 @@ func init() { Root.AddCommand(NewCmdDigest()) }
 // NewCmdDigest creates a new cobra.Command for the digest subcommand.
 func NewCmdDigest() *cobra.Command {
 	return &cobra.Command{
-		Use:   "digest",
+		Use:   "digest IMAGE",
 		Short: "Get the digest of an image",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {

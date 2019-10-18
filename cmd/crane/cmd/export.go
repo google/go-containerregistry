@@ -27,7 +27,7 @@ func init() { Root.AddCommand(NewCmdExport()) }
 // NewCmdExport creates a new cobra.Command for the export subcommand.
 func NewCmdExport() *cobra.Command {
 	return &cobra.Command{
-		Use:   "export IMAGE OUTPUT",
+		Use:   "export IMAGE TARBALL",
 		Short: "Export contents of a remote image as a tarball",
 		Example: `  # Write tarball to stdout
   crane export ubuntu -
