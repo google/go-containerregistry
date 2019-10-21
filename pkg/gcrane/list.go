@@ -29,7 +29,7 @@ func init() { Root.AddCommand(NewCmdList()) }
 func NewCmdList() *cobra.Command {
 	recursive := false
 	cmd := &cobra.Command{
-		Use:   "ls",
+		Use:   "ls REPO",
 		Short: "List the contents of a repo",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
