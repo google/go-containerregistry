@@ -15,6 +15,7 @@
 package google
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -23,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"golang.org/x/oauth2"
 )
@@ -117,6 +119,10 @@ func TestGcloudErrors(t *testing.T) {
 }
 
 func TestGcloudSuccess(t *testing.T) {
+	// Stupid coverage to make sure it doesn't panic.
+	var b bytes.Buffer
+	logs.Debug.SetOutput(&b)
+
 	GetGcloudCmd = newGcloudCmdMock("success")
 
 	auth, err := NewGcloudAuthenticator()

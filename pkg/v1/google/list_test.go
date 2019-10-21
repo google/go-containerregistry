@@ -15,6 +15,7 @@
 package google
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -24,6 +25,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -131,6 +133,10 @@ func (r *recorder) walk(repo name.Repository, tags *Tags, err error) error {
 }
 
 func TestWalk(t *testing.T) {
+	// Stupid coverage to make sure it doesn't panic.
+	var b bytes.Buffer
+	logs.Debug.SetOutput(&b)
+
 	cases := []struct {
 		name         string
 		responseBody []byte
