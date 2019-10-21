@@ -27,7 +27,7 @@ func init() { Root.AddCommand(NewCmdGetCatalog()) }
 // NewCmdGetCatalog creates a new cobra.Command for the repos subcommand.
 func NewCmdGetCatalog() *cobra.Command {
 	return &cobra.Command{
-		Use:   "repos",
+		Use:   "catalog",
 		Short: "List the repos in a registry",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
