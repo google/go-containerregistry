@@ -40,7 +40,7 @@ func TestGetCatalogPage(t *testing.T) {
 		responseBody: []byte("notjson"),
 		wantErr:      true,
 	}}
-	//TODO: add test cases for pagination
+	// TODO: add test cases for pagination
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
