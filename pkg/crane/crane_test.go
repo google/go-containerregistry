@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -96,10 +97,9 @@ func TestCraneRegistry(t *testing.T) {
 	pulled, err := crane.Pull(src)
 	if err != nil {
 		t.Error(err)
-	} else if m, err := pulled.RawManifest(); err != nil {
+	}
+	if err := compare.Images(img, pulled); err != nil {
 		t.Fatal(err)
-	} else if string(m) != string(manifest) {
-		t.Errorf("crane.Pull().Manifest(): %v != %v", m, manifest)
 	}
 
 	// Test that the copied image is the same as the source.
@@ -107,15 +107,26 @@ func TestCraneRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := crane.Pull(dst); err != nil {
+	// Make sure what we copied is equivalent.
+	copied, err := crane.Pull(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := compare.Images(pulled, copied); err != nil {
 		t.Fatal(err)
 	}
 
-	d, err = crane.Digest(dst)
+	if err := crane.Tag(dst, "crane-tag"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure what we tagged is equivalent.
+	tagged, err := crane.Pull(fmt.Sprintf("%s:%s", dst, "crane-tag"))
 	if err != nil {
 		t.Fatal(err)
-	} else if d != digest.String() {
-		t.Errorf("Copied Digest(): %v != %v", d, digest)
+	}
+	if err := compare.Images(pulled, tagged); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -282,6 +293,9 @@ func TestBadInputs(t *testing.T) {
 		crane.Copy(invalid, invalid),
 		crane.Copy(valid, invalid),
 		crane.Copy(valid, valid), // 404
+		crane.Tag(invalid, invalid),
+		crane.Tag(valid, invalid),
+		crane.Tag(valid, valid), // 404
 		// These return multiple values, which are hard to use as expressions.
 		e(crane.Pull(invalid)),
 		e(crane.Digest(invalid)),
