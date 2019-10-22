@@ -37,13 +37,12 @@ func Copy(src, dst string) error {
 		return fmt.Errorf("parsing reference for %q: %v", dst, err)
 	}
 
-	logs.Progress.Printf("Pulling %v", srcRef)
+	logs.Progress.Printf("Copying from %v to %v", srcRef, dstRef)
 	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	if err != nil {
 		return fmt.Errorf("fetching %q: %v", src, err)
 	}
 
-	logs.Progress.Printf("Pushing %v", dstRef)
 	switch desc.MediaType {
 	case types.OCIImageIndex, types.DockerManifestList:
 		// Handle indexes separately.
