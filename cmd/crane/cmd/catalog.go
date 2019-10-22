@@ -22,10 +22,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdGetCatalog()) }
+func init() { Root.AddCommand(NewCmdCatalog()) }
 
 // NewCmdGetCatalog creates a new cobra.Command for the repos subcommand.
-func NewCmdGetCatalog() *cobra.Command {
+func NewCmdCatalog() *cobra.Command {
 	return &cobra.Command{
 		Use:   "catalog",
 		Short: "List the repos in a registry",

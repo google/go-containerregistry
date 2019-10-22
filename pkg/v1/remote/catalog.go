@@ -28,7 +28,7 @@ type catalog struct {
 	Repos []string `json:"repositories"`
 }
 
-// GetCatalogPage calls /_catalog, returning the list of repositories on the registry
+// GetCatalogPage calls /_catalog, returning the list of repositories on the registry.
 func GetCatalogPage(target name.Registry, last string, n int, options ...Option) ([]string, error) {
 	o, err := makeOptions(target, options...)
 	if err != nil {

@@ -20,7 +20,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-// GetCatalog returns the repositories in a registry's catalog
+// GetCatalog returns the repositories in a registry's catalog.
 func GetCatalog(src string) (res []string, err error) {
 	reg, err := name.NewRegistry(src)
 	if err != nil {
@@ -30,7 +30,6 @@ func GetCatalog(src string) (res []string, err error) {
 	n := 100
 	last := ""
 	for {
-
 		page, err := remote.GetCatalogPage(reg, last, n, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 		if err != nil {
 			return nil, err
@@ -44,7 +43,6 @@ func GetCatalog(src string) (res []string, err error) {
 		if len(page) < n {
 			break
 		}
-
 	}
 
 	return res, nil
