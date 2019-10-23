@@ -7,12 +7,18 @@ steps:
 
 # Use the ko binary to build the crane and gcrane builder images.
 - name: golang
-  env: ['GOPATH=/workspace/gopath', 'KO_DOCKER_REPO=gcr.io/$PROJECT_ID']
+  env:
+  - 'GOPATH=/workspace/gopath'
+  - 'KO_DOCKER_REPO=gcr.io/$PROJECT_ID'
+  - 'GOFLAGS=-ldflags=-X=github.com/google/go-containerregistry/cmd/crane/cmd.Version=$COMMIT_SHA'
   entrypoint: /workspace/gopath/bin/ko
   dir: gopath/src
   args: ['publish', '-B', 'github.com/google/go-containerregistry/cmd/crane', '-t', 'latest', '-t', '$COMMIT_SHA']
 - name: golang
-  env: ['GOPATH=/workspace/gopath', 'KO_DOCKER_REPO=gcr.io/$PROJECT_ID']
+  env:
+  - 'GOPATH=/workspace/gopath'
+  - 'KO_DOCKER_REPO=gcr.io/$PROJECT_ID'
+  - 'GOFLAGS=-ldflags=-X=github.com/google/go-containerregistry/cmd/crane/cmd.Version=$COMMIT_SHA'
   entrypoint: /workspace/gopath/bin/ko
   dir: gopath/src
   args: ['publish', '-B', 'github.com/google/go-containerregistry/cmd/gcrane', '-t', 'latest', '-t', '$COMMIT_SHA']
