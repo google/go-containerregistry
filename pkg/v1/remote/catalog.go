@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2019 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ type catalog struct {
 	Repos []string `json:"repositories"`
 }
 
-// GetCatalogPage calls /_catalog, returning the list of repositories on the registry.
-func GetCatalogPage(target name.Registry, last string, n int, options ...Option) ([]string, error) {
+// CatalogPage calls /_catalog, returning the list of repositories on the registry.
+func CatalogPage(target name.Registry, last string, n int, options ...Option) ([]string, error) {
 	o, err := makeOptions(target, options...)
 	if err != nil {
 		return nil, err

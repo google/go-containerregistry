@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2019 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-// GetCatalog returns the repositories in a registry's catalog.
-func GetCatalog(src string) (res []string, err error) {
+// Catalog returns the repositories in a registry's catalog.
+func Catalog(src string) (res []string, err error) {
 	reg, err := name.NewRegistry(src)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func GetCatalog(src string) (res []string, err error) {
 	n := 100
 	last := ""
 	for {
-		page, err := remote.GetCatalogPage(reg, last, n, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+		page, err := remote.CatalogPage(reg, last, n, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 		if err != nil {
 			return nil, err
 		}

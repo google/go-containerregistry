@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2019 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import (
 
 func init() { Root.AddCommand(NewCmdCatalog()) }
 
-// NewCmdGetCatalog creates a new cobra.Command for the repos subcommand.
+// NewCmdCatalog creates a new cobra.Command for the repos subcommand.
 func NewCmdCatalog() *cobra.Command {
 	return &cobra.Command{
 		Use:   "catalog",
@@ -32,7 +32,7 @@ func NewCmdCatalog() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
 			reg := args[0]
-			repos, err := crane.GetCatalog(reg)
+			repos, err := crane.Catalog(reg)
 			if err != nil {
 				log.Fatalf("reading repos for %s: %v", reg, err)
 			}

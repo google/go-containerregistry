@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2019 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
-func TestGetCatalogPage(t *testing.T) {
+func TestCatalogPage(t *testing.T) {
 	cases := []struct {
 		name         string
 		responseBody []byte
@@ -70,13 +70,13 @@ func TestGetCatalogPage(t *testing.T) {
 				t.Fatalf("name.NewRegistry(%v) = %v", u.Host, err)
 			}
 
-			repos, err := GetCatalogPage(reg, "", 100)
+			repos, err := CatalogPage(reg, "", 100)
 			if (err != nil) != tc.wantErr {
-				t.Errorf("GetCatalog() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
+				t.Errorf("Catalog() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
 			}
 
 			if diff := cmp.Diff(tc.wantRepos, repos); diff != "" {
-				t.Errorf("GetCatalog() wrong repos (-want +got) = %s", diff)
+				t.Errorf("Catalog() wrong repos (-want +got) = %s", diff)
 			}
 		})
 	}
