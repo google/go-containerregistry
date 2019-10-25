@@ -91,6 +91,9 @@ func doCopy(args []string, recursive bool, jobs int) {
 			log.Fatalf("failed to copy images: %v", err)
 		}
 	} else {
+		// This is a bit of a hack, but we want to use crane's copy
+		// logic with gcrane's google credentials magic.
+		authn.DefaultKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
 		if err := crane.Copy(src, dst); err != nil {
 			log.Fatalf("failed to copy image: %v", err)
 		}
