@@ -13,7 +13,8 @@ crane [flags]
 ### Options
 
 ```
-  -h, --help   help for crane
+  -h, --help      help for crane
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

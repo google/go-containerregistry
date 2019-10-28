@@ -16,6 +16,12 @@ crane catalog [flags]
   -h, --help   help for catalog
 ```
 
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
+```
+
 ### SEE ALSO
 
 * [crane](crane.md)	 - Crane is a tool for managing container images

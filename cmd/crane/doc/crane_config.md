@@ -7,13 +7,19 @@ Get the config of an image
 Get the config of an image
 
 ```
-crane config [flags]
+crane config IMAGE [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for config
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

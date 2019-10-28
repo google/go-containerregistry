@@ -20,6 +20,12 @@ crane append [flags]
   -o, --output string      Path to new tarball of resulting image
 ```
 
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
+```
+
 ### SEE ALSO
 
 * [crane](crane.md)	 - Crane is a tool for managing container images

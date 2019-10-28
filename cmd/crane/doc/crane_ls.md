@@ -7,13 +7,19 @@ List the tags in a repo
 List the tags in a repo
 
 ```
-crane ls [flags]
+crane ls REPO [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for ls
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

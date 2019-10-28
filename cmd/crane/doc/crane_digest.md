@@ -7,13 +7,19 @@ Get the digest of an image
 Get the digest of an image
 
 ```
-crane digest [flags]
+crane digest IMAGE [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for digest
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

@@ -7,7 +7,7 @@ Pull a remote image by reference and store its contents in a tarball
 Pull a remote image by reference and store its contents in a tarball
 
 ```
-crane pull [flags]
+crane pull IMAGE TARBALL [flags]
 ```
 
 ### Options
@@ -15,6 +15,12 @@ crane pull [flags]
 ```
   -c, --cache_path string   Path to cache image layers
   -h, --help                help for pull
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

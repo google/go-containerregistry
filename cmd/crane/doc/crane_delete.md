@@ -7,13 +7,19 @@ Delete an image reference from its registry
 Delete an image reference from its registry
 
 ```
-crane delete [flags]
+crane delete IMAGE [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for delete
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

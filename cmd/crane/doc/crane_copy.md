@@ -7,13 +7,19 @@ Efficiently copy a remote image from src to dst
 Efficiently copy a remote image from src to dst
 
 ```
-crane copy [flags]
+crane copy SRC DST [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for copy
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

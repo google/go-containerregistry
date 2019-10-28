@@ -7,7 +7,7 @@ Export contents of a remote image as a tarball
 Export contents of a remote image as a tarball
 
 ```
-crane export IMAGE OUTPUT [flags]
+crane export IMAGE TARBALL [flags]
 ```
 
 ### Examples
@@ -24,6 +24,12 @@ crane export IMAGE OUTPUT [flags]
 
 ```
   -h, --help   help for export
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

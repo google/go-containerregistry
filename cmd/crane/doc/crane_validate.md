@@ -13,10 +13,15 @@ crane validate [flags]
 ### Options
 
 ```
-      --daemon string    Name of image in daemon to validate
   -h, --help             help for validate
       --remote string    Name of remote image to validate
       --tarball string   Path to tarball to validate
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO
