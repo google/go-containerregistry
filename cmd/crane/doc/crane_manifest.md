@@ -7,13 +7,19 @@ Get the manifest of an image
 Get the manifest of an image
 
 ```
-crane manifest [flags]
+crane manifest IMAGE [flags]
 ```
 
 ### Options
 
 ```
   -h, --help   help for manifest
+```
+
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
 ```
 
 ### SEE ALSO

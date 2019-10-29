@@ -20,6 +20,12 @@ crane rebase [flags]
       --rebased string    Tag to apply to rebased image
 ```
 
+### Options inherited from parent commands
+
+```
+  -v, --verbose   Enable debug logs
+```
+
 ### SEE ALSO
 
 * [crane](crane.md)	 - Crane is a tool for managing container images
