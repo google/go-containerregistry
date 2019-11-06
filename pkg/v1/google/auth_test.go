@@ -169,11 +169,23 @@ func TestKeychainGCR(t *testing.T) {
 		t.Fatalf("unexpected err os.Setenv: %v", err)
 	}
 
-	// Gcloud should succeed.
-	GetGcloudCmd = newGcloudCmdMock("success")
-
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("cases[%d]", i), func(t *testing.T) {
+			// Reset the keychain to ensure we don't cache earlier results.
+			Keychain = &googleKeychain{}
+
+			// Gcloud should succeed.
+			GetGcloudCmd = newGcloudCmdMock("success")
+
+			if auth, err := Keychain.Resolve(mustRegistry(tc)); err != nil {
+				t.Errorf("expected success, got: %v", err)
+			} else if auth == authn.Anonymous {
+				t.Errorf("expected not anonymous auth, got: %v", auth)
+			}
+
+			// Make gcloud fail to test that caching works.
+			GetGcloudCmd = newGcloudCmdMock("badoutput")
+
 			if auth, err := Keychain.Resolve(mustRegistry(tc)); err != nil {
 				t.Errorf("expected success, got: %v", err)
 			} else if auth == authn.Anonymous {
@@ -195,6 +207,8 @@ func TestKeychainEnv(t *testing.T) {
 		t.Fatalf("unexpected err os.Setenv: %v", err)
 	}
 
+	// Reset the keychain to ensure we don't cache earlier results.
+	Keychain = &googleKeychain{}
 	if auth, err := Keychain.Resolve(mustRegistry("gcr.io")); err != nil {
 		t.Errorf("expected success, got: %v", err)
 	} else if auth == authn.Anonymous {
@@ -209,6 +223,8 @@ func TestKeychainError(t *testing.T) {
 
 	GetGcloudCmd = newGcloudCmdMock("badoutput")
 
+	// Reset the keychain to ensure we don't cache earlier results.
+	Keychain = &googleKeychain{}
 	if _, err := Keychain.Resolve(mustRegistry("gcr.io")); err == nil {
 		t.Fatalf("expected err, got: %v", err)
 	}
