@@ -907,12 +907,22 @@ func TestScopesForUploadingImage(t *testing.T) {
 		t.Fatalf("name.NewTag() = %v", err)
 	}
 
+	sameReference, err := name.NewTag("example.com/sample/sample:previous", name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag() = %v", err)
+	}
+
 	anotherRepo1, err := name.NewTag("example.com/sample/another_repo1:latest", name.WeakValidation)
 	if err != nil {
 		t.Fatalf("name.NewTag() = %v", err)
 	}
 
 	anotherRepo2, err := name.NewTag("example.com/sample/another_repo2:latest", name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag() = %v", err)
+	}
+
+	repoOnOtherRegistry, err := name.NewTag("other-domain.com/sample/any_repo:latest", name.WeakValidation)
 	if err != nil {
 		t.Fatalf("name.NewTag() = %v", err)
 	}
@@ -934,6 +944,19 @@ func TestScopesForUploadingImage(t *testing.T) {
 			name:      "empty layers",
 			reference: referenceToUpload,
 			layers:    []v1.Layer{},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
+			},
+		},
+		{
+			name:      "mountable layers with same reference",
+			reference: referenceToUpload,
+			layers:    []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: sameReference,
+				},
+			},
 			expected: []string{
 				referenceToUpload.Scope(transport.PushScope),
 			},
@@ -1014,6 +1037,19 @@ func TestScopesForUploadingImage(t *testing.T) {
 				referenceToUpload.Scope(transport.PushScope),
 				anotherRepo1.Scope(transport.PullScope),
 				anotherRepo2.Scope(transport.PullScope),
+			},
+		},
+		{
+			name:      "cross repository mountable layer",
+			reference: referenceToUpload,
+			layers: []v1.Layer{
+				&MountableLayer{
+					Layer:     dummyLayer,
+					Reference: repoOnOtherRegistry,
+				},
+			},
+			expected: []string{
+				referenceToUpload.Scope(transport.PushScope),
 			},
 		},
 	}
