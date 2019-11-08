@@ -14,6 +14,7 @@ steps:
   entrypoint: /workspace/gopath/bin/ko
   dir: gopath/src
   args: ['publish', '-B', 'github.com/google/go-containerregistry/cmd/crane', '-t', 'latest', '-t', '$COMMIT_SHA']
+
 - name: golang
   env:
   - 'GOPATH=/workspace/gopath'
@@ -22,6 +23,27 @@ steps:
   entrypoint: /workspace/gopath/bin/ko
   dir: gopath/src
   args: ['publish', '-B', 'github.com/google/go-containerregistry/cmd/gcrane', '-t', 'latest', '-t', '$COMMIT_SHA']
+
+# Use the ko binary to build the crane and gcrane builder *debug* images.
+- name: golang
+  env:
+  - 'GOPATH=/workspace/gopath'
+  - 'KO_DOCKER_REPO=gcr.io/$PROJECT_ID'
+  - 'KO_CONFIG_PATH=/workspace/.ko/debug/'
+  - 'GOFLAGS=-ldflags=-X=github.com/google/go-containerregistry/cmd/crane/cmd.Version=$COMMIT_SHA'
+  entrypoint: /workspace/gopath/bin/ko
+  dir: gopath/src
+  args: ['publish', '-B', 'github.com/google/go-containerregistry/cmd/crane', '-t', 'debug']
+
+- name: golang
+  env:
+  - 'GOPATH=/workspace/gopath'
+  - 'KO_DOCKER_REPO=gcr.io/$PROJECT_ID'
+  - 'KO_CONFIG_PATH=/workspace/.ko/debug/'
+  - 'GOFLAGS=-ldflags=-X=github.com/google/go-containerregistry/cmd/crane/cmd.Version=$COMMIT_SHA'
+  entrypoint: /workspace/gopath/bin/ko
+  dir: gopath/src
+  args: ['publish', '-B', 'github.com/google/go-containerregistry/cmd/gcrane', '-t', 'debug']
 
 # Use the crane builder to get the digest for crane and gcrane.
 - name: gcr.io/$PROJECT_ID/crane
