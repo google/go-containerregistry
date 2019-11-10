@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
@@ -42,27 +43,73 @@ func List(repo name.Repository, options ...Option) ([]string, error) {
 		return nil, err
 	}
 
-	uri := url.URL{
+	uri := &url.URL{
 		Scheme: repo.Registry.Scheme(),
 		Host:   repo.Registry.RegistryStr(),
 		Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
 	}
 
 	client := http.Client{Transport: tr}
-	resp, err := client.Get(uri.String())
+	tagList := []string{}
+	parsed := tags{}
+
+	// get responses until there is no next page
+	for {
+		resp, err := client.Get(uri.String())
+		if err != nil {
+			return nil, err
+		}
+
+		if err := transport.CheckError(resp, http.StatusOK); err != nil {
+			return nil, err
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+			return nil, err
+		}
+
+		if err := resp.Body.Close(); err != nil {
+			return nil, err
+		}
+
+		tagList = append(tagList, parsed.Tags...)
+
+		uri, err = getNextPageURL(resp)
+		if err != nil {
+			return nil, err
+		}
+		// no next page
+		if uri == nil {
+			break
+		}
+	}
+
+	return tagList, nil
+}
+
+// getNextPageURL checks if there is a Link header in a http.Response which
+// contains a link to the next page. If yes it returns the url.URL of the next
+// page otherwise it returns nil.
+func getNextPageURL(resp *http.Response) (*url.URL, error) {
+	link := resp.Header.Get("Link")
+	if link == "" {
+		return nil, nil
+	}
+
+	if link[0] != '<' {
+		return nil, fmt.Errorf("failed to parse link header: missing '<' in: %s", link)
+	}
+
+	end := strings.Index(link, ">")
+	if end == -1 {
+		return nil, fmt.Errorf("failed to parse link header: missing '>' in: %s", link)
+	}
+	link = link[1:end]
+
+	linkURL, err := url.Parse(link)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if err := transport.CheckError(resp, http.StatusOK); err != nil {
-		return nil, err
-	}
-
-	parsed := tags{}
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return nil, err
-	}
-
-	return parsed.Tags, nil
+	linkURL = resp.Request.URL.ResolveReference(linkURL)
+	return linkURL, nil
 }
