@@ -27,23 +27,5 @@ func Catalog(src string) (res []string, err error) {
 		return nil, err
 	}
 
-	n := 100
-	last := ""
-	for {
-		page, err := remote.CatalogPage(reg, last, n, remote.WithAuthFromKeychain(authn.DefaultKeychain))
-		if err != nil {
-			return nil, err
-		}
-
-		if len(page) > 0 {
-			last = page[len(page)-1]
-			res = append(res, page...)
-		}
-
-		if len(page) < n {
-			break
-		}
-	}
-
-	return res, nil
+	return remote.Catalog(reg, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }

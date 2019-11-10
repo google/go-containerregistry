@@ -68,3 +68,61 @@ func CatalogPage(target name.Registry, last string, n int, options ...Option) ([
 
 	return parsed.Repos, nil
 }
+
+// Catalog calls /_catalog, returning the list of repositories on the registry.
+func Catalog(target name.Registry, options ...Option) ([]string, error) {
+	o, err := makeOptions(target, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	scopes := []string{target.Scope(transport.PullScope)}
+	tr, err := transport.New(target, o.auth, o.transport, scopes)
+	if err != nil {
+		return nil, err
+	}
+
+	uri := &url.URL{
+		Scheme: target.Scheme(),
+		Host:   target.RegistryStr(),
+		Path:   "/v2/_catalog",
+	}
+
+	client := http.Client{Transport: tr}
+
+	var (
+		parsed   catalog
+		repoList []string
+	)
+
+	// get responses until there is no next page
+	for {
+		resp, err := client.Get(uri.String())
+		if err != nil {
+			return nil, err
+		}
+
+		if err := transport.CheckError(resp, http.StatusOK); err != nil {
+			return nil, err
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+			return nil, err
+		}
+		if err := resp.Body.Close(); err != nil {
+			return nil, err
+		}
+
+		repoList = append(repoList, parsed.Repos...)
+
+		uri, err = getNextPageURL(resp)
+		if err != nil {
+			return nil, err
+		}
+		// no next page
+		if uri == nil {
+			break
+		}
+	}
+	return repoList, nil
+}
