@@ -229,3 +229,7 @@ func TestRetryErrors(t *testing.T) {
 		t.Fatalf("backoffErrors should return internal err, got different status code: %v", te.StatusCode)
 	}
 }
+
+func TestFailures(t *testing.T) {
+	// TODO
+}
