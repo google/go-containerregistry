@@ -52,7 +52,7 @@ func mustChild(t *testing.T, idx v1.ImageIndex, h v1.Hash) v1.Image {
 	return img
 }
 
-func mustMediaType(t *testing.T, tag Taggable) types.MediaType {
+func mustMediaType(t *testing.T, tag withMediaType) types.MediaType {
 	mt, err := tag.MediaType()
 	if err != nil {
 		t.Fatalf("MediaType() = %v", err)
