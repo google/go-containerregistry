@@ -39,7 +39,11 @@ import (
 
 const bogusDigest = "sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
-func mustDigest(t *testing.T, img Taggable) v1.Hash {
+type withDigest interface {
+	Digest() (v1.Hash, error)
+}
+
+func mustDigest(t *testing.T, img withDigest) v1.Hash {
 	h, err := img.Digest()
 	if err != nil {
 		t.Fatalf("Digest() = %v", err)

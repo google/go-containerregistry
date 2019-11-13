@@ -951,7 +951,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 		{
 			name:      "mountable layers with same reference",
 			reference: referenceToUpload,
-			layers:    []v1.Layer{
+			layers: []v1.Layer{
 				&MountableLayer{
 					Layer:     dummyLayer,
 					Reference: sameReference,
@@ -1287,6 +1287,41 @@ func TestTag(t *testing.T) {
 
 	if err := validate.Index(got); err != nil {
 		t.Errorf("Validate() = %v", err)
+	}
+}
+
+func TestTagDescriptor(t *testing.T) {
+	idx := setupIndex(t, 3)
+	// Set up a fake registry.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := fmt.Sprintf("%s/test/tag:src", u.Host)
+	srcRef, err := name.NewTag(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WriteIndex(srcRef, idx); err != nil {
+		t.Fatal(err)
+	}
+
+	desc, err := Get(srcRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dst := fmt.Sprintf("%s/test/tag:dst", u.Host)
+	dstRef, err := name.NewTag(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Tag(dstRef, desc); err != nil {
+		t.Fatal(err)
 	}
 }
 
