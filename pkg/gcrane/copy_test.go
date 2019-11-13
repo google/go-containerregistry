@@ -16,8 +16,11 @@ package gcrane
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -211,7 +214,7 @@ func TestErrors(t *testing.T) {
 func TestRetryErrors(t *testing.T) {
 	// We log a warning during retries, so we can tell if somethign retried by checking logs.Warn.
 	var b bytes.Buffer
-	logs.Debug.SetOutput(&b)
+	logs.Warn.SetOutput(&b)
 
 	err := backoffErrors(retry.Backoff{
 		Duration: 1 * time.Millisecond,
@@ -228,8 +231,39 @@ func TestRetryErrors(t *testing.T) {
 	} else if te.StatusCode != http.StatusTooManyRequests {
 		t.Fatalf("backoffErrors should return internal err, got different status code: %v", te.StatusCode)
 	}
+
+	if b.Len() == 0 {
+		t.Fatal("backoffErrors didn't log to logs.Warn")
+	}
 }
 
-func TestFailures(t *testing.T) {
-	// TODO
+func TestBadInputs(t *testing.T) {
+	t.Parallel()
+	invalid := "@@@@@@"
+
+	// Create a valid image reference that will fail with not found.
+	s := httptest.NewServer(http.NotFoundHandler())
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid404 := fmt.Sprintf("%s/some/image", u.Host)
+
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		desc string
+		err  error
+	}{
+		{"Copy(invalid, invalid)", Copy(invalid, invalid)},
+		{"Copy(404, invalid)", Copy(valid404, invalid)},
+		{"Copy(404, 404)", Copy(valid404, valid404)},
+		{"CopyRepository(invalid, invalid)", CopyRepository(ctx, invalid, invalid)},
+		{"CopyRepository(404, invalid)", CopyRepository(ctx, valid404, invalid)},
+		{"CopyRepository(404, 404)", CopyRepository(ctx, valid404, valid404, WithJobs(1))},
+	} {
+		if tc.err == nil {
+			t.Errorf("%s: expected err, got nil", tc.desc)
+		}
+	}
 }
