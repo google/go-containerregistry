@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -96,10 +97,9 @@ func TestCraneRegistry(t *testing.T) {
 	pulled, err := crane.Pull(src)
 	if err != nil {
 		t.Error(err)
-	} else if m, err := pulled.RawManifest(); err != nil {
+	}
+	if err := compare.Images(img, pulled); err != nil {
 		t.Fatal(err)
-	} else if string(m) != string(manifest) {
-		t.Errorf("crane.Pull().Manifest(): %v != %v", m, manifest)
 	}
 
 	// Test that the copied image is the same as the source.
@@ -107,15 +107,26 @@ func TestCraneRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := crane.Pull(dst); err != nil {
+	// Make sure what we copied is equivalent.
+	copied, err := crane.Pull(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := compare.Images(pulled, copied); err != nil {
 		t.Fatal(err)
 	}
 
-	d, err = crane.Digest(dst)
+	if err := crane.Tag(dst, "crane-tag"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure what we tagged is equivalent.
+	tagged, err := crane.Pull(fmt.Sprintf("%s:%s", dst, "crane-tag"))
 	if err != nil {
 		t.Fatal(err)
-	} else if d != digest.String() {
-		t.Errorf("Copied Digest(): %v != %v", d, digest)
+	}
+	if err := compare.Images(pulled, tagged); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -266,7 +277,7 @@ func TestBadInputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	valid := fmt.Sprintf("%s/some/image", u.Host)
+	valid404 := fmt.Sprintf("%s/some/image", u.Host)
 
 	// e drops the first parameter so we can use the result of a function
 	// that returns two values as an expression above. This is a bit of a go quirk.
@@ -274,26 +285,32 @@ func TestBadInputs(t *testing.T) {
 		return err
 	}
 
-	for _, err := range []error{
-		crane.Push(nil, invalid),
-		crane.Delete(invalid),
-		crane.Delete(valid), // 404
-		crane.Save(nil, invalid, ""),
-		crane.Copy(invalid, invalid),
-		crane.Copy(valid, invalid),
-		crane.Copy(valid, valid), // 404
+	for _, tc := range []struct {
+		desc string
+		err  error
+	}{
+		{"Push(_, invalid)", crane.Push(nil, invalid)},
+		{"Delete(invalid)", crane.Delete(invalid)},
+		{"Delete: 404", crane.Delete(valid404)},
+		{"Save(_, invalid)", crane.Save(nil, invalid, "")},
+		{"Copy(invalid, invalid)", crane.Copy(invalid, invalid)},
+		{"Copy(404, invalid)", crane.Copy(valid404, invalid)},
+		{"Copy(404, 404)", crane.Copy(valid404, valid404)},
+		{"Tag(invalid, invalid)", crane.Tag(invalid, invalid)},
+		{"Tag(404, invalid)", crane.Tag(valid404, invalid)},
+		{"Tag(404, 404)", crane.Tag(valid404, valid404)},
 		// These return multiple values, which are hard to use as expressions.
-		e(crane.Pull(invalid)),
-		e(crane.Digest(invalid)),
-		e(crane.Manifest(invalid)),
-		e(crane.Config(invalid)),
-		e(crane.Config(valid)), // 404
-		e(crane.ListTags(invalid)),
-		e(crane.ListTags(valid)), // 404
-		e(crane.Append(nil, invalid)),
+		{"Pull(invalid)", e(crane.Pull(invalid))},
+		{"Digest(invalid)", e(crane.Digest(invalid))},
+		{"Manifet(invalid)", e(crane.Manifest(invalid))},
+		{"Config(invalid)", e(crane.Config(invalid))},
+		{"Config(404)", e(crane.Config(valid404))},
+		{"ListTags(invalid)", e(crane.ListTags(invalid))},
+		{"ListTags(404)", e(crane.ListTags(valid404))},
+		{"Append(_, invalid)", e(crane.Append(nil, invalid))},
 	} {
-		if err == nil {
-			t.Error("expected err, got nil")
+		if tc.err == nil {
+			t.Errorf("%s: expected err, got nil", tc.desc)
 		}
 	}
 }
