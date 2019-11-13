@@ -32,8 +32,8 @@ func NewCmdTag() *cobra.Command {
 
 1. You don't have to specify the entire repository for the tag you're adding. For example, these two commands are functionally equivalent:
 
-$ crane cp registry.example.com/library/ubuntu:v0 registry.example.com/library/ubuntu:v1
-$ crane tag registry.example.com/library/ubuntu:v0 v1
+  crane cp registry.example.com/library/ubuntu:v0 registry.example.com/library/ubuntu:v1
+  crane tag registry.example.com/library/ubuntu:v0 v1
 
 2. We can skip layer existence checks because we know the manifest already exists. This makes "tag" slightly faster than "copy".`,
 		Example: `  # Add a v1 tag to ubuntu
