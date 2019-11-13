@@ -17,9 +17,7 @@ package gcrane
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
-	"runtime"
 	"strings"
 	"time"
 
@@ -29,12 +27,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/internal/retry"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -61,43 +57,15 @@ func GCRBackoff() retry.Backoff {
 	}
 }
 
-func init() { Root.AddCommand(NewCmdCopy()) }
-
-// NewCmdCopy creates a new cobra.Command for the copy subcommand.
-func NewCmdCopy() *cobra.Command {
-	recursive := false
-	jobs := 1
-	cmd := &cobra.Command{
-		Use:     "copy SRC DST",
-		Aliases: []string{"cp"},
-		Short:   "Efficiently copy a remote image from src to dst",
-		Args:    cobra.ExactArgs(2),
-		Run: func(cc *cobra.Command, args []string) {
-			doCopy(args, recursive, jobs)
-		},
-	}
-
-	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
-	cmd.Flags().IntVarP(&jobs, "jobs", "j", runtime.GOMAXPROCS(0), "The maximum number of concurrent copies")
-
-	return cmd
-}
-
-func doCopy(args []string, recursive bool, jobs int) {
-	src, dst := args[0], args[1]
-
+func Copy(src, dst string, recursive bool, jobs int) error {
 	if recursive {
-		if err := recursiveCopy(src, dst, jobs); err != nil {
-			log.Fatalf("failed to copy images: %v", err)
-		}
-	} else {
-		// This is a bit of a hack, but we want to use crane's copy
-		// logic with gcrane's google credentials magic.
-		authn.DefaultKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
-		if err := crane.Copy(src, dst); err != nil {
-			log.Fatalf("failed to copy image: %v", err)
-		}
+		return recursiveCopy(src, dst, jobs)
 	}
+
+	// This is a bit of a hack, but we want to use crane's copy
+	// logic with gcrane's google credentials magic.
+	authn.DefaultKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
+	return crane.Copy(src, dst)
 }
 
 type task struct {
@@ -167,15 +135,6 @@ func copyImage(src, dst string, srcAuth, dstAuth authn.Authenticator) (remote.Ta
 	return img, nil
 }
 
-// taggable implements remote.Taggable
-type taggable struct {
-	desc *remote.Descriptor
-}
-
-func (t *taggable) MediaType() (types.MediaType, error) { return t.desc.MediaType, nil }
-func (t *taggable) RawManifest() ([]byte, error)        { return t.desc.Manifest, nil }
-func (t *taggable) Digest() (v1.Hash, error)            { return t.desc.Digest, nil }
-
 func copySchema1Image(src, dst string, srcAuth, dstAuth authn.Authenticator) (remote.Taggable, error) {
 	srcRef, err := name.ParseReference(src)
 	if err != nil {
@@ -196,7 +155,7 @@ func copySchema1Image(src, dst string, srcAuth, dstAuth authn.Authenticator) (re
 		return nil, err
 	}
 
-	return &taggable{desc}, nil
+	return desc, nil
 }
 
 func copyIndex(src, dst string, srcAuth, dstAuth authn.Authenticator) (remote.Taggable, error) {

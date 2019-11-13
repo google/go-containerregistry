@@ -19,7 +19,7 @@ import (
 	"os"
 
 	crane "github.com/google/go-containerregistry/cmd/crane/cmd"
-	"github.com/google/go-containerregistry/pkg/gcrane"
+	gcrane "github.com/google/go-containerregistry/cmd/gcrane/cmd"
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 

@@ -12,29 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package gcrane
+package cmd
 
 import (
 	"fmt"
 	"log"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdGc()) }
+func init() { Root.AddCommand(NewCmdList()) }
 
-// NewCmdGc creates a new cobra.Command for the gc subcommand.
-func NewCmdGc() *cobra.Command {
+// NewCmdList creates a new cobra.Command for the ls subcommand.
+func NewCmdList() *cobra.Command {
 	recursive := false
 	cmd := &cobra.Command{
-		Use:   "gc",
-		Short: "List images that are not tagged",
+		Use:   "ls REPO",
+		Short: "List the contents of a repo",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			gc(args[0], recursive)
+			ls(args[0], recursive)
 		},
 	}
 
@@ -43,35 +42,52 @@ func NewCmdGc() *cobra.Command {
 	return cmd
 }
 
-func gc(root string, recursive bool) {
+func ls(root string, recursive bool) {
 	repo, err := name.NewRepository(root)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	auth := google.WithAuthFromKeychain(authn.DefaultKeychain)
-
 	if recursive {
-		if err := google.Walk(repo, printUntaggedImages, auth); err != nil {
+		if err := google.Walk(repo, printImages, google.WithAuthFromKeychain(google.Keychain)); err != nil {
 			log.Fatalln(err)
 		}
 		return
 	}
 
-	tags, err := google.List(repo, auth)
-	if err := printUntaggedImages(repo, tags, err); err != nil {
+	tags, err := google.List(repo, google.WithAuthFromKeychain(google.Keychain))
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if len(tags.Manifests) == 0 && len(tags.Children) == 0 {
+		// If we didn't see any GCR extensions, just list the tags like normal.
+		for _, tag := range tags.Tags {
+			fmt.Printf("%s:%s\n", repo, tag)
+		}
+		return
+	}
+
+	// Since we're not recursing, print the subdirectories too.
+	for _, child := range tags.Children {
+		fmt.Printf("%s/%s\n", repo, child)
+	}
+
+	if err := printImages(repo, tags, err); err != nil {
 		log.Fatalln(err)
 	}
 }
 
-func printUntaggedImages(repo name.Repository, tags *google.Tags, err error) error {
+func printImages(repo name.Repository, tags *google.Tags, err error) error {
 	if err != nil {
 		return err
 	}
 
 	for digest, manifest := range tags.Manifests {
-		if len(manifest.Tags) == 0 {
-			fmt.Printf("%s@%s\n", repo, digest)
+		fmt.Printf("%s@%s\n", repo, digest)
+
+		for _, tag := range manifest.Tags {
+			fmt.Printf("%s:%s\n", repo, tag)
 		}
 	}
 
