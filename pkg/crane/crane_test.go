@@ -285,29 +285,32 @@ func TestBadInputs(t *testing.T) {
 		return err
 	}
 
-	for _, err := range []error{
-		crane.Push(nil, invalid),
-		crane.Delete(invalid),
-		crane.Delete(valid404),
-		crane.Save(nil, invalid, ""),
-		crane.Copy(invalid, invalid),
-		crane.Copy(valid404, invalid),
-		crane.Copy(valid404, valid404),
-		crane.Tag(invalid, invalid),
-		crane.Tag(valid404, invalid),
-		crane.Tag(valid404, valid404),
+	for _, tc := range []struct {
+		desc string
+		err  error
+	}{
+		{"Push(_, invalid)", crane.Push(nil, invalid)},
+		{"Delete(invalid)", crane.Delete(invalid)},
+		{"Delete: 404", crane.Delete(valid404)},
+		{"Save(_, invalid)", crane.Save(nil, invalid, "")},
+		{"Copy(invalid, invalid)", crane.Copy(invalid, invalid)},
+		{"Copy(404, invalid)", crane.Copy(valid404, invalid)},
+		{"Copy(404, 404)", crane.Copy(valid404, valid404)},
+		{"Tag(invalid, invalid)", crane.Tag(invalid, invalid)},
+		{"Tag(404, invalid)", crane.Tag(valid404, invalid)},
+		{"Tag(404, 404)", crane.Tag(valid404, valid404)},
 		// These return multiple values, which are hard to use as expressions.
-		e(crane.Pull(invalid)),
-		e(crane.Digest(invalid)),
-		e(crane.Manifest(invalid)),
-		e(crane.Config(invalid)),
-		e(crane.Config(valid404)),
-		e(crane.ListTags(invalid)),
-		e(crane.ListTags(valid404)),
-		e(crane.Append(nil, invalid)),
+		{"Pull(invalid)", e(crane.Pull(invalid))},
+		{"Digest(invalid)", e(crane.Digest(invalid))},
+		{"Manifet(invalid)", e(crane.Manifest(invalid))},
+		{"Config(invalid)", e(crane.Config(invalid))},
+		{"Config(404)", e(crane.Config(valid404))},
+		{"ListTags(invalid)", e(crane.ListTags(invalid))},
+		{"ListTags(404)", e(crane.ListTags(valid404))},
+		{"Append(_, invalid)", e(crane.Append(nil, invalid))},
 	} {
-		if err == nil {
-			t.Error("expected err, got nil")
+		if tc.err == nil {
+			t.Errorf("%s: expected err, got nil", tc.desc)
 		}
 	}
 }
