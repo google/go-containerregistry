@@ -57,15 +57,19 @@ func GCRBackoff() retry.Backoff {
 	}
 }
 
-func Copy(src, dst string, recursive bool, jobs int) error {
-	if recursive {
-		return recursiveCopy(src, dst, jobs)
-	}
-
+// Copy copies a remote image or index from src to dst.
+func Copy(src, dst string) error {
 	// This is a bit of a hack, but we want to use crane's copy
 	// logic with gcrane's google credentials magic.
 	authn.DefaultKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
 	return crane.Copy(src, dst)
+}
+
+// CopyRepository copies everything from the src GCR repository to the
+// dst GCR repository.
+func CopyRepository(src, dst string, opts ...Option) error {
+	o := makeOptions(opts...)
+	return recursiveCopy(src, dst, o.jobs)
 }
 
 type task struct {
