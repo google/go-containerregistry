@@ -48,19 +48,14 @@ func ls(root string, recursive bool) {
 		log.Fatalln(err)
 	}
 
-	auth, err := google.Keychain.Resolve(repo.Registry)
-	if err != nil {
-		log.Fatalf("getting auth for %q: %v", root, err)
-	}
-
 	if recursive {
-		if err := google.Walk(repo, printImages, google.WithAuth(auth)); err != nil {
+		if err := google.Walk(repo, printImages, google.WithAuthFromKeychain(google.Keychain)); err != nil {
 			log.Fatalln(err)
 		}
 		return
 	}
 
-	tags, err := google.List(repo, google.WithAuth(auth))
+	tags, err := google.List(repo, google.WithAuthFromKeychain(google.Keychain))
 	if err != nil {
 		log.Fatalln(err)
 	}
