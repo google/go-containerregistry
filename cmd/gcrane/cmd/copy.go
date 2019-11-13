@@ -40,9 +40,9 @@ func NewCmdCopy() *cobra.Command {
 					log.Fatal(err)
 				}
 			} else {
-			}
-			if err := gcrane.Copy(args[0], args[1]); err != nil {
-				log.Fatal(err)
+				if err := gcrane.Copy(args[0], args[1]); err != nil {
+					log.Fatal(err)
+				}
 			}
 		},
 	}
