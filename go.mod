@@ -32,9 +32,7 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/spf13/cobra v0.0.5
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.4.0 // indirect
-	golang.org/x/lint v0.0.0-20190930215403-16217165b5de // indirect
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20191010194322-b09406accb47 // indirect
@@ -43,10 +41,9 @@ require (
 	google.golang.org/grpc v1.24.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
-	honnef.co/go/tools v0.0.1-2019.2.3 // indirect
 	k8s.io/api v0.0.0-20180904230853-4e7be11eab3f
 	k8s.io/apimachinery v0.0.0-20180904193909-def12e63c512
 	k8s.io/client-go v0.0.0-20180910083459-2cefa64ff137
-	k8s.io/code-generator v0.0.0-20191026065352-f361089c127c
+	k8s.io/code-generator v0.0.0-20191109100332-a9a0d9c0b3aa
 	k8s.io/kubernetes v1.11.10
 )
