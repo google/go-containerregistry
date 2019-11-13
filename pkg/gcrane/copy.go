@@ -68,7 +68,7 @@ func NewCmdCopy() *cobra.Command {
 	recursive := false
 	jobs := 1
 	cmd := &cobra.Command{
-		Use:     "copy",
+		Use:     "copy SRC DST",
 		Aliases: []string{"cp"},
 		Short:   "Efficiently copy a remote image from src to dst",
 		Args:    cobra.ExactArgs(2),
