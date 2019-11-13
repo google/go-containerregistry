@@ -35,12 +35,16 @@ func NewCmdCopy() *cobra.Command {
 		Short:   "Efficiently copy a remote image from src to dst",
 		Args:    cobra.ExactArgs(2),
 		Run: func(cc *cobra.Command, args []string) {
+			src, dst := args[0], args[1]
 			if recursive {
-				if err := gcrane.CopyRepository(context.TODO(), args[0], args[1], gcrane.WithJobs(jobs)); err != nil {
+				// We should wire this up to signal handlers and make sure we
+				// respect the cancellation downstream.
+				ctx := context.TODO()
+				if err := gcrane.CopyRepository(ctx, src, dst, gcrane.WithJobs(jobs)); err != nil {
 					log.Fatal(err)
 				}
 			} else {
-				if err := gcrane.Copy(args[0], args[1]); err != nil {
+				if err := gcrane.Copy(src, dst); err != nil {
 					log.Fatal(err)
 				}
 			}
