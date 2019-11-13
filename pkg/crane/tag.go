@@ -19,9 +19,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 // Tag adds tag to the remote img.
@@ -37,14 +35,5 @@ func Tag(img, tag string) error {
 
 	dst := ref.Context().Tag(tag)
 
-	return remote.Tag(dst, &wrap{desc}, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Tag(dst, desc, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }
-
-// wrap coerces a remote.Descriptor into a remote.Taggable.
-type wrap struct {
-	desc *remote.Descriptor
-}
-
-func (w *wrap) RawManifest() ([]byte, error)        { return w.desc.Manifest, nil }
-func (w *wrap) MediaType() (types.MediaType, error) { return w.desc.MediaType, nil }
-func (w *wrap) Digest() (v1.Hash, error)            { return w.desc.Digest, nil }

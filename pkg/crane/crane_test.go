@@ -277,7 +277,7 @@ func TestBadInputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	valid := fmt.Sprintf("%s/some/image", u.Host)
+	valid404 := fmt.Sprintf("%s/some/image", u.Host)
 
 	// e drops the first parameter so we can use the result of a function
 	// that returns two values as an expression above. This is a bit of a go quirk.
@@ -288,22 +288,22 @@ func TestBadInputs(t *testing.T) {
 	for _, err := range []error{
 		crane.Push(nil, invalid),
 		crane.Delete(invalid),
-		crane.Delete(valid), // 404
+		crane.Delete(valid404),
 		crane.Save(nil, invalid, ""),
 		crane.Copy(invalid, invalid),
-		crane.Copy(valid, invalid),
-		crane.Copy(valid, valid), // 404
+		crane.Copy(valid404, invalid),
+		crane.Copy(valid404, valid404),
 		crane.Tag(invalid, invalid),
-		crane.Tag(valid, invalid),
-		crane.Tag(valid, valid), // 404
+		crane.Tag(valid404, invalid),
+		crane.Tag(valid404, valid404),
 		// These return multiple values, which are hard to use as expressions.
 		e(crane.Pull(invalid)),
 		e(crane.Digest(invalid)),
 		e(crane.Manifest(invalid)),
 		e(crane.Config(invalid)),
-		e(crane.Config(valid)), // 404
+		e(crane.Config(valid404)),
 		e(crane.ListTags(invalid)),
-		e(crane.ListTags(valid)), // 404
+		e(crane.ListTags(valid404)),
 		e(crane.Append(nil, invalid)),
 	} {
 		if err == nil {
