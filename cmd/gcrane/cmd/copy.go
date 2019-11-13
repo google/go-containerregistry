@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"context"
 	"log"
 	"runtime"
 
@@ -35,7 +36,7 @@ func NewCmdCopy() *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		Run: func(cc *cobra.Command, args []string) {
 			if recursive {
-				if err := gcrane.CopyRepository(args[0], args[1], gcrane.WithJobs(jobs)); err != nil {
+				if err := gcrane.CopyRepository(context.TODO(), args[0], args[1], gcrane.WithJobs(jobs)); err != nil {
 					log.Fatal(err)
 				}
 			} else {

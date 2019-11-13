@@ -15,12 +15,18 @@
 package gcrane
 
 import (
+	"bytes"
+	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/internal/retry"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -174,5 +180,52 @@ func TestBackoff(t *testing.T) {
 	}
 	if s := backoff.Steps; s != 0 {
 		t.Errorf("backoff.Steps should be 0, got %d", s)
+	}
+}
+
+func TestErrors(t *testing.T) {
+	if hasStatusCode(nil, http.StatusOK) {
+		t.Fatal("nil error should not have any status code")
+	}
+	if !hasStatusCode(&transport.Error{StatusCode: http.StatusOK}, http.StatusOK) {
+		t.Fatal("200 should be 200")
+	}
+	if hasStatusCode(&transport.Error{StatusCode: http.StatusOK}, http.StatusNotFound) {
+		t.Fatal("200 should not be 404")
+	}
+
+	if isServerError(nil) {
+		t.Fatal("nil should not be server error")
+	}
+	if isServerError(fmt.Errorf("i am a string")) {
+		t.Fatal("string should not be server error")
+	}
+	if !isServerError(&transport.Error{StatusCode: http.StatusServiceUnavailable}) {
+		t.Fatal("503 should be server error")
+	}
+	if isServerError(&transport.Error{StatusCode: http.StatusTooManyRequests}) {
+		t.Fatal("429 should not be server error")
+	}
+}
+
+func TestRetryErrors(t *testing.T) {
+	// We log a warning during retries, so we can tell if somethign retried by checking logs.Warn.
+	var b bytes.Buffer
+	logs.Debug.SetOutput(&b)
+
+	err := backoffErrors(retry.Backoff{
+		Duration: 1 * time.Millisecond,
+		Steps:    3,
+	}, func() error {
+		return &transport.Error{StatusCode: http.StatusTooManyRequests}
+	})
+
+	if err == nil {
+		t.Fatal("backoffErrors should return internal err, got nil")
+	}
+	if te, ok := err.(*transport.Error); !ok {
+		t.Fatalf("backoffErrors should return internal err, got different error: %v", err)
+	} else if te.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("backoffErrors should return internal err, got different status code: %v", te.StatusCode)
 	}
 }
