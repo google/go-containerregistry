@@ -32,6 +32,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// gcraneKeychain tries to use google-specific credential sources, falling back to
+// the DefaultKeychain (config-file based).
+var gcraneKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
+
 // GCRBackoff returns a retry.Backoff that is suitable for use with gcr.io.
 //
 // These numbers are based on GCR's posted quotas:
@@ -59,7 +63,11 @@ func GCRBackoff() retry.Backoff {
 func Copy(src, dst string) error {
 	// This is a bit of a hack, but we want to use crane's copy
 	// logic with gcrane's google credentials magic.
-	authn.DefaultKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
+	original := authn.DefaultKeychain
+	authn.DefaultKeychain = gcraneKeychain
+	defer func() {
+		authn.DefaultKeychain = original
+	}()
 	return crane.Copy(src, dst)
 }
 
@@ -68,7 +76,11 @@ func Copy(src, dst string) error {
 func CopyRepository(ctx context.Context, src, dst string, opts ...Option) error {
 	// This is a bit of a hack, but we want to use crane's copy
 	// logic with gcrane's google credentials magic.
-	authn.DefaultKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
+	original := authn.DefaultKeychain
+	authn.DefaultKeychain = gcraneKeychain
+	defer func() {
+		authn.DefaultKeychain = original
+	}()
 	o := makeOptions(opts...)
 	return recursiveCopy(ctx, src, dst, o.jobs)
 }
@@ -223,22 +235,26 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 		return err
 	}
 
-	if len(t.manifest.Tags) > 1 {
-		// Copy the rest of the tags.
-		srcRef, err := name.ParseReference(srcImg)
-		if err != nil {
-			return err
-		}
-		desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(google.Keychain))
-		if err != nil {
-			return err
-		}
-		for _, tag := range t.manifest.Tags[1:] {
-			dstImg := t.newRepo.Tag(tag)
+	if len(t.manifest.Tags) <= 1 {
+		// If there's only one tag, we're done.
+		return nil
+	}
 
-			if err := remote.Tag(dstImg, desc, remote.WithAuthFromKeychain(google.Keychain)); err != nil {
-				return err
-			}
+	// Add the rest of the tags.
+	srcRef, err := name.ParseReference(srcImg)
+	if err != nil {
+		return err
+	}
+	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(google.Keychain))
+	if err != nil {
+		return err
+	}
+
+	for _, tag := range t.manifest.Tags[1:] {
+		dstImg := t.newRepo.Tag(tag)
+
+		if err := remote.Tag(dstImg, desc, remote.WithAuthFromKeychain(google.Keychain)); err != nil {
+			return err
 		}
 	}
 
