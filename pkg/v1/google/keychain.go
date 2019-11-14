@@ -17,6 +17,7 @@ package google
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 )
@@ -25,7 +26,7 @@ import (
 var Keychain authn.Keychain = &googleKeychain{}
 
 type googleKeychain struct {
-	cache map[authn.Resource]authn.Authenticator
+	cache sync.Map
 }
 
 // Resolve implements authn.Keychain a la docker-credential-gcr.
@@ -55,22 +56,19 @@ func (gk *googleKeychain) Resolve(target authn.Resource) (authn.Authenticator, e
 		return authn.Anonymous, nil
 	}
 
-	if gk.cache == nil {
-		gk.cache = make(map[authn.Resource]authn.Authenticator)
-	}
-	if auth, ok := gk.cache[target]; ok {
-		return auth, nil
+	if k, ok := gk.cache.Load(target); ok {
+		return k.(authn.Authenticator), nil
 	}
 
 	auth, envErr := NewEnvAuthenticator()
 	if envErr == nil {
-		gk.cache[target] = auth
+		gk.cache.Store(target, auth)
 		return auth, nil
 	}
 
 	auth, gErr := NewGcloudAuthenticator()
 	if gErr == nil {
-		gk.cache[target] = auth
+		gk.cache.Store(target, auth)
 		return auth, nil
 	}
 
