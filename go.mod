@@ -44,6 +44,6 @@ require (
 	k8s.io/api v0.0.0-20180904230853-4e7be11eab3f
 	k8s.io/apimachinery v0.0.0-20180904193909-def12e63c512
 	k8s.io/client-go v0.0.0-20180910083459-2cefa64ff137
-	k8s.io/code-generator v0.0.0-20191109100332-a9a0d9c0b3aa
+	k8s.io/code-generator v0.0.0-20191114215150-2a85f169f05f
 	k8s.io/kubernetes v1.11.10
 )
