@@ -27,5 +27,5 @@ information on using pull requests.
 Ensure the following passes:
 ```
 ./hack/presubmit.sh
-``` 
+```
 and commit any resultant changes to `go.mod` and `go.sum`.
