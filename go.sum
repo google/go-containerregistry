@@ -282,6 +282,8 @@ k8s.io/client-go v0.0.0-20180910083459-2cefa64ff137 h1:4DIWGqvAjLME47asVwjb14H+6
 k8s.io/client-go v0.0.0-20180910083459-2cefa64ff137/go.mod h1:7vJpHMYJwNQCWgzmNV+VYUl1zCObLyodBc8nIyt8L5s=
 k8s.io/code-generator v0.0.0-20191109100332-a9a0d9c0b3aa h1:4feCF84yk6VEXdpOwOhwB1YIwobejEwKBzgHY0xa9Co=
 k8s.io/code-generator v0.0.0-20191109100332-a9a0d9c0b3aa/go.mod h1:fRFrKVixH946mn5PeglV2fvxbE86JesGi16bsWZ1xz4=
+k8s.io/code-generator v0.0.0-20191114215150-2a85f169f05f h1:sqMKZZhZNG3WgglCBOn9zRJrbEnCeJ5cP+4cv9awWsk=
+k8s.io/code-generator v0.0.0-20191114215150-2a85f169f05f/go.mod h1:Vh0irzg7dL9pFS4c8hFsali5txtbmse3MFS4zEH7Thg=
 k8s.io/gengo v0.0.0-20190128074634-0689ccc1d7d6/go.mod h1:ezvh/TsK7cY6rbqRK0oQQ8IAqLxYwwyPxAX1Pzy0ii0=
 k8s.io/gengo v0.0.0-20190822140433-26a664648505 h1:ZY6yclUKVbZ+SdWnkfY+Je5vrMpKOxmGeKRbsXVmqYM=
 k8s.io/gengo v0.0.0-20190822140433-26a664648505/go.mod h1:ezvh/TsK7cY6rbqRK0oQQ8IAqLxYwwyPxAX1Pzy0ii0=
