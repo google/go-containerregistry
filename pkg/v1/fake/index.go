@@ -2,10 +2,10 @@
 package fake
 
 import (
-	"sync"
+	sync "sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/types"
+	types "github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 type FakeImageIndex struct {
@@ -122,15 +122,7 @@ func (fake *FakeImageIndex) DigestCallCount() int {
 	return len(fake.digestArgsForCall)
 }
 
-func (fake *FakeImageIndex) DigestCalls(stub func() (v1.Hash, error)) {
-	fake.digestMutex.Lock()
-	defer fake.digestMutex.Unlock()
-	fake.DigestStub = stub
-}
-
 func (fake *FakeImageIndex) DigestReturns(result1 v1.Hash, result2 error) {
-	fake.digestMutex.Lock()
-	defer fake.digestMutex.Unlock()
 	fake.DigestStub = nil
 	fake.digestReturns = struct {
 		result1 v1.Hash
@@ -139,8 +131,6 @@ func (fake *FakeImageIndex) DigestReturns(result1 v1.Hash, result2 error) {
 }
 
 func (fake *FakeImageIndex) DigestReturnsOnCall(i int, result1 v1.Hash, result2 error) {
-	fake.digestMutex.Lock()
-	defer fake.digestMutex.Unlock()
 	fake.DigestStub = nil
 	if fake.digestReturnsOnCall == nil {
 		fake.digestReturnsOnCall = make(map[int]struct {
@@ -178,12 +168,6 @@ func (fake *FakeImageIndex) ImageCallCount() int {
 	return len(fake.imageArgsForCall)
 }
 
-func (fake *FakeImageIndex) ImageCalls(stub func(v1.Hash) (v1.Image, error)) {
-	fake.imageMutex.Lock()
-	defer fake.imageMutex.Unlock()
-	fake.ImageStub = stub
-}
-
 func (fake *FakeImageIndex) ImageArgsForCall(i int) v1.Hash {
 	fake.imageMutex.RLock()
 	defer fake.imageMutex.RUnlock()
@@ -192,8 +176,6 @@ func (fake *FakeImageIndex) ImageArgsForCall(i int) v1.Hash {
 }
 
 func (fake *FakeImageIndex) ImageReturns(result1 v1.Image, result2 error) {
-	fake.imageMutex.Lock()
-	defer fake.imageMutex.Unlock()
 	fake.ImageStub = nil
 	fake.imageReturns = struct {
 		result1 v1.Image
@@ -202,8 +184,6 @@ func (fake *FakeImageIndex) ImageReturns(result1 v1.Image, result2 error) {
 }
 
 func (fake *FakeImageIndex) ImageReturnsOnCall(i int, result1 v1.Image, result2 error) {
-	fake.imageMutex.Lock()
-	defer fake.imageMutex.Unlock()
 	fake.ImageStub = nil
 	if fake.imageReturnsOnCall == nil {
 		fake.imageReturnsOnCall = make(map[int]struct {
@@ -241,12 +221,6 @@ func (fake *FakeImageIndex) ImageIndexCallCount() int {
 	return len(fake.imageIndexArgsForCall)
 }
 
-func (fake *FakeImageIndex) ImageIndexCalls(stub func(v1.Hash) (v1.ImageIndex, error)) {
-	fake.imageIndexMutex.Lock()
-	defer fake.imageIndexMutex.Unlock()
-	fake.ImageIndexStub = stub
-}
-
 func (fake *FakeImageIndex) ImageIndexArgsForCall(i int) v1.Hash {
 	fake.imageIndexMutex.RLock()
 	defer fake.imageIndexMutex.RUnlock()
@@ -255,8 +229,6 @@ func (fake *FakeImageIndex) ImageIndexArgsForCall(i int) v1.Hash {
 }
 
 func (fake *FakeImageIndex) ImageIndexReturns(result1 v1.ImageIndex, result2 error) {
-	fake.imageIndexMutex.Lock()
-	defer fake.imageIndexMutex.Unlock()
 	fake.ImageIndexStub = nil
 	fake.imageIndexReturns = struct {
 		result1 v1.ImageIndex
@@ -265,8 +237,6 @@ func (fake *FakeImageIndex) ImageIndexReturns(result1 v1.ImageIndex, result2 err
 }
 
 func (fake *FakeImageIndex) ImageIndexReturnsOnCall(i int, result1 v1.ImageIndex, result2 error) {
-	fake.imageIndexMutex.Lock()
-	defer fake.imageIndexMutex.Unlock()
 	fake.ImageIndexStub = nil
 	if fake.imageIndexReturnsOnCall == nil {
 		fake.imageIndexReturnsOnCall = make(map[int]struct {
@@ -303,15 +273,7 @@ func (fake *FakeImageIndex) IndexManifestCallCount() int {
 	return len(fake.indexManifestArgsForCall)
 }
 
-func (fake *FakeImageIndex) IndexManifestCalls(stub func() (*v1.IndexManifest, error)) {
-	fake.indexManifestMutex.Lock()
-	defer fake.indexManifestMutex.Unlock()
-	fake.IndexManifestStub = stub
-}
-
 func (fake *FakeImageIndex) IndexManifestReturns(result1 *v1.IndexManifest, result2 error) {
-	fake.indexManifestMutex.Lock()
-	defer fake.indexManifestMutex.Unlock()
 	fake.IndexManifestStub = nil
 	fake.indexManifestReturns = struct {
 		result1 *v1.IndexManifest
@@ -320,8 +282,6 @@ func (fake *FakeImageIndex) IndexManifestReturns(result1 *v1.IndexManifest, resu
 }
 
 func (fake *FakeImageIndex) IndexManifestReturnsOnCall(i int, result1 *v1.IndexManifest, result2 error) {
-	fake.indexManifestMutex.Lock()
-	defer fake.indexManifestMutex.Unlock()
 	fake.IndexManifestStub = nil
 	if fake.indexManifestReturnsOnCall == nil {
 		fake.indexManifestReturnsOnCall = make(map[int]struct {
@@ -358,15 +318,7 @@ func (fake *FakeImageIndex) MediaTypeCallCount() int {
 	return len(fake.mediaTypeArgsForCall)
 }
 
-func (fake *FakeImageIndex) MediaTypeCalls(stub func() (types.MediaType, error)) {
-	fake.mediaTypeMutex.Lock()
-	defer fake.mediaTypeMutex.Unlock()
-	fake.MediaTypeStub = stub
-}
-
 func (fake *FakeImageIndex) MediaTypeReturns(result1 types.MediaType, result2 error) {
-	fake.mediaTypeMutex.Lock()
-	defer fake.mediaTypeMutex.Unlock()
 	fake.MediaTypeStub = nil
 	fake.mediaTypeReturns = struct {
 		result1 types.MediaType
@@ -375,8 +327,6 @@ func (fake *FakeImageIndex) MediaTypeReturns(result1 types.MediaType, result2 er
 }
 
 func (fake *FakeImageIndex) MediaTypeReturnsOnCall(i int, result1 types.MediaType, result2 error) {
-	fake.mediaTypeMutex.Lock()
-	defer fake.mediaTypeMutex.Unlock()
 	fake.MediaTypeStub = nil
 	if fake.mediaTypeReturnsOnCall == nil {
 		fake.mediaTypeReturnsOnCall = make(map[int]struct {
@@ -413,15 +363,7 @@ func (fake *FakeImageIndex) RawManifestCallCount() int {
 	return len(fake.rawManifestArgsForCall)
 }
 
-func (fake *FakeImageIndex) RawManifestCalls(stub func() ([]byte, error)) {
-	fake.rawManifestMutex.Lock()
-	defer fake.rawManifestMutex.Unlock()
-	fake.RawManifestStub = stub
-}
-
 func (fake *FakeImageIndex) RawManifestReturns(result1 []byte, result2 error) {
-	fake.rawManifestMutex.Lock()
-	defer fake.rawManifestMutex.Unlock()
 	fake.RawManifestStub = nil
 	fake.rawManifestReturns = struct {
 		result1 []byte
@@ -430,8 +372,6 @@ func (fake *FakeImageIndex) RawManifestReturns(result1 []byte, result2 error) {
 }
 
 func (fake *FakeImageIndex) RawManifestReturnsOnCall(i int, result1 []byte, result2 error) {
-	fake.rawManifestMutex.Lock()
-	defer fake.rawManifestMutex.Unlock()
 	fake.RawManifestStub = nil
 	if fake.rawManifestReturnsOnCall == nil {
 		fake.rawManifestReturnsOnCall = make(map[int]struct {
@@ -468,15 +408,7 @@ func (fake *FakeImageIndex) SizeCallCount() int {
 	return len(fake.sizeArgsForCall)
 }
 
-func (fake *FakeImageIndex) SizeCalls(stub func() (int64, error)) {
-	fake.sizeMutex.Lock()
-	defer fake.sizeMutex.Unlock()
-	fake.SizeStub = stub
-}
-
 func (fake *FakeImageIndex) SizeReturns(result1 int64, result2 error) {
-	fake.sizeMutex.Lock()
-	defer fake.sizeMutex.Unlock()
 	fake.SizeStub = nil
 	fake.sizeReturns = struct {
 		result1 int64
@@ -485,8 +417,6 @@ func (fake *FakeImageIndex) SizeReturns(result1 int64, result2 error) {
 }
 
 func (fake *FakeImageIndex) SizeReturnsOnCall(i int, result1 int64, result2 error) {
-	fake.sizeMutex.Lock()
-	defer fake.sizeMutex.Unlock()
 	fake.SizeStub = nil
 	if fake.sizeReturnsOnCall == nil {
 		fake.sizeReturnsOnCall = make(map[int]struct {
