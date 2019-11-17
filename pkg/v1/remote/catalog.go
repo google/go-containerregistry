@@ -105,7 +105,8 @@ func Catalog(ctx context.Context, target name.Registry, options ...Option) ([]st
 		default:
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "GET", uri.String(), nil)
+		req, err := http.NewRequest("GET", uri.String(), nil)
+		req = req.WithContext(ctx)
 		if err != nil {
 			return nil, err
 		}

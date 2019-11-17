@@ -68,7 +68,8 @@ func ListWithContext(ctx context.Context, repo name.Repository, options ...Optio
 		default:
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "GET", uri.String(), nil)
+		req, err := http.NewRequest("GET", uri.String(), nil)
+		req = req.WithContext(ctx)
 		if err != nil {
 			return nil, err
 		}
