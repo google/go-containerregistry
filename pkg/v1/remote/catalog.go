@@ -84,9 +84,10 @@ func Catalog(ctx context.Context, target name.Registry, options ...Option) ([]st
 	}
 
 	uri := &url.URL{
-		Scheme: target.Scheme(),
-		Host:   target.RegistryStr(),
-		Path:   "/v2/_catalog",
+		Scheme:   target.Scheme(),
+		Host:     target.RegistryStr(),
+		Path:     "/v2/_catalog",
+		RawQuery: "n=10000",
 	}
 
 	client := http.Client{Transport: tr}

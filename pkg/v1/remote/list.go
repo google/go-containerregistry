@@ -50,9 +50,10 @@ func ListWithContext(ctx context.Context, repo name.Repository, options ...Optio
 	}
 
 	uri := &url.URL{
-		Scheme: repo.Registry.Scheme(),
-		Host:   repo.Registry.RegistryStr(),
-		Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
+		Scheme:   repo.Registry.Scheme(),
+		Host:     repo.Registry.RegistryStr(),
+		Path:     fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
+		RawQuery: "n=10000",
 	}
 
 	client := http.Client{Transport: tr}
