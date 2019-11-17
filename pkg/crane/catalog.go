@@ -15,6 +15,8 @@
 package crane
 
 import (
+	"context"
+
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -27,5 +29,5 @@ func Catalog(src string) (res []string, err error) {
 		return nil, err
 	}
 
-	return remote.Catalog(reg, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Catalog(context.TODO(), reg, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }

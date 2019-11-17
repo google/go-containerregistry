@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -30,9 +31,14 @@ type tags struct {
 	Tags []string `json:"tags"`
 }
 
-// List calls /tags/list for the given repository, returning the list of tags
-// in the "tags" property.
+// List wraps ListWithContext using the backround context
 func List(repo name.Repository, options ...Option) ([]string, error) {
+	return ListWithContext(context.Background(), repo, options...)
+}
+
+// ListWithContext calls /tags/list for the given repository, returning the list of tags
+// in the "tags" property.
+func ListWithContext(ctx context.Context, repo name.Repository, options ...Option) ([]string, error) {
 	o, err := makeOptions(repo, options...)
 	if err != nil {
 		return nil, err
@@ -55,7 +61,18 @@ func List(repo name.Repository, options ...Option) ([]string, error) {
 
 	// get responses until there is no next page
 	for {
-		resp, err := client.Get(uri.String())
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "GET", uri.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, err
 		}

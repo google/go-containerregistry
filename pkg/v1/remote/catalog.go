@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -70,7 +71,7 @@ func CatalogPage(target name.Registry, last string, n int, options ...Option) ([
 }
 
 // Catalog calls /_catalog, returning the list of repositories on the registry.
-func Catalog(target name.Registry, options ...Option) ([]string, error) {
+func Catalog(ctx context.Context, target name.Registry, options ...Option) ([]string, error) {
 	o, err := makeOptions(target, options...)
 	if err != nil {
 		return nil, err
@@ -97,7 +98,18 @@ func Catalog(target name.Registry, options ...Option) ([]string, error) {
 
 	// get responses until there is no next page
 	for {
-		resp, err := client.Get(uri.String())
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "GET", uri.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := client.Do(req)
 		if err != nil {
 			return nil, err
 		}
