@@ -15,8 +15,11 @@
 package tarball_test
 
 import (
+	"archive/tar"
+	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/internal/compare"
@@ -264,5 +267,109 @@ func TestWriteForeignLayers(t *testing.T) {
 	}
 	if got, want := m.Layers[1].URLs[0], "example.com"; got != want {
 		t.Errorf("Wrong URLs: %s != %s", got, want)
+	}
+}
+
+func TestWriteSharedLayers(t *testing.T) {
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file.")
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+
+	// Make a random image
+	randImage, err := random.Image(256, 1)
+	if err != nil {
+		t.Fatalf("Error creating random image.")
+	}
+	tag1, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag1.")
+	}
+	tag2, err := name.NewTag("gcr.io/baz/bat:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag2.")
+	}
+	randLayer, err := random.Layer(512, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("random.Layer: %v", err)
+	}
+	mutatedImage, err := mutate.Append(randImage, mutate.Addendum{
+		Layer: randLayer,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refToImage := make(map[name.Reference]v1.Image)
+	refToImage[tag1] = randImage
+	refToImage[tag2] = mutatedImage
+
+	// Write the images with both tags to the tarball
+	if err := tarball.MultiRefWriteToFile(fp.Name(), refToImage); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
+	}
+	for ref := range refToImage {
+		tag, ok := ref.(name.Tag)
+		if !ok {
+			continue
+		}
+
+		tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)
+		if err != nil {
+			t.Fatalf("Unexpected error reading tarball: %v", err)
+		}
+
+		if err := validate.Image(tarImage); err != nil {
+			t.Errorf("validate.Image: %v", err)
+		}
+
+		if err := compare.Images(refToImage[tag], tarImage); err != nil {
+			t.Errorf("compare.Images: %v", err)
+		}
+	}
+	_, err = fp.Seek(0, io.SeekStart)
+	if err != nil {
+		t.Fatalf("Seek to start of file: %v", err)
+	}
+	layers, err := randImage.Layers()
+	if err != nil {
+		t.Fatalf("Get image layers: %v", err)
+	}
+	layers = append(layers, randLayer)
+	wantDigests := make(map[string]struct{})
+	for _, layer := range layers {
+		d, err := layer.Digest()
+		if err != nil {
+			t.Fatalf("Get layer digest: %v", err)
+		}
+		wantDigests[d.Hex] = struct{}{}
+	}
+
+	const layerFileSuffix = ".tar.gz"
+	r := tar.NewReader(fp)
+	for {
+		hdr, err := r.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("Get tar header: %v", err)
+		}
+		if strings.HasSuffix(hdr.Name, layerFileSuffix) {
+			hex := hdr.Name[:len(hdr.Name)-len(layerFileSuffix)]
+			if _, ok := wantDigests[hex]; ok {
+				delete(wantDigests, hex)
+			} else {
+				t.Errorf("Found unwanted layer with digest %q", hex)
+			}
+		}
+	}
+	if len(wantDigests) != 0 {
+		for hex := range wantDigests {
+			t.Errorf("Expected to find layer with digest %q but it didn't exist", hex)
+		}
 	}
 }
