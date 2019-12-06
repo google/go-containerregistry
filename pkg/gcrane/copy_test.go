@@ -15,12 +15,21 @@
 package gcrane
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/internal/retry"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -174,5 +183,87 @@ func TestBackoff(t *testing.T) {
 	}
 	if s := backoff.Steps; s != 0 {
 		t.Errorf("backoff.Steps should be 0, got %d", s)
+	}
+}
+
+func TestErrors(t *testing.T) {
+	if hasStatusCode(nil, http.StatusOK) {
+		t.Fatal("nil error should not have any status code")
+	}
+	if !hasStatusCode(&transport.Error{StatusCode: http.StatusOK}, http.StatusOK) {
+		t.Fatal("200 should be 200")
+	}
+	if hasStatusCode(&transport.Error{StatusCode: http.StatusOK}, http.StatusNotFound) {
+		t.Fatal("200 should not be 404")
+	}
+
+	if isServerError(nil) {
+		t.Fatal("nil should not be server error")
+	}
+	if isServerError(fmt.Errorf("i am a string")) {
+		t.Fatal("string should not be server error")
+	}
+	if !isServerError(&transport.Error{StatusCode: http.StatusServiceUnavailable}) {
+		t.Fatal("503 should be server error")
+	}
+	if isServerError(&transport.Error{StatusCode: http.StatusTooManyRequests}) {
+		t.Fatal("429 should not be server error")
+	}
+}
+
+func TestRetryErrors(t *testing.T) {
+	// We log a warning during retries, so we can tell if somethign retried by checking logs.Warn.
+	var b bytes.Buffer
+	logs.Warn.SetOutput(&b)
+
+	err := backoffErrors(retry.Backoff{
+		Duration: 1 * time.Millisecond,
+		Steps:    3,
+	}, func() error {
+		return &transport.Error{StatusCode: http.StatusTooManyRequests}
+	})
+
+	if err == nil {
+		t.Fatal("backoffErrors should return internal err, got nil")
+	}
+	if te, ok := err.(*transport.Error); !ok {
+		t.Fatalf("backoffErrors should return internal err, got different error: %v", err)
+	} else if te.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("backoffErrors should return internal err, got different status code: %v", te.StatusCode)
+	}
+
+	if b.Len() == 0 {
+		t.Fatal("backoffErrors didn't log to logs.Warn")
+	}
+}
+
+func TestBadInputs(t *testing.T) {
+	t.Parallel()
+	invalid := "@@@@@@"
+
+	// Create a valid image reference that will fail with not found.
+	s := httptest.NewServer(http.NotFoundHandler())
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	valid404 := fmt.Sprintf("%s/some/image", u.Host)
+
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		desc string
+		err  error
+	}{
+		{"Copy(invalid, invalid)", Copy(invalid, invalid)},
+		{"Copy(404, invalid)", Copy(valid404, invalid)},
+		{"Copy(404, 404)", Copy(valid404, valid404)},
+		{"CopyRepository(invalid, invalid)", CopyRepository(ctx, invalid, invalid)},
+		{"CopyRepository(404, invalid)", CopyRepository(ctx, valid404, invalid)},
+		{"CopyRepository(404, 404)", CopyRepository(ctx, valid404, valid404, WithJobs(1))},
+	} {
+		if tc.err == nil {
+			t.Errorf("%s: expected err, got nil", tc.desc)
+		}
 	}
 }
