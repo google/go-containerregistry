@@ -35,6 +35,7 @@ import (
 
 // TODO(jonjohnsonjr): Test crane.Delete behavior.
 // TODO(jonjohnsonjr): Test crane.ListTags behavior.
+// TODO(jonjohnsonjr): Test crane.Catalog behavior.
 // TODO(jonjohnsonjr): Test crane.Copy failures.
 func TestCraneRegistry(t *testing.T) {
 	// Set up a fake registry.
@@ -308,6 +309,8 @@ func TestBadInputs(t *testing.T) {
 		{"ListTags(invalid)", e(crane.ListTags(invalid))},
 		{"ListTags(404)", e(crane.ListTags(valid404))},
 		{"Append(_, invalid)", e(crane.Append(nil, invalid))},
+		{"Catalog(invalid)", e(crane.Catalog(invalid))},
+		{"Catalog(404)", e(crane.Catalog(u.Host))},
 	} {
 		if tc.err == nil {
 			t.Errorf("%s: expected err, got nil", tc.desc)
