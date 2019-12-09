@@ -29,6 +29,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
@@ -293,6 +294,42 @@ func TestMutateTime(t *testing.T) {
 	got := getConfigFile(t, result).Created.Time
 	if got != want {
 		t.Fatalf("mutating the created time MUST mutate the time from %v to %v", got, want)
+	}
+}
+
+func TestMutateMediaType(t *testing.T) {
+	want := types.OCIManifestSchema1
+	img := mutate.MediaType(empty.Image, want)
+	got, err := img.MediaType()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest.MediaType != "" {
+		t.Errorf("MediaType should not be set for OCI media types: %v", manifest.MediaType)
+	}
+
+	want = types.OCIImageIndex
+	idx := mutate.IndexMediaType(empty.Index, want)
+	got, err = idx.MediaType()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+	im, err := idx.IndexManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if im.MediaType != "" {
+		t.Errorf("MediaType should not be set for OCI media types: %v", im.MediaType)
 	}
 }
 
