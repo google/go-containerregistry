@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,9 @@ func init() { Root.AddCommand(NewCmdExport()) }
 
 // NewCmdExport creates a new cobra.Command for the export subcommand.
 func NewCmdExport() *cobra.Command {
-	return &cobra.Command{
+	var insecure bool
+
+	exportCmd := &cobra.Command{
 		Use:   "export IMAGE TARBALL",
 		Short: "Export contents of a remote image as a tarball",
 		Example: `  # Write tarball to stdout
@@ -36,6 +39,10 @@ func NewCmdExport() *cobra.Command {
   crane export ubuntu ubuntu.tar`,
 		Args: cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
+			options := []name.Option{}
+			if insecure {
+				options = append(options, name.Insecure)
+			}
 			src, dst := args[0], args[1]
 
 			f, err := openFile(dst)
@@ -44,7 +51,7 @@ func NewCmdExport() *cobra.Command {
 			}
 			defer f.Close()
 
-			img, err := crane.Pull(src)
+			img, err := crane.Pull(src, options)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -54,6 +61,8 @@ func NewCmdExport() *cobra.Command {
 			}
 		},
 	}
+	exportCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Allow image references to be fetched without TLS")
+	return exportCmd
 }
 
 func openFile(s string) (*os.File, error) {

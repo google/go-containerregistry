@@ -95,7 +95,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure we pull what we pushed.
-	pulled, err := crane.Pull(src)
+	pulled, err := crane.Pull(src, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,7 +109,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure what we copied is equivalent.
-	copied, err := crane.Pull(dst)
+	copied, err := crane.Pull(dst, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure what we tagged is equivalent.
-	tagged, err := crane.Pull(fmt.Sprintf("%s:%s", dst, "crane-tag"))
+	tagged, err := crane.Pull(fmt.Sprintf("%s:%s", dst, "crane-tag"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +301,7 @@ func TestBadInputs(t *testing.T) {
 		{"Tag(404, invalid)", crane.Tag(valid404, invalid)},
 		{"Tag(404, 404)", crane.Tag(valid404, valid404)},
 		// These return multiple values, which are hard to use as expressions.
-		{"Pull(invalid)", e(crane.Pull(invalid))},
+		{"Pull(invalid)", e(crane.Pull(invalid, nil))},
 		{"Digest(invalid)", e(crane.Digest(invalid))},
 		{"Manifet(invalid)", e(crane.Manifest(invalid))},
 		{"Config(invalid)", e(crane.Config(invalid))},

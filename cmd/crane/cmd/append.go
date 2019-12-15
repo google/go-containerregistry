@@ -18,6 +18,7 @@ import (
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/cobra"
 )
 
@@ -26,12 +27,18 @@ func init() { Root.AddCommand(NewCmdAppend()) }
 // NewCmdAppend creates a new cobra.Command for the append subcommand.
 func NewCmdAppend() *cobra.Command {
 	var baseRef, newTag, newLayer, outFile string
+	var insecure bool
+
 	appendCmd := &cobra.Command{
 		Use:   "append",
 		Short: "Append contents of a tarball to a remote image",
 		Args:  cobra.NoArgs,
 		Run: func(_ *cobra.Command, args []string) {
-			base, err := crane.Pull(baseRef)
+			options := []name.Option{}
+			if insecure {
+				options = append(options, name.Insecure)
+			}
+			base, err := crane.Pull(baseRef, options)
 			if err != nil {
 				log.Fatalf("pulling %s: %v", baseRef, err)
 			}
@@ -56,6 +63,7 @@ func NewCmdAppend() *cobra.Command {
 	appendCmd.Flags().StringVarP(&newTag, "new_tag", "t", "", "Tag to apply to resulting image")
 	appendCmd.Flags().StringVarP(&newLayer, "new_layer", "f", "", "Path to tarball to append to image")
 	appendCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
+	appendCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Allow image references to be fetched without TLS")
 
 	appendCmd.MarkFlagRequired("base")
 	appendCmd.MarkFlagRequired("new_tag")

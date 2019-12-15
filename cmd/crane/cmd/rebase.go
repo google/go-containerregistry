@@ -19,6 +19,7 @@ import (
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/spf13/cobra"
 )
@@ -28,22 +29,28 @@ func init() { Root.AddCommand(NewCmdRebase()) }
 // NewCmdRebase creates a new cobra.Command for the rebase subcommand.
 func NewCmdRebase() *cobra.Command {
 	var orig, oldBase, newBase, rebased string
+	var insecure bool
+
 	rebaseCmd := &cobra.Command{
 		Use:   "rebase",
 		Short: "Rebase an image onto a new base image",
 		Args:  cobra.NoArgs,
 		Run: func(*cobra.Command, []string) {
-			origImg, err := crane.Pull(orig)
+			options := []name.Option{}
+			if insecure {
+				options = append(options, name.Insecure)
+			}
+			origImg, err := crane.Pull(orig, options)
 			if err != nil {
 				log.Fatalf("pulling %s: %v", orig, err)
 			}
 
-			oldBaseImg, err := crane.Pull(oldBase)
+			oldBaseImg, err := crane.Pull(oldBase, options)
 			if err != nil {
 				log.Fatalf("pulling %s: %v", oldBase, err)
 			}
 
-			newBaseImg, err := crane.Pull(newBase)
+			newBaseImg, err := crane.Pull(newBase, options)
 			if err != nil {
 				log.Fatalf("pulling %s: %v", newBase, err)
 			}
@@ -68,6 +75,7 @@ func NewCmdRebase() *cobra.Command {
 	rebaseCmd.Flags().StringVarP(&oldBase, "old_base", "", "", "Old base image to remove")
 	rebaseCmd.Flags().StringVarP(&newBase, "new_base", "", "", "New base image to insert")
 	rebaseCmd.Flags().StringVarP(&rebased, "rebased", "", "", "Tag to apply to rebased image")
+	rebaseCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Allow image references to be fetched without TLS")
 
 	rebaseCmd.MarkFlagRequired("original")
 	rebaseCmd.MarkFlagRequired("old_base")
