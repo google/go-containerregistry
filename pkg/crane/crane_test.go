@@ -68,7 +68,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Load up the registry.
-	if err := crane.Push(img, src); err != nil {
+	if err := crane.Push(img, src, nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -290,7 +290,7 @@ func TestBadInputs(t *testing.T) {
 		desc string
 		err  error
 	}{
-		{"Push(_, invalid)", crane.Push(nil, invalid)},
+		{"Push(_, invalid)", crane.Push(nil, invalid, nil)},
 		{"Delete(invalid)", crane.Delete(invalid)},
 		{"Delete: 404", crane.Delete(valid404)},
 		{"Save(_, invalid)", crane.Save(nil, invalid, "")},

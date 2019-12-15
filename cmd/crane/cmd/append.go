@@ -53,7 +53,7 @@ func NewCmdAppend() *cobra.Command {
 					log.Fatalf("writing output %q: %v", outFile, err)
 				}
 			} else {
-				if err := crane.Push(img, newTag); err != nil {
+				if err := crane.Push(img, newTag, options); err != nil {
 					log.Fatalf("pushing image %s: %v", newTag, err)
 				}
 			}

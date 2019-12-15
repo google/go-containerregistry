@@ -60,7 +60,7 @@ func NewCmdRebase() *cobra.Command {
 				log.Fatalf("rebasing: %v", err)
 			}
 
-			if err := crane.Push(img, rebased); err != nil {
+			if err := crane.Push(img, rebased, options); err != nil {
 				log.Fatalf("pushing %s: %v", rebased, err)
 			}
 
