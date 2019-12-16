@@ -107,10 +107,11 @@ func TestTimeoutContext(t *testing.T) {
 
 	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*20))
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", slowServer.URL, nil)
+	req, err := http.NewRequest("GET", slowServer.URL, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	req = req.WithContext(ctx)
 
 	result := make(chan error)
 

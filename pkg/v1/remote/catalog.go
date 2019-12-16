@@ -106,10 +106,10 @@ func Catalog(ctx context.Context, target name.Registry, options ...Option) ([]st
 		}
 
 		req, err := http.NewRequest("GET", uri.String(), nil)
-		req = req.WithContext(ctx)
 		if err != nil {
 			return nil, err
 		}
+		req = req.WithContext(ctx)
 
 		resp, err := client.Do(req)
 		if err != nil {
