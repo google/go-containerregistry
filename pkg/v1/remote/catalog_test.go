@@ -15,6 +15,8 @@
 package remote
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -72,6 +74,74 @@ func TestCatalogPage(t *testing.T) {
 
 			repos, err := CatalogPage(reg, "", 100)
 			if (err != nil) != tc.wantErr {
+				t.Errorf("CatalogPage() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
+			}
+
+			if diff := cmp.Diff(tc.wantRepos, repos); diff != "" {
+				t.Errorf("CatalogPage() wrong repos (-want +got) = %s", diff)
+			}
+		})
+	}
+}
+
+func TestCatalog(t *testing.T) {
+	cases := []struct {
+		name      string
+		pages     [][]byte
+		wantErr   bool
+		wantRepos []string
+	}{{
+		name: "success",
+		pages: [][]byte{
+			[]byte(`{"repositories":["test/one","test/two"]}`),
+			[]byte(`{"repositories":["test/three","test/four"]}`),
+		},
+		wantErr:   false,
+		wantRepos: []string{"test/one", "test/two", "test/three", "test/four"},
+	}, {
+		name:    "not json",
+		pages:   [][]byte{[]byte("notjson")},
+		wantErr: true,
+	}}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			catalogPath := "/v2/_catalog"
+			pageTwo := "/v2/_catalog_two"
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				page := 0
+				switch r.URL.Path {
+				case "/v2/":
+					w.WriteHeader(http.StatusOK)
+				case pageTwo:
+					page = 1
+					fallthrough
+				case catalogPath:
+					if r.Method != http.MethodGet {
+						t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+					}
+
+					if page == 0 {
+						w.Header().Set("Link", fmt.Sprintf("<%s>", pageTwo))
+					}
+					w.Write(tc.pages[page])
+				default:
+					t.Fatalf("Unexpected path: %v", r.URL.Path)
+				}
+			}))
+			defer server.Close()
+			u, err := url.Parse(server.URL)
+			if err != nil {
+				t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+			}
+
+			reg, err := name.NewRegistry(u.Host)
+			if err != nil {
+				t.Fatalf("name.NewRegistry(%v) = %v", u.Host, err)
+			}
+
+			repos, err := Catalog(context.Background(), reg)
+			if (err != nil) != tc.wantErr {
 				t.Errorf("Catalog() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
 			}
 
@@ -79,5 +149,34 @@ func TestCatalogPage(t *testing.T) {
 				t.Errorf("Catalog() wrong repos (-want +got) = %s", diff)
 			}
 		})
+	}
+}
+
+func TestCancelledCatalog(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	reg, err := name.NewRegistry(u.Host)
+	if err != nil {
+		t.Fatalf("name.NewRegistry(%v) = %v", u.Host, err)
+	}
+
+	_, err = Catalog(ctx, reg)
+	if want, got := context.Canceled, err; got != want {
+		t.Errorf("wanted %v got %v", want, got)
 	}
 }

@@ -15,6 +15,7 @@
 package retry
 
 import (
+	"context"
 	"fmt"
 	"testing"
 )
@@ -50,6 +51,10 @@ func TestRetry(t *testing.T) {
 		predicate:   IsTemporary,
 		err:         temp{},
 		shouldRetry: true,
+	}, {
+		predicate:   IsTemporary,
+		err:         context.DeadlineExceeded,
+		shouldRetry: false,
 	}} {
 		// Make sure we retry 5 times if we shouldRetry.
 		steps := 5
