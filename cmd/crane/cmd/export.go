@@ -51,7 +51,7 @@ func NewCmdExport() *cobra.Command {
 			}
 			defer f.Close()
 
-			img, err := crane.Pull(src, options)
+			img, err := crane.Pull(src, options...)
 			if err != nil {
 				log.Fatal(err)
 			}

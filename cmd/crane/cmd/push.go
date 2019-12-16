@@ -43,7 +43,7 @@ func NewCmdPush() *cobra.Command {
 				log.Fatalf("loading %s as tarball: %v", path, err)
 			}
 
-			if err := crane.Push(img, tag, options); err != nil {
+			if err := crane.Push(img, tag, options...); err != nil {
 				log.Fatalf("pushing %s: %v", tag, err)
 			}
 		},

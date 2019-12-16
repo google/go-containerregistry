@@ -40,7 +40,7 @@ func NewCmdPull() *cobra.Command {
 				options = append(options, name.Insecure)
 			}
 			src, path := args[0], args[1]
-			img, err := crane.Pull(src, options)
+			img, err := crane.Pull(src, options...)
 			if err != nil {
 				log.Fatal(err)
 			}

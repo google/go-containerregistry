@@ -42,14 +42,14 @@ func NewCmdValidate() *cobra.Command {
 			if insecure {
 				options = append(options, name.Insecure)
 			}
-			for flag, maker := range map[string]func(string, []name.Option) (v1.Image, error){
+			for flag, maker := range map[string]func(string, ...name.Option) (v1.Image, error){
 				tarballPath: makeTarball,
 				remoteRef:   crane.Pull,
 			} {
 				if flag == "" {
 					continue
 				}
-				img, err := maker(flag, options)
+				img, err := maker(flag, options...)
 				if err != nil {
 					log.Fatalf("failed to read image %s: %v", flag, err)
 				}
@@ -69,6 +69,6 @@ func NewCmdValidate() *cobra.Command {
 	return validateCmd
 }
 
-func makeTarball(path string, options []name.Option) (v1.Image, error) {
+func makeTarball(path string, opts ...name.Option) (v1.Image, error) {
 	return tarball.ImageFromPath(path, nil)
 }

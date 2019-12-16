@@ -40,17 +40,17 @@ func NewCmdRebase() *cobra.Command {
 			if insecure {
 				options = append(options, name.Insecure)
 			}
-			origImg, err := crane.Pull(orig, options)
+			origImg, err := crane.Pull(orig, options...)
 			if err != nil {
 				log.Fatalf("pulling %s: %v", orig, err)
 			}
 
-			oldBaseImg, err := crane.Pull(oldBase, options)
+			oldBaseImg, err := crane.Pull(oldBase, options...)
 			if err != nil {
 				log.Fatalf("pulling %s: %v", oldBase, err)
 			}
 
-			newBaseImg, err := crane.Pull(newBase, options)
+			newBaseImg, err := crane.Pull(newBase, options...)
 			if err != nil {
 				log.Fatalf("pulling %s: %v", newBase, err)
 			}
@@ -60,7 +60,7 @@ func NewCmdRebase() *cobra.Command {
 				log.Fatalf("rebasing: %v", err)
 			}
 
-			if err := crane.Push(img, rebased, options); err != nil {
+			if err := crane.Push(img, rebased, options...); err != nil {
 				log.Fatalf("pushing %s: %v", rebased, err)
 			}
 

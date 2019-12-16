@@ -38,7 +38,7 @@ func NewCmdAppend() *cobra.Command {
 			if insecure {
 				options = append(options, name.Insecure)
 			}
-			base, err := crane.Pull(baseRef, options)
+			base, err := crane.Pull(baseRef, options...)
 			if err != nil {
 				log.Fatalf("pulling %s: %v", baseRef, err)
 			}
@@ -53,7 +53,7 @@ func NewCmdAppend() *cobra.Command {
 					log.Fatalf("writing output %q: %v", outFile, err)
 				}
 			} else {
-				if err := crane.Push(img, newTag, options); err != nil {
+				if err := crane.Push(img, newTag, options...); err != nil {
 					log.Fatalf("pushing image %s: %v", newTag, err)
 				}
 			}

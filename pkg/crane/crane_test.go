@@ -68,7 +68,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Load up the registry.
-	if err := crane.Push(img, src, nil); err != nil {
+	if err := crane.Push(img, src); err != nil {
 		t.Fatal(err)
 	}
 
@@ -95,7 +95,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure we pull what we pushed.
-	pulled, err := crane.Pull(src, nil)
+	pulled, err := crane.Pull(src)
 	if err != nil {
 		t.Error(err)
 	}
@@ -109,7 +109,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure what we copied is equivalent.
-	copied, err := crane.Pull(dst, nil)
+	copied, err := crane.Pull(dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure what we tagged is equivalent.
-	tagged, err := crane.Pull(fmt.Sprintf("%s:%s", dst, "crane-tag"), nil)
+	tagged, err := crane.Pull(fmt.Sprintf("%s:%s", dst, "crane-tag"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +290,7 @@ func TestBadInputs(t *testing.T) {
 		desc string
 		err  error
 	}{
-		{"Push(_, invalid)", crane.Push(nil, invalid, nil)},
+		{"Push(_, invalid)", crane.Push(nil, invalid)},
 		{"Delete(invalid)", crane.Delete(invalid)},
 		{"Delete: 404", crane.Delete(valid404)},
 		{"Save(_, invalid)", crane.Save(nil, invalid, "")},
@@ -301,7 +301,7 @@ func TestBadInputs(t *testing.T) {
 		{"Tag(404, invalid)", crane.Tag(valid404, invalid)},
 		{"Tag(404, 404)", crane.Tag(valid404, valid404)},
 		// These return multiple values, which are hard to use as expressions.
-		{"Pull(invalid)", e(crane.Pull(invalid, nil))},
+		{"Pull(invalid)", e(crane.Pull(invalid))},
 		{"Digest(invalid)", e(crane.Digest(invalid))},
 		{"Manifet(invalid)", e(crane.Manifest(invalid))},
 		{"Config(invalid)", e(crane.Config(invalid))},
