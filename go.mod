@@ -3,11 +3,7 @@ module github.com/google/go-containerregistry
 go 1.13
 
 require (
-	github.com/Azure/azure-sdk-for-go v19.1.1+incompatible // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/Azure/go-autorest v10.15.5+incompatible // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
-	github.com/aws/aws-sdk-go v1.15.90 // indirect
 	github.com/containerd/containerd v1.3.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/docker/cli v0.0.0-20191017083524-a8ff7f821017
@@ -16,12 +12,9 @@ require (
 	github.com/docker/docker-credential-helpers v0.6.3 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/ghodss/yaml v1.0.0 // indirect
-	github.com/google/btree v0.0.0-20180124185431-e89373fe6b4a // indirect
-	github.com/google/go-cmp v0.2.0
+	github.com/google/go-cmp v0.3.0
 	github.com/googleapis/gnostic v0.2.2 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
-	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.2.2
 	github.com/morikuni/aec v1.0.0 // indirect
@@ -29,22 +22,43 @@ require (
 	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
-	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/spf13/cobra v0.0.5
-	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
-	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
+	golang.org/x/crypto v0.0.0-20190510104115-cbcb75029529 // indirect
+	golang.org/x/oauth2 v0.0.0-20190402181905-9f3314589c9a
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20191010194322-b09406accb47 // indirect
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
 	golang.org/x/tools v0.0.0-20191205215504-7b8c8591a921 // indirect
 	google.golang.org/grpc v1.24.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gotest.tools v2.2.0+incompatible // indirect
-	honnef.co/go/tools v0.0.1-2019.2.3 // indirect
-	k8s.io/api v0.0.0-20180904230853-4e7be11eab3f
-	k8s.io/apimachinery v0.0.0-20180904193909-def12e63c512
-	k8s.io/client-go v0.0.0-20180910083459-2cefa64ff137
-	k8s.io/code-generator v0.0.0-20191121015212-c4c8f8345c7e
-	k8s.io/kubernetes v1.11.10
+	k8s.io/api v0.15.7
+	k8s.io/apimachinery v0.15.7
+	k8s.io/client-go v0.15.7
+	k8s.io/code-generator v0.15.7
+	k8s.io/kubernetes v1.15.7
+)
+
+replace (
+	k8s.io/api => k8s.io/api v0.15.7
+	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.15.7
+	k8s.io/apimachinery => k8s.io/apimachinery v0.15.8-beta.1
+	k8s.io/apiserver => k8s.io/apiserver v0.15.7
+	k8s.io/cli-runtime => k8s.io/cli-runtime v0.15.7
+	k8s.io/client-go => k8s.io/client-go v0.15.7
+	k8s.io/cloud-provider => k8s.io/cloud-provider v0.15.7
+	k8s.io/cluster-bootstrap => k8s.io/cluster-bootstrap v0.15.7
+	k8s.io/code-generator => k8s.io/code-generator v0.15.8-beta.1
+	k8s.io/component-base => k8s.io/component-base v0.15.7
+	k8s.io/cri-api => k8s.io/cri-api v0.15.7
+	k8s.io/csi-translation-lib => k8s.io/csi-translation-lib v0.15.7
+	k8s.io/kube-aggregator => k8s.io/kube-aggregator v0.15.7
+	k8s.io/kube-controller-manager => k8s.io/kube-controller-manager v0.15.7
+	k8s.io/kube-proxy => k8s.io/kube-proxy v0.15.7
+	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.15.7
+	k8s.io/kubelet => k8s.io/kubelet v0.15.7
+	k8s.io/kubernetes => k8s.io/kubernetes v1.15.7
+	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.15.7
+	k8s.io/metrics => k8s.io/metrics v0.15.7
+	k8s.io/sample-apiserver => k8s.io/sample-apiserver v0.15.7
 )

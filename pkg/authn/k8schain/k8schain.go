@@ -126,7 +126,7 @@ type lazyProvider credentialprovider.LazyAuthConfiguration
 
 // Authorization implements Authenticator.
 func (lp lazyProvider) Authorization() (*authn.AuthConfig, error) {
-	authConfig := credentialprovider.LazyProvide(credentialprovider.LazyAuthConfiguration(lp))
+	authConfig := credentialprovider.LazyProvide(credentialprovider.LazyAuthConfiguration(lp), "")
 	return &authn.AuthConfig{
 		Username:      authConfig.Username,
 		Password:      authConfig.Password,
