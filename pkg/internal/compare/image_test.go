@@ -17,10 +17,29 @@ package compare
 import (
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func TestDifferentImages(t *testing.T) {
+	a, err := random.Image(100, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := random.Image(100, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b = mutate.MediaType(b, types.OCIManifestSchema1)
+
+	if err := Images(a, b); err == nil {
+		t.Errorf("got nil err, should have something")
+	}
+}
+
+func TestMismatchedLayers(t *testing.T) {
 	a, err := random.Image(100, 3)
 	if err != nil {
 		t.Fatal(err)
