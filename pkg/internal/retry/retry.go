@@ -36,7 +36,7 @@ type temporary interface {
 
 // IsTemporary returns true if err implements Temporary() and it returns true.
 func IsTemporary(err error) bool {
-	if err == context.Canceled || err == context.DeadlineExceeded {
+	if err == context.DeadlineExceeded {
 		return false
 	}
 	if te, ok := err.(temporary); ok && te.Temporary() {
