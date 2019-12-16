@@ -15,8 +15,11 @@
 package transport
 
 import (
+	"context"
 	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/internal/retry"
 )
@@ -90,5 +93,39 @@ func TestRetryDefaults(t *testing.T) {
 
 	if rt.predicate == nil {
 		t.Fatal("default predicate not set")
+	}
+}
+
+func TestTimeoutContext(t *testing.T) {
+	tr := NewRetry(http.DefaultTransport)
+
+	slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// hanging request
+		time.Sleep(time.Second * 1)
+	}))
+	defer func() { go func() { slowServer.Close() }() }()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Millisecond*20))
+	defer cancel()
+	req, err := http.NewRequest("GET", slowServer.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req = req.WithContext(ctx)
+
+	result := make(chan error)
+
+	go func() {
+		_, err := tr.RoundTrip(req)
+		result <- err
+	}()
+
+	select {
+	case err := <-result:
+		if err != context.DeadlineExceeded {
+			t.Fatalf("got: %v, want: %v", err, context.DeadlineExceeded)
+		}
+	case <-time.After(time.Millisecond * 100):
+		t.Fatalf("deadline was not recognized by transport")
 	}
 }
