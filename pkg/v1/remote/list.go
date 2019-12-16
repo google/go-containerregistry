@@ -129,6 +129,9 @@ func getNextPageURL(resp *http.Response) (*url.URL, error) {
 	if err != nil {
 		return nil, err
 	}
+	if resp.Request == nil || resp.Request.URL == nil {
+		return nil, nil
+	}
 	linkURL = resp.Request.URL.ResolveReference(linkURL)
 	return linkURL, nil
 }
