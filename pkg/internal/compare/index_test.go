@@ -17,7 +17,9 @@ package compare
 import (
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func TestDifferentIndexes(t *testing.T) {
@@ -29,6 +31,8 @@ func TestDifferentIndexes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	b = mutate.IndexMediaType(b, types.DockerManifestList)
 
 	if err := Indexes(a, b); err == nil {
 		t.Errorf("got nil err, should have something")
