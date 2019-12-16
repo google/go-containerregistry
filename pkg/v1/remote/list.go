@@ -31,7 +31,7 @@ type tags struct {
 	Tags []string `json:"tags"`
 }
 
-// List wraps ListWithContext using the backround context
+// List wraps ListWithContext using the background context.
 func List(repo name.Repository, options ...Option) ([]string, error) {
 	return ListWithContext(context.Background(), repo, options...)
 }
