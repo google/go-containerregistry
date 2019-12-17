@@ -30,6 +30,8 @@ type Error struct {
 	StatusCode int
 	// The raw body if we couldn't understand it.
 	rawBody string
+	// The request that failed.
+	request *http.Request
 }
 
 // Check that Error implements error
@@ -37,6 +39,14 @@ var _ error = (*Error)(nil)
 
 // Error implements error
 func (e *Error) Error() string {
+	prefix := ""
+	if e.request != nil {
+		prefix = fmt.Sprintf("%s %s: ", e.request.Method, e.request.URL)
+	}
+	return prefix + e.responseErr()
+}
+
+func (e *Error) responseErr() string {
 	switch len(e.Errors) {
 	case 0:
 		if len(e.rawBody) == 0 {
@@ -51,7 +61,7 @@ func (e *Error) Error() string {
 			errors = append(errors, d.String())
 		}
 		return fmt.Sprintf("multiple errors returned: %s",
-			strings.Join(errors, ";"))
+			strings.Join(errors, "; "))
 	}
 }
 
@@ -127,5 +137,6 @@ func CheckError(resp *http.Response, codes ...int) error {
 		structuredError.rawBody = string(b)
 	}
 	structuredError.StatusCode = resp.StatusCode
+	structuredError.request = resp.Request
 	return structuredError
 }
