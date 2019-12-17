@@ -13,7 +13,8 @@ crane push TARBALL IMAGE [flags]
 ### Options
 
 ```
-  -h, --help   help for push
+  -h, --help       help for push
+  -i, --insecure   Allow image references to be pushed without TLS
 ```
 
 ### Options inherited from parent commands

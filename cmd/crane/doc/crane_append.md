@@ -15,6 +15,7 @@ crane append [flags]
 ```
   -b, --base string        Name of base image to append to
   -h, --help               help for append
+  -i, --insecure           Allow image references to be fetched without TLS
   -f, --new_layer string   Path to tarball to append to image
   -t, --new_tag string     Tag to apply to resulting image
   -o, --output string      Path to new tarball of resulting image
