@@ -92,13 +92,18 @@ func TestCheckErrorNotError(t *testing.T) {
 	}, {
 		code: http.StatusUnauthorized,
 		body: "Not JSON",
-		msg:  "GET https://example.com/somepath: unsupported status code 401; body: Not JSON",
+		msg:  "GET https://example.com/somepath?access_token=REDACTED&scope=foo&service=bar: unsupported status code 401; body: Not JSON",
 		request: &http.Request{
 			Method: http.MethodGet,
 			URL: &url.URL{
 				Scheme: "https",
 				Host:   "example.com",
 				Path:   "somepath",
+				RawQuery: url.Values{
+					"scope":        []string{"foo"},
+					"service":      []string{"bar"},
+					"access_token": []string{"hunter2"},
+				}.Encode(),
 			},
 		},
 	}}
