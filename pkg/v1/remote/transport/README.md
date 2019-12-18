@@ -45,7 +45,7 @@ That just uses the the `docker/distribution` client... and more!
 > Wow, what about this package?
 
 Of course, this package isn't perfect either. `transport` depends on `authn`,
-which in turn depends on docker's config file parsing and handling library,
+which in turn depends on docker's config file parsing and handling package,
 which you don't strictly need but almost certainly want if you're going to be
 interacting with a registry.
 
@@ -58,9 +58,9 @@ interacting with a registry.
 
 This is heavily used by the
 [`remote`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote)
-package, which implements higher level image-centric functionality, but this is
-useful if want to interact directly with the registry to do something that
-`remote` doesn't support, e.g. [to handle with schema 1
+package, which implements higher level image-centric functionality, but this
+package is useful if you want to interact directly with the registry to do
+something that `remote` doesn't support, e.g. [to handle with schema 1
 images](https://github.com/google/go-containerregistry/pull/509).
 
 This package also includes some [error
