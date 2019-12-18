@@ -30,8 +30,8 @@ import (
 const iWasADigestTag = "i-was-a-digest"
 
 // Pull returns a v1.Image of the remote image src.
-func Pull(src string) (v1.Image, error) {
-	ref, err := name.ParseReference(src)
+func Pull(src string, opts ...name.Option) (v1.Image, error) {
+	ref, err := name.ParseReference(src, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing tag %q: %v", src, err)
 	}

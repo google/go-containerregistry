@@ -31,8 +31,8 @@ func Load(path string) (v1.Image, error) {
 }
 
 // Push pushes the v1.Image img to a registry as dst.
-func Push(img v1.Image, dst string) error {
-	tag, err := name.NewTag(dst)
+func Push(img v1.Image, dst string, options ...name.Option) error {
+	tag, err := name.NewTag(dst, options...)
 	if err != nil {
 		return fmt.Errorf("parsing tag %q: %v", dst, err)
 	}
