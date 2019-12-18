@@ -18,7 +18,6 @@ import (
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/spf13/cobra"
 )
@@ -28,17 +27,12 @@ func init() { Root.AddCommand(NewCmdPull()) }
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull() *cobra.Command {
 	var cachePath string
-	var insecure bool
 
-	pull := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "pull IMAGE TARBALL",
 		Short: "Pull a remote image by reference and store its contents in a tarball",
 		Args:  cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
-			options := []name.Option{}
-			if insecure {
-				options = append(options, name.Insecure)
-			}
 			src, path := args[0], args[1]
 			img, err := crane.Pull(src, options...)
 			if err != nil {
@@ -52,7 +46,7 @@ func NewCmdPull() *cobra.Command {
 			}
 		},
 	}
-	pull.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
-	pull.Flags().BoolVarP(&insecure, "insecure", "i", false, "Allow image references to be fetched without TLS")
-	return pull
+	cmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
+
+	return cmd
 }

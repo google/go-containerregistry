@@ -17,28 +17,29 @@ package crane
 import (
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-func getImage(r string) (v1.Image, name.Reference, error) {
-	ref, err := name.ParseReference(r)
+func getImage(r string, opt ...Option) (v1.Image, name.Reference, error) {
+	o := makeOptions(opt...)
+	ref, err := name.ParseReference(r, o.name...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing reference %q: %v", r, err)
 	}
-	img, err := remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	img, err := remote.Image(ref, o.remote...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
 	}
 	return img, ref, nil
 }
 
-func getManifest(r string) (*remote.Descriptor, error) {
-	ref, err := name.ParseReference(r)
+func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
+	o := makeOptions(opt...)
+	ref, err := name.ParseReference(r, o.name...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing reference %q: %v", r, err)
 	}
-	return remote.Get(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Get(ref, o.remote...)
 }

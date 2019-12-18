@@ -17,7 +17,6 @@ package crane
 import (
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -31,11 +30,11 @@ func Load(path string) (v1.Image, error) {
 }
 
 // Push pushes the v1.Image img to a registry as dst.
-func Push(img v1.Image, dst string, options ...name.Option) error {
-	tag, err := name.NewTag(dst, options...)
+func Push(img v1.Image, dst string, opt ...Option) error {
+	o := makeOptions(opt...)
+	tag, err := name.NewTag(dst, o.name...)
 	if err != nil {
 		return fmt.Errorf("parsing tag %q: %v", dst, err)
 	}
-
-	return remote.Write(tag, img, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Write(tag, img, o.remote...)
 }

@@ -109,7 +109,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure what we copied is equivalent.
-	copied, err := crane.Pull(dst)
+	copied, err := crane.Pull(dst, crane.Insecure, crane.WithTransport(http.DefaultTransport))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -42,7 +42,7 @@ crane tag ubuntu v1`,
 		Args: cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
 			img, tag := args[0], args[1]
-			if err := crane.Tag(img, tag); err != nil {
+			if err := crane.Tag(img, tag, options...); err != nil {
 				log.Fatal(err)
 			}
 		},

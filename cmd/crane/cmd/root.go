@@ -15,16 +15,22 @@ package cmd
 import (
 	"os"
 
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	Root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
+	Root.PersistentFlags().BoolVar(&insecure, "insecure", false, "Allow image references to be fetched without TLS")
 }
 
 var (
-	verbose = false
+	verbose  = false
+	insecure = false
+
+	// Crane options for this invocation.
+	options = []crane.Option{}
 
 	// Root is the top-level cobra.Command for crane.
 	Root = &cobra.Command{
@@ -35,6 +41,9 @@ var (
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			if verbose {
 				logs.Debug.SetOutput(os.Stderr)
+			}
+			if insecure {
+				options = append(options, crane.Insecure)
 			}
 		},
 	}

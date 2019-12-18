@@ -17,7 +17,6 @@ package crane
 import (
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -30,13 +29,14 @@ import (
 const iWasADigestTag = "i-was-a-digest"
 
 // Pull returns a v1.Image of the remote image src.
-func Pull(src string, opts ...name.Option) (v1.Image, error) {
-	ref, err := name.ParseReference(src, opts...)
+func Pull(src string, opt ...Option) (v1.Image, error) {
+	o := makeOptions(opt...)
+	ref, err := name.ParseReference(src, o.name...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing tag %q: %v", src, err)
 	}
 
-	return remote.Image(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Image(ref, o.remote...)
 }
 
 // Save writes the v1.Image img as a tarball at path with tag src.

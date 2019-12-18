@@ -17,17 +17,17 @@ package crane
 import (
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 // Delete deletes the remote reference at src.
-func Delete(src string) error {
-	ref, err := name.ParseReference(src)
+func Delete(src string, opt ...Option) error {
+	o := makeOptions(opt...)
+	ref, err := name.ParseReference(src, o.name...)
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
-	return remote.Delete(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Delete(ref, o.remote...)
 }

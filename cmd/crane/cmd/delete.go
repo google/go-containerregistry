@@ -31,7 +31,7 @@ func NewCmdDelete() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
 			ref := args[0]
-			if err := crane.Delete(ref); err != nil {
+			if err := crane.Delete(ref, options...); err != nil {
 				log.Fatalf("deleting %s: %v", ref, err)
 			}
 		},

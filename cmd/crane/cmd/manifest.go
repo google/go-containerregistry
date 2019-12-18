@@ -32,7 +32,7 @@ func NewCmdManifest() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
 			src := args[0]
-			manifest, err := crane.Manifest(src)
+			manifest, err := crane.Manifest(src, options...)
 			if err != nil {
 				log.Fatalf("fetching manifest %s: %v", src, err)
 			}

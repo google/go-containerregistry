@@ -17,17 +17,17 @@ package crane
 import (
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 // ListTags returns the tags in repository src.
-func ListTags(src string) ([]string, error) {
-	repo, err := name.NewRepository(src)
+func ListTags(src string, opt ...Option) ([]string, error) {
+	o := makeOptions(opt...)
+	repo, err := name.NewRepository(src, o.name...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing repo %q: %v", src, err)
 	}
 
-	return remote.List(repo, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.List(repo, o.remote...)
 }

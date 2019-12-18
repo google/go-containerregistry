@@ -31,7 +31,7 @@ func NewCmdDigest() *cobra.Command {
 		Short: "Get the digest of an image",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			digest, err := crane.Digest(args[0])
+			digest, err := crane.Digest(args[0], options...)
 			if err != nil {
 				log.Fatalf("computing digest: %v", err)
 			}

@@ -15,8 +15,8 @@
 package crane
 
 // Manifest returns the manifest for the remote image or index ref.
-func Manifest(ref string) ([]byte, error) {
-	desc, err := getManifest(ref)
+func Manifest(ref string, opt ...Option) ([]byte, error) {
+	desc, err := getManifest(ref, opt...)
 	if err != nil {
 		return nil, err
 	}
