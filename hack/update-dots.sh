@@ -24,3 +24,7 @@ pushd ${PROJECT_ROOT}
 trap popd EXIT
 
 dot -Tjpeg images/ociimage.gv > images/ociimage.jpeg
+
+for f in $(ls images/dot/ | grep -e '.dot$'); do
+  dot -Tsvg images/dot/$f > images/$f.svg
+done
