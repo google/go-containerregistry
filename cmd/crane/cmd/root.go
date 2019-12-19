@@ -13,8 +13,10 @@
 package cmd
 
 import (
+	"net/http"
 	"os"
 
+	"github.com/docker/cli/cli/config"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/spf13/cobra"
@@ -45,6 +47,36 @@ var (
 			if insecure {
 				options = append(options, crane.Insecure)
 			}
+
+			// Add any http headers if they are set in the config file.
+			cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
+			if err != nil {
+				logs.Debug.Printf("failed to read config file: %v", err)
+			} else if len(cf.HTTPHeaders) != 0 {
+				options = append(options, crane.WithTransport(&headerTransport{
+					inner:       http.DefaultTransport,
+					httpHeaders: cf.HTTPHeaders,
+				}))
+			}
 		},
 	}
 )
+
+// headerTransport sets headers on outgoing requests.
+type headerTransport struct {
+	httpHeaders map[string]string
+	inner       http.RoundTripper
+}
+
+// RoundTrip implements http.RoundTripper.
+func (ht *headerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
+	for k, v := range ht.httpHeaders {
+		if http.CanonicalHeaderKey(k) == "User-Agent" {
+			// Docker sets this, which is annoying, since we're not docker.
+			// We might want to revisit completely ignoring this.
+			continue
+		}
+		in.Header.Set(k, v)
+	}
+	return ht.inner.RoundTrip(in)
+}
