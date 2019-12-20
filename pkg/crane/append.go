@@ -23,11 +23,15 @@ import (
 )
 
 // Append reads a layer from path and appends it the the v1.Image base.
-func Append(base v1.Image, path string) (v1.Image, error) {
-	layer, err := tarball.LayerFromFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading tar %q: %v", path, err)
+func Append(base v1.Image, paths ...string) (v1.Image, error) {
+	layers := make([]v1.Layer, 0, len(paths))
+	for _, path := range paths {
+		layer, err := tarball.LayerFromFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading tar %q: %v", path, err)
+		}
+		layers = append(layers, layer)
 	}
 
-	return mutate.AppendLayers(base, layer)
+	return mutate.AppendLayers(base, layers...)
 }
