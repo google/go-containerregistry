@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -89,6 +90,30 @@ func TestTransportSelectionBasic(t *testing.T) {
 	}
 	if _, ok := tp.(*basicTransport); !ok {
 		t.Errorf("New(); got %T, want *basicTransport", tp)
+	}
+}
+
+type badAuth struct{}
+
+func (a *badAuth) Authorization() (*authn.AuthConfig, error) {
+	return nil, errors.New("sorry dave, I'm afraid I can't let you do that")
+}
+
+func TestTransportBadAuth(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		}))
+	defer server.Close()
+	tprt := &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			return url.Parse(server.URL)
+		},
+	}
+
+	if _, err := New(testReference.Context().Registry, &badAuth{}, tprt, []string{testReference.Scope(PullScope)}); err == nil {
+		t.Errorf("New() expected err, got nil")
 	}
 }
 
