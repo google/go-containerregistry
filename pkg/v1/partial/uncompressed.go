@@ -188,6 +188,7 @@ func (i *uncompressedImageExtender) Manifest() (*v1.Manifest, error) {
 			m.Layers[i] = *desc
 			continue
 		}
+		// TODO: This is unreachable.
 		sz, err := l.Size()
 		if err != nil {
 			return nil, err

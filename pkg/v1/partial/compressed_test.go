@@ -15,13 +15,18 @@
 package partial_test
 
 import (
+	"io"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
@@ -73,5 +78,37 @@ func TestRemote(t *testing.T) {
 
 	if diff := cmp.Diff(d, m.Layers[0].Digest); diff != "" {
 		t.Errorf("mismatched digest: %v", diff)
+	}
+}
+
+type noDiffID struct {
+	l v1.Layer
+}
+
+func (l *noDiffID) Digest() (v1.Hash, error) {
+	return l.l.Digest()
+}
+func (l *noDiffID) Compressed() (io.ReadCloser, error) {
+	return l.l.Compressed()
+}
+func (l *noDiffID) Size() (int64, error) {
+	return l.l.Size()
+}
+func (l *noDiffID) MediaType() (types.MediaType, error) {
+	return l.l.MediaType()
+}
+
+func TestCompressedLayerExtender(t *testing.T) {
+	rnd, err := random.Layer(1000, types.OCILayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := partial.CompressedToLayer(&noDiffID{rnd})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := compare.Layers(rnd, l); err != nil {
+		t.Fatalf("compare.Layers: %v", err)
 	}
 }
