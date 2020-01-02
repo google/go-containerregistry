@@ -1,6 +1,6 @@
 # `transport`
 
-The [distribution protocol](https://github.com/opencontainers/distribution-spec) is fairly simple, but correctly implementing authentication is **hard**.
+The [distribution protocol](https://github.com/opencontainers/distribution-spec) is fairly simple, but correctly [implementing authentication](../../../authn/README.md) is **hard**.
 
 This package [implements](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote/transport#New) an [`http.RoundTripper`](https://godoc.org/net/http#RoundTripper)
 that transparently performs:
