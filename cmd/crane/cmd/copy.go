@@ -32,7 +32,7 @@ func NewCmdCopy() *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
 			src, dst := args[0], args[1]
-			if err := crane.Copy(src, dst); err != nil {
+			if err := crane.Copy(src, dst, options...); err != nil {
 				log.Fatal(err)
 			}
 		},

@@ -32,7 +32,7 @@ func NewCmdList() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
 			repo := args[0]
-			tags, err := crane.ListTags(repo)
+			tags, err := crane.ListTags(repo, options...)
 			if err != nil {
 				log.Fatalf("reading tags for %s: %v", repo, err)
 			}

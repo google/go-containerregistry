@@ -15,8 +15,8 @@
 package crane
 
 // Config returns the config file for the remote image ref.
-func Config(ref string) ([]byte, error) {
-	i, _, err := getImage(ref)
+func Config(ref string, opt ...Option) ([]byte, error) {
+	i, _, err := getImage(ref, opt...)
 	if err != nil {
 		return nil, err
 	}

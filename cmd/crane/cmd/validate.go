@@ -19,7 +19,6 @@ import (
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
@@ -31,18 +30,13 @@ func init() { Root.AddCommand(NewCmdValidate()) }
 // NewCmdValidate creates a new cobra.Command for the validate subcommand.
 func NewCmdValidate() *cobra.Command {
 	var tarballPath, remoteRef string
-	var insecure bool
 
 	validateCmd := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate that an image is well-formed",
 		Args:  cobra.ExactArgs(0),
 		Run: func(_ *cobra.Command, args []string) {
-			options := []name.Option{}
-			if insecure {
-				options = append(options, name.Insecure)
-			}
-			for flag, maker := range map[string]func(string, ...name.Option) (v1.Image, error){
+			for flag, maker := range map[string]func(string, ...crane.Option) (v1.Image, error){
 				tarballPath: makeTarball,
 				remoteRef:   crane.Pull,
 			} {
@@ -64,11 +58,10 @@ func NewCmdValidate() *cobra.Command {
 	}
 	validateCmd.Flags().StringVar(&tarballPath, "tarball", "", "Path to tarball to validate")
 	validateCmd.Flags().StringVar(&remoteRef, "remote", "", "Name of remote image to validate")
-	validateCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Allow image references to be fetched without TLS")
 
 	return validateCmd
 }
 
-func makeTarball(path string, opts ...name.Option) (v1.Image, error) {
+func makeTarball(path string, opts ...crane.Option) (v1.Image, error) {
 	return tarball.ImageFromPath(path, nil)
 }

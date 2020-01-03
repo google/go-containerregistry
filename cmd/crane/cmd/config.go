@@ -31,7 +31,7 @@ func NewCmdConfig() *cobra.Command {
 		Short: "Get the config of an image",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			cfg, err := crane.Config(args[0])
+			cfg, err := crane.Config(args[0], options...)
 			if err != nil {
 				log.Fatalf("fetching config: %v", err)
 			}

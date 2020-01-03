@@ -26,19 +26,20 @@ import (
 )
 
 // Copy copies a remote image or index from src to dst.
-func Copy(src, dst string) error {
-	srcRef, err := name.ParseReference(src)
+func Copy(src, dst string, opt ...Option) error {
+	o := makeOptions(opt...)
+	srcRef, err := name.ParseReference(src, o.name...)
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
-	dstRef, err := name.ParseReference(dst)
+	dstRef, err := name.ParseReference(dst, o.name...)
 	if err != nil {
 		return fmt.Errorf("parsing reference for %q: %v", dst, err)
 	}
 
 	logs.Progress.Printf("Copying from %v to %v", srcRef, dstRef)
-	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	desc, err := remote.Get(srcRef, o.remote...)
 	if err != nil {
 		return fmt.Errorf("fetching %q: %v", src, err)
 	}
@@ -46,7 +47,7 @@ func Copy(src, dst string) error {
 	switch desc.MediaType {
 	case types.OCIImageIndex, types.DockerManifestList:
 		// Handle indexes separately.
-		if err := copyIndex(desc, dstRef); err != nil {
+		if err := copyIndex(desc, dstRef, o); err != nil {
 			return fmt.Errorf("failed to copy index: %v", err)
 		}
 	case types.DockerManifestSchema1, types.DockerManifestSchema1Signed:
@@ -56,7 +57,7 @@ func Copy(src, dst string) error {
 		}
 	default:
 		// Assume anything else is an image, since some registries don't set mediaTypes properly.
-		if err := copyImage(desc, dstRef); err != nil {
+		if err := copyImage(desc, dstRef, o); err != nil {
 			return fmt.Errorf("failed to copy image: %v", err)
 		}
 	}
@@ -64,20 +65,20 @@ func Copy(src, dst string) error {
 	return nil
 }
 
-func copyImage(desc *remote.Descriptor, dstRef name.Reference) error {
+func copyImage(desc *remote.Descriptor, dstRef name.Reference, o options) error {
 	img, err := desc.Image()
 	if err != nil {
 		return err
 	}
-	return remote.Write(dstRef, img, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Write(dstRef, img, o.remote...)
 }
 
-func copyIndex(desc *remote.Descriptor, dstRef name.Reference) error {
+func copyIndex(desc *remote.Descriptor, dstRef name.Reference, o options) error {
 	idx, err := desc.ImageIndex()
 	if err != nil {
 		return err
 	}
-	return remote.WriteIndex(dstRef, idx, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.WriteIndex(dstRef, idx, o.remote...)
 }
 
 func copySchema1(desc *remote.Descriptor, srcRef, dstRef name.Reference) error {

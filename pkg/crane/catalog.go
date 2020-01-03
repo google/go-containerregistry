@@ -17,17 +17,17 @@ package crane
 import (
 	"context"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 // Catalog returns the repositories in a registry's catalog.
-func Catalog(src string) (res []string, err error) {
-	reg, err := name.NewRegistry(src)
+func Catalog(src string, opt ...Option) (res []string, err error) {
+	o := makeOptions(opt...)
+	reg, err := name.NewRegistry(src, o.name...)
 	if err != nil {
 		return nil, err
 	}
 
-	return remote.Catalog(context.TODO(), reg, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Catalog(context.TODO(), reg, o.remote...)
 }

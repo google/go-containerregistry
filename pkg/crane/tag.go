@@ -17,23 +17,23 @@ package crane
 import (
 	"fmt"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 // Tag adds tag to the remote img.
-func Tag(img, tag string) error {
-	ref, err := name.ParseReference(img)
+func Tag(img, tag string, opt ...Option) error {
+	o := makeOptions(opt...)
+	ref, err := name.ParseReference(img, o.name...)
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %v", img, err)
 	}
-	desc, err := remote.Get(ref, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	desc, err := remote.Get(ref, o.remote...)
 	if err != nil {
 		return fmt.Errorf("fetching %q: %v", img, err)
 	}
 
 	dst := ref.Context().Tag(tag)
 
-	return remote.Tag(dst, desc, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	return remote.Tag(dst, desc, o.remote...)
 }
