@@ -63,8 +63,9 @@ func TestBasicTransport(t *testing.T) {
 func TestBasicTransportRegistryToken(t *testing.T) {
 	token := "mytoken"
 	for _, tc := range []struct {
-		auth authn.Authenticator
-		hdr  string
+		auth    authn.Authenticator
+		hdr     string
+		wantErr bool
 	}{{
 		auth: authn.FromConfig(authn.AuthConfig{RegistryToken: token}),
 		hdr:  "Bearer mytoken",
@@ -74,6 +75,10 @@ func TestBasicTransportRegistryToken(t *testing.T) {
 	}, {
 		auth: authn.Anonymous,
 		hdr:  "",
+	}, {
+		auth:    &badAuth{},
+		hdr:     "",
+		wantErr: true,
 	}} {
 		server := httptest.NewServer(
 			http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +104,7 @@ func TestBasicTransportRegistryToken(t *testing.T) {
 		client := http.Client{Transport: &basicTransport{inner: inner, auth: tc.auth, target: "gcr.io"}}
 
 		_, err := client.Get("http://gcr.io/v2/auth")
-		if err != nil {
+		if err != nil && !tc.wantErr {
 			t.Errorf("Unexpected error during Get: %v", err)
 		}
 	}

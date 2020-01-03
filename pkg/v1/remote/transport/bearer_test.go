@@ -125,10 +125,9 @@ func TestBearerTransport(t *testing.T) {
 		t.Errorf("Unexpected error during NewRegistry: %v", err)
 	}
 
-	bearer := &authn.Bearer{Token: expectedToken}
 	client := http.Client{Transport: &bearerTransport{
 		inner:    &http.Transport{},
-		bearer:   bearer,
+		bearer:   authn.AuthConfig{RegistryToken: expectedToken},
 		registry: registry,
 		scheme:   "http",
 	}}
@@ -172,10 +171,9 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 		t.Fatalf("Unexpected error during NewRegistry: %v", err)
 	}
 
-	bearer := &authn.Bearer{Token: initialToken}
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
-		bearer:   bearer,
+		bearer:   authn.AuthConfig{RegistryToken: initialToken},
 		basic:    &authn.Basic{Username: "foo", Password: "bar"},
 		registry: registry,
 		realm:    server.URL,
@@ -190,8 +188,8 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
 	}
-	if transport.bearer.Token != refreshedToken {
-		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", bearer.Token, refreshedToken)
+	if got, want := transport.bearer.RegistryToken, refreshedToken; got != want {
+		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
 	}
 }
 
@@ -233,10 +231,8 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 		t.Errorf("Unexpected error during NewRegistry: %v", err)
 	}
 
-	bearer := &authn.Bearer{}
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
-		bearer:   bearer,
 		basic:    authn.FromConfig(authn.AuthConfig{IdentityToken: initialToken}),
 		registry: registry,
 		realm:    server.URL,
@@ -253,8 +249,8 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
 	}
-	if transport.bearer.Token != accessToken {
-		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", bearer.Token, accessToken)
+	if want, got := transport.bearer.RegistryToken, accessToken; want != got {
+		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
 	}
 	basicAuthConfig, err := transport.basic.Authorization()
 	if err != nil {
@@ -299,10 +295,8 @@ func TestBearerTransportOauth404Fallback(t *testing.T) {
 		t.Errorf("Unexpected error during NewRegistry: %v", err)
 	}
 
-	bearer := &authn.Bearer{}
 	transport := &bearerTransport{
-		inner:  http.DefaultTransport,
-		bearer: bearer,
+		inner: http.DefaultTransport,
 		basic: authn.FromConfig(authn.AuthConfig{
 			IdentityToken: identityToken,
 			Auth:          basicAuth,
@@ -322,8 +316,8 @@ func TestBearerTransportOauth404Fallback(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
 	}
-	if transport.bearer.Token != accessToken {
-		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", bearer.Token, accessToken)
+	if got, want := transport.bearer.RegistryToken, accessToken; got != want {
+		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
 	}
 }
 
@@ -463,6 +457,11 @@ func TestCanonicalAddressResolution(t *testing.T) {
 		scheme:   "https",
 		address:  "[2001:db8::1]:",
 		want:     "[2001:db8::1]:443",
+	}, {
+		registry: registry,
+		scheme:   "https",
+		address:  "something:is::wrong]:",
+		want:     "something:is::wrong]:",
 	}}
 
 	for _, tt := range tests {

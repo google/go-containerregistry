@@ -34,6 +34,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -645,11 +646,15 @@ func TestUploadOne(t *testing.T) {
 	streamPath := "/path/to/upload"
 	commitPath := "/path/to/commit"
 
+	uploaded := false
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case headPath:
 			if r.Method != http.MethodHead {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+			}
+			if uploaded {
+				return
 			}
 			http.Error(w, "NotFound", http.StatusNotFound)
 		case initiatePath:
@@ -679,6 +684,7 @@ func TestUploadOne(t *testing.T) {
 			if r.Method != http.MethodPut {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
 			}
+			uploaded = true
 			http.Error(w, "Created", http.StatusCreated)
 		default:
 			t.Fatalf("Unexpected path: %v", r.URL.Path)
@@ -693,6 +699,14 @@ func TestUploadOne(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ConfigLayer: %v", err)
 	}
+	ml := &MountableLayer{
+		Layer:     l,
+		Reference: w.ref,
+	}
+	if err := w.uploadOne(ml); err != nil {
+		t.Errorf("uploadOne() = %v", err)
+	}
+	// Hit the existing blob path.
 	if err := w.uploadOne(l); err != nil {
 		t.Errorf("uploadOne() = %v", err)
 	}
@@ -1322,6 +1336,41 @@ func TestTagDescriptor(t *testing.T) {
 
 	if err := Tag(dstRef, desc); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNestedIndex(t *testing.T) {
+	// Set up a fake registry.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := fmt.Sprintf("%s/test/tag:src", u.Host)
+	srcRef, err := name.NewTag(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child, err := random.Index(1024, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent := mutate.AppendManifests(empty.Index, mutate.IndexAddendum{
+		Add: child,
+	})
+
+	if err := WriteIndex(srcRef, parent); err != nil {
+		t.Fatal(err)
+	}
+	pulled, err := Index(srcRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validate.Index(pulled); err != nil {
+		t.Fatalf("validate.Index: %v", err)
 	}
 }
 
