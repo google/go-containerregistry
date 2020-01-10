@@ -1014,7 +1014,7 @@ func validatePatchWithSetOrderList(patchList, setOrderList interface{}, mergeKey
 		setOrderIndex++
 	}
 	// If patchIndex is inbound but setOrderIndex if out of bound mean there are items mismatching between the patch list and setElementOrder list.
-	// the second check is is a sanity check, and should always be true if the first is true.
+	// the second check is a sanity check, and should always be true if the first is true.
 	if patchIndex < len(nonDeleteList) && setOrderIndex >= len(typedSetOrderList) {
 		return fmt.Errorf("The order in patch list:\n%v\n doesn't match %s list:\n%v\n", typedPatchList, setElementOrderDirectivePrefix, setOrderList)
 	}
@@ -1876,7 +1876,7 @@ func mergingMapFieldsHaveConflicts(
 			return true, nil
 		}
 		return slicesHaveConflicts(leftType, rightType, schema, fieldPatchStrategy, fieldPatchMergeKey)
-	case string, float64, bool, int, int64, nil:
+	case string, float64, bool, int64, nil:
 		return !reflect.DeepEqual(left, right), nil
 	default:
 		return true, fmt.Errorf("unknown type: %v", reflect.TypeOf(left))
