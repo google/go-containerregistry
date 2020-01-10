@@ -15,6 +15,7 @@
 package partial_test
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -23,12 +24,72 @@ import (
 	legacy "github.com/google/go-containerregistry/pkg/legacy/tarball"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
+
+// foreignLayer implements both partial.Describable and partial.UncompressedLayer.
+type foreignLayer struct {
+	wrapped v1.Layer
+}
+
+func (l *foreignLayer) Digest() (v1.Hash, error) {
+	return l.wrapped.Digest()
+}
+
+func (l *foreignLayer) Size() (int64, error) {
+	return l.wrapped.Size()
+}
+
+func (l *foreignLayer) MediaType() (types.MediaType, error) {
+	return types.DockerForeignLayer, nil
+}
+
+func (l *foreignLayer) Uncompressed() (io.ReadCloser, error) {
+	return l.wrapped.Uncompressed()
+}
+
+func (l *foreignLayer) DiffID() (v1.Hash, error) {
+	return l.wrapped.DiffID()
+}
+
+func (l *foreignLayer) Descriptor() (*v1.Descriptor, error) {
+	r, err := l.wrapped.Compressed()
+	if err != nil {
+		return nil, err
+	}
+	h, sz, err := v1.SHA256(r)
+	if err != nil {
+		return nil, err
+	}
+	return &v1.Descriptor{
+		Digest:    h,
+		Size:      sz,
+		MediaType: types.DockerForeignLayer,
+		URLs:      []string{"http://example.com"},
+	}, nil
+}
+
+func TestDescriptor(t *testing.T) {
+	randLayer, err := random.Layer(1024, types.DockerForeignLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l := &foreignLayer{randLayer}
+
+	desc, err := partial.Descriptor(l)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if want, got := desc.URLs[0], "http://example.com"; want != got {
+		t.Errorf("URLs[0] = %s != %s", got, want)
+	}
+}
 
 // legacy/tarball.Write + tarball.Image leverages a lot of uncompressed partials.
 //
@@ -43,10 +104,22 @@ func TestLegacyWrite(t *testing.T) {
 	defer fp.Close()
 	defer os.Remove(fp.Name())
 
-	// Make a random image
+	// Make a random image + layer with Descriptor().
 	randImage, err := random.Image(256, 8)
 	if err != nil {
 		t.Fatalf("Error creating random image: %v", err)
+	}
+	randLayer, err := random.Layer(1024, types.DockerForeignLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := partial.UncompressedToLayer(&foreignLayer{randLayer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	img, err := mutate.AppendLayers(randImage, l)
+	if err != nil {
+		t.Fatal(err)
 	}
 	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
 	if err != nil {
@@ -57,7 +130,7 @@ func TestLegacyWrite(t *testing.T) {
 		t.Fatalf("Error creating %q to write image tarball: %v", fp.Name(), err)
 	}
 	defer o.Close()
-	if err := legacy.Write(tag, randImage, o); err != nil {
+	if err := legacy.Write(tag, img, o); err != nil {
 		t.Fatalf("Unexpected error writing tarball: %v", err)
 	}
 
@@ -71,7 +144,7 @@ func TestLegacyWrite(t *testing.T) {
 		if err := validate.Image(tarImage); err != nil {
 			t.Errorf("validate.Image: %v", err)
 		}
-		if err := compare.Images(randImage, tarImage); err != nil {
+		if err := compare.Images(img, tarImage); err != nil {
 			t.Errorf("compare.Images: %v", err)
 		}
 	}
