@@ -38,9 +38,6 @@ type Options struct {
 	ImagePullSecrets []string
 }
 
-// origKeyRing is a variable so that testing can adjust it.
-var origKeyRing = credentialprovider.NewDockerKeyring()
-
 // New returns a new authn.Keychain suitable for resolving image references as
 // scoped by the provided Options.  It speaks to Kubernetes through the provided
 // client interface.
@@ -85,7 +82,7 @@ func New(client kubernetes.Interface, opt Options) (authn.Keychain, error) {
 	}
 
 	// Third, extend the default keyring with the pull secrets.
-	kr, err := credentialprovidersecrets.MakeDockerKeyring(pullSecrets, origKeyRing)
+	kr, err := credentialprovidersecrets.MakeDockerKeyring(pullSecrets, credentialprovider.NewDockerKeyring())
 	if err != nil {
 		return nil, err
 	}
