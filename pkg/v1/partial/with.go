@@ -348,3 +348,60 @@ func Descriptor(d Describable) (*v1.Descriptor, error) {
 
 	return &desc, nil
 }
+
+type withUncompressedSize interface {
+	UncompressedSize() (int64, error)
+}
+
+func uncompressedSizer(l v1.Layer) (withUncompressedSize, bool) {
+	// If the layer implements UncompressedSize itself, return that.
+	if wus, ok := l.(withUncompressedSize); ok {
+		return wus, true
+	}
+
+	// Otherwise, try to unwrap any partial implementations to see
+	// if the wrapped struct implements CompressedSize.
+	if ule, ok := l.(*uncompressedLayerExtender); ok {
+		if wus, ok := ule.UncompressedLayer.(withUncompressedSize); ok {
+			return wus, true
+		}
+	}
+	if cle, ok := l.(*compressedLayerExtender); ok {
+		if wus, ok := cle.CompressedLayer.(withUncompressedSize); ok {
+			return wus, true
+		}
+	}
+	return nil, false
+}
+
+// HasUncompressedSize returns true if the layer or its underling partial
+// implementation implements UncompressedSize. Calling UncompressedSize. If
+// this returns true, calling UncompressedSize should be efficient.
+func HasUncompressedSize(l v1.Layer) bool {
+	_, ok := uncompressedSizer(l)
+	return ok
+}
+
+// UncompressedSize returns the size of the Uncompressed layer. If the
+// underlying implementation doesn't implement UncompressedSize directly,
+// this will compute the uncompressedSize by reading everything returned
+// by Compressed(). This is potentially expensive and may consume the contents
+// for streaming layers. See HasUncompressedSize for when it is safe to call
+// this function.
+func UncompressedSize(l v1.Layer) (int64, error) {
+	if wus, ok := uncompressedSizer(l); ok {
+		return wus.UncompressedSize()
+	}
+
+	// The layer doens't implement CompressedSize, we need to compute it.
+	rc, err := l.Uncompressed()
+	if err != nil {
+		return -1, err
+	}
+	defer rc.Close()
+	n, err := io.Copy(ioutil.Discard, rc)
+	if err != nil {
+		return -1, err
+	}
+	return n, nil
+}
