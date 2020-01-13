@@ -56,7 +56,7 @@ func Insecure(o *options) {
 }
 
 // WithAuth is a functional option for overriding the default authentication
-// mechanism for GCR operations.
+// mechanism for remote operations.
 func WithAuth(a authn.Authenticator) Option {
 	return func (o *options) {
 		o.remote = append(o.remote, remote.WithAuth(a))
