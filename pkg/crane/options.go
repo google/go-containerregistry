@@ -54,3 +54,11 @@ func WithTransport(t http.RoundTripper) Option {
 func Insecure(o *options) {
 	o.name = append(o.name, name.Insecure)
 }
+
+// WithAuth is a functional option for overriding the default authentication
+// mechanism for GCR operations.
+func WithAuth(a authn.Authenticator) Option {
+	return func (o *options) {
+		o.remote = append(o.remote, remote.WithAuth(a))
+	}
+}
