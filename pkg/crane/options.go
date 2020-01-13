@@ -22,6 +22,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
+var defaultRemoteOption = remote.WithAuthFromKeychain(authn.DefaultKeychain)
+
 type options struct {
 	name   []name.Option
 	remote []remote.Option
@@ -30,7 +32,7 @@ type options struct {
 func makeOptions(opts ...Option) options {
 	opt := options{
 		remote: []remote.Option{
-			remote.WithAuthFromKeychain(authn.DefaultKeychain),
+			defaultRemoteOption,
 		},
 	}
 	for _, o := range opts {
@@ -59,6 +61,10 @@ func Insecure(o *options) {
 // mechanism for remote operations.
 func WithAuth(a authn.Authenticator) Option {
 	return func (o *options) {
-		o.remote = []remote.Option{remote.WithAuth(a)}
+		if &o.remote[0] == &defaultRemoteOption {
+			o.remote[0] = remote.WithAuth(a)
+		} else {
+			o.remote = append(o.remote, remote.WithAuth(a))
+		}
 	}
 }
