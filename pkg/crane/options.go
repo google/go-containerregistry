@@ -59,6 +59,6 @@ func Insecure(o *options) {
 // mechanism for remote operations.
 func WithAuth(a authn.Authenticator) Option {
 	return func (o *options) {
-		o.remote = append(o.remote, remote.WithAuth(a))
+		o.remote = []remote.Option{remote.WithAuth(a)}
 	}
 }
