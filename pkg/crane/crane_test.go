@@ -58,11 +58,19 @@ func TestCraneRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifest, err := img.RawManifest()
+	rawManifest, err := img.RawManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := img.Manifest()
 	if err != nil {
 		t.Fatal(err)
 	}
 	config, err := img.RawConfigFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	layer, err := img.LayerByDigest(manifest.Layers[0].Digest)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,8 +91,8 @@ func TestCraneRegistry(t *testing.T) {
 	m, err := crane.Manifest(src)
 	if err != nil {
 		t.Error(err)
-	} else if string(m) != string(manifest) {
-		t.Errorf("Manifest(): %v != %v", m, manifest)
+	} else if string(m) != string(rawManifest) {
+		t.Errorf("Manifest(): %v != %v", m, rawManifest)
 	}
 
 	c, err := crane.Config(src)
@@ -127,6 +135,16 @@ func TestCraneRegistry(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := compare.Images(pulled, tagged); err != nil {
+		t.Fatal(err)
+	}
+
+	layerRef := fmt.Sprintf("%s/test/crane@%s", u.Host, manifest.Layers[0].Digest)
+	pulledLayer, err := crane.PullLayer(layerRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := compare.Layers(pulledLayer, layer); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -311,6 +329,7 @@ func TestBadInputs(t *testing.T) {
 		{"Append(_, invalid)", e(crane.Append(nil, invalid))},
 		{"Catalog(invalid)", e(crane.Catalog(invalid))},
 		{"Catalog(404)", e(crane.Catalog(u.Host))},
+		{"PullLayer(invalid)", e(crane.PullLayer(invalid))},
 	} {
 		if tc.err == nil {
 			t.Errorf("%s: expected err, got nil", tc.desc)

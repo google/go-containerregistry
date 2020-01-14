@@ -61,3 +61,14 @@ func Save(img v1.Image, src, path string) error {
 
 	return tarball.WriteToFile(path, tag, img)
 }
+
+// PullLayer returns the given layer from a registry.
+func PullLayer(ref string, opt ...Option) (v1.Layer, error) {
+	o := makeOptions(opt...)
+	digest, err := name.NewDigest(ref, o.name...)
+	if err != nil {
+		return nil, err
+	}
+
+	return remote.Layer(digest, o.remote...)
+}
