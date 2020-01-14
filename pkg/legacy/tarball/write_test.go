@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -399,5 +400,59 @@ func TestMultiWriteMismatchedHistory(t *testing.T) {
 	want := "image config had layer history which did not match the number of layers"
 	if !strings.Contains(err.Error(), want) {
 		t.Errorf("Got unexpected error when writing image with mismatched history & layer, got %v, want substring %q", err, want)
+	}
+}
+
+type fastSizeLayer struct {
+	v1.Layer
+	size   int64
+	called bool
+}
+
+func (l *fastSizeLayer) UncompressedSize() (int64, error) {
+	l.called = true
+	return l.size, nil
+}
+
+func TestUncompressedSize(t *testing.T) {
+	// Make a random image
+	img, err := random.Image(256, 8)
+	if err != nil {
+		t.Fatalf("Error creating random image: %v", err)
+	}
+
+	rand, err := random.Layer(1000, types.DockerLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	size, err := partial.UncompressedSize(rand)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	l := &fastSizeLayer{Layer: rand, size: size}
+
+	img, err = mutate.AppendLayers(img, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag: %v", err)
+	}
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file: %v", err)
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+	if err := Write(tag, img, fp); err != nil {
+		t.Fatalf("Write(): %v", err)
+	}
+	if !l.called {
+		t.Errorf("expected UncompressedSize to be called, but it wasn't")
 	}
 }
