@@ -359,7 +359,7 @@ func UncompressedSize(l v1.Layer) (int64, error) {
 	}
 
 	// Otherwise, try to unwrap any partial implementations to see
-	// if the wrapped struct implements CompressedSize.
+	// if the wrapped struct implements UncompressedSize.
 	if ule, ok := l.(*uncompressedLayerExtender); ok {
 		if wus, ok := ule.UncompressedLayer.(withUncompressedSize); ok {
 			return wus.UncompressedSize()
@@ -371,7 +371,7 @@ func UncompressedSize(l v1.Layer) (int64, error) {
 		}
 	}
 
-	// The layer doens't implement CompressedSize, we need to compute it.
+	// The layer doesn't implement UncompressedSize, we need to compute it.
 	rc, err := l.Uncompressed()
 	if err != nil {
 		return -1, err
