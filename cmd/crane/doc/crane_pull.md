@@ -15,13 +15,13 @@ crane pull IMAGE TARBALL [flags]
 ```
   -c, --cache_path string   Path to cache image layers
   -h, --help                help for pull
-  -i, --insecure            Allow image references to be fetched without TLS
 ```
 
 ### Options inherited from parent commands
 
 ```
-  -v, --verbose   Enable debug logs
+      --insecure   Allow image references to be fetched without TLS
+  -v, --verbose    Enable debug logs
 ```
 
 ### SEE ALSO

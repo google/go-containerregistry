@@ -14,7 +14,6 @@ crane validate [flags]
 
 ```
   -h, --help             help for validate
-  -i, --insecure         Allow image references to be fetched without TLS
       --remote string    Name of remote image to validate
       --tarball string   Path to tarball to validate
 ```
@@ -22,7 +21,8 @@ crane validate [flags]
 ### Options inherited from parent commands
 
 ```
-  -v, --verbose   Enable debug logs
+      --insecure   Allow image references to be fetched without TLS
+  -v, --verbose    Enable debug logs
 ```
 
 ### SEE ALSO

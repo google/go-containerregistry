@@ -19,7 +19,8 @@ crane copy SRC DST [flags]
 ### Options inherited from parent commands
 
 ```
-  -v, --verbose   Enable debug logs
+      --insecure   Allow image references to be fetched without TLS
+  -v, --verbose    Enable debug logs
 ```
 
 ### SEE ALSO

@@ -13,13 +13,15 @@ crane [flags]
 ### Options
 
 ```
-  -h, --help      help for crane
-  -v, --verbose   Enable debug logs
+  -h, --help       help for crane
+      --insecure   Allow image references to be fetched without TLS
+  -v, --verbose    Enable debug logs
 ```
 
 ### SEE ALSO
 
 * [crane append](crane_append.md)	 - Append contents of a tarball to a remote image
+* [crane blob](crane_blob.md)	 - Read a blob from the registry
 * [crane catalog](crane_catalog.md)	 - List the repos in a registry
 * [crane config](crane_config.md)	 - Get the config of an image
 * [crane copy](crane_copy.md)	 - Efficiently copy a remote image from src to dst

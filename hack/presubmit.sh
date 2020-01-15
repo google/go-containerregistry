@@ -32,8 +32,7 @@ staticcheck ./pkg/...
 # Verify that all source files are correctly formatted.
 find . -name "*.go" | grep -v vendor/ | xargs gofmt -d -e -l
 
-# TODO(#496): Re-enable this check.
 # Verify that generated crane docs are up-to-date.
-# mkdir -p /tmp/gendoc && go run cmd/crane/help/main.go --dir /tmp/gendoc && diff -Naur /tmp/gendoc/ cmd/crane/doc/
+mkdir -p /tmp/gendoc && go run cmd/crane/help/main.go --dir /tmp/gendoc && diff -Naur /tmp/gendoc/ cmd/crane/doc/
 
 go test ./...
