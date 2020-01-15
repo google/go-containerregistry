@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/legacy"
@@ -249,21 +248,23 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 				return err
 			}
 			layerFiles[i] = fmt.Sprintf("%s/layer.tar", cur.config.ID)
+
+			// If the v1.Layer implements UncompressedSize efficiently, use that
+			// for the tar header. Otherwise, this iterates over Uncompressed().
+			// NOTE: If using a streaming layer, this may consume the layer.
+			size, err := partial.UncompressedSize(l)
+			if err != nil {
+				return err
+			}
 			u, err := l.Uncompressed()
 			if err != nil {
 				return err
 			}
 			defer u.Close()
-			// Reads the entire uncompressed blob into memory! Can be avoided
-			// for some layer implementations where the uncompressed blob is
-			// stored on disk and the layer can just stat the file.
-			uncompressedBlob, err := ioutil.ReadAll(u)
-			if err != nil {
+			if err := writeTarEntry(tf, layerFiles[i], u, size); err != nil {
 				return err
 			}
-			if err := writeTarEntry(tf, layerFiles[i], bytes.NewReader(uncompressedBlob), int64(len(uncompressedBlob))); err != nil {
-				return err
-			}
+
 			j, err := cur.json()
 			if err != nil {
 				return err

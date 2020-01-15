@@ -97,6 +97,12 @@ func (l *noDiffID) Size() (int64, error) {
 func (l *noDiffID) MediaType() (types.MediaType, error) {
 	return l.l.MediaType()
 }
+func (l *noDiffID) Descriptor() (*v1.Descriptor, error) {
+	return partial.Descriptor(l.l)
+}
+func (l *noDiffID) UncompressedSize() (int64, error) {
+	return partial.UncompressedSize(l.l)
+}
 
 func TestCompressedLayerExtender(t *testing.T) {
 	rnd, err := random.Layer(1000, types.OCILayer)
@@ -110,5 +116,56 @@ func TestCompressedLayerExtender(t *testing.T) {
 
 	if err := compare.Layers(rnd, l); err != nil {
 		t.Fatalf("compare.Layers: %v", err)
+	}
+	if _, err := partial.Descriptor(l); err != nil {
+		t.Fatalf("partial.Descriptor: %v", err)
+	}
+	if _, err := partial.UncompressedSize(l); err != nil {
+		t.Fatalf("partial.UncompressedSize: %v", err)
+	}
+}
+
+type compressedImage struct {
+	img v1.Image
+}
+
+func (i *compressedImage) RawConfigFile() ([]byte, error) {
+	return i.img.RawConfigFile()
+}
+
+func (i *compressedImage) MediaType() (types.MediaType, error) {
+	return i.img.MediaType()
+}
+
+func (i *compressedImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
+	return i.img.LayerByDigest(h)
+}
+
+func (i *compressedImage) RawManifest() ([]byte, error) {
+	return i.img.RawManifest()
+}
+
+func (i *compressedImage) Descriptor() (*v1.Descriptor, error) {
+	return partial.Descriptor(i.img)
+}
+
+func TestCompressed(t *testing.T) {
+	rnd, err := random.Image(1024, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	core := &compressedImage{rnd}
+
+	img, err := partial.CompressedToImage(core)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validate.Image(img); err != nil {
+		t.Fatalf("validate.Image: %v", err)
+	}
+	if _, err := partial.Descriptor(img); err != nil {
+		t.Fatalf("partial.Descriptor: %v", err)
 	}
 }

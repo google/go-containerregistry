@@ -21,6 +21,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func TestRawConfigFile(t *testing.T) {
@@ -191,5 +192,28 @@ func TestBlobSize(t *testing.T) {
 
 	if _, err := partial.BlobSize(img, v1.Hash{}); err == nil {
 		t.Errorf("expected err, got nil")
+	}
+}
+
+type fastpathLayer struct {
+	v1.Layer
+}
+
+func (l *fastpathLayer) UncompressedSize() (int64, error) {
+	return 100, nil
+}
+
+func TestUncompressedSize(t *testing.T) {
+	randLayer, err := random.Layer(1024, types.DockerLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fpl := &fastpathLayer{randLayer}
+	us, err := partial.UncompressedSize(fpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := us, int64(100); got != want {
+		t.Errorf("UncompressedSize() = %d != %d", got, want)
 	}
 }
