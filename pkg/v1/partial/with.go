@@ -129,12 +129,6 @@ func RawConfigFile(i WithConfigFile) ([]byte, error) {
 	return json.Marshal(cfg)
 }
 
-// WithUncompressedLayer defines the subset of v1.Image used by these helper methods
-type WithUncompressedLayer interface {
-	// UncompressedLayer is like UncompressedBlob, but takes the "diff id".
-	UncompressedLayer(v1.Hash) (io.ReadCloser, error)
-}
-
 // WithRawManifest defines the subset of v1.Image used by these helper methods
 type WithRawManifest interface {
 	// RawManifest returns the serialized bytes of this image's config file.
