@@ -353,44 +353,28 @@ type withUncompressedSize interface {
 	UncompressedSize() (int64, error)
 }
 
-func uncompressedSizer(l v1.Layer) (withUncompressedSize, bool) {
+// UncompressedSize returns the size of the Uncompressed layer. If the
+// underlying implementation doesn't implement UncompressedSize directly,
+// this will compute the uncompressedSize by reading everything returned
+// by Compressed(). This is potentially expensive and may consume the contents
+// for streaming layers.
+func UncompressedSize(l v1.Layer) (int64, error) {
 	// If the layer implements UncompressedSize itself, return that.
 	if wus, ok := l.(withUncompressedSize); ok {
-		return wus, true
+		return wus.UncompressedSize()
 	}
 
 	// Otherwise, try to unwrap any partial implementations to see
 	// if the wrapped struct implements CompressedSize.
 	if ule, ok := l.(*uncompressedLayerExtender); ok {
 		if wus, ok := ule.UncompressedLayer.(withUncompressedSize); ok {
-			return wus, true
+			return wus.UncompressedSize()
 		}
 	}
 	if cle, ok := l.(*compressedLayerExtender); ok {
 		if wus, ok := cle.CompressedLayer.(withUncompressedSize); ok {
-			return wus, true
+			return wus.UncompressedSize()
 		}
-	}
-	return nil, false
-}
-
-// HasUncompressedSize returns true if the layer or its underling partial
-// implementation implements UncompressedSize. Calling UncompressedSize. If
-// this returns true, calling UncompressedSize should be efficient.
-func HasUncompressedSize(l v1.Layer) bool {
-	_, ok := uncompressedSizer(l)
-	return ok
-}
-
-// UncompressedSize returns the size of the Uncompressed layer. If the
-// underlying implementation doesn't implement UncompressedSize directly,
-// this will compute the uncompressedSize by reading everything returned
-// by Compressed(). This is potentially expensive and may consume the contents
-// for streaming layers. See HasUncompressedSize for when it is safe to call
-// this function.
-func UncompressedSize(l v1.Layer) (int64, error) {
-	if wus, ok := uncompressedSizer(l); ok {
-		return wus.UncompressedSize()
 	}
 
 	// The layer doens't implement CompressedSize, we need to compute it.
