@@ -14,7 +14,6 @@ crane rebase [flags]
 
 ```
   -h, --help              help for rebase
-  -i, --insecure          Allow image references to be fetched without TLS
       --new_base string   New base image to insert
       --old_base string   Old base image to remove
       --original string   Original image to rebase
@@ -24,7 +23,8 @@ crane rebase [flags]
 ### Options inherited from parent commands
 
 ```
-  -v, --verbose   Enable debug logs
+      --insecure   Allow image references to be fetched without TLS
+  -v, --verbose    Enable debug logs
 ```
 
 ### SEE ALSO

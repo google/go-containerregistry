@@ -23,14 +23,14 @@ crane export IMAGE TARBALL [flags]
 ### Options
 
 ```
-  -h, --help       help for export
-  -i, --insecure   Allow image references to be fetched without TLS
+  -h, --help   help for export
 ```
 
 ### Options inherited from parent commands
 
 ```
-  -v, --verbose   Enable debug logs
+      --insecure   Allow image references to be fetched without TLS
+  -v, --verbose    Enable debug logs
 ```
 
 ### SEE ALSO
