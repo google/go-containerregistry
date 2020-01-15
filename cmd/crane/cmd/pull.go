@@ -57,7 +57,7 @@ func NewCmdPull() *cobra.Command {
 					log.Fatalf("saving oci image layout %s: %v", path, err)
 				}
 			default:
-				log.Fatalf("unexpected --format: %q (valid values are: tarball, legacy, and oci)")
+				log.Fatalf("unexpected --format: %q (valid values are: tarball, legacy, and oci)", format)
 			}
 		},
 	}
