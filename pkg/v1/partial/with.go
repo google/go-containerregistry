@@ -383,9 +383,6 @@ func UncompressedSize(l v1.Layer) (int64, error) {
 		return -1, err
 	}
 	defer rc.Close()
-	n, err := io.Copy(ioutil.Discard, rc)
-	if err != nil {
-		return -1, err
-	}
-	return n, nil
+
+	return io.Copy(ioutil.Discard, rc)
 }

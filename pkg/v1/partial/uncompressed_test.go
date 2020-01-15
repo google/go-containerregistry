@@ -74,7 +74,11 @@ func (l *foreignLayer) Descriptor() (*v1.Descriptor, error) {
 	}, nil
 }
 
-func TestDescriptor(t *testing.T) {
+func (l *foreignLayer) UncompressedSize() (int64, error) {
+	return partial.UncompressedSize(l.wrapped)
+}
+
+func TestUncompressedLayer(t *testing.T) {
 	randLayer, err := random.Layer(1024, types.DockerForeignLayer)
 	if err != nil {
 		t.Fatal(err)
@@ -88,6 +92,18 @@ func TestDescriptor(t *testing.T) {
 
 	if want, got := desc.URLs[0], "http://example.com"; want != got {
 		t.Errorf("URLs[0] = %s != %s", got, want)
+	}
+
+	layer, err := partial.UncompressedToLayer(l)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := validate.Layer(layer); err != nil {
+		t.Errorf("validate.Layer: %v", err)
+	}
+	if _, err := partial.UncompressedSize(layer); err != nil {
+		t.Errorf("partial.UncompressedSize: %v", err)
 	}
 }
 
@@ -175,6 +191,10 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 	return i.img.LayerByDiffID(h)
 }
 
+func (i *uncompressedImage) Descriptor() (*v1.Descriptor, error) {
+	return partial.Descriptor(i.img)
+}
+
 func TestUncompressed(t *testing.T) {
 	rnd, err := random.Image(1024, 1)
 	if err != nil {
@@ -190,5 +210,8 @@ func TestUncompressed(t *testing.T) {
 
 	if err := validate.Image(img); err != nil {
 		t.Fatalf("validate.Image: %v", err)
+	}
+	if _, err := partial.Descriptor(img); err != nil {
+		t.Fatalf("partial.Descriptor: %v", err)
 	}
 }
