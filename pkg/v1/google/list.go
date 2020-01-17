@@ -121,6 +121,21 @@ func fromUnixMs(ms int64) time.Time {
 	return time.Unix(sec, ns)
 }
 
+func toUnixMs(t time.Time) string {
+	return strconv.FormatInt(t.UnixNano()/1000000, 10)
+}
+
+// MarshalJSON implements json.Marshaler
+func (m ManifestInfo) MarshalJSON() ([]byte, error) {
+	return json.Marshal(rawManifestInfo{
+		Size:      strconv.FormatUint(m.Size, 10),
+		MediaType: m.MediaType,
+		Created:   toUnixMs(m.Created),
+		Uploaded:  toUnixMs(m.Uploaded),
+		Tags:      m.Tags,
+	})
+}
+
 // UnmarshalJSON implements json.Unmarshaler
 func (m *ManifestInfo) UnmarshalJSON(data []byte) error {
 	raw := rawManifestInfo{}

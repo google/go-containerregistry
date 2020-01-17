@@ -16,6 +16,7 @@ package google
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -35,6 +36,35 @@ func mustParseDuration(t *testing.T, d string) time.Duration {
 		t.Fatal(err)
 	}
 	return dur
+}
+
+func TestRoundtrip(t *testing.T) {
+	raw := rawManifestInfo{
+		Size:      "100",
+		MediaType: "hi",
+		Created:   "12345678",
+		Uploaded:  "23456789",
+		Tags:      []string{"latest"},
+	}
+
+	og, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parsed := ManifestInfo{}
+	if err := json.Unmarshal(og, &parsed); err != nil {
+		t.Fatal(err)
+	}
+
+	roundtripped, err := json.Marshal(parsed)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(og, roundtripped); diff != "" {
+		t.Errorf("ManifestInfo can't roundtrip: (-want +got) = %s", diff)
+	}
 }
 
 func TestList(t *testing.T) {
