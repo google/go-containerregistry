@@ -126,12 +126,13 @@ func recursiveCopy(ctx context.Context, src, dst string, jobs int) error {
 	g, ctx := errgroup.WithContext(ctx)
 	walkFn := func(repo name.Repository, tags *google.Tags, err error) error {
 		if err != nil {
+			logs.Warn.Printf("failed walkFn for repo %s: %v", repo, err)
 			// If we hit an error when listing the repo, try re-listing with backoff.
 			if err := backoffErrors(GCRBackoff(), func() error {
 				tags, err = google.List(repo, google.WithAuthFromKeychain(google.Keychain))
 				return err
 			}); err != nil {
-				return fmt.Errorf("failed walkFn for repo %s: %v", repo, err)
+				return fmt.Errorf("failed List for repo %s: %v", repo, err)
 			}
 		}
 
