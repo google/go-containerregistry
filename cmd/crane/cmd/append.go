@@ -28,20 +28,16 @@ func init() { Root.AddCommand(NewCmdAppend()) }
 
 // NewCmdAppend creates a new cobra.Command for the append subcommand.
 func NewCmdAppend() *cobra.Command {
-	var (
-		baseRef, newTag, outFile string
-		newLayers                []string
-	)
+	var baseRef, newTag, outFile string
+	var newLayers []string
 
 	appendCmd := &cobra.Command{
 		Use:   "append",
 		Short: "Append contents of a tarball to a remote image",
 		Args:  cobra.NoArgs,
 		Run: func(_ *cobra.Command, args []string) {
-			var (
-				base v1.Image
-				err  error
-			)
+			var base v1.Image
+			var err error
 
 			if baseRef == "" {
 				logs.Warn.Printf("base unspecified, using empty image")
