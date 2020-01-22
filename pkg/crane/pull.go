@@ -16,9 +16,13 @@ package crane
 
 import (
 	"fmt"
+	"os"
 
+	legacy "github.com/google/go-containerregistry/pkg/legacy/tarball"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
@@ -71,4 +75,33 @@ func PullLayer(ref string, opt ...Option) (v1.Layer, error) {
 	}
 
 	return remote.Layer(digest, o.remote...)
+}
+
+// SaveLegacy writes the v1.Image img as a legacy tarball at path with tag src.
+func SaveLegacy(img v1.Image, src, path string) error {
+	ref, err := name.ParseReference(src)
+	if err != nil {
+		return fmt.Errorf("parsing ref %q: %v", src, err)
+	}
+
+	w, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer w.Close()
+
+	return legacy.Write(ref, img, w)
+}
+
+// SaveOCI writes the v1.Image img as an OCI Image Layout at path. If a layout
+// already exists at that path, it will add the image to the index.
+func SaveOCI(img v1.Image, path string) error {
+	p, err := layout.FromPath(path)
+	if err != nil {
+		p, err = layout.Write(path, empty.Index)
+		if err != nil {
+			return err
+		}
+	}
+	return p.AppendImage(img)
 }

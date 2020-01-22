@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -199,6 +200,8 @@ func TestCraneTarball(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmp.Name())
+
 	img, err := random.Image(1024, 5)
 	if err != nil {
 		t.Fatal(err)
@@ -225,6 +228,43 @@ func TestCraneTarball(t *testing.T) {
 	}
 	if d != digest {
 		t.Errorf("digest mismatch: %v != %v", d, digest)
+	}
+}
+
+func TestCraneSaveLegacy(t *testing.T) {
+	t.Parallel()
+	// Write an image as a legacy tarball.
+	tmp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmp.Name())
+
+	img, err := random.Image(1024, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := crane.SaveLegacy(img, "test/crane", tmp.Name()); err != nil {
+		t.Errorf("SaveOCI: %v", err)
+	}
+}
+
+func TestCraneSaveOCI(t *testing.T) {
+	t.Parallel()
+	// Write an image as an OCI image layout.
+	tmp, err := ioutil.TempDir("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	img, err := random.Image(1024, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := crane.SaveOCI(img, tmp); err != nil {
+		t.Errorf("SaveLegacy: %v", err)
 	}
 }
 
@@ -288,7 +328,7 @@ func TestCraneFilesystem(t *testing.T) {
 
 func TestBadInputs(t *testing.T) {
 	t.Parallel()
-	invalid := "@@@@@@"
+	invalid := "/dev/null/@@@@@@"
 
 	// Create a valid image reference that will fail with not found.
 	s := httptest.NewServer(http.NotFoundHandler())
@@ -312,6 +352,9 @@ func TestBadInputs(t *testing.T) {
 		{"Delete(invalid)", crane.Delete(invalid)},
 		{"Delete: 404", crane.Delete(valid404)},
 		{"Save(_, invalid)", crane.Save(nil, invalid, "")},
+		{"SaveLegacy(_, invalid)", crane.SaveLegacy(nil, invalid, "")},
+		{"SaveLegacy(_, invalid)", crane.SaveLegacy(nil, valid404, invalid)},
+		{"SaveOCI(_, invalid)", crane.SaveOCI(nil, "")},
 		{"Copy(invalid, invalid)", crane.Copy(invalid, invalid)},
 		{"Copy(404, invalid)", crane.Copy(valid404, invalid)},
 		{"Copy(404, 404)", crane.Copy(valid404, valid404)},
@@ -321,7 +364,7 @@ func TestBadInputs(t *testing.T) {
 		// These return multiple values, which are hard to use as expressions.
 		{"Pull(invalid)", e(crane.Pull(invalid))},
 		{"Digest(invalid)", e(crane.Digest(invalid))},
-		{"Manifet(invalid)", e(crane.Manifest(invalid))},
+		{"Manifest(invalid)", e(crane.Manifest(invalid))},
 		{"Config(invalid)", e(crane.Config(invalid))},
 		{"Config(404)", e(crane.Config(valid404))},
 		{"ListTags(invalid)", e(crane.ListTags(invalid))},

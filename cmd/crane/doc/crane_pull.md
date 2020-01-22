@@ -14,6 +14,7 @@ crane pull IMAGE TARBALL [flags]
 
 ```
   -c, --cache_path string   Path to cache image layers
+      --format string       Format in which to save images ("tarball", "legacy", or "oci") (default "tarball")
   -h, --help                help for pull
 ```
 
