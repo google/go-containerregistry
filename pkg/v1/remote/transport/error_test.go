@@ -17,8 +17,10 @@ package transport
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -79,9 +81,10 @@ func TestCheckErrorNil(t *testing.T) {
 
 func TestCheckErrorNotError(t *testing.T) {
 	tests := []struct {
-		code int
-		body string
-		msg  string
+		code    int
+		body    string
+		msg     string
+		request *http.Request
 	}{{
 		code: http.StatusBadRequest,
 		body: "",
@@ -89,13 +92,27 @@ func TestCheckErrorNotError(t *testing.T) {
 	}, {
 		code: http.StatusUnauthorized,
 		body: "Not JSON",
-		msg:  "unsupported status code 401; body: Not JSON",
+		msg:  "GET https://example.com/somepath?access_token=REDACTED&scope=foo&service=bar: unsupported status code 401; body: Not JSON",
+		request: &http.Request{
+			Method: http.MethodGet,
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   "example.com",
+				Path:   "somepath",
+				RawQuery: url.Values{
+					"scope":        []string{"foo"},
+					"service":      []string{"bar"},
+					"access_token": []string{"hunter2"},
+				}.Encode(),
+			},
+		},
 	}}
 
 	for _, test := range tests {
 		resp := &http.Response{
 			StatusCode: test.code,
 			Body:       ioutil.NopCloser(bytes.NewBufferString(test.body)),
+			Request:    test.request,
 		}
 
 		err := CheckError(resp, http.StatusOK)
@@ -151,7 +168,7 @@ func TestCheckErrorWithError(t *testing.T) {
 			}},
 			StatusCode: 400,
 		},
-		msg: "multiple errors returned: NAME_INVALID: a message for you;SIZE_INVALID: another message for you; with some details",
+		msg: "multiple errors returned: NAME_INVALID: a message for you; SIZE_INVALID: another message for you; with some details",
 	}}
 
 	for _, test := range tests {
@@ -174,4 +191,29 @@ func TestCheckErrorWithError(t *testing.T) {
 			t.Errorf("CheckError(%d, %s).Error(); (-want +got) %s", test.code, string(b), diff)
 		}
 	}
+}
+
+func TestBodyError(t *testing.T) {
+	expectedErr := errors.New("whoops")
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       &errReadCloser{expectedErr},
+	}
+	if err := CheckError(resp, http.StatusNotFound); err == nil {
+		t.Errorf("CheckError() = nil, wanted error %v", expectedErr)
+	} else if err != expectedErr {
+		t.Errorf("CheckError() = %v, wanted %v", err, expectedErr)
+	}
+}
+
+type errReadCloser struct {
+	err error
+}
+
+func (e *errReadCloser) Read(p []byte) (int, error) {
+	return 0, e.err
+}
+
+func (e *errReadCloser) Close() error {
+	return e.err
 }
