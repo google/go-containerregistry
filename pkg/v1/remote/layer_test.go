@@ -56,7 +56,7 @@ func TestRemoteLayer(t *testing.T) {
 	}
 
 	t.Log(ref)
-	if err := WriteLayer(ref, layer); err != nil {
+	if err := WriteLayer(ref.Context(), layer); err != nil {
 		t.Fatalf("failed to WriteLayer: %v", err)
 	}
 
