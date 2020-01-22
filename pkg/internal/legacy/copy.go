@@ -46,7 +46,7 @@ func CopySchema1(desc *remote.Descriptor, srcRef, dstRef name.Reference, srcAuth
 			return err
 		}
 
-		if err := remote.WriteLayer(dst, blob, remote.WithAuth(dstAuth)); err != nil {
+		if err := remote.WriteLayer(dst.Context(), blob, remote.WithAuth(dstAuth)); err != nil {
 			return err
 		}
 	}

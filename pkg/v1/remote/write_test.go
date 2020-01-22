@@ -70,7 +70,7 @@ func TestUrl(t *testing.T) {
 
 	for _, test := range tests {
 		w := &writer{
-			ref: mustNewTag(t, test.tag),
+			repo: mustNewTag(t, test.tag).Context(),
 		}
 		if got, want := w.url(test.path), test.url; got.String() != want {
 			t.Errorf("url(%v) = %v, want %v", test.path, got.String(), want)
@@ -92,7 +92,7 @@ func TestNextLocation(t *testing.T) {
 
 	ref := mustNewTag(t, "gcr.io/foo/bar:latest")
 	w := &writer{
-		ref: ref,
+		repo: ref.Context(),
 	}
 
 	for _, test := range tests {
@@ -165,7 +165,7 @@ func setupWriterWithServer(server *httptest.Server, repo string) (*writer, close
 	}
 
 	return &writer{
-		ref:    tag,
+		repo:   tag.Context(),
 		client: http.DefaultClient,
 	}, server, nil
 }
@@ -701,7 +701,7 @@ func TestUploadOne(t *testing.T) {
 	}
 	ml := &MountableLayer{
 		Layer:     l,
-		Reference: w.ref,
+		Reference: w.repo.Digest(h.String()),
 	}
 	if err := w.uploadOne(ml); err != nil {
 		t.Errorf("uploadOne() = %v", err)
@@ -811,8 +811,8 @@ func TestCommitImage(t *testing.T) {
 	}
 	defer closer.Close()
 
-	if err := w.commitImage(img); err != nil {
-		t.Errorf("commitBlob() = %v", err)
+	if err := w.commitImage(img, w.repo.Tag("latest")); err != nil {
+		t.Errorf("commitImage() = %v", err)
 	}
 }
 
@@ -1069,7 +1069,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual := scopesForUploadingImage(tc.reference, tc.layers)
+		actual := scopesForUploadingImage(tc.reference.Context(), tc.layers)
 
 		if want, got := tc.expected[0], actual[0]; want != got {
 			t.Errorf("TestScopesForUploadingImage() %s: Wrong first scope; want %v, got %v", tc.name, want, got)

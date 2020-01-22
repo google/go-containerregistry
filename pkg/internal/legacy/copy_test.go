@@ -66,7 +66,7 @@ func TestCopySchema1(t *testing.T) {
 	}
 
 	// Populate the registry with a layer and a schema 1 manifest referencing it.
-	if err := remote.WriteLayer(layerRef, layer); err != nil {
+	if err := remote.WriteLayer(layerRef.Context(), layer); err != nil {
 		t.Fatal(err)
 	}
 	manifest := schema1{
