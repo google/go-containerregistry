@@ -73,9 +73,9 @@ func TestTimeUploadedMsAsString(t *testing.T) {
 		{
 			"imageSizeBytes": "100",
 			"mediaType": "hi",
-      		"tag": ["latest"],
-      		"timeCreatedMs": "12345678",
-      		"timeUploadedMs": "23456789"
+	  		"tag": ["latest"],
+	  		"timeCreatedMs": "12345678",
+	  		"timeUploadedMs": "23456789"
 		}
 	`)
 
@@ -103,8 +103,8 @@ func TestTimeUploadedMsAsInt64(t *testing.T) {
 		{
 			"imageSizeBytes": "100",
 			"mediaType": "hi",
-      		"tag": ["latest"],
-      		"timeUploadedMs": 23456789
+	  		"tag": ["latest"],
+	  		"timeUploadedMs": 23456789
 		}
 	`)
 
