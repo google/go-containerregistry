@@ -160,7 +160,7 @@ func TestKeychainDockerHub(t *testing.T) {
 	}
 }
 
-func TestKeychainGCR(t *testing.T) {
+func TestKeychainGCRandAR(t *testing.T) {
 	cases := []string{
 		"gcr.io",
 		"us.gcr.io",
@@ -168,6 +168,10 @@ func TestKeychainGCR(t *testing.T) {
 		"eu.gcr.io",
 		"staging-k8s.gcr.io",
 		"global.gcr.io",
+		"us-docker.pkg.dev",
+		"asia-docker.pkg.dev",
+		"europe-docker.pkg.dev",
+		"us-central1-docker.pkg.dev",
 	}
 
 	// Env should fail.
@@ -184,18 +188,18 @@ func TestKeychainGCR(t *testing.T) {
 			GetGcloudCmd = newGcloudCmdMock("success")
 
 			if auth, err := Keychain.Resolve(mustRegistry(tc)); err != nil {
-				t.Errorf("expected success, got: %v", err)
+				t.Errorf("expected success for %v, got: %v", tc, err)
 			} else if auth == authn.Anonymous {
-				t.Errorf("expected not anonymous auth, got: %v", auth)
+				t.Errorf("expected not anonymous auth for %v, got: %v", tc, auth)
 			}
 
 			// Make gcloud fail to test that caching works.
 			GetGcloudCmd = newGcloudCmdMock("badoutput")
 
 			if auth, err := Keychain.Resolve(mustRegistry(tc)); err != nil {
-				t.Errorf("expected success, got: %v", err)
+				t.Errorf("expected success for %v, got: %v", tc, err)
 			} else if auth == authn.Anonymous {
-				t.Errorf("expected not anonymous auth, got: %v", auth)
+				t.Errorf("expected not anonymous auth for %v, got: %v", tc, auth)
 			}
 		})
 	}
