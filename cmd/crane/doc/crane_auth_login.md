@@ -1,0 +1,39 @@
+## crane auth login
+
+Log in to a registry
+
+### Synopsis
+
+Log in to a registry
+
+```
+crane auth login [OPTIONS] [SERVER] [flags]
+```
+
+### Examples
+
+```
+  # Log in to reg.example.com
+  crane auth login reg.example.com -u AzureDiamond -p hunter2
+```
+
+### Options
+
+```
+  -h, --help              help for login
+  -p, --password string   Password
+      --password-stdin    Take the password from stdin
+  -u, --username string   Username
+```
+
+### Options inherited from parent commands
+
+```
+      --insecure   Allow image references to be fetched without TLS
+  -v, --verbose    Enable debug logs
+```
+
+### SEE ALSO
+
+* [crane auth](crane_auth.md)	 - Log in or access credentials
+

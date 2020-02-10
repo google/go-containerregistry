@@ -17,15 +17,15 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/vdemeester/k8s-pkg-credentialprovider v0.0.0-20200107171650-7c61ffa44238
-	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
+	golang.org/x/lint v0.0.0-20200130185559-910be7a94367 // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
 	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	golang.org/x/sys v0.0.0-20191010194322-b09406accb47 // indirect
-	golang.org/x/tools v0.0.0-20200115165105-de0b1760071a // indirect
+	golang.org/x/tools v0.0.0-20200210192313-1ace956b0e17 // indirect
 	google.golang.org/grpc v1.24.0 // indirect
 	honnef.co/go/tools v0.0.1-2019.2.3 // indirect
 	k8s.io/api v0.17.0
 	k8s.io/apimachinery v0.17.0
 	k8s.io/client-go v0.17.0
-	k8s.io/code-generator v0.17.1
+	k8s.io/code-generator v0.17.2
 )

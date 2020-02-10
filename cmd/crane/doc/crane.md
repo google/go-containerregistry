@@ -21,6 +21,7 @@ crane [flags]
 ### SEE ALSO
 
 * [crane append](crane_append.md)	 - Append contents of a tarball to a remote image
+* [crane auth](crane_auth.md)	 - Log in or access credentials
 * [crane blob](crane_blob.md)	 - Read a blob from the registry
 * [crane catalog](crane_catalog.md)	 - List the repos in a registry
 * [crane config](crane_config.md)	 - Get the config of an image
