@@ -315,6 +315,23 @@ func TestMutateMediaType(t *testing.T) {
 		t.Errorf("MediaType should not be set for OCI media types: %v", manifest.MediaType)
 	}
 
+	want = types.DockerManifestSchema2
+	img = mutate.MediaType(img, want)
+	got, err = img.MediaType()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+	manifest, err = img.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if manifest.MediaType != want {
+		t.Errorf("MediaType should be set for Docker media types: %v", manifest.MediaType)
+	}
+
 	want = types.OCIImageIndex
 	idx := mutate.IndexMediaType(empty.Index, want)
 	got, err = idx.MediaType()
@@ -330,6 +347,23 @@ func TestMutateMediaType(t *testing.T) {
 	}
 	if im.MediaType != "" {
 		t.Errorf("MediaType should not be set for OCI media types: %v", im.MediaType)
+	}
+
+	want = types.DockerManifestList
+	idx = mutate.IndexMediaType(idx, want)
+	got, err = idx.MediaType()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+	im, err = idx.IndexManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if im.MediaType != want {
+		t.Errorf("MediaType should be set for Docker media types: %v", im.MediaType)
 	}
 }
 

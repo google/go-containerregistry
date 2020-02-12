@@ -16,6 +16,7 @@ package mutate_test
 
 import (
 	"log"
+	"strings"
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -44,6 +45,11 @@ func TestAppendIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	weirdHash := v1.Hash{
+		Algorithm: "sha256",
+		Hex:       strings.Repeat("0", 64),
+	}
+
 	add := mutate.AppendManifests(base, mutate.IndexAddendum{
 		Add: idx,
 		Descriptor: v1.Descriptor{
@@ -52,12 +58,20 @@ func TestAppendIndex(t *testing.T) {
 	}, mutate.IndexAddendum{
 		Add: img,
 		Descriptor: v1.Descriptor{
-			URLs: []string{"image.example.com"},
+			MediaType: types.MediaType("application/xml"),
+			URLs:      []string{"image.example.com"},
 		},
 	}, mutate.IndexAddendum{
 		Add: l,
 		Descriptor: v1.Descriptor{
-			URLs: []string{"layer.example.com"},
+			URLs:   []string{"layer.example.com"},
+			Size:   1337,
+			Digest: weirdHash,
+			Platform: &v1.Platform{
+				OS:           "haiku",
+				Architecture: "toaster",
+			},
+			Annotations: map[string]string{"weird": "true"},
 		},
 	})
 
@@ -91,6 +105,10 @@ func TestAppendIndex(t *testing.T) {
 		if got := m.Manifests[i].URLs[0]; got != want {
 			t.Errorf("wrong URLs[0] for Manifests[%d]: %s != %s", i, got, want)
 		}
+	}
+
+	if got, want := m.Manifests[4].MediaType, types.MediaType("application/xml"); got != want {
+		t.Errorf("wrong MediaType for layer: %s != %s", got, want)
 	}
 
 	if got, want := m.Manifests[5].MediaType, types.OCIUncompressedRestrictedLayer; got != want {
