@@ -29,38 +29,35 @@ import (
 var imagePath = "../tarball/testdata/test_image_1.tar"
 
 type MockImageSaver struct {
+	Client
 	path string
 }
+
+func (m *MockImageSaver) NegotiateAPIVersion(ctx context.Context) {}
 
 func (m *MockImageSaver) ImageSave(_ context.Context, _ []string) (io.ReadCloser, error) {
 	return os.Open(m.path)
 }
 
-func init() {
-	getImageSaver = func() (ImageSaver, error) {
-		return &MockImageSaver{path: imagePath}, nil
-	}
-}
-
 func TestImage(t *testing.T) {
-	img, err := tarball.ImageFromPath(imagePath, nil)
-	if err != nil {
-		t.Fatalf("error loading test image: %s", err)
-	}
-
-	tag, err := name.NewTag("unused", name.WeakValidation)
-	if err != nil {
-		t.Fatalf("error creating test name: %s", err)
-	}
-
-	runTest := func(buffered bool) {
-		var bufferedOption ImageOption
-		if buffered {
-			bufferedOption = WithBufferedOpener()
-		} else {
-			bufferedOption = WithUnbufferedOpener()
+	for _, opts := range [][]ImageOption{{
+		WithBufferedOpener(),
+		WithClient(&MockImageSaver{path: imagePath}),
+	}, {
+		WithUnbufferedOpener(),
+		WithClient(&MockImageSaver{path: imagePath}),
+	}} {
+		img, err := tarball.ImageFromPath(imagePath, nil)
+		if err != nil {
+			t.Fatalf("error loading test image: %s", err)
 		}
-		dmn, err := Image(tag, bufferedOption)
+
+		tag, err := name.NewTag("unused", name.WeakValidation)
+		if err != nil {
+			t.Fatalf("error creating test name: %s", err)
+		}
+
+		dmn, err := Image(tag, opts...)
 		if err != nil {
 			t.Errorf("Error loading daemon image: %s", err)
 		}
@@ -68,8 +65,4 @@ func TestImage(t *testing.T) {
 			t.Errorf("compare.Images: %v", err)
 		}
 	}
-
-	runTest(false)
-	runTest(true)
-
 }
