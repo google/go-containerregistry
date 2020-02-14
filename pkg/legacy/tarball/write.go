@@ -158,7 +158,7 @@ func updateLayerSources(layerSources map[v1.Hash]v1.Descriptor, layer v1.Layer, 
 		if err != nil {
 			return err
 		}
-		layerSources[diffid] = desc
+		layerSources[diffid] = *desc
 	}
 	return nil
 }

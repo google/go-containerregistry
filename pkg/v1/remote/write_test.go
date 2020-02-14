@@ -1359,6 +1359,9 @@ func TestNestedIndex(t *testing.T) {
 	}
 	parent := mutate.AppendManifests(empty.Index, mutate.IndexAddendum{
 		Add: child,
+		Descriptor: v1.Descriptor{
+			URLs: []string{"example.com/url"},
+		},
 	})
 
 	if err := WriteIndex(srcRef, parent); err != nil {
@@ -1371,6 +1374,29 @@ func TestNestedIndex(t *testing.T) {
 
 	if err := validate.Index(pulled); err != nil {
 		t.Fatalf("validate.Index: %v", err)
+	}
+
+	digest, err := child.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pulledChild, err := pulled.ImageIndex(digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	desc, err := partial.Descriptor(pulledChild)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(desc.URLs) != 1 {
+		t.Fatalf("expected url for pulledChild")
+	}
+
+	if want, got := "example.com/url", desc.URLs[0]; want != got {
+		t.Errorf("pulledChild.urls[0] = %s != %s", got, want)
 	}
 }
 
