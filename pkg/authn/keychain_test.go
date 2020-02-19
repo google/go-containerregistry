@@ -107,7 +107,7 @@ func TestVariousPaths(t *testing.T) {
 		},
 	}, {
 		target:  defaultRegistry,
-		content: fmt.Sprintf(`{"auths": {"%s": {"auth": %q}}}`, defaultAuthKey, encode("foo", "bar")),
+		content: fmt.Sprintf(`{"auths": {"%s": {"auth": %q}}}`, DefaultAuthKey, encode("foo", "bar")),
 		cfg: &AuthConfig{
 			Username: "foo",
 			Password: "bar",
