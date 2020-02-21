@@ -1,0 +1,26 @@
+digraph {
+  compound=true;
+  rankdir="LR";
+
+  tag [label="", shape="circle", width=0.1, style="filled", color="black"];
+  manifest [shape="note"];
+  config [shape="note"];
+
+  tag -> manifest [label="digest", taillabel="tag", tailport=head, labeldistance=2.1, labelangle=108];
+  manifest -> config [label="(image id)"];
+  config -> l1 [label="diffid"];
+  config -> l2 [label="diffid"];
+  manifest -> l1 [lhead=cluster_layer1, label="layer digest"];
+  manifest -> l2 [lhead=cluster_layer2, label="layer digest"];
+
+  subgraph cluster_layer1 {
+    label = "layer.tar.gz";
+    margin = 20.0;
+    l1 [label="layer.tar", shape="folder"];
+  }
+  subgraph cluster_layer2 {
+    label = "layer.tar.gz";
+    margin = 20.0;
+    l2 [label="layer.tar", shape="folder"];
+  }
+}
