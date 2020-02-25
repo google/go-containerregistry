@@ -1,0 +1,67 @@
+digraph G {
+  ordering=out;
+
+  fs [label="filesystem\nchangeset", shape=folder, href="https://github.com/opencontainers/image-spec/blob/master/layer.md"];
+  configuration [label="image\nconfig", shape=hexagon, href="https://github.com/opencontainers/image-spec/blob/master/config.md#properties"];
+
+  tar [shape=rect];
+  gzip [shape=rect];
+  tee [shape=rect];
+  tee2 [label=tee, shape=rect];
+  tee3 [label=tee, shape=rect];
+  sha256sum [shape=rect];
+  sha256sum2 [label=sha256sum, shape=rect];
+  sha256sum3 [label=sha256sum, shape=rect];
+  curl [shape=rect];
+  curl2 [label=curl, shape=rect];
+  curl3 [label=curl, shape=rect];
+  wc [label="wc -c", shape=rect];
+  wc2 [label="wc -c", shape=rect];
+
+  config [label="config file", shape=note, href="https://github.com/opencontainers/image-spec/blob/master/config.md"];
+  layer [shape=note, href="https://github.com/opencontainers/image-spec/blob/master/layer.md"];
+  manifest [shape=note, href="https://github.com/opencontainers/image-spec/blob/master/manifest.md"];
+
+  registry [shape=cylinder, href="https://github.com/opencontainers/distribution-spec/blob/master/spec.md"];
+
+  config_size [label="config size"];
+  layer_size [label="layer size"];
+  config_digest [label="config digest\n(image id)", href="https://github.com/opencontainers/image-spec/blob/master/config.md#imageid"];
+  layer_digest [label="layer digest"];
+
+  diffid [href="https://github.com/opencontainers/image-spec/blob/master/config.md#layer-diffid"];
+
+  configuration -> config;
+  fs -> tar;
+
+  tar -> tee;
+  tee -> sha256sum;
+  sha256sum -> diffid [style=dashed];
+  tee -> gzip;
+  gzip -> layer;
+  layer -> tee2;
+  tee2 -> sha256sum2;
+  sha256sum2 -> layer_digest [style=dashed];
+  tee2 -> wc;
+  wc -> layer_size [style=dotted];
+  layer_size -> manifest [style=dotted];
+  tee2 -> curl;
+
+  curl -> registry;
+
+  diffid -> config [style=dashed];
+  config -> tee3;
+  tee3 -> curl2;
+  curl2 -> registry;
+
+  tee3 -> wc2;
+  tee3 -> sha256sum3;
+  wc2 -> config_size [style=dotted];
+  sha256sum3 -> config_digest [style=dashed];
+
+  config_digest -> manifest [style=dashed];
+  config_size -> manifest [style=dotted];
+  layer_digest -> manifest [style=dashed];
+  manifest -> curl3;
+  curl3 -> registry;
+}

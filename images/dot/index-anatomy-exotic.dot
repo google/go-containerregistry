@@ -1,0 +1,24 @@
+digraph {
+  ordering = out;
+  compound=true;
+  rankdir="LR";
+
+  tag [label="", shape="circle", width=0.1, style="filled", color="black"];
+  tag2 [label="", shape="circle", width=0.1, style="filled", color="black"];
+  tag3 [label="", shape="circle", width=0.1, style="filled", color="black"];
+  index [shape="note"];
+  index2 [label="index", shape="note"];
+  image [shape="note"];
+  image2 [label="image", shape="note"];
+  image3 [label="image", shape="note"];
+  xml;
+
+  tag -> index [taillabel="r124356", tailport=head, labeldistance=2.1, labelangle=108];
+  tag2 -> index2 [taillabel="stable-release", tailport=head, labeldistance=2.1, labelangle=108];
+  tag3 -> image [taillabel="v1.0", tailport=head, labeldistance=2.1, labelangle=108];
+  index -> image;
+  index -> xml;
+  index -> index2;
+  index2 -> image2;
+  index2 -> image3;
+}

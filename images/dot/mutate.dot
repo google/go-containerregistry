@@ -1,0 +1,59 @@
+digraph {
+  input [label="v1.Image", shape=box];
+  output [label="v1.Image", shape=box];
+
+  ordering = "out";
+
+  subgraph cluster_source {
+    label = "Sources";
+    "remotesource" [label="remote"];
+    "tarballsource" [label="tarball"];
+    "randomsource" [label="random"];
+    "layoutsource" [label="layout"];
+    "daemonsource" [label="daemon"];
+  }
+
+  subgraph cluster_mutate {
+    label = "mutate";
+    "mutateconfig" [label="Config"];
+    "mutatetime" [label="Time"];
+    "mutatemediatype" [label="MediaType"];
+    "mutateappend" [label="Append"];
+    "mutaterebase" [label="Rebase"];
+  }
+
+  subgraph cluster_sinks {
+    label = "Sinks";
+    labelloc = "b";
+
+    "remotesink" [label="remote"];
+    "tarballsink" [label="tarball"];
+    "legacy/tarballsink" [label="legacy/tarball"];
+    "layoutsink" [label="layout"];
+    "daemonsink" [label="daemon"];
+  }
+
+  "randomsource" -> input;
+  "layoutsource" -> input;
+  "daemonsource" -> input;
+  "tarballsource" -> input;
+  "remotesource" -> input;
+
+  input -> "mutateconfig";
+  input -> "mutatetime";
+  input -> "mutatemediatype";
+  input -> "mutateappend";
+  input -> "mutaterebase";
+
+  "mutateconfig" -> output;
+  "mutatetime" -> output;
+  "mutatemediatype" -> output;
+  "mutateappend" -> output;
+  "mutaterebase" -> output;
+
+  output -> "legacy/tarballsink";
+  output -> "layoutsink";
+  output -> "daemonsink";
+  output -> "tarballsink";
+  output -> "remotesink";
+}
