@@ -1,0 +1,66 @@
+digraph {
+  compound=true;
+  rankdir="LR";
+  ordering = in;
+
+  subgraph cluster_registry {
+    label = "registry";
+
+    subgraph cluster_tags {
+      label = "/v2/.../tags/list";
+
+      tag [label="tag", shape="rect"];
+      tag2 [label="tag", shape="rect"];
+    }
+
+    subgraph cluster_manifests {
+      label = "/v2/.../manifests/<ref>";
+
+      subgraph cluster_manifest {
+        label = "manifest";
+
+        mconfig [label="config", shape="rect"];
+        layers [label="layers", shape="rect"];
+      }
+
+      subgraph cluster_manifest2 {
+        label = "manifest";
+
+        mconfig2 [label="config", shape="rect"];
+        layers2 [label="layers", shape="rect"];
+      }
+
+      subgraph cluster_index {
+        label = "index";
+
+        imanifest [label="manifests", shape="rect"];
+      }
+
+      imanifest -> mconfig [lhead=cluster_manifest];
+      imanifest -> mconfig2 [lhead=cluster_manifest2];
+    }
+
+    subgraph cluster_blobs {
+      label = "/v2/.../blobs/<sha256>";
+
+      bconfig [label="config", shape="hexagon"];
+      bconfig2 [label="config", shape="hexagon"];
+
+      l1 [label="layer", shape="folder"];
+      l2 [label="layer", shape="folder"];
+      l3 [label="layer", shape="folder"];
+    }
+
+    layers -> l1;
+    layers -> l2;
+
+    layers2 -> l2;
+    layers2 -> l3;
+
+    mconfig -> bconfig;
+    mconfig2 -> bconfig2;
+
+    tag -> mconfig [style="dashed", lhead=cluster_manifest];
+    tag2 -> imanifest [style="dashed", lhead=cluster_index];
+  }
+}
