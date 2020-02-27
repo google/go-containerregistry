@@ -1,0 +1,43 @@
+digraph {
+  compound=true;
+  rankdir="LR";
+  ordering = out;
+
+  subgraph cluster_tarball {
+    label = "image.tar";
+
+    subgraph cluster_manifest {
+      label = "manifest.json";
+
+      mconfig [label="Config", shape="rect"];
+      layers [label="Layers", shape="rect"];
+      sources [label="LayerSources", shape="rect"];
+      tags [label="RepoTags", shape="rect"];
+    }
+
+    config [shape="note"];
+
+    mconfig -> config [label="image id"];
+
+    layers -> l1 [lhead=cluster_layer1, label="layer digest"];
+    layers -> l2 [lhead=cluster_layer2, label="layer digest"];
+
+    config -> l1 [label="diffid"];
+    config -> l2 [label="diffid"];
+
+    sources -> l1 [label="diffid"];
+    sources -> l2 [label="diffid"];
+
+    subgraph cluster_layer1 {
+      label = "layer.tar.gz";
+      margin = 20.0;
+      l1 [label="layer.tar", shape="folder"];
+    }
+
+    subgraph cluster_layer2 {
+      label = "layer.tar.gz";
+      margin = 20.0;
+      l2 [label="layer.tar", shape="folder"];
+    }
+  }
+}

@@ -1,0 +1,47 @@
+digraph G {
+  ordering=out;
+
+  fs [label="input", shape="folder"];
+  pr [label="io.PipeReader"];
+  compressed [label="Compressed()", shape="rect"];
+  rc2 [label="io.ReadCloser"];
+  output [label="output", shape="cylinder"];
+
+  subgraph cluster_goroutine {
+    label = "goroutine";
+
+    rc [label="io.ReadCloser"];
+    copy [label="io.Copy"];
+    pw [label="io.PipeWriter"];
+    mw [label="io.MultiWriter"];
+    h1 [label="sha256.New"];
+    gzip [label="gzip.Writer"];
+    mw2 [label="io.MultiWriter"];
+    h2 [label="sha256.New"];
+    count [label="countWriter"];
+
+    size [label="Size()", shape="rect"];
+    diffid [label="DiffID()", shape="rect"];
+    digest [label="Digest()", shape="rect"];
+
+
+    rc -> copy [style="bold"];
+    copy -> mw [style="bold"];
+    mw -> h1;
+    h1 -> diffid [style="dashed"];
+    mw -> gzip [style="bold"];
+    gzip -> mw2 [style="bold"];
+    mw2 -> h2;
+    h2 -> digest [style="dashed"];
+    mw2 -> count;
+    count -> size [style="dotted"];
+    mw2 -> pw [style="bold"];
+  };
+
+  fs -> rc [style="bold"];
+
+  pw -> pr [style="bold"];
+  pr -> compressed [style="bold"];
+  compressed -> rc2 [style="bold"];
+  rc2 -> output [style="bold"];
+}
