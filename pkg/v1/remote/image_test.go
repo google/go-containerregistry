@@ -26,12 +26,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
@@ -377,7 +379,15 @@ func TestPullingManifestList(t *testing.T) {
 	childDigest := mustIndexManifest(t, idx).Manifests[1].Digest
 	child := mustChild(t, idx, childDigest)
 	childPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, childDigest)
+	fakePlatformChildDigest := mustIndexManifest(t, idx).Manifests[0].Digest
+	fakePlatformChild := mustChild(t, idx, fakePlatformChildDigest)
+	fakePlatformChildPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, fakePlatformChildDigest)
 	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, mustConfigName(t, child))
+
+	fakePlatform := v1.Platform{
+		Architecture: "not-real-arch",
+		OS:           "not-real-os",
+	}
 
 	// Rewrite the index to make sure the desired platform matches the second child.
 	manifest, err := idx.IndexManifest()
@@ -385,10 +395,7 @@ func TestPullingManifestList(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Make sure the first manifest doesn't match.
-	manifest.Manifests[0].Platform = &v1.Platform{
-		Architecture: "not-real-arch",
-		OS:           "not-real-os",
-	}
+	manifest.Manifests[0].Platform = &fakePlatform
 	// Make sure the second manifest does.
 	manifest.Manifests[1].Platform = &defaultPlatform
 	rawManifest, err := json.Marshal(manifest)
@@ -416,6 +423,11 @@ func TestPullingManifestList(t *testing.T) {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
 			w.Write(mustRawConfigFile(t, child))
+		case fakePlatformChildPath:
+			if r.Method != http.MethodGet {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			w.Write(mustRawManifest(t, fakePlatformChild))
 		default:
 			t.Fatalf("Unexpected path: %v", r.URL.Path)
 		}
@@ -438,6 +450,20 @@ func TestPullingManifestList(t *testing.T) {
 	}
 	if got, want := mustRawConfigFile(t, rmtChild), mustRawConfigFile(t, child); !bytes.Equal(got, want) {
 		t.Errorf("RawConfigFile() = %v, want %v", got, want)
+	}
+
+	// Make sure we can roundtrip platform info via Descriptor.
+	img, err := Image(tag, WithPlatform(fakePlatform))
+	if err != nil {
+		t.Fatal(err)
+	}
+	desc, err := partial.Descriptor(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(*desc.Platform, fakePlatform); diff != "" {
+		t.Errorf("Desciptor() (-want +got) = %v", diff)
 	}
 }
 

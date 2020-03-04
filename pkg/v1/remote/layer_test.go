@@ -23,6 +23,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
@@ -74,5 +77,61 @@ func TestRemoteLayer(t *testing.T) {
 	}
 	if err := validate.Layer(got); err != nil {
 		t.Errorf("validate.Layer: %v", err)
+	}
+}
+
+func TestRemoteLayerDescriptor(t *testing.T) {
+	layer, err := random.Layer(1024, types.DockerLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	image, err := mutate.Append(empty.Image, mutate.Addendum{
+		Layer: layer,
+		URLs:  []string{"example.com"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Set up a fake registry and write what we pulled to it.
+	// This ensures we get coverage for the remoteLayer.MediaType path.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dst := fmt.Sprintf("%s/some/path:tag", u.Host)
+	ref, err := name.ParseReference(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Write(ref, image); err != nil {
+		t.Fatalf("failed to WriteLayer: %v", err)
+	}
+
+	pulled, err := Image(ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layers, err := pulled.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	desc, err := partial.Descriptor(layers[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(desc.URLs) != 1 {
+		t.Fatalf("expected url for layer[0]")
+	}
+
+	if got, want := desc.URLs[0], "example.com"; got != want {
+		t.Errorf("layer[0].urls[0] = %s != %s", got, want)
 	}
 }
