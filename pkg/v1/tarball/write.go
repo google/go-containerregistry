@@ -88,6 +88,22 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
+	m, err := processImages(refToImage, tf)
+	if err != nil {
+		return err
+	}
+
+	mBytes, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	return writeTarEntry(tf, "manifest.json", bytes.NewReader(mBytes), int64(len(mBytes)))
+}
+
+// processImages writes the images to the provider tar.Writer. Returns the manifest
+// for the written images as Manifest.`If the tar.Writer is nil, will just return
+// the Manifest.
+func processImages(refToImage map[name.Reference]v1.Image, tf *tar.Writer) (Manifest, error) {
 	imageToTags := dedupRefToImage(refToImage)
 	var m Manifest
 
@@ -96,14 +112,16 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		// Write the config.
 		cfgName, err := img.ConfigName()
 		if err != nil {
-			return err
+			return nil, err
 		}
-		cfgBlob, err := img.RawConfigFile()
-		if err != nil {
-			return err
-		}
-		if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
-			return err
+		if tf != nil {
+			cfgBlob, err := img.RawConfigFile()
+			if err != nil {
+				return nil, err
+			}
+			if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+				return nil, err
+			}
 		}
 
 		// Store foreign layer info.
@@ -112,13 +130,13 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		// Write the layers.
 		layers, err := img.Layers()
 		if err != nil {
-			return err
+			return nil, err
 		}
 		layerFiles := make([]string, len(layers))
 		for i, l := range layers {
 			d, err := l.Digest()
 			if err != nil {
-				return err
+				return nil, err
 			}
 			// Munge the file name to appease ancient technology.
 			//
@@ -139,27 +157,29 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			// Add to LayerSources if it's a foreign layer.
 			desc, err := partial.BlobDescriptor(img, d)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if !desc.MediaType.IsDistributable() {
 				diffid, err := partial.BlobToDiffID(img, d)
 				if err != nil {
-					return err
+					return nil, err
 				}
 				layerSources[diffid] = *desc
 			}
 
-			r, err := l.Compressed()
-			if err != nil {
-				return err
-			}
-			blobSize, err := l.Size()
-			if err != nil {
-				return err
-			}
+			if tf != nil {
+				r, err := l.Compressed()
+				if err != nil {
+					return nil, err
+				}
+				blobSize, err := l.Size()
+				if err != nil {
+					return nil, err
+				}
 
-			if err := writeTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
-				return err
+				if err := writeTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
+					return nil, err
+				}
 			}
 		}
 
@@ -171,12 +191,7 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 			LayerSources: layerSources,
 		})
 	}
-
-	mBytes, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return writeTarEntry(tf, "manifest.json", bytes.NewReader(mBytes), int64(len(mBytes)))
+	return m, nil
 }
 
 func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
@@ -199,7 +214,7 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 	return imageToTags
 }
 
-// Writes a file to the provided writer with a corresponding tar header
+// writeTarEntry writes a file to the provided writer with a corresponding tar header
 func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	hdr := &tar.Header{
 		Mode:     0644,
@@ -212,4 +227,10 @@ func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	}
 	_, err := io.Copy(tf, r)
 	return err
+}
+
+// ComputeManifest get the manifest.json that will be written to the tarball
+// for multiple references
+func ComputeManifest(refToImage map[name.Reference]v1.Image) (Manifest, error) {
+	return processImages(refToImage, nil)
 }
