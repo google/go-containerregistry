@@ -26,34 +26,46 @@ func init() { Root.AddCommand(NewCmdExport()) }
 
 // NewCmdExport creates a new cobra.Command for the export subcommand.
 func NewCmdExport() *cobra.Command {
-	return &cobra.Command{
-		Use:   "export IMAGE TARBALL",
-		Short: "Export contents of a remote image as a tarball",
+	var oci bool
+
+	cmd := &cobra.Command{
+		Use:   "export IMAGE DEST",
+		Short: "Export contents of a remote image as a tarball or oci-image layout",
 		Example: `  # Write tarball to stdout
   crane export ubuntu -
 
   # Write tarball to file
-  crane export ubuntu ubuntu.tar`,
+  crane export ubuntu ubuntu.tar
+
+  # Write image as oci layout
+  crane export ubuntu --oci ./ubuntu`,
 		Args: cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
 			src, dst := args[0], args[1]
-
-			f, err := openFile(dst)
-			if err != nil {
-				log.Fatalf("failed to open %s: %v", dst, err)
-			}
-			defer f.Close()
 
 			img, err := crane.Pull(src, options...)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			if err := crane.Export(img, f); err != nil {
-				log.Fatalf("exporting %s: %v", src, err)
+			if !oci {
+				f, err := openFile(dst)
+				if err != nil {
+					log.Fatalf("failed to open %s: %v", dst, err)
+				}
+				defer f.Close()
+				if err := crane.Export(img, f); err != nil {
+					log.Fatalf("exporting %s: %v", src, err)
+				}
+			} else {
+				crane.SaveOCI(img, dst)
 			}
-		},
-	}
+		}}
+
+	f := cmd.Flags()
+	f.BoolVarP(&oci, "oci", "", false, "export image in oci layout format")
+
+	return cmd
 }
 
 func openFile(s string) (*os.File, error) {
