@@ -279,6 +279,8 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 	cfg := cf.DeepCopy()
 
 	// Copy basic config over
+	cfg.Architecture = ocf.Architecture
+	cfg.OS = ocf.OS
 	cfg.Config = ocf.Config
 
 	// Strip away timestamps from the config file
