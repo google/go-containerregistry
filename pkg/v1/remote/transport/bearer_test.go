@@ -171,6 +171,7 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 		t.Fatalf("Unexpected error during NewRegistry: %v", err)
 	}
 
+	// Pass Username/Password
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
 		bearer:   authn.AuthConfig{RegistryToken: initialToken},
@@ -184,6 +185,24 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	res, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
 	if err != nil {
 		t.Errorf("Unexpected error during client.Get: %v", err)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
+	}
+	if got, want := transport.bearer.RegistryToken, refreshedToken; got != want {
+		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
+	}
+
+	// Pass RegistryToken directly
+	transport.bearer = authn.AuthConfig{RegistryToken: initialToken}
+	transport.basic = &authn.Bearer{Token: refreshedToken}
+	client = http.Client{Transport: transport}
+
+	res, err = client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
+	if err != nil {
+		t.Errorf("Unexpected error during client.Get: %v", err)
+		return
 	}
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
