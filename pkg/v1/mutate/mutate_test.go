@@ -440,11 +440,30 @@ func TestCanonical(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sourceCf, err := source.ConfigFile()
+	if err != nil {
+		t.Fatal(err)
+	}
 	cf, err := img.ConfigFile()
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	var want, got string
+	want = cf.Architecture
+	got = sourceCf.Architecture
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+	want = cf.OS
+	got = sourceCf.OS
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+	want = cf.OSVersion
+	got = sourceCf.OSVersion
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
 	for _, s := range []string{
 		cf.Container,
 		cf.Config.Hostname,
