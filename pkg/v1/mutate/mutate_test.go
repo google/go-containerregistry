@@ -459,6 +459,11 @@ func TestCanonical(t *testing.T) {
 	if want != got {
 		t.Errorf("%q != %q", want, got)
 	}
+	want = cf.OSVersion
+	got = sourceCf.OSVersion
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
 	for _, s := range []string{
 		cf.Container,
 		cf.Config.Hostname,
