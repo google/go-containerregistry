@@ -15,6 +15,7 @@
 package tarball
 
 import (
+	"os"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -23,6 +24,37 @@ import (
 
 func TestManifestAndConfig(t *testing.T) {
 	img, err := ImageFromPath("testdata/test_image_1.tar", nil)
+	if err != nil {
+		t.Fatalf("Error loading image: %v", err)
+	}
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("Error loading manifest: %v", err)
+	}
+	if len(manifest.Layers) != 1 {
+		t.Fatalf("layers should be 1, got %d", len(manifest.Layers))
+	}
+
+	config, err := img.ConfigFile()
+	if err != nil {
+		t.Fatalf("Error loading config file: %v", err)
+	}
+	if len(config.History) != 1 {
+		t.Fatalf("history length should be 1, got %d", len(config.History))
+	}
+
+	if err := validate.Image(img); err != nil {
+		t.Errorf("Validate() = %v", err)
+	}
+}
+
+func TestImageFromReader(t *testing.T) {
+	f, err := os.Open("testdata/test_image_1.tar")
+	if err != nil {
+		t.Fatalf("Unable to read tar file: %v", err)
+	}
+
+	img, err := ImageFromReader(f, nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}

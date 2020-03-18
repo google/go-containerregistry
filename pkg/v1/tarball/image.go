@@ -68,6 +68,18 @@ func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
 	return Image(pathOpener(path), tag)
 }
 
+// ImageFromReader returns a v1.Image given a io.Reader.
+func ImageFromReader(reader io.Reader, tag *name.Tag) (v1.Image, error) {
+	// Buffering due to Opener requiring multiple calls.
+	a, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return Image(func() (io.ReadCloser, error) {
+		return ioutil.NopCloser(bytes.NewReader(a)), nil
+	}, tag)
+}
+
 // Image exposes an image from the tarball at the provided path.
 func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 	img := &image{
