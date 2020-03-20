@@ -47,6 +47,13 @@ func TestManifestAndConfig(t *testing.T) {
 	}
 }
 
+func TestNullManifest(t *testing.T) {
+	img, err := ImageFromPath("testdata/null_manifest.tar", nil)
+	if err == nil {
+		t.Fatalf("Error expected loading null image: %v", img)
+	}
+}
+
 func TestNoManifest(t *testing.T) {
 	img, err := ImageFromPath("testdata/no_manifest.tar", nil)
 	if err == nil {
