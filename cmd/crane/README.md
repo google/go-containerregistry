@@ -3,7 +3,13 @@
 [`crane`](doc/crane.md) is a tool for interacting with remote images
 and registries.
 
+<img src="../../images/crane.png" width="40%">
+
 ## Installation
+
+Download [latest release](https://github.com/google/go-containerregistry/releases/latest).
+
+Install manually:
 
 ```
 GO111MODULE=on go get -u github.com/google/go-containerregistry/cmd/crane
