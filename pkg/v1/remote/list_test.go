@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -154,5 +155,137 @@ func TestGetNextPageURL(t *testing.T) {
 
 	if u.Scheme != "https" {
 		t.Errorf("expected scheme to match request, got %s", u.Scheme)
+	}
+}
+func TestListDetails(t *testing.T) {
+	cases := []struct {
+		name            string
+		responseBody    []byte
+		wantErr         bool
+		wantTags        []string
+		wantTagsDetails []TagDetails
+	}{{
+		name: "success",
+		responseBody: []byte(`
+		{
+			"tags": ["foo","bar"], 
+			"manifest": {
+				"sha256:004de50771a3bc61a2966445caa83bdbb8f554395d92418ccd68935b3b9ddb2e": {
+					"imageSizeBytes": "1119562383",
+					"tag": [
+						"foo", 
+						"bar"
+					],
+					"timeCreatedMs": "1567502406146",
+					"timeUploadedMs": "1567502410348"
+				}
+			}
+		}`),
+		wantErr:  false,
+		wantTags: []string{"foo", "bar"},
+		wantTagsDetails: []TagDetails{
+			{
+				Sha:            "sha256:004de50771a3bc61a2966445caa83bdbb8f554395d92418ccd68935b3b9ddb2e",
+				ImageSizeBytes: "1119562383",
+				Tags:           []string{"foo", "bar"},
+				CreateTime:     time.Unix(1567502406146/1000, 0),
+				UploadTime:     time.Unix(1567502410348/1000, 0),
+			},
+		},
+	}, {
+		name: "success without manifest",
+		responseBody: []byte(`
+		{
+			"tags": ["foo","bar"]
+		}`),
+		wantErr:         false,
+		wantTags:        []string{"foo", "bar"},
+		wantTagsDetails: []TagDetails{},
+	}, {
+		name: "skip manifests without tags",
+		responseBody: []byte(`
+		{
+			"tags": ["foo","bar"], 
+			"manifest": {
+				"sha256:004de50771a3bc61a2966445caa83bdbb8f554395d92418ccd68935b3b9ddb2e": {
+					"imageSizeBytes": "1119562383",
+					"tag": [
+					],
+					"timeCreatedMs": "1567502406146",
+					"timeUploadedMs": "1567502410348"
+				}
+			}
+		}`),
+		wantErr:         false,
+		wantTags:        []string{"foo", "bar"},
+		wantTagsDetails: []TagDetails{},
+	}, {
+		name: "skip manifests invalid creation time ",
+		responseBody: []byte(`
+		{
+			"tags": ["foo","bar"], 
+			"manifest": {
+				"sha256:004de50771a3bc61a2966445caa83bdbb8f554395d92418ccd68935b3b9ddb2e": {
+					"imageSizeBytes": "1119562383",
+					"tag": [
+						"foo", 
+						"bar"
+					],
+					"timeCreatedMs": "invalid time",
+					"timeUploadedMs": "1567502410348"
+				}
+			}
+		}`),
+		wantErr:         false,
+		wantTags:        []string{"foo", "bar"},
+		wantTagsDetails: []TagDetails{},
+	}, {
+		name:         "not json",
+		responseBody: []byte("notjson"),
+		wantErr:      true,
+	}}
+
+	repoName := "ubuntu"
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tagsPath := fmt.Sprintf("/v2/%s/tags/list", repoName)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/v2/":
+					w.WriteHeader(http.StatusOK)
+				case tagsPath:
+					if r.Method != http.MethodGet {
+						t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+					}
+
+					w.Write(tc.responseBody)
+				default:
+					t.Fatalf("Unexpected path: %v", r.URL.Path)
+				}
+			}))
+			defer server.Close()
+			u, err := url.Parse(server.URL)
+			if err != nil {
+				t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+			}
+
+			repo, err := name.NewRepository(fmt.Sprintf("%s/%s", u.Host, repoName), name.WeakValidation)
+			if err != nil {
+				t.Fatalf("name.NewRepository(%v) = %v", repoName, err)
+			}
+
+			tags, tagsDetailsList, err := ListDetails(repo)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("ListDetails() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
+			}
+
+			if diff := cmp.Diff(tc.wantTags, tags); diff != "" {
+				t.Errorf("ListDetails() wrong tags (-want +got) = %s", diff)
+			}
+			if diff := cmp.Diff(tc.wantTagsDetails, tagsDetailsList); diff != "" {
+				t.Errorf("ListDetails() wrong tags details (-want +got) = %s", diff)
+			}
+		})
 	}
 }

@@ -31,3 +31,14 @@ func ListTags(src string, opt ...Option) ([]string, error) {
 
 	return remote.List(repo, o.remote...)
 }
+
+// ListTagsDetails returns the tags and a tags details list in repository src.
+func ListTagsDetails(src string, opt ...Option) ([]string, []remote.TagDetails, error) {
+	o := makeOptions(opt...)
+	repo, err := name.NewRepository(src, o.name...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing repo %q: %v", src, err)
+	}
+
+	return remote.ListDetails(repo, o.remote...)
+}
