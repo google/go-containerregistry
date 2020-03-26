@@ -32,10 +32,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// gcraneKeychain tries to use google-specific credential sources, falling back to
-// the DefaultKeychain (config-file based).
-var gcraneKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
-
 // GCRBackoff returns a retry.Backoff that is suitable for use with gcr.io.
 //
 // These numbers are based on GCR's posted quotas:
