@@ -28,6 +28,7 @@ const (
 // Digest stores a digest name in a structured form.
 type Digest struct {
 	Repository
+	tag      string
 	digest   string
 	original string
 }
@@ -45,6 +46,11 @@ func (d Digest) Identifier() string {
 	return d.DigestStr()
 }
 
+// TagStr returns the tag component of the Digest.
+func (d Digest) TagStr() string {
+	return d.tag
+}
+
 // DigestStr returns the digest component of the Digest.
 func (d Digest) DigestStr() string {
 	return d.digest
@@ -52,7 +58,19 @@ func (d Digest) DigestStr() string {
 
 // Name returns the name from which the Digest was derived.
 func (d Digest) Name() string {
-	return d.Repository.Name() + digestDelim + d.DigestStr()
+	name := d.Repository.Name()
+	if d.tag != "" {
+		name += tagDelim + d.TagStr()
+	}
+	name += digestDelim + d.DigestStr()
+	return name
+}
+
+// Tag returns the tag component of the Digest (if any)
+func (d Digest) Tag() Tag {
+	name := d.Repository.Name() + tagDelim + d.TagStr()
+	tag, _ := NewTag(name, StrictValidation)
+	return tag
 }
 
 // String returns the original input string.
@@ -90,6 +108,7 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 	}
 	return Digest{
 		Repository: repo,
+		tag:        tag.tag,
 		digest:     digest,
 		original:   name,
 	}, nil

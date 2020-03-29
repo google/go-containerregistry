@@ -115,10 +115,15 @@ func TestMultiWriteSameImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error creating test dig3.")
 	}
+	dig4, err := name.NewDigest("gcr.io/baz/baz:latest@sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test dig4.")
+	}
 	refToImage := make(map[name.Reference]v1.Image)
 	refToImage[tag1] = randImage
 	refToImage[tag2] = randImage
 	refToImage[dig3] = randImage
+	refToImage[dig4] = randImage
 
 	// Write the images with both tags to the tarball
 	if err := tarball.MultiRefWriteToFile(fp.Name(), refToImage); err != nil {
@@ -127,7 +132,11 @@ func TestMultiWriteSameImage(t *testing.T) {
 	for ref := range refToImage {
 		tag, ok := ref.(name.Tag)
 		if !ok {
-			continue
+			digest, ok := ref.(name.Digest)
+			if !ok || digest.TagStr() == "" {
+				continue
+			}
+			tag = digest.Tag()
 		}
 
 		tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)

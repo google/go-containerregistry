@@ -63,8 +63,10 @@ func TestNewDigestStrictValidation(t *testing.T) {
 	}
 
 	for _, name := range goodStrictValidationTagDigestNames {
-		if _, err := NewDigest(name, StrictValidation); err != nil {
+		if digest, err := NewDigest(name, StrictValidation); err != nil {
 			t.Errorf("`%s` should be a valid Digest name, got error: %v", name, err)
+		} else if digest.Name() != name {
+			t.Errorf("`%v` .Name() should reproduce the original name. Wanted: %s Got: %s", digest, name, digest.Name())
 		}
 	}
 
@@ -95,9 +97,10 @@ func TestDigestComponents(t *testing.T) {
 	t.Parallel()
 	testRegistry := "gcr.io"
 	testRepository := "project-id/image"
+	testTag := "latest"
 	fullRepo := path.Join(testRegistry, testRepository)
 
-	digestNameStr := testRegistry + "/" + testRepository + "@" + validDigest
+	digestNameStr := testRegistry + "/" + testRepository + ":" + testTag + "@" + validDigest
 	digest, err := NewDigest(digestNameStr, StrictValidation)
 	if err != nil {
 		t.Fatalf("`%s` should be a valid Digest name, got error: %v", digestNameStr, err)
@@ -105,6 +108,9 @@ func TestDigestComponents(t *testing.T) {
 
 	if got := digest.String(); got != digestNameStr {
 		t.Errorf("String() was incorrect for %v. Wanted: `%s` Got: `%s`", digest, digestNameStr, got)
+	}
+	if got := digest.Name(); got != digestNameStr {
+		t.Errorf("Name() was incorrect for %v. Wanted: `%s` Got: `%s`", digest, digestNameStr, got)
 	}
 	if got := digest.Identifier(); got != validDigest {
 		t.Errorf("Identifier() was incorrect for %v. Wanted: `%s` Got: `%s`", digest, validDigest, got)
