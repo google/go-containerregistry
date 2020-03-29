@@ -60,7 +60,11 @@ func Save(img v1.Image, src, path string) error {
 		if !ok {
 			return fmt.Errorf("ref wasn't a tag or digest")
 		}
-		tag = d.Repository.Tag(iWasADigestTag)
+		if d.TagStr() != "" {
+			tag = d.Tag()
+		} else {
+			tag = d.Repository.Tag(iWasADigestTag)
+		}
 	}
 
 	// no progress channel (for now)
