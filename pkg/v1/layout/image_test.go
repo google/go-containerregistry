@@ -39,8 +39,9 @@ var (
 		Algorithm: "sha256",
 		Hex:       "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 	}
-	bogusPath = "testdata/does_not_exist"
-	testPath  = "testdata/test_index"
+	bogusPath        = "testdata/does_not_exist"
+	testPath         = "testdata/test_index"
+	testPathOneImage = "testdata/test_index_one_image"
 )
 
 func TestImage(t *testing.T) {
@@ -96,6 +97,21 @@ func TestImage(t *testing.T) {
 	// Fixture is a DockerLayer
 	if got, want := mediaType, types.DockerLayer; got != want {
 		t.Fatalf("MediaType(); want: %q got: %q", want, got)
+	}
+}
+
+func TestImageWithEmptyHash(t *testing.T) {
+	lp, err := FromPath(testPathOneImage)
+	if err != nil {
+		t.Fatalf("FromPath() = %v", err)
+	}
+	img, err := lp.Image(v1.Hash{})
+	if err != nil {
+		t.Fatalf("Image() = %v", err)
+	}
+
+	if err := validate.Image(img); err != nil {
+		t.Errorf("validate.Image() = %v", err)
 	}
 }
 
