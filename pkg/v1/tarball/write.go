@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -108,6 +110,7 @@ func processImages(refToImage map[name.Reference]v1.Image, tf *tar.Writer) (Mani
 	var m Manifest
 
 	seenLayerDigests := make(map[string]struct{})
+
 	for img, tags := range imageToTags {
 		// Write the config.
 		cfgName, err := img.ConfigName()
@@ -191,6 +194,12 @@ func processImages(refToImage map[name.Reference]v1.Image, tf *tar.Writer) (Mani
 			LayerSources: layerSources,
 		})
 	}
+	// sort by name of the repotags so it is consistent. Alternatively, we could sort by hash of the
+	// descriptor, but that would make it hard for humans to process
+	sort.Slice(m, func(i, j int) bool {
+		return strings.Join(m[i].RepoTags, ",") < strings.Join(m[j].RepoTags, ",")
+	})
+
 	return m, nil
 }
 
