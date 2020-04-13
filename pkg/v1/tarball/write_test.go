@@ -16,6 +16,9 @@ package tarball_test
 
 import (
 	"archive/tar"
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -372,4 +375,110 @@ func TestWriteSharedLayers(t *testing.T) {
 			t.Errorf("Expected to find layer with digest %q but it didn't exist", hex)
 		}
 	}
+}
+
+func TestComputeManifest(t *testing.T) {
+	var randomTag, mutatedTag = "gcr.io/foo/bar:latest", "gcr.io/baz/bat:latest"
+	// Make a random image
+	randImage, err := random.Image(256, 1)
+	if err != nil {
+		t.Fatalf("Error creating random image.")
+	}
+	randConfig, err := randImage.ConfigName()
+	if err != nil {
+		t.Fatalf("error getting random image config: %v", err)
+	}
+	tag1, err := name.NewTag(randomTag, name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag1.")
+	}
+	tag2, err := name.NewTag(mutatedTag, name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag2.")
+	}
+	randLayer, err := random.Layer(512, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("random.Layer: %v", err)
+	}
+	mutatedImage, err := mutate.Append(randImage, mutate.Addendum{
+		Layer: randLayer,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mutatedConfig, err := mutatedImage.ConfigName()
+	if err != nil {
+		t.Fatalf("error getting mutated image config: %v", err)
+	}
+	randomLayersHashes, err := getLayersHashes(randImage)
+	if err != nil {
+		t.Fatalf("error getting random image hashes: %v", err)
+	}
+	randomLayersFilenames := getLayersFilenames(randomLayersHashes)
+
+	mutatedLayersHashes, err := getLayersHashes(mutatedImage)
+	if err != nil {
+		t.Fatalf("error getting mutated image hashes: %v", err)
+	}
+	mutatedLayersFilenames := getLayersFilenames(mutatedLayersHashes)
+
+	refToImage := make(map[name.Reference]v1.Image)
+	refToImage[tag1] = randImage
+	refToImage[tag2] = mutatedImage
+
+	// calculate the manifest
+	m, err := tarball.ComputeManifest(refToImage)
+	if err != nil {
+		t.Fatalf("Unexpected error calculating manifest: %v", err)
+	}
+	expected := []tarball.Descriptor{
+		tarball.Descriptor{
+			Config:   randConfig.String(),
+			RepoTags: []string{randomTag},
+			Layers:   randomLayersFilenames,
+		},
+		tarball.Descriptor{
+			Config:   mutatedConfig.String(),
+			RepoTags: []string{mutatedTag},
+			Layers:   mutatedLayersFilenames,
+		},
+	}
+	if len(m) != len(expected) {
+		t.Fatalf("mismatched manifest lengths: actual %d, expected %d", len(m), len(expected))
+	}
+	mBytes, err := json.Marshal(m)
+	if err != nil {
+		t.Fatalf("unable to marshall actual manifest to json: %v", err)
+	}
+	eBytes, err := json.Marshal(expected)
+	if err != nil {
+		t.Fatalf("unable to marshall expected manifest to json: %v", err)
+	}
+	if !bytes.Equal(mBytes, eBytes) {
+		t.Errorf("mismatched manifests.\nActual: %s\nExpected: %s", string(mBytes), string(eBytes))
+	}
+}
+
+func getLayersHashes(img v1.Image) ([]string, error) {
+	hashes := []string{}
+	layers, err := img.Layers()
+	if err != nil {
+		return nil, fmt.Errorf("error getting image layers: %v", err)
+	}
+	for i, l := range layers {
+		hash, err := l.Digest()
+		if err != nil {
+			return nil, fmt.Errorf("error getting digest for layer %d: %v", i, err)
+		}
+		hashes = append(hashes, hash.Hex)
+	}
+	return hashes, nil
+}
+
+func getLayersFilenames(hashes []string) []string {
+	filenames := []string{}
+	for _, h := range hashes {
+		filenames = append(filenames, fmt.Sprintf("%s.tar.gz", h))
+	}
+	return filenames
 }
