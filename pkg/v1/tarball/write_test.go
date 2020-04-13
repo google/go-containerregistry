@@ -431,16 +431,18 @@ func TestComputeManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error calculating manifest: %v", err)
 	}
+	// the order of these two is based on the repo tags
+	// so mutated "gcr.io/baz/bat:latest" is before random "gcr.io/foo/bar:latest"
 	expected := []tarball.Descriptor{
-		tarball.Descriptor{
-			Config:   randConfig.String(),
-			RepoTags: []string{randomTag},
-			Layers:   randomLayersFilenames,
-		},
 		tarball.Descriptor{
 			Config:   mutatedConfig.String(),
 			RepoTags: []string{mutatedTag},
 			Layers:   mutatedLayersFilenames,
+		},
+		tarball.Descriptor{
+			Config:   randConfig.String(),
+			RepoTags: []string{randomTag},
+			Layers:   randomLayersFilenames,
 		},
 	}
 	if len(m) != len(expected) {
