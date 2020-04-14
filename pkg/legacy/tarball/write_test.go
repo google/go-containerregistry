@@ -15,8 +15,12 @@
 package tarball
 
 import (
+	"archive/tar"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -455,4 +459,151 @@ func TestUncompressedSize(t *testing.T) {
 	if !l.called {
 		t.Errorf("expected UncompressedSize to be called, but it wasn't")
 	}
+}
+
+// TestWriteSharedLayers tests that writing a tarball of multiple images that
+// share some layers only writes those shared layers once.
+func TestWriteSharedLayers(t *testing.T) {
+	// Make a tempfile for tarball writes.
+	fp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file: %v", err)
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+
+	const baseImageLayerCount = 8
+
+	// Make a random image
+	baseImage, err := random.Image(256, baseImageLayerCount)
+	if err != nil {
+		t.Fatalf("Error creating base image: %v", err)
+	}
+
+	// Make another random image
+	randLayer, err := random.Layer(256, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("Error creating random layer %v", err)
+	}
+	extendedImage, err := mutate.Append(baseImage, mutate.Addendum{
+		Layer: randLayer,
+	})
+	if err != nil {
+		t.Fatalf("Error mutating base image %v", err)
+	}
+
+	// Create two tags, one pointing to each image created.
+	tag1, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag1: %v", err)
+	}
+	tag2, err := name.NewTag("gcr.io/baz/bat:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag2: %v", err)
+	}
+	refToImage := map[name.Reference]v1.Image{
+		tag1: baseImage,
+		tag2: extendedImage,
+	}
+
+	o, err := os.Create(fp.Name())
+	if err != nil {
+		t.Fatalf("Error creating %q to write image tarball: %v", fp.Name(), err)
+	}
+	defer o.Close()
+
+	// Write both images to the tarball.
+	if err := MultiWrite(refToImage, o); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
+	}
+	for ref, img := range refToImage {
+		tag, ok := ref.(name.Tag)
+		if !ok {
+			continue
+		}
+
+		tarImage, err := tarball.ImageFromPath(fp.Name(), &tag)
+		if err != nil {
+			t.Fatalf("Unexpected error reading tarball: %v", err)
+		}
+		if err := validate.Image(tarImage); err != nil {
+			t.Errorf("validate.Image: %v", err)
+		}
+		if err := compare.Images(img, tarImage); err != nil {
+			t.Errorf("compare.Images: %v", err)
+		}
+	}
+
+	wantIDs := make(map[string]struct{})
+	ids, err := v1LayerIDs(baseImage)
+	if err != nil {
+		t.Fatalf("Error getting base image IDs: %v", err)
+	}
+	for _, id := range ids {
+		wantIDs[id] = struct{}{}
+	}
+	ids, err = v1LayerIDs(extendedImage)
+	if err != nil {
+		t.Fatalf("Error getting extended image IDs: %v", err)
+	}
+	for _, id := range ids {
+		wantIDs[id] = struct{}{}
+	}
+
+	// base + extended layer + different top base layer
+	if len(wantIDs) != baseImageLayerCount+2 {
+		t.Errorf("Expected to have %d unique layer IDs but have %d", baseImageLayerCount+2, len(wantIDs))
+	}
+
+	const layerFileName = "layer.tar"
+	r := tar.NewReader(fp)
+	for {
+		hdr, err := r.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("Get tar header: %v", err)
+		}
+		if filepath.Base(hdr.Name) == layerFileName {
+			id := filepath.Dir(hdr.Name)
+			if _, ok := wantIDs[id]; ok {
+				delete(wantIDs, id)
+			} else {
+				t.Errorf("Found unwanted layer with ID %q", id)
+			}
+		}
+	}
+	if len(wantIDs) != 0 {
+		for id := range wantIDs {
+			t.Errorf("Expected to find layer with ID %q but it didn't exist", id)
+		}
+	}
+}
+
+func v1LayerIDs(img v1.Image) ([]string, error) {
+	layers, err := img.Layers()
+	if err != nil {
+		return nil, fmt.Errorf("get layers: %v", err)
+	}
+	ids := make([]string, len(layers))
+	parentID := ""
+	for i, layer := range layers {
+		var rawCfg []byte
+		if i == len(layers)-1 {
+			rawCfg, err = img.RawConfigFile()
+			if err != nil {
+				return nil, fmt.Errorf("get raw config file: %v", err)
+			}
+		}
+		id, err := v1LayerID(layer, parentID, rawCfg)
+		if err != nil {
+			return nil, fmt.Errorf("get v1 layer ID: %v", err)
+		}
+
+		ids[i] = id
+		parentID = id
+	}
+	return ids, nil
 }
