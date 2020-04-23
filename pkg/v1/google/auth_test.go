@@ -161,17 +161,29 @@ func TestKeychainDockerHub(t *testing.T) {
 }
 
 func TestKeychainGCRandAR(t *testing.T) {
-	cases := []string{
-		"gcr.io",
-		"us.gcr.io",
-		"asia.gcr.io",
-		"eu.gcr.io",
-		"staging-k8s.gcr.io",
-		"global.gcr.io",
-		"us-docker.pkg.dev",
-		"asia-docker.pkg.dev",
-		"europe-docker.pkg.dev",
-		"us-central1-docker.pkg.dev",
+	cases := []struct {
+		host       string
+		expectAuth bool
+	}{
+		// GCR hosts
+		{"gcr.io", true},
+		{"us.gcr.io", true},
+		{"eu.gcr.io", true},
+		{"asia.gcr.io", true},
+		{"staging-k8s.gcr.io", true},
+		{"global.gcr.io", true},
+		{"notgcr.io", false},
+		{"fake-gcr.io", false},
+		{"alsonot.gcr.iot", false},
+		// AR hosts
+		{"us-docker.pkg.dev", true},
+		{"asia-docker.pkg.dev", true},
+		{"europe-docker.pkg.dev", true},
+		{"us-central1-docker.pkg.dev", true},
+		{"us-docker-pkg.dev", false},
+		{"someotherpkg.dev", false},
+		{"looks-like-pkg.dev", false},
+		{"closeto.pkg.devops", false},
 	}
 
 	// Env should fail.
@@ -187,19 +199,23 @@ func TestKeychainGCRandAR(t *testing.T) {
 			// Gcloud should succeed.
 			GetGcloudCmd = newGcloudCmdMock("success")
 
-			if auth, err := Keychain.Resolve(mustRegistry(tc)); err != nil {
-				t.Errorf("expected success for %v, got: %v", tc, err)
-			} else if auth == authn.Anonymous {
+			if auth, err := Keychain.Resolve(mustRegistry(tc.host)); err != nil {
+				t.Errorf("expected success for %v, got: %v", tc.host, err)
+			} else if tc.expectAuth && auth == authn.Anonymous {
 				t.Errorf("expected not anonymous auth for %v, got: %v", tc, auth)
+			} else if !tc.expectAuth && auth != authn.Anonymous {
+				t.Errorf("expected anonymous auth for %v, got: %v", tc, auth)
 			}
 
 			// Make gcloud fail to test that caching works.
 			GetGcloudCmd = newGcloudCmdMock("badoutput")
 
-			if auth, err := Keychain.Resolve(mustRegistry(tc)); err != nil {
-				t.Errorf("expected success for %v, got: %v", tc, err)
-			} else if auth == authn.Anonymous {
+			if auth, err := Keychain.Resolve(mustRegistry(tc.host)); err != nil {
+				t.Errorf("expected success for %v, got: %v", tc.host, err)
+			} else if tc.expectAuth && auth == authn.Anonymous {
 				t.Errorf("expected not anonymous auth for %v, got: %v", tc, auth)
+			} else if !tc.expectAuth && auth != authn.Anonymous {
+				t.Errorf("expected anonymous auth for %v, got: %v", tc, auth)
 			}
 		})
 	}
