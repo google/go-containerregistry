@@ -198,6 +198,7 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	var m tarball.Manifest
 	repos := make(repositoriesTarDescriptor)
 
+	seenLayerIDs := make(map[string]struct{})
 	for img, tags := range imageToTags {
 		// Write the config.
 		cfgName, err := img.ConfigName()
@@ -248,6 +249,11 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 				return err
 			}
 			layerFiles[i] = fmt.Sprintf("%s/layer.tar", cur.config.ID)
+			if _, ok := seenLayerIDs[cur.config.ID]; ok {
+				prev = cur
+				continue
+			}
+			seenLayerIDs[cur.config.ID] = struct{}{}
 
 			// If the v1.Layer implements UncompressedSize efficiently, use that
 			// for the tar header. Otherwise, this iterates over Uncompressed().
