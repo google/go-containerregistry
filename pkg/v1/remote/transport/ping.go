@@ -68,13 +68,16 @@ func parseChallenge(suffix string) map[string]string {
 func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
 	client := http.Client{Transport: t}
 
-	// This first attempts to use "https" for every request, falling back to http
-	// if the registry matches our localhost heuristic or if it is intentionally
+	// Using "https" for every request, but doing "http" first if
+	// the registry matches our localhost heuristic or if it is intentionally
 	// set to insecure via name.NewInsecureRegistry.
-	schemes := []string{"https"}
+	// When registry is set to insecure, trying https before http can lead to
+	// unexpected delays due to firewalls or other network issues (e.g on Minikube).
+	schemes := make([]string, 0, 2)
 	if reg.Scheme() == "http" {
 		schemes = append(schemes, "http")
 	}
+	schemes = append(schemes, "https")
 
 	var connErr error
 	for _, scheme := range schemes {
@@ -82,7 +85,7 @@ func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
 		resp, err := client.Get(url)
 		if err != nil {
 			connErr = err
-			// Potentially retry with http.
+			// Potentially retry with https.
 			continue
 		}
 		defer func() {
