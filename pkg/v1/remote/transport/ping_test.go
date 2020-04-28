@@ -173,10 +173,10 @@ func TestPingHttpFallback(t *testing.T) {
 		wantCount: 1,
 	}, {
 		reg:       mustRegistry("ko.local"),
-		wantCount: 2,
+		wantCount: 1,
 	}, {
 		reg:       mustInsecureRegistry("us.gcr.io"),
-		wantCount: 2,
+		wantCount: 1,
 	}}
 
 	gotCount := 0

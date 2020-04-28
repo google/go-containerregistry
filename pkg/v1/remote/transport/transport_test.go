@@ -61,7 +61,7 @@ func TestTransportSelectionAnonymous(t *testing.T) {
 		t.Fatalf("expected %d requests, got %d", want, got)
 	}
 	recorded := recorder.reqs[1]
-	if got, want := recorded.URL.Scheme, "https"; got != want {
+	if got, want := recorded.URL.Scheme, "http"; got != want {
 		t.Errorf("wrong scheme, want %s got %s", want, got)
 	}
 	if want, got := recorded.Header.Get("User-Agent"), transportName; want != got {
@@ -124,12 +124,9 @@ func TestTransportSelectionBearer(t *testing.T) {
 			request = request + 1
 			switch request {
 			case 1:
-				// This is an https request that fails, causing us to fall back to http.
-				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			case 2:
 				w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			case 3:
+			case 2:
 				hdr := r.Header.Get("Authorization")
 				if !strings.HasPrefix(hdr, "Basic ") {
 					t.Errorf("Header.Get(Authorization); got %v, want Basic prefix", hdr)
@@ -225,35 +222,5 @@ func TestTransportSelectionUnrecognizedChallenge(t *testing.T) {
 	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err == nil || !strings.Contains(err.Error(), "challenge") {
 		t.Errorf("New() = %v, %v", tp, err)
-	}
-}
-
-func TestTransportAlwaysTriesHttps(t *testing.T) {
-	// Use a NewTLSServer so that this speaks TLS even though it's localhost.
-	// This ensures that we try https even for local registries.
-	count := 0
-	server := httptest.NewTLSServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			count++
-			w.Write([]byte(`{"token": "dfskdjhfkhsjdhfkjhsdf"}`))
-		}))
-	defer server.Close()
-
-	u, err := url.Parse(server.URL)
-	if err != nil {
-		t.Errorf("Unexpected error during url.Parse: %v", err)
-	}
-	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
-	if err != nil {
-		t.Errorf("Unexpected error during NewRegistry: %v", err)
-	}
-
-	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(registry, basic, server.Client().Transport, []string{testReference.Scope(PullScope)})
-	if err != nil {
-		t.Fatalf("New() = %v, %v", tp, err)
-	}
-	if count == 0 {
-		t.Errorf("failed to call TLS localhost server")
 	}
 }
