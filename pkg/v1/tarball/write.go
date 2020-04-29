@@ -100,38 +100,58 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer, opts ...
 
 	m, err := calculateManifest(refToImage)
 	if err != nil {
-		return fmt.Errorf("error calculating manifest: %v", err)
+		return sendUpdateReturn(o, fmt.Errorf("error calculating manifest: %v", err))
 	}
 	mBytes, err := json.Marshal(m)
 	if err != nil {
-		return fmt.Errorf("could not marshall manifest to bytes: %v", err)
+		return sendUpdateReturn(o, fmt.Errorf("could not marshall manifest to bytes: %v", err))
 	}
 
 	size, err := calculateTarballSize(refToImage, mBytes)
 	if err != nil {
-		return fmt.Errorf("error calculating tarball size: %v", err)
+		return sendUpdateReturn(o, fmt.Errorf("error calculating tarball size: %v", err))
 	}
 
 	return writeImagesToTar(refToImage, mBytes, size, w, o)
 }
 
+// sendUpdateReturn return the passed in error message, also sending on update channel, if it exists
+func sendUpdateReturn(o *writeOptions, err error) error {
+	if o != nil && o.updates != nil {
+		o.updates <- v1.Update{
+			Error: err,
+		}
+	}
+	return err
+}
+
+// sendProgressWriterReturn return the passed in error message, also sending on update channel, if it exists, along with downloaded information
+func sendProgressWriterReturn(pw *progressWriter, err error) error {
+	if pw != nil {
+		return pw.Error(err)
+	}
+	return err
+}
+
 // writeImagesToTar writes the images to the tarball
 func writeImagesToTar(refToImage map[name.Reference]v1.Image, m []byte, size int64, w io.Writer, o *writeOptions) (err error) {
 	if w == nil {
-		return errors.New("must pass valid writer")
+		return sendUpdateReturn(o, errors.New("must pass valid writer"))
 	}
 	imageToTags := dedupRefToImage(refToImage)
 
 	tw := w
+	var pw *progressWriter
 
 	// we only calculate the sizes and use a progressWriter if we were provided
 	// an option with a progress channel
 	if o != nil && o.updates != nil {
-		tw = &progressWriter{
+		pw = &progressWriter{
 			w:       w,
 			updates: o.updates,
 			size:    size,
 		}
+		tw = pw
 	}
 
 	tf := tar.NewWriter(tw)
@@ -143,26 +163,26 @@ func writeImagesToTar(refToImage map[name.Reference]v1.Image, m []byte, size int
 		// Write the config.
 		cfgName, err := img.ConfigName()
 		if err != nil {
-			return err
+			return sendProgressWriterReturn(pw, err)
 		}
 		cfgBlob, err := img.RawConfigFile()
 		if err != nil {
-			return err
+			return sendProgressWriterReturn(pw, err)
 		}
 		if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
-			return err
+			return sendProgressWriterReturn(pw, err)
 		}
 
 		// Write the layers.
 		layers, err := img.Layers()
 		if err != nil {
-			return err
+			return sendProgressWriterReturn(pw, err)
 		}
 		layerFiles := make([]string, len(layers))
 		for i, l := range layers {
 			d, err := l.Digest()
 			if err != nil {
-				return err
+				return sendProgressWriterReturn(pw, err)
 			}
 			// Munge the file name to appease ancient technology.
 			//
@@ -182,22 +202,28 @@ func writeImagesToTar(refToImage map[name.Reference]v1.Image, m []byte, size int
 
 			r, err := l.Compressed()
 			if err != nil {
-				return err
+				return sendProgressWriterReturn(pw, err)
 			}
 			blobSize, err := l.Size()
 			if err != nil {
-				return err
+				return sendProgressWriterReturn(pw, err)
 			}
 
 			if err := writeTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
-				return err
+				return sendProgressWriterReturn(pw, err)
 			}
 		}
 	}
 	if err := writeTarEntry(tf, "manifest.json", bytes.NewReader(m), int64(len(m))); err != nil {
-		return err
+		return sendProgressWriterReturn(pw, err)
 	}
 
+	// be sure to close the tar writer so everything is flushed out before we send our EOF
+	if err := tf.Close(); err != nil {
+		return sendProgressWriterReturn(pw, err)
+	}
+	// send an EOF to indicate finished on the channel, but nil as our return error
+	_ = sendProgressWriterReturn(pw, io.EOF)
 	return nil
 }
 
@@ -370,6 +396,24 @@ func (pw *progressWriter) Write(p []byte) (int, error) {
 	}
 
 	return n, err
+}
+
+func (pw *progressWriter) Error(err error) error {
+	pw.updates <- v1.Update{
+		Total:    pw.size,
+		Complete: pw.complete,
+		Error:    err,
+	}
+	return err
+}
+
+func (pw *progressWriter) Close() error {
+	pw.updates <- v1.Update{
+		Total:    pw.size,
+		Complete: pw.complete,
+		Error:    io.EOF,
+	}
+	return io.EOF
 }
 
 // CalculateTarFileSize calculate the size a file will take up in a tar archive,
