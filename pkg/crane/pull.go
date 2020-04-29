@@ -63,6 +63,7 @@ func Save(img v1.Image, src, path string) error {
 		tag = d.Repository.Tag(iWasADigestTag)
 	}
 
+	// no progress channel (for now)
 	return tarball.WriteToFile(path, tag, img)
 }
 
