@@ -105,6 +105,13 @@ func (fs *fscache) Get(h v1.Hash) (v1.Layer, error) {
 	if os.IsNotExist(err) {
 		return nil, ErrNotFound
 	}
+	if err == io.ErrUnexpectedEOF {
+		// Delete and return ErrNotFound because the layer was incomplete.
+		if err := fs.Delete(h); err != nil {
+			return nil, err
+		}
+		return nil, ErrNotFound
+	}
 	return l, err
 }
 
