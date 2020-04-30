@@ -435,12 +435,12 @@ func TestComputeManifest(t *testing.T) {
 	// the order of these two is based on the repo tags
 	// so mutated "gcr.io/baz/bat:latest" is before random "gcr.io/foo/bar:latest"
 	expected := []tarball.Descriptor{
-		tarball.Descriptor{
+		{
 			Config:   mutatedConfig.String(),
 			RepoTags: []string{mutatedTag},
 			Layers:   mutatedLayersFilenames,
 		},
-		tarball.Descriptor{
+		{
 			Config:   randConfig.String(),
 			RepoTags: []string{randomTag},
 			Layers:   randomLayersFilenames,
@@ -529,24 +529,21 @@ func ExampleWithProgress() {
 		fmt.Printf("error image: %v", err)
 		return
 	}
-	errchan := make(chan error)
 	go func() {
-		if err := tarball.WriteToFile(fp.Name(), tag, img, tarball.WithProgress(c)); err != nil {
-			fmt.Printf("error writing tarball: %v\n", err)
-			errchan <- err
-		}
-		errchan <- nil
+		_ = tarball.WriteToFile(fp.Name(), tag, img, tarball.WithProgress(c))
 	}()
-	var update v1.Update
-	for {
-		select {
-		case update = <-c:
-			fmt.Fprintf(os.Stderr, "receive update: %#v\n", update)
-		case err = <-errchan:
+	for update := range c {
+		switch {
+		case update.Error != nil && update.Error == io.EOF:
 			fmt.Fprintf(os.Stderr, "receive error message: %v\n", err)
 			fmt.Printf("%d/%d", update.Complete, update.Total)
 			// Output: 2800640/2800640
 			return
+		case update.Error != nil:
+			fmt.Printf("error writing tarball: %v\n", update.Error)
+			return
+		default:
+			fmt.Fprintf(os.Stderr, "receive update: %#v\n", update)
 		}
 	}
 }
