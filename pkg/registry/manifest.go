@@ -131,6 +131,29 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 		resp.WriteHeader(http.StatusCreated)
 		return nil
 	}
+	if req.Method == "DELETE" {
+		m.lock.Lock()
+		defer m.lock.Unlock()
+		c, ok := m.manifests[repo]
+		if !ok {
+			return &regError{
+				Status:  http.StatusNotFound,
+				Code:    "NAME_UNKNOWN",
+				Message: "Unknown name",
+			}
+		}
+		_, ok = c[target]
+		if !ok {
+			return &regError{
+				Status:  http.StatusNotFound,
+				Code:    "MANIFEST_UNKNOWN",
+				Message: "Unknown manifest",
+			}
+		}
+		delete(c, target)
+		resp.WriteHeader(http.StatusAccepted)
+		return nil
+	}
 	return &regError{
 		Status:  http.StatusBadRequest,
 		Code:    "METHOD_UNKNOWN",
