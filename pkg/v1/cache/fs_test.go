@@ -4,10 +4,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func TestFilesystemCache(t *testing.T) {
@@ -140,5 +143,58 @@ func TestErrNotFound(t *testing.T) {
 	}
 	if err := c.Delete(h); err != ErrNotFound {
 		t.Errorf("Delete(%q): %v", h, err)
+	}
+}
+
+func TestErrUnexpectedEOF(t *testing.T) {
+	dir, err := ioutil.TempDir("", "ggcr-cache")
+	if err != nil {
+		t.Fatalf("TempDir: %v", err)
+	}
+	defer os.RemoveAll(dir) // Remove the tempdir.
+
+	// create a random layer
+	l, err := random.Layer(10, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("random.Layer: %v", err)
+	}
+	rc, err := l.Compressed()
+	if err != nil {
+		t.Fatalf("layer.Compressed(): %v", err)
+	}
+
+	h, err := l.Digest()
+	if err != nil {
+		t.Fatalf("layer.Digest(): %v", err)
+	}
+	p := path.Join(dir, h.String())
+
+	// Write only the first segment of the compressed layer to produce an
+	// UnexpectedEOF error when reading it
+	buf := make([]byte, 10)
+	n, err := rc.Read(buf)
+	if err != nil {
+		t.Fatalf("Read(buf): %v", err)
+	}
+	if err := ioutil.WriteFile(p, buf[:n], 0644); err != nil {
+		t.Fatalf("ioutil.WriteFile(%s, buf[:%d]): %v", p, n, err)
+	}
+
+	c := NewFilesystemCache(dir)
+
+	// make sure LayerFromFile returns UnexpectedEOF
+	if _, err := tarball.LayerFromFile(p); err != io.ErrUnexpectedEOF {
+		t.Fatalf("tarball.LayerFromFile(%s): expected %v, got %v", p, io.ErrUnexpectedEOF, err)
+	}
+
+	// Try to Get the layer
+	if _, err := c.Get(h); err != ErrNotFound {
+		t.Errorf("Get(%q): %v", h, err)
+	}
+
+	// If we had an UnexpectedEOF and the cache deleted the broken layer no file
+	// should exist
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		t.Errorf("os.Stat(%q): %v", p, err)
 	}
 }
