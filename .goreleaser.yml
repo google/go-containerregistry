@@ -7,11 +7,6 @@
 #     # you may remove this if you don't need go generate
 #     - go generate ./...
 builds:
-- id: registry
-  env:
-  - CGO_ENABLED=0
-  main: ./cmd/registry/main.go
-  binary: registry
 - id: crane
   env:
   - CGO_ENABLED=0
