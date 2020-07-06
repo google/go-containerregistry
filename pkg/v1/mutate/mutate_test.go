@@ -104,6 +104,53 @@ func TestExtractPartialRead(t *testing.T) {
 	}
 }
 
+func TestSquash(t *testing.T) {
+	source, err := tarball.ImageFromPath("testdata/overwritten_file.tar", nil)
+	if err != nil {
+		t.Fatalf("Error loading image: %v", err)
+	}
+	result, err := mutate.Squash(source)
+	if err != nil {
+		t.Fatalf("Unexpected error squashing image: %v", err)
+	}
+
+	layers := getLayers(t, result)
+
+	if got, want := len(layers), 1; got != want {
+		t.Fatalf("Layers did not return the squashed layer "+
+			"- got size %d; expected 1", len(layers))
+	}
+
+	sourceCf, err := source.ConfigFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cf, err := result.ConfigFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want, got string
+	want = cf.Architecture
+	got = sourceCf.Architecture
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+	want = cf.OS
+	got = sourceCf.OS
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+	want = cf.OSVersion
+	got = sourceCf.OSVersion
+	if want != got {
+		t.Errorf("%q != %q", want, got)
+	}
+
+	if err := validate.Image(result); err != nil {
+		t.Errorf("validate.Image() = %v", err)
+	}
+}
+
 // invalidImage is an image which returns an error when Layers() is called.
 type invalidImage struct {
 	v1.Image
