@@ -16,6 +16,7 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"io"
 	"os"
 	"testing"
@@ -30,12 +31,19 @@ var imagePath = "../tarball/testdata/test_image_1.tar"
 
 type MockImageSaver struct {
 	Client
-	path string
+	path       string
+	negotiated bool
 }
 
-func (m *MockImageSaver) NegotiateAPIVersion(ctx context.Context) {}
+func (m *MockImageSaver) NegotiateAPIVersion(ctx context.Context) {
+	m.negotiated = true
+}
 
 func (m *MockImageSaver) ImageSave(_ context.Context, _ []string) (io.ReadCloser, error) {
+	if !m.negotiated {
+		return nil, errors.New("you forgot to call NegotiateAPIVersion before calling ImageSave")
+
+	}
 	return os.Open(m.path)
 }
 
@@ -59,7 +67,7 @@ func TestImage(t *testing.T) {
 
 		dmn, err := Image(tag, opts...)
 		if err != nil {
-			t.Errorf("Error loading daemon image: %s", err)
+			t.Fatalf("Error loading daemon image: %s", err)
 		}
 		if err := compare.Images(img, dmn); err != nil {
 			t.Errorf("compare.Images: %v", err)
