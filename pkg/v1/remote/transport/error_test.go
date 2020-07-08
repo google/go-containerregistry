@@ -91,6 +91,11 @@ func TestCheckErrorNotError(t *testing.T) {
 		msg:  "unsupported status code 400",
 	}, {
 		code: http.StatusUnauthorized,
+		// Valid JSON, but not a structured error -- we should still print the body.
+		body: `{"details":"incorrect username or password"}`,
+		msg:  `unsupported status code 401; body: {"details":"incorrect username or password"}`,
+	}, {
+		code: http.StatusUnauthorized,
 		body: "Not JSON",
 		msg:  "GET https://example.com/somepath?access_token=REDACTED&scope=foo&service=bar: unsupported status code 401; body: Not JSON",
 		request: &http.Request{
