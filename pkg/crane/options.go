@@ -19,12 +19,14 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 type options struct {
-	name   []name.Option
-	remote []remote.Option
+	name     []name.Option
+	remote   []remote.Option
+	platform *v1.Platform
 }
 
 func makeOptions(opts ...Option) options {
@@ -53,4 +55,12 @@ func WithTransport(t http.RoundTripper) Option {
 // Insecure is an Option that allows image references to be fetched without TLS.
 func Insecure(o *options) {
 	o.name = append(o.name, name.Insecure)
+}
+
+// WithPlatform is an Option to specify the platform.
+func WithPlatform(platform *v1.Platform) Option {
+	return func(o *options) {
+		o.remote = append(o.remote, remote.WithPlatform(*platform))
+		o.platform = platform
+	}
 }
