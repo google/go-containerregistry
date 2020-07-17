@@ -16,6 +16,7 @@ package remote
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -178,8 +179,9 @@ func TestRawManifestDigests(t *testing.T) {
 
 			rmt := remoteImage{
 				fetcher: fetcher{
-					Ref:    ref,
-					Client: http.DefaultClient,
+					Ref:     ref,
+					Client:  http.DefaultClient,
+					context: context.Background(),
 				},
 			}
 
@@ -212,8 +214,9 @@ func TestRawManifestNotFound(t *testing.T) {
 
 	img := remoteImage{
 		fetcher: fetcher{
-			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			Client: http.DefaultClient,
+			Ref:     mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client:  http.DefaultClient,
+			context: context.Background(),
 		},
 	}
 
@@ -251,8 +254,9 @@ func TestRawConfigFileNotFound(t *testing.T) {
 
 	rmt := remoteImage{
 		fetcher: fetcher{
-			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			Client: http.DefaultClient,
+			Ref:     mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client:  http.DefaultClient,
+			context: context.Background(),
 		},
 	}
 
@@ -291,8 +295,9 @@ func TestAcceptHeaders(t *testing.T) {
 
 	rmt := &remoteImage{
 		fetcher: fetcher{
-			Ref:    mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			Client: http.DefaultClient,
+			Ref:     mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
+			Client:  http.DefaultClient,
+			context: context.Background(),
 		},
 	}
 	manifest, err := rmt.RawManifest()
