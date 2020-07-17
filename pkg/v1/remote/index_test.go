@@ -16,6 +16,7 @@ package remote
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -140,8 +141,9 @@ func TestIndexRawManifestDigests(t *testing.T) {
 
 			rmt := remoteIndex{
 				fetcher: fetcher{
-					Ref:    ref,
-					Client: http.DefaultClient,
+					Ref:     ref,
+					Client:  http.DefaultClient,
+					context: context.Background(),
 				},
 			}
 

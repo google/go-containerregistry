@@ -16,6 +16,7 @@ package remote
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -165,8 +166,9 @@ func setupWriterWithServer(server *httptest.Server, repo string) (*writer, close
 	}
 
 	return &writer{
-		repo:   tag.Context(),
-		client: http.DefaultClient,
+		repo:    tag.Context(),
+		client:  http.DefaultClient,
+		context: context.Background(),
 	}, server, nil
 }
 
