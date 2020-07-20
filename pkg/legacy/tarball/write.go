@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/legacy"
@@ -194,12 +195,14 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
-	imageToTags := dedupRefToImage(refToImage)
+	sortedImages, imageToTags := dedupRefToImage(refToImage)
 	var m tarball.Manifest
 	repos := make(repositoriesTarDescriptor)
 
 	seenLayerIDs := make(map[string]struct{})
-	for img, tags := range imageToTags {
+	for _, img := range sortedImages {
+		tags := imageToTags[img]
+
 		// Write the config.
 		cfgName, err := img.ConfigName()
 		if err != nil {
@@ -301,6 +304,7 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	if err != nil {
 		return err
 	}
+
 	if err := writeTarEntry(tf, "manifest.json", bytes.NewReader(mBytes), int64(len(mBytes))); err != nil {
 		return err
 	}
@@ -314,7 +318,7 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	return nil
 }
 
-func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
+func dedupRefToImage(refToImage map[name.Reference]v1.Image) ([]v1.Image, map[v1.Image][]string) {
 	imageToTags := make(map[v1.Image][]string)
 
 	for ref, img := range refToImage {
@@ -331,7 +335,26 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 		}
 	}
 
-	return imageToTags
+	// Force specific order on tags
+	imgs := []v1.Image{}
+	for img, tags := range imageToTags {
+		sort.Strings(tags)
+		imgs = append(imgs, img)
+	}
+
+	sort.Slice(imgs, func(i, j int) bool {
+		cfI, err := imgs[i].ConfigName()
+		if err != nil {
+			return false
+		}
+		cfJ, err := imgs[j].ConfigName()
+		if err != nil {
+			return false
+		}
+		return cfI.Hex < cfJ.Hex
+	})
+
+	return imgs, imageToTags
 }
 
 // Writes a file to the provided writer with a corresponding tar header
