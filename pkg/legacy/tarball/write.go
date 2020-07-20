@@ -195,12 +195,14 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	tf := tar.NewWriter(w)
 	defer tf.Close()
 
-	imageToTags := dedupRefToImage(refToImage)
+	sortedImages, imageToTags := dedupRefToImage(refToImage)
 	var m tarball.Manifest
 	repos := make(repositoriesTarDescriptor)
 
 	seenLayerIDs := make(map[string]struct{})
-	for img, tags := range imageToTags {
+	for _, img := range sortedImages {
+		tags := imageToTags[img]
+
 		// Write the config.
 		cfgName, err := img.ConfigName()
 		if err != nil {
@@ -298,10 +300,6 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		addTags(repos, tags, prev.config.ID)
 	}
 
-	sort.Slice(m, func(i, j int) bool {
-		return m[i].Config < m[j].Config
-	})
-
 	mBytes, err := json.Marshal(m)
 	if err != nil {
 		return err
@@ -320,7 +318,7 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 	return nil
 }
 
-func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]string {
+func dedupRefToImage(refToImage map[name.Reference]v1.Image) ([]v1.Image, map[v1.Image][]string) {
 	imageToTags := make(map[v1.Image][]string)
 
 	for ref, img := range refToImage {
@@ -338,11 +336,25 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 	}
 
 	// Force specific order on tags
-	for _, tags := range imageToTags {
+	imgs := []v1.Image{}
+	for img, tags := range imageToTags {
 		sort.Strings(tags)
+		imgs = append(imgs, img)
 	}
 
-	return imageToTags
+	sort.Slice(imgs, func(i, j int) bool {
+		cfI, err := imgs[i].ConfigName()
+		if err != nil {
+			return false
+		}
+		cfJ, err := imgs[j].ConfigName()
+		if err != nil {
+			return false
+		}
+		return cfI.Hex < cfJ.Hex
+	})
+
+	return imgs, imageToTags
 }
 
 // Writes a file to the provided writer with a corresponding tar header
