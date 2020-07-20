@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/legacy"
@@ -297,10 +298,15 @@ func MultiWrite(refToImage map[name.Reference]v1.Image, w io.Writer) error {
 		addTags(repos, tags, prev.config.ID)
 	}
 
+	sort.Slice(m, func(i, j int) bool {
+		return m[i].Config < m[j].Config
+	})
+
 	mBytes, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
+
 	if err := writeTarEntry(tf, "manifest.json", bytes.NewReader(mBytes), int64(len(mBytes))); err != nil {
 		return err
 	}
@@ -329,6 +335,11 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 				imageToTags[img] = nil
 			}
 		}
+	}
+
+	// Force specific order on tags
+	for _, tags := range imageToTags {
+		sort.Strings(tags)
 	}
 
 	return imageToTags
