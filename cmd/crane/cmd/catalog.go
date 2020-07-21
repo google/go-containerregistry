@@ -32,7 +32,7 @@ func NewCmdCatalog() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
 			reg := args[0]
-			repos, err := crane.Catalog(reg)
+			repos, err := crane.Catalog(reg, options...)
 			if err != nil {
 				log.Fatalf("reading repos for %s: %v", reg, err)
 			}
