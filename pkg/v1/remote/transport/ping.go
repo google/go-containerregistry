@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"strings"
 
+	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -105,18 +106,18 @@ func ping(ctx context.Context, reg name.Registry, t http.RoundTripper) (*pingRes
 				scheme:    scheme,
 			}, nil
 		case http.StatusUnauthorized:
-			wac := resp.Header.Get("WWW-Authenticate")
-			if parts := strings.SplitN(wac, " ", 2); len(parts) == 2 {
-				// If there are two parts, then parse the challenge parameters.
+			if challenges := authchallenge.ResponseChallenges(resp); len(challenges) != 0 {
+				// If we hit more than one, I'm not even sure what to do.
+				wac := challenges[0]
 				return &pingResp{
-					challenge:  challenge(parts[0]).Canonical(),
-					parameters: parseChallenge(parts[1]),
+					challenge:  challenge(wac.Scheme).Canonical(),
+					parameters: wac.Parameters,
 					scheme:     scheme,
 				}, nil
 			}
 			// Otherwise, just return the challenge without parameters.
 			return &pingResp{
-				challenge: challenge(wac).Canonical(),
+				challenge: challenge(resp.Header.Get("WWW-Authenticate")).Canonical(),
 				scheme:    scheme,
 			}, nil
 		default:
