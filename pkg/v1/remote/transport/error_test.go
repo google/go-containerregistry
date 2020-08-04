@@ -50,6 +50,13 @@ func TestTemporary(t *testing.T) {
 			}},
 		},
 		retry: false,
+	}, {
+		error: &Error{
+			Errors: []Diagnostic{{
+				Code: TooManyRequestsErrorCode,
+			}},
+		},
+		retry: true,
 	}}
 
 	for _, test := range tests {
