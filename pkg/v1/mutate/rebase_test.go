@@ -97,6 +97,20 @@ func TestRebase(t *testing.T) {
 	t.Log("New base:")
 	newBaseLayerDigests := layerDigests(t, newBase)
 
+	// Add config file os/arch property fields
+	newBaseConfigFile, err := newBase.ConfigFile()
+	if err != nil {
+		t.Fatalf("newBase.ConfigFile: %v", err)
+	}
+	newBaseConfigFile.Architecture = "arm"
+	newBaseConfigFile.OS = "windows"
+	newBaseConfigFile.OSVersion = "10.0.17763.1339"
+
+	newBase, err = mutate.ConfigFile(newBase, newBaseConfigFile)
+	if err != nil {
+		t.Fatalf("ConfigFile (newBase): %v", err)
+	}
+
 	// Rebase original image onto new base.
 	rebased, err := mutate.Rebase(orig, oldBase, newBase)
 	if err != nil {
@@ -150,5 +164,16 @@ func TestRebase(t *testing.T) {
 		if got, want := rh.Comment, wantHistories[i].Comment; got != want {
 			t.Errorf("Layer %d mismatch, got %q, want %q", i, got, want)
 		}
+	}
+
+	// Compare ConfigFile property fields copied from new base.
+	if rebasedConfig.Architecture != newBaseConfig.Architecture {
+		t.Errorf("ConfigFile property Architecture mismatch, got %q, want %q", rebasedConfig.Architecture, newBaseConfig.Architecture)
+	}
+	if rebasedConfig.OS != newBaseConfig.OS {
+		t.Errorf("ConfigFile property OS mismatch, got %q, want %q", rebasedConfig.OS, newBaseConfig.OS)
+	}
+	if rebasedConfig.OSVersion != newBaseConfig.OSVersion {
+		t.Errorf("ConfigFile property OSVersion mismatch, got %q, want %q", rebasedConfig.OSVersion, newBaseConfig.OSVersion)
 	}
 }
