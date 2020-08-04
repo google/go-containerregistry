@@ -89,13 +89,7 @@ func (e *Error) Temporary() bool {
 		return false
 	}
 	for _, d := range e.Errors {
-		isTempCode := false
-		for _, code := range temporaryErrorCodes {
-			if d.Code == code {
-				isTempCode = true
-			}
-		}
-		if !isTempCode {
+		if _, ok := temporaryErrorCodes[d.Code]; !ok {
 			return false
 		}
 	}
@@ -158,9 +152,9 @@ const (
 )
 
 // TODO: Include other error types.
-var temporaryErrorCodes = []ErrorCode{
-	BlobUploadInvalidErrorCode,
-	TooManyRequestsErrorCode,
+var temporaryErrorCodes = map[ErrorCode]struct{}{
+	BlobUploadInvalidErrorCode: struct{}{},
+	TooManyRequestsErrorCode:   struct{}{},
 }
 
 // CheckError returns a structured error if the response status is not in codes.
