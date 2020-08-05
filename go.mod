@@ -63,18 +63,16 @@ require (
 	github.com/timakin/bodyclose v0.0.0-20200424151742-cb6215831a94 // indirect
 	github.com/vdemeester/k8s-pkg-credentialprovider v1.17.4
 	github.com/xanzy/go-gitlab v0.32.0 // indirect
-	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37 // indirect
 	golang.org/x/mod v0.3.0 // indirect
-	golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a
+	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
 	golang.org/x/sys v0.0.0-20200523222454-059865788121 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
-	golang.org/x/tools v0.0.0-20200527183253-8e7acdbce89d // indirect
+	golang.org/x/tools v0.0.0-20200804011535-6c149bb5ef0d // indirect
 	google.golang.org/api v0.25.0 // indirect
 	google.golang.org/genproto v0.0.0-20200527145253-8367513e4ece // indirect
 	gopkg.in/ini.v1 v1.56.0 // indirect
-	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
+	honnef.co/go/tools v0.0.1-2020.1.5 // indirect
 	k8s.io/api v0.17.4
 	k8s.io/apimachinery v0.17.4
 	k8s.io/client-go v0.17.4
