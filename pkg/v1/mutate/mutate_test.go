@@ -146,6 +146,7 @@ func TestAppendWithAddendum(t *testing.T) {
 		Annotations: map[string]string{
 			"foo": "bar",
 		},
+		MediaType: types.MediaType("foo"),
 	}
 
 	result, err := mutate.Append(source, addendum)
@@ -180,6 +181,9 @@ func TestAppendWithAddendum(t *testing.T) {
 
 	if diff := cmp.Diff(m.Layers[1].Annotations, addendum.Annotations); diff != "" {
 		t.Fatalf("the appended Annotations is not the same (-got, +want) %s", diff)
+	}
+	if diff := cmp.Diff(m.Layers[1].MediaType, addendum.MediaType); diff != "" {
+		t.Fatalf("the appended MediaType is not the same (-got, +want) %s", diff)
 	}
 }
 
