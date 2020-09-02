@@ -17,6 +17,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -30,35 +31,46 @@ func init() { Root.AddCommand(NewCmdList()) }
 func NewCmdList() *cobra.Command {
 	recursive := false
 	json := false
+	serviceAccountKey := ""
 	cmd := &cobra.Command{
 		Use:   "ls REPO",
 		Short: "List the contents of a repo",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			ls(args[0], recursive, json)
+			ls(args[0], recursive, serviceAccountKey, json)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
 	cmd.Flags().BoolVar(&json, "json", false, "Format the response from the registry as JSON, one line per repo")
+	cmd.Flags().StringVar(&serviceAccountKey, "service-account-key", "", "File path to service account key JSON")
 
 	return cmd
 }
 
-func ls(root string, recursive, j bool) {
+func ls(root string, recursive bool, serviceAccountKey string, j bool) {
 	repo, err := name.NewRepository(root)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	authOption := google.WithAuthFromKeychain(google.Keychain)
+	if serviceAccountKey != "" {
+		buf, err := ioutil.ReadFile(serviceAccountKey)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		authOption = google.WithAuth(google.NewJSONKeyAuthenticator(string(buf)))
+	}
+
 	if recursive {
-		if err := google.Walk(repo, printImages(j), google.WithAuthFromKeychain(google.Keychain)); err != nil {
+		if err := google.Walk(repo, printImages(j), authOption); err != nil {
 			log.Fatalln(err)
 		}
 		return
 	}
 
-	tags, err := google.List(repo, google.WithAuthFromKeychain(google.Keychain))
+	tags, err := google.List(repo, authOption)
 	if err != nil {
 		log.Fatalln(err)
 	}
