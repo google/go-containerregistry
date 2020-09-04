@@ -67,6 +67,36 @@ func Save(img v1.Image, src, path string) error {
 	return tarball.WriteToFile(path, tag, img)
 }
 
+// MultiSave writes multiple images as a tarball at path with tag src.
+func MultiSave(srcToImage map[string]v1.Image, path string) error {
+	tagToImage := make(map[name.Tag]v1.Image, len(srcToImage))
+
+	for src, img := range srcToImage {
+		ref, err := name.ParseReference(src)
+		if err != nil {
+			return fmt.Errorf("parsing ref %q: %v", src, err)
+		}
+
+		// WriteToFile wants a tag to write to the tarball, but we might have
+		// been given a digest.
+		// If the original ref was a tag, use that. Otherwise, if it was a
+		// digest, tag the image with :i-was-a-digest instead.
+		tag, ok := ref.(name.Tag)
+		if !ok {
+			d, ok := ref.(name.Digest)
+			if !ok {
+				return fmt.Errorf("ref wasn't a tag or digest")
+			}
+			tag = d.Repository.Tag(iWasADigestTag)
+		}
+
+		tagToImage[tag] = img
+	}
+
+	// no progress channel (for now)
+	return tarball.MultiWriteToFile(path, tagToImage)
+}
+
 // PullLayer returns the given layer from a registry.
 func PullLayer(ref string, opt ...Option) (v1.Layer, error) {
 	o := makeOptions(opt...)

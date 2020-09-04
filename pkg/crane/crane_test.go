@@ -30,6 +30,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
@@ -228,6 +229,36 @@ func TestCraneTarball(t *testing.T) {
 	}
 	if d != digest {
 		t.Errorf("digest mismatch: %v != %v", d, digest)
+	}
+}
+
+func TestCraneSaveMultiTarball(t *testing.T) {
+	t.Parallel()
+	// Write multiple images as a tarball.
+	tmp, err := ioutil.TempFile("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmp.Name())
+
+	imgCount := 5
+	srcToImage := make(map[string]v1.Image, imgCount)
+	for i := 1; i < imgCount; i++ {
+		img, err := random.Image(1024, 5)
+		if err != nil {
+			t.Fatal(err)
+		}
+		digest, err := img.Digest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		src := fmt.Sprintf("test/crane@%s", digest)
+
+		srcToImage[src] = img
+	}
+
+	if err := crane.MultiSave(srcToImage, tmp.Name()); err != nil {
+		t.Errorf("MultiSave: %v", err)
 	}
 }
 

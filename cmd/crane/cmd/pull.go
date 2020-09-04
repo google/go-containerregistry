@@ -19,6 +19,7 @@ import (
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/spf13/cobra"
 )
@@ -30,29 +31,39 @@ func NewCmdPull() *cobra.Command {
 	var cachePath, format string
 
 	cmd := &cobra.Command{
-		Use:   "pull IMAGE TARBALL",
-		Short: "Pull a remote image by reference and store its contents in a tarball",
-		Args:  cobra.ExactArgs(2),
+		Use:   "pull IMAGE [IMAGE] [...] TARBALL",
+		Short: "Pull one or more remote images by reference and store their contents in a tarball",
+		Args:  cobra.MinimumNArgs(2),
+		PreRun: func(cmd *cobra.Command, args []string) {
+			if len(args) > 2 && format != "tarball" {
+				log.Fatalf("saving multiple images is compatible only with tarball format")
+			}
+		},
 		Run: func(_ *cobra.Command, args []string) {
-			src, path := args[0], args[1]
-			img, err := crane.Pull(src, options...)
-			if err != nil {
-				log.Fatal(err)
-			}
-			if cachePath != "" {
-				img = cache.Image(img, cache.NewFilesystemCache(cachePath))
-			}
-
 			switch format {
 			case "tarball":
-				if err := crane.Save(img, src, path); err != nil {
+				srcs, path := args[:len(args)-1], args[len(args)-1]
+				srcToImage := make(map[string]v1.Image, len(srcs))
+
+				for _, src := range srcs {
+					img := pullImage(src, cachePath)
+					srcToImage[src] = img
+				}
+
+				if err := crane.MultiSave(srcToImage, path); err != nil {
 					log.Fatalf("saving tarball %s: %v", path, err)
 				}
 			case "legacy":
+				src, path := args[0], args[1]
+				img := pullImage(src, cachePath)
+
 				if err := crane.SaveLegacy(img, src, path); err != nil {
 					log.Fatalf("saving legacy tarball %s: %v", path, err)
 				}
 			case "oci":
+				src, path := args[0], args[1]
+				img := pullImage(src, cachePath)
+
 				if err := crane.SaveOCI(img, path); err != nil {
 					log.Fatalf("saving oci image layout %s: %v", path, err)
 				}
@@ -65,4 +76,17 @@ func NewCmdPull() *cobra.Command {
 	cmd.Flags().StringVar(&format, "format", "tarball", fmt.Sprintf("Format in which to save images (%q, %q, or %q)", "tarball", "legacy", "oci"))
 
 	return cmd
+}
+
+// pullImage pulls an image from a registry.
+func pullImage(src string, cachePath string) v1.Image {
+	img, err := crane.Pull(src, options...)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if cachePath != "" {
+		img = cache.Image(img, cache.NewFilesystemCache(cachePath))
+	}
+
+	return img
 }
