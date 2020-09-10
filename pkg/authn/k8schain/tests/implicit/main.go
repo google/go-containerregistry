@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -28,7 +29,7 @@ func main() {
 		log.Fatalf("expected usage: <command> <arg>, got: %v", os.Args)
 	}
 
-	kc, err := k8schain.NewInCluster(k8schain.Options{})
+	kc, err := k8schain.NewInCluster(context.Background(), k8schain.Options{})
 	if err != nil {
 		log.Fatalf("k8schain.New() = %v", err)
 	}

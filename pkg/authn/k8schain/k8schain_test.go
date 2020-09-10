@@ -15,6 +15,7 @@
 package k8schain
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"reflect"
@@ -35,7 +36,7 @@ func TestAnonymousFallback(t *testing.T) {
 		},
 	})
 
-	kc, err := New(client, Options{})
+	kc, err := New(context.Background(), client, Options{})
 	if err != nil {
 		t.Errorf("New() = %v", err)
 	}
@@ -78,7 +79,7 @@ func TestAttachedServiceAccount(t *testing.T) {
 		},
 	})
 
-	kc, err := New(client, Options{
+	kc, err := New(context.Background(), client, Options{
 		Namespace:          "ns",
 		ServiceAccountName: "svcacct",
 	})
@@ -131,7 +132,7 @@ func TestImagePullSecrets(t *testing.T) {
 		},
 	})
 
-	kc, err := New(client, Options{
+	kc, err := New(context.Background(), client, Options{
 		Namespace:        "ns",
 		ImagePullSecrets: []string{"secret"},
 	})

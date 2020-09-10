@@ -6,8 +6,8 @@ language:
   - go
 
 go:
-  - "1.13"
   - "1.14"
+  - "1.15"
 
 env:
   - "GO111MODULE=off"

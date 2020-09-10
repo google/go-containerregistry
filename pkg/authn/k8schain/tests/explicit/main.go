@@ -15,6 +15,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
@@ -28,7 +29,7 @@ func main() {
 		log.Fatalf("NewTag() = %v", err)
 	}
 
-	kc, err := k8schain.NewInCluster(k8schain.Options{
+	kc, err := k8schain.NewInCluster(context.Background(), k8schain.Options{
 		Namespace: "explicit-namespace",
 		ImagePullSecrets: []string{
 			"explicit-secret",
