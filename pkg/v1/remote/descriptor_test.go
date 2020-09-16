@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -121,5 +122,55 @@ func TestGetImageAsIndex(t *testing.T) {
 	// Should fail based on media type.
 	if _, err := desc.ImageIndex(); err == nil {
 		t.Errorf("ImageIndex() = %v, expected err", err)
+	}
+}
+
+func TestHeadSchema1(t *testing.T) {
+	expectedRepo := "foo/bar"
+	mediaType := types.DockerManifestSchema1Signed
+	fakeDigest := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	response := []byte("doesn't matter")
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case manifestPath:
+			if r.Method != http.MethodHead {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+			}
+			w.Header().Set("Content-Type", string(mediaType))
+			w.Header().Set("Content-Length", strconv.Itoa(len(response)))
+			w.Header().Set("Docker-Content-Digest", fakeDigest)
+			w.Write(response)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+
+	// Head should succeed even for invalid json. We don't parse the response.
+	desc, err := Head(tag)
+	if err != nil {
+		t.Fatalf("Head(%s) = %v", tag, err)
+	}
+
+	if desc.MediaType != mediaType {
+		t.Errorf("Descriptor.MediaType = %q, expected %q", desc.MediaType, mediaType)
+	}
+
+	if desc.Digest.String() != fakeDigest {
+		t.Errorf("Descriptor.Digest = %q, expected %q", desc.Digest, fakeDigest)
+	}
+
+	if desc.Size != int64(len(response)) {
+		t.Errorf("Descriptor.Size = %q, expected %q", desc.Size, len(response))
 	}
 }
