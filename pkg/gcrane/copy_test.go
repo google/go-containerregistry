@@ -375,7 +375,7 @@ func TestErrors(t *testing.T) {
 }
 
 func TestRetryErrors(t *testing.T) {
-	// We log a warning during retries, so we can tell if somethign retried by checking logs.Warn.
+	// We log a warning during retries, so we can tell if something retried by checking logs.Warn.
 	var b bytes.Buffer
 	logs.Warn.SetOutput(&b)
 
