@@ -63,11 +63,11 @@ func NewCmdAuthGet() *cobra.Command {
 			if err != nil {
 				log.Fatal(err)
 			}
-			author, err := authn.DefaultKeychain.Resolve(reg)
+			auth, err := authn.DefaultKeychain.Resolve(reg)
 			if err != nil {
 				log.Fatal(err)
 			}
-			auth, err := auther.Authorization()
+			auth, err := auth.Authorization()
 			if err != nil {
 				log.Fatal(err)
 			}
