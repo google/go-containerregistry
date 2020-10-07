@@ -16,6 +16,8 @@ env:
 git:
   depth: 1
 
+go_import_path: github.com/google/go-containerregistry
+
 cache:
   directories:
     - $GOPATH/pkg/mod
