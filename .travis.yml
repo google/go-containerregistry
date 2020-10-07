@@ -13,8 +13,23 @@ env:
   - "GO111MODULE=off"
   - "GO111MODULE=on"
 
+os:
+  - windows
+  - linux
+
+# Don't run all combos on Windows
+jobs:
+  exclude:
+    - os: windows
+      go: "1.14"
+    - os: windows
+      go: "1.15"
+      env: "GO111MODULE=off"
+
+
 git:
   depth: 1
+  autocrlf: input
 
 go_import_path: github.com/google/go-containerregistry
 
