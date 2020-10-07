@@ -15,6 +15,7 @@
 package layout
 
 import (
+	"path/filepath"
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -39,9 +40,9 @@ var (
 		Algorithm: "sha256",
 		Hex:       "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 	}
-	bogusPath        = "testdata/does_not_exist"
-	testPath         = "testdata/test_index"
-	testPathOneImage = "testdata/test_index_one_image"
+	bogusPath        = filepath.Join("testdata", "does_not_exist")
+	testPath         = filepath.Join("testdata", "test_index")
+	testPathOneImage = filepath.Join("testdata", "test_index_one_image")
 )
 
 func TestImage(t *testing.T) {
