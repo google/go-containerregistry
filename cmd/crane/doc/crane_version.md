@@ -4,10 +4,11 @@ Print the version
 
 ### Synopsis
 
-The version string is completely dependent on how the binary was built, so you should not depend on the version format. It may change without notice.
+The version string is completely dependent on how the binary was built, so you
+should not depend on the version format. It may change without notice.
 
-This could be an arbitrary string, if specified via -ldflags.
-This could also be the go module version, if built with go modules (often "(devel)").
+This could be an arbitrary string, if specified via -ldflags. This could also be
+the go module version, if built with go modules (often "(devel)").
 
 ```
 crane version [flags]
@@ -28,5 +29,4 @@ crane version [flags]
 
 ### SEE ALSO
 
-* [crane](crane.md)	 - Crane is a tool for managing container images
-
+- [crane](crane.md) - Crane is a tool for managing container images

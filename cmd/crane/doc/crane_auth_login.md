@@ -35,5 +35,4 @@ crane auth login [OPTIONS] [SERVER] [flags]
 
 ### SEE ALSO
 
-* [crane auth](crane_auth.md)	 - Log in or access credentials
-
+- [crane auth](crane_auth.md) - Log in or access credentials

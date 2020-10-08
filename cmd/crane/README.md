@@ -1,7 +1,7 @@
 # `crane`
 
-[`crane`](doc/crane.md) is a tool for interacting with remote images
-and registries.
+[`crane`](doc/crane.md) is a tool for interacting with remote images and
+registries.
 
 ## Installation
 
@@ -42,6 +42,7 @@ docker-tag-latest:
     name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
   script:
-    - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD
+      $CI_REGISTRY
     - crane tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA latest
 ```

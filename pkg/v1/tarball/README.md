@@ -2,10 +2,10 @@
 
 [![GoDoc](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/tarball?status.svg)](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/tarball)
 
-This package produces tarballs that can consumed via `docker load`. Note
-that this is a _different_ format from the [`legacy`](/pkg/legacy/tarball)
-tarballs that are produced by `docker save`, but this package is still able to
-read the legacy tarballs produced by `docker save`.
+This package produces tarballs that can consumed via `docker load`. Note that
+this is a _different_ format from the [`legacy`](/pkg/legacy/tarball) tarballs
+that are produced by `docker save`, but this package is still able to read the
+legacy tarballs produced by `docker save`.
 
 ## Usage
 
@@ -55,7 +55,6 @@ func main() {
 
 Let's look at what happens when we write out a tarball:
 
-
 ### `ubuntu:latest`
 
 ```
@@ -74,7 +73,8 @@ ubuntu/
 
 There are a couple interesting files here.
 
-`manifest.json` is the entrypoint: a list of [`tarball.Descriptor`s](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/tarball#Descriptor)
+`manifest.json` is the entrypoint: a list of
+[`tarball.Descriptor`s](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/tarball#Descriptor)
 that describe the images contained in this tarball.
 
 For each image, this has the `RepoTags` (how it was pulled), a `Config` file
@@ -188,19 +188,21 @@ $ jq < nanoserver/manifest.json
 ```
 
 A couple things to note about this `manifest.json` versus the other:
-* The `RepoTags` field is a bit weird here. `hello-world` is a multi-platform
+
+- The `RepoTags` field is a bit weird here. `hello-world` is a multi-platform
   image, so We had to pull this image by digest, since we're (I'm) on
   amd64/linux and wanted to grab a windows image. Since the tarball format
   expects a tag under `RepoTags`, and we didn't pull by tag, we replace the
   digest with a sentinel `i-was-a-digest` "tag" to appease docker.
-* The `LayerSources` has enough information to reconstruct the foreign layers
+- The `LayerSources` has enough information to reconstruct the foreign layers
   pointer when pushing/pulling from the registry. For legal reasons, microsoft
   doesn't want anyone but them to serve windows base images, so the mediaType
   here indicates a "foreign" or "non-distributable" layer with an URL for where
-  you can download it from microsoft (see the [OCI
-  image-spec](https://github.com/opencontainers/image-spec/blob/master/layer.md#non-distributable-layers)).
+  you can download it from microsoft (see the
+  [OCI image-spec](https://github.com/opencontainers/image-spec/blob/master/layer.md#non-distributable-layers)).
 
 We can look at what's in the registry to explain both of these things:
+
 ```
 $ crane manifest hello-world:nanoserver | jq .
 {
@@ -254,7 +256,10 @@ $ crane manifest hello-world:nanoserver@sha256:63c287625c2b0b72900e562de73c0e381
 }
 ```
 
-The `LayerSources` map is keyed by the diffid. Note that `sha256:26fd2d9d4c64a4f965bbc77939a454a31b607470f430b5d69fc21ded301fa55e` matches the first layer in the config file:
+The `LayerSources` map is keyed by the diffid. Note that
+`sha256:26fd2d9d4c64a4f965bbc77939a454a31b607470f430b5d69fc21ded301fa55e`
+matches the first layer in the config file:
+
 ```
 $ jq '.[0].LayerSources' < nanoserver/manifest.json
 {

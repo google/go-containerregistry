@@ -1,8 +1,9 @@
 # `k8schain`
 
-This is an implementation of the [github.com/google/go-containerregistry](
-https://github.com/google/go-containerregistry) library's [`authn.Keychain`](
-https://godoc.org/github.com/google/go-containerregistry/authn#Keychain)
+This is an implementation of the
+[github.com/google/go-containerregistry](https://github.com/google/go-containerregistry)
+library's
+[`authn.Keychain`](https://godoc.org/github.com/google/go-containerregistry/authn#Keychain)
 interface based on the authentication semantics used by the Kubelet when
 performing the pull of a Pod's images.
 
@@ -33,8 +34,8 @@ The `k8schain` keychain can be used directly as an `authn.Keychain`, e.g.
 	}
 ```
 
-Or, it can be used to override the default keychain used by this process,
-which by default follows Docker's keychain semantics:
+Or, it can be used to override the default keychain used by this process, which
+by default follows Docker's keychain semantics:
 
 ```go
 func init() {

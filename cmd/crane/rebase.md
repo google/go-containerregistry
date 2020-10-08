@@ -86,5 +86,5 @@ In general, it's a good practice to tag rebased images to some other tag than
 the `original` tag, perform some sanity checks, then tag the image to the
 `original` tag once it's determined the image is valid.
 
-There is ongoing work to standardize and advertise base image contract
-adherence to make rebasing safer.
+There is ongoing work to standardize and advertise base image contract adherence
+to make rebasing safer.

@@ -25,7 +25,6 @@ crane auth [flags]
 
 ### SEE ALSO
 
-* [crane](crane.md)	 - Crane is a tool for managing container images
-* [crane auth get](crane_auth_get.md)	 - Implements a credential helper
-* [crane auth login](crane_auth_login.md)	 - Log in to a registry
-
+- [crane](crane.md) - Crane is a tool for managing container images
+- [crane auth get](crane_auth_get.md) - Implements a credential helper
+- [crane auth login](crane_auth_login.md) - Log in to a registry

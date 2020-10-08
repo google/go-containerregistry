@@ -4,8 +4,9 @@
 
 The `daemon` package enables reading/writing images from/to the docker daemon.
 
-It is not fully fleshed out, but is useful for interoperability, see various issues:
+It is not fully fleshed out, but is useful for interoperability, see various
+issues:
 
-* https://github.com/google/go-containerregistry/issues/205
-* https://github.com/google/go-containerregistry/issues/552
-* https://github.com/google/go-containerregistry/issues/627
+- https://github.com/google/go-containerregistry/issues/205
+- https://github.com/google/go-containerregistry/issues/552
+- https://github.com/google/go-containerregistry/issues/627

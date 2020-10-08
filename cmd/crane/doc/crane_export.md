@@ -35,5 +35,4 @@ crane export IMAGE TARBALL [flags]
 
 ### SEE ALSO
 
-* [crane](crane.md)	 - Crane is a tool for managing container images
-
+- [crane](crane.md) - Crane is a tool for managing container images

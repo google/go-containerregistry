@@ -37,13 +37,13 @@ func main() {
 
 ## Structure
 
-This implements the layer portion of an [image
-upload](/pkg/v1/remote#anatomy-of-an-image-upload). We launch a goroutine that
-is responsible for hashing the uncompressed contents to compute the `DiffID`,
-gzipping them to produce the `Compressed` contents, and hashing/counting the
-bytes to produce the `Digest`/`Size`. This goroutine writes to an
-`io.PipeWriter`, which blocks until `Compressed` reads the gzipped contents from
-the corresponding `io.PipeReader`.
+This implements the layer portion of an
+[image upload](/pkg/v1/remote#anatomy-of-an-image-upload). We launch a goroutine
+that is responsible for hashing the uncompressed contents to compute the
+`DiffID`, gzipping them to produce the `Compressed` contents, and
+hashing/counting the bytes to produce the `Digest`/`Size`. This goroutine writes
+to an `io.PipeWriter`, which blocks until `Compressed` reads the gzipped
+contents from the corresponding `io.PipeReader`.
 
 <p align="center">
   <img src="/images/stream.dot.svg" />

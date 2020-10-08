@@ -31,5 +31,4 @@ crane blob ubuntu@sha256:4c1d20cdee96111c8acf1858b62655a37ce81ae48648993542b7ac3
 
 ### SEE ALSO
 
-* [crane](crane.md)	 - Crane is a tool for managing container images
-
+- [crane](crane.md) - Crane is a tool for managing container images
