@@ -16,7 +16,7 @@ package crane
 
 // Digest returns the sha256 hash of the remote image at ref.
 func Digest(ref string, opt ...Option) (string, error) {
-	desc, err := getManifest(ref, opt...)
+	desc, err := head(ref, opt...)
 	if err != nil {
 		return "", err
 	}
