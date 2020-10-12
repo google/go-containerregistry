@@ -28,7 +28,7 @@ export GOPATH=$(go env GOPATH)
 export PATH="${GOPATH}/bin:${PATH}"
 
 
-go get k8s.io/code-generator/cmd/deepcopy-gen
-go get github.com/maxbrunsfeld/counterfeiter/v6
+go mod tidy
+go mod vendor
 go run $PROJECT_ROOT/cmd/crane/help/main.go --dir=$PROJECT_ROOT/cmd/crane/doc/
 go generate ./...
