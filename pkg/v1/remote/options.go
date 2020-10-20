@@ -33,6 +33,7 @@ type options struct {
 	transport http.RoundTripper
 	platform  v1.Platform
 	context   context.Context
+	updates   chan<- string
 }
 
 func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
@@ -41,6 +42,7 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 		transport: http.DefaultTransport,
 		platform:  defaultPlatform,
 		context:   context.Background(),
+		updates:   nil,
 	}
 
 	for _, option := range opts {
@@ -128,6 +130,18 @@ func WithPlatform(p v1.Platform) Option {
 func WithContext(ctx context.Context) Option {
 	return func(o *options) error {
 		o.context = ctx
+		return nil
+	}
+}
+
+// WithProgress is a functional option for setting the progress chan for notice
+// progress. Progress chan use to notice progress when push image to remote registry.
+// E.g., chan will close after push image
+//
+// The default updates is nil.
+func WithProgress(updates chan<- string) Option {
+	return func(o *options) error {
+		o.updates = updates
 		return nil
 	}
 }

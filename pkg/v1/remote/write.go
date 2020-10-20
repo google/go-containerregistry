@@ -93,7 +93,12 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		}
 
 		g.Go(func() error {
-			return w.uploadOne(l)
+			err := w.uploadOne(l)
+			// if upload success notify layer digest to progress chan while chan is not nil
+			if err == nil && o != nil && o.updates != nil {
+				o.updates <- h.String()
+			}
+			return err
 		})
 	}
 
@@ -113,10 +118,21 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		if err := w.uploadOne(l); err != nil {
 			return err
 		}
+		// if upload success notify layer digest to progress chan while chan is not nil
+		if o != nil && o.updates != nil {
+			h, _ := l.Digest()
+			o.updates <- h.String()
+		}
 	} else {
 		// We *can* read the ConfigLayer, so upload it concurrently with the layers.
 		g.Go(func() error {
-			return w.uploadOne(l)
+			err := w.uploadOne(l)
+			// if upload success notify layer digest to progress chan while chan is not nil
+			if err == nil && o != nil && o.updates != nil {
+				h, _ := l.Digest()
+				o.updates <- h.String()
+			}
+			return err
 		})
 
 		// Wait for the layers + config.
