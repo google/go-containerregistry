@@ -13,22 +13,19 @@
 package cmd
 
 import (
-	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	Root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
 	Root.PersistentFlags().BoolVar(&insecure, "insecure", false, "Allow image references to be fetched without TLS")
-	Root.PersistentFlags().Var(platform, "platform", "Specifies the platform in the form os/arch (e.g. linux/amd64).")
+	Root.PersistentFlags().Var(platform, "platform", "Specifies the platform in the form os/arch[/variant] (e.g. linux/amd64).")
 }
 
 var (
@@ -86,32 +83,4 @@ func (ht *headerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		in.Header.Set(k, v)
 	}
 	return ht.inner.RoundTrip(in)
-}
-
-type platformValue struct {
-	platform *v1.Platform
-}
-
-func (pv *platformValue) Set(platform string) error {
-	parts := strings.Split(platform, "/")
-	if len(parts) < 2 {
-		return fmt.Errorf("failed to parse platform")
-	}
-	if pv.platform == nil {
-		pv.platform = &v1.Platform{}
-	}
-	pv.platform.OS = parts[0]
-	pv.platform.Architecture = parts[1]
-	return nil
-}
-
-func (pv *platformValue) String() string {
-	if pv.platform == nil {
-		return "none"
-	}
-	return fmt.Sprintf("%s/%s", pv.platform.OS, pv.platform.Architecture)
-}
-
-func (pv *platformValue) Type() string {
-	return "os/arch"
 }
