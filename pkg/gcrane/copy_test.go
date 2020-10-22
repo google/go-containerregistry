@@ -50,28 +50,28 @@ func mustRepo(s string) name.Repository {
 	return repo
 }
 
-type fakeGCR struct {
+type fakeXCR struct {
 	h     http.Handler
 	repos map[string]google.Tags
 	t     *testing.T
 }
 
-func (gcr *fakeGCR) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	gcr.t.Logf("%s %s", r.Method, r.URL)
+func (xcr *fakeXCR) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	xcr.t.Logf("%s %s", r.Method, r.URL)
 	if strings.HasPrefix(r.URL.Path, "/v2/") && strings.HasSuffix(r.URL.Path, "/tags/list") {
 		repo := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v2/"), "/tags/list")
-		if tags, ok := gcr.repos[repo]; !ok {
+		if tags, ok := xcr.repos[repo]; !ok {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
-			gcr.t.Logf("%+v", tags)
+			xcr.t.Logf("%+v", tags)
 			json.NewEncoder(w).Encode(tags)
 		}
 	} else {
-		gcr.h.ServeHTTP(w, r)
+		xcr.h.ServeHTTP(w, r)
 	}
 }
 
-func newFakeGCR(stuff map[name.Reference]partial.Describable, t *testing.T) (*fakeGCR, error) {
+func newFakeXCR(stuff map[name.Reference]partial.Describable, t *testing.T) (*fakeXCR, error) {
 	h := registry.New()
 
 	repos := make(map[string]google.Tags)
@@ -129,13 +129,13 @@ func newFakeGCR(stuff map[name.Reference]partial.Describable, t *testing.T) (*fa
 		repos[repo] = tags
 	}
 
-	return &fakeGCR{h: h, t: t, repos: repos}, nil
+	return &fakeXCR{h: h, t: t, repos: repos}, nil
 }
 
 func TestCopy(t *testing.T) {
 	logs.Warn.SetOutput(os.Stderr)
-	src := "gcr.io/test/gcrane"
-	dst := "gcr.io/test/gcrane/copy"
+	src := "xcr.io/test/gcrane"
+	dst := "xcr.io/test/gcrane/copy"
 
 	oneTag, err := random.Image(1024, 5)
 	if err != nil {
@@ -163,8 +163,8 @@ func TestCopy(t *testing.T) {
 	noTagsRef := latestRef.Context().Digest(d.String())
 	fooRef := latestRef.Context().Tag("foo")
 
-	// Set up a fake GCR.
-	h, err := newFakeGCR(map[name.Reference]partial.Describable{
+	// Set up a fake registry.
+	h, err := newFakeXCR(map[name.Reference]partial.Describable{
 		oneTagRef: oneTag,
 		latestRef: twoTags,
 		fooRef:    twoTags,
@@ -173,13 +173,13 @@ func TestCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := ggcrtest.NewTLSServer("gcr.io", h)
+	s, err := ggcrtest.NewTLSServer("xcr.io", h)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
 
-	// Make sure we don't actually talk to GCR.
+	// Make sure we don't actually talk to XCR.
 	http.DefaultTransport = s.Client().Transport
 
 	if err := remote.Write(latestRef, twoTags); err != nil {
@@ -206,15 +206,15 @@ func TestCopy(t *testing.T) {
 
 func TestRename(t *testing.T) {
 	c := copier{
-		srcRepo: mustRepo("gcr.io/foo"),
-		dstRepo: mustRepo("gcr.io/bar"),
+		srcRepo: mustRepo("xcr.io/foo"),
+		dstRepo: mustRepo("xcr.io/bar"),
 	}
 
-	got, err := c.rename(mustRepo("gcr.io/foo/sub/repo"))
+	got, err := c.rename(mustRepo("xcr.io/foo/sub/repo"))
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	want := mustRepo("gcr.io/bar/sub/repo")
+	want := mustRepo("xcr.io/bar/sub/repo")
 
 	if want.String() != got.String() {
 		t.Errorf("%s != %s", want, got)
