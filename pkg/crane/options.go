@@ -60,7 +60,9 @@ func Insecure(o *options) {
 // WithPlatform is an Option to specify the platform.
 func WithPlatform(platform *v1.Platform) Option {
 	return func(o *options) {
-		o.remote = append(o.remote, remote.WithPlatform(*platform))
+		if platform != nil {
+			o.remote = append(o.remote, remote.WithPlatform(*platform))
+		}
 		o.platform = platform
 	}
 }

@@ -13,9 +13,10 @@ crane [flags]
 ### Options
 
 ```
-  -h, --help       help for crane
-      --insecure   Allow image references to be fetched without TLS
-  -v, --verbose    Enable debug logs
+  -h, --help                help for crane
+      --insecure            Allow image references to be fetched without TLS
+      --platform platform   Specifies the platform in the form os/arch[/variant] (e.g. linux/amd64). (default all)
+  -v, --verbose             Enable debug logs
 ```
 
 ### SEE ALSO

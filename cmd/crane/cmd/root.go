@@ -25,11 +25,13 @@ import (
 func init() {
 	Root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
 	Root.PersistentFlags().BoolVar(&insecure, "insecure", false, "Allow image references to be fetched without TLS")
+	Root.PersistentFlags().Var(platform, "platform", "Specifies the platform in the form os/arch[/variant] (e.g. linux/amd64).")
 }
 
 var (
 	verbose  = false
 	insecure = false
+	platform = &platformValue{}
 
 	// Crane options for this invocation.
 	options = []crane.Option{}
@@ -47,6 +49,8 @@ var (
 			if insecure {
 				options = append(options, crane.Insecure)
 			}
+
+			options = append(options, crane.WithPlatform(platform.platform))
 
 			// Add any http headers if they are set in the config file.
 			cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))

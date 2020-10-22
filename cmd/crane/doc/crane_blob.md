@@ -25,8 +25,9 @@ crane blob ubuntu@sha256:4c1d20cdee96111c8acf1858b62655a37ce81ae48648993542b7ac3
 ### Options inherited from parent commands
 
 ```
-      --insecure   Allow image references to be fetched without TLS
-  -v, --verbose    Enable debug logs
+      --insecure            Allow image references to be fetched without TLS
+      --platform platform   Specifies the platform in the form os/arch[/variant] (e.g. linux/amd64). (default all)
+  -v, --verbose             Enable debug logs
 ```
 
 ### SEE ALSO
