@@ -27,7 +27,6 @@ trap popd EXIT
 export GOPATH=$(go env GOPATH)
 export PATH="${GOPATH}/bin:${PATH}"
 
-
 go mod tidy
 go mod vendor
 go run $PROJECT_ROOT/cmd/crane/help/main.go --dir=$PROJECT_ROOT/cmd/crane/doc/

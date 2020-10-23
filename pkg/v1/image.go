@@ -19,7 +19,7 @@ import (
 )
 
 // Image defines the interface for interacting with an OCI v1 image.
-//go:generate counterfeiter -o fake/image.go . Image
+//go:generate go run ./../../vendor/github.com/maxbrunsfeld/counterfeiter/v6/ -o fake/image.go . Image
 type Image interface {
 	// Layers returns the ordered collection of filesystem layers that comprise this image.
 	// The order of the list is oldest/base layer first, and most-recent/top layer last.
