@@ -15,7 +15,6 @@
 package remote
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
@@ -88,11 +87,7 @@ func (r *remoteIndex) RawManifest() ([]byte, error) {
 }
 
 func (r *remoteIndex) IndexManifest() (*v1.IndexManifest, error) {
-	b, err := r.RawManifest()
-	if err != nil {
-		return nil, err
-	}
-	return v1.ParseIndexManifest(bytes.NewReader(b))
+	return partial.IndexManifest(r)
 }
 
 func (r *remoteIndex) Image(h v1.Hash) (v1.Image, error) {
@@ -120,42 +115,6 @@ func (r *remoteIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
 		return nil, err
 	}
 	return desc.ImageIndex()
-}
-
-func (r *remoteIndex) imageByPlatform(platform v1.Platform) (v1.Image, error) {
-	desc, err := r.childByPlatform(platform)
-	if err != nil {
-		return nil, err
-	}
-
-	// Descriptor.Image will handle coercing nested indexes into an Image.
-	return desc.Image()
-}
-
-// This naively matches the first manifest with matching platform attributes.
-//
-// We should probably use this instead:
-//	 github.com/containerd/containerd/platforms
-//
-// But first we'd need to migrate to:
-//   github.com/opencontainers/image-spec/specs-go/v1
-func (r *remoteIndex) childByPlatform(platform v1.Platform) (*Descriptor, error) {
-	index, err := r.IndexManifest()
-	if err != nil {
-		return nil, err
-	}
-	for _, childDesc := range index.Manifests {
-		// If platform is missing from child descriptor, assume it's amd64/linux.
-		p := defaultPlatform
-		if childDesc.Platform != nil {
-			p = *childDesc.Platform
-		}
-
-		if matchesPlatform(p, platform) {
-			return r.childDescriptor(childDesc, platform)
-		}
-	}
-	return nil, fmt.Errorf("no child with platform %s/%s in index %s", platform.OS, platform.Architecture, r.Ref)
 }
 
 func (r *remoteIndex) childByHash(h v1.Hash) (*Descriptor, error) {
@@ -188,50 +147,4 @@ func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform)
 		Descriptor: child,
 		platform:   platform,
 	}, nil
-}
-
-// matchesPlatform checks if the given platform matches the required platforms.
-// The given platform matches the required platform if
-// - architecture and OS are identical.
-// - OS version and variant are identical if provided.
-// - features and OS features of the required platform are subsets of those of the given platform.
-func matchesPlatform(given, required v1.Platform) bool {
-	// Required fields that must be identical.
-	if given.Architecture != required.Architecture || given.OS != required.OS {
-		return false
-	}
-
-	// Optional fields that may be empty, but must be identical if provided.
-	if required.OSVersion != "" && given.OSVersion != required.OSVersion {
-		return false
-	}
-	if required.Variant != "" && given.Variant != required.Variant {
-		return false
-	}
-
-	// Verify required platform's features are a subset of given platform's features.
-	if !isSubset(given.OSFeatures, required.OSFeatures) {
-		return false
-	}
-	if !isSubset(given.Features, required.Features) {
-		return false
-	}
-
-	return true
-}
-
-// isSubset checks if the required array of strings is a subset of the given lst.
-func isSubset(lst, required []string) bool {
-	set := make(map[string]bool)
-	for _, value := range lst {
-		set[value] = true
-	}
-
-	for _, value := range required {
-		if _, ok := set[value]; !ok {
-			return false
-		}
-	}
-
-	return true
 }

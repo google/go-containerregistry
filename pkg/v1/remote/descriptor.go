@@ -148,7 +148,11 @@ func (d *Descriptor) Image() (v1.Image, error) {
 		return nil, newErrSchema1(d.MediaType)
 	case types.OCIImageIndex, types.DockerManifestList:
 		// We want an image but the registry has an index, resolve it to an image.
-		return d.remoteIndex().imageByPlatform(d.platform)
+		img, err := partial.ImageByPlatform(d.remoteIndex(), d.platform)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find image in %s: %v", d.Ref, err)
+		}
+		return img, nil
 	case types.OCIManifestSchema1, types.DockerManifestSchema2:
 		// These are expected. Enumerated here to allow a default case.
 	default:
