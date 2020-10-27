@@ -12,11 +12,27 @@ builds:
   - CGO_ENABLED=0
   main: ./cmd/crane/main.go
   binary: crane
+  goos:
+    - linux
+    - darwin
+    - windows
+  ignore:
+    - goos: windows
+      goarch: 386
+
 - id: gcrane
   env:
   - CGO_ENABLED=0
   main: ./cmd/gcrane/main.go
   binary: gcrane
+  goos:
+    - linux
+    - darwin
+    - windows
+  ignore:
+    - goos: windows
+      goarch: 386
+
 archives:
 - replacements:
     darwin: Darwin

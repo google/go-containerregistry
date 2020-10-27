@@ -4,7 +4,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -167,7 +166,7 @@ func TestErrUnexpectedEOF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("layer.Digest(): %v", err)
 	}
-	p := path.Join(dir, h.String())
+	p := cachepath(dir, h)
 
 	// Write only the first segment of the compressed layer to produce an
 	// UnexpectedEOF error when reading it
