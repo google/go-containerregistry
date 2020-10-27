@@ -16,13 +16,33 @@ package remote
 
 import (
 	"context"
+	"crypto/tls"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
+
+// DefaultTransport is a an extension of the default net/http DefaultTransport with http2 disabled.
+// According to moby/buildkit#1420, net/http lack of tunable flow control prevents full throughput on push.
+var DefaultTransport = &http.Transport{
+	Proxy: http.ProxyFromEnvironment,
+	DialContext: (&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+		DualStack: true,
+	}).DialContext,
+	ForceAttemptHTTP2:     true,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
+	TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+}
 
 // Option is a functional option for remote operations.
 type Option func(*options) error
@@ -38,7 +58,7 @@ type options struct {
 func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 	o := &options{
 		auth:      authn.Anonymous,
-		transport: http.DefaultTransport,
+		transport: DefaultTransport,
 		platform:  defaultPlatform,
 		context:   context.Background(),
 	}

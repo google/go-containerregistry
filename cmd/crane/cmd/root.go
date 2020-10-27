@@ -19,6 +19,7 @@ import (
 	"github.com/docker/cli/cli/config"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
@@ -58,7 +59,7 @@ var (
 				logs.Debug.Printf("failed to read config file: %v", err)
 			} else if len(cf.HTTPHeaders) != 0 {
 				options = append(options, crane.WithTransport(&headerTransport{
-					inner:       http.DefaultTransport,
+					inner:       remote.DefaultTransport,
 					httpHeaders: cf.HTTPHeaders,
 				}))
 			}
