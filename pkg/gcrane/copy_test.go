@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/crane"
 	ggcrtest "github.com/google/go-containerregistry/pkg/internal/httptest"
 	"github.com/google/go-containerregistry/pkg/internal/retry"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -180,19 +181,44 @@ func TestCopy(t *testing.T) {
 	defer s.Close()
 
 	// Make sure we don't actually talk to XCR.
-	http.DefaultTransport = s.Client().Transport
+	remoteTransport := remote.WithTransport(s.Client().Transport)
 
-	if err := remote.Write(latestRef, twoTags); err != nil {
+	if err := remote.Write(latestRef, twoTags, remoteTransport); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(fooRef, twoTags); err != nil {
+	if err := remote.Write(fooRef, twoTags, remoteTransport); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(oneTagRef, oneTag); err != nil {
+	if err := remote.Write(oneTagRef, oneTag, remoteTransport); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(noTagsRef, noTags); err != nil {
+	if err := remote.Write(noTagsRef, noTags, remoteTransport); err != nil {
 		t.Fatal(err)
+	}
+
+	defer func() { copy = crane.Copy }()
+	copy = func(src, dst string, options ...crane.Option) error {
+		return crane.Copy(src, dst, append(options, crane.WithTransport(s.Client().Transport))...)
+	}
+
+	defer func() { list = google.List }()
+	list = func(repo name.Repository, options ...google.ListerOption) (*google.Tags, error) {
+		return google.List(repo, append(options, google.WithTransport(s.Client().Transport))...)
+	}
+
+	defer func() { walk = google.Walk }()
+	walk = func(root name.Repository, walkFn google.WalkFunc, options ...google.ListerOption) error {
+		return google.Walk(root, walkFn, append(options, google.WithTransport(s.Client().Transport))...)
+	}
+
+	defer func() { remoteGet = remote.Get }()
+	remoteGet = func(ref name.Reference, options ...remote.Option) (*remote.Descriptor, error) {
+		return remote.Get(ref, append(options, remoteTransport)...)
+	}
+
+	defer func() { remoteTag = remote.Tag }()
+	remoteTag = func(tag name.Tag, t remote.Taggable, options ...remote.Option) error {
+		return remote.Tag(tag, t, append(options, remoteTransport)...)
 	}
 
 	if err := Copy(src, dst); err != nil {
