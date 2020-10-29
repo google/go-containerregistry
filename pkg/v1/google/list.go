@@ -24,9 +24,9 @@ import (
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/internal/net"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
@@ -45,7 +45,7 @@ type lister struct {
 func newLister(repo name.Repository, options ...ListerOption) (*lister, error) {
 	l := &lister{
 		auth:      authn.Anonymous,
-		transport: remote.DefaultTransport,
+		transport: net.NewDefaultTransport(),
 		repo:      repo,
 		ctx:       context.Background(),
 	}

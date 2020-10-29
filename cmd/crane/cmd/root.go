@@ -13,13 +13,15 @@
 package cmd
 
 import (
+	"crypto/tls"
+	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
@@ -59,7 +61,7 @@ var (
 				logs.Debug.Printf("failed to read config file: %v", err)
 			} else if len(cf.HTTPHeaders) != 0 {
 				options = append(options, crane.WithTransport(&headerTransport{
-					inner:       remote.DefaultTransport,
+					inner:       newDefaultTransport(),
 					httpHeaders: cf.HTTPHeaders,
 				}))
 			}
@@ -84,4 +86,22 @@ func (ht *headerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		in.Header.Set(k, v)
 	}
 	return ht.inner.RoundTrip(in)
+}
+
+// See: pkg/internal/net/default_transport.go
+func newDefaultTransport() http.RoundTripper {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+	}
 }

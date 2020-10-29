@@ -23,6 +23,7 @@ import (
 	"net/url"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/internal/net"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -58,7 +59,7 @@ func CopySchema1(desc *remote.Descriptor, srcRef, dstRef name.Reference, srcAuth
 func putManifest(desc *remote.Descriptor, dstRef name.Reference, dstAuth authn.Authenticator) error {
 	reg := dstRef.Context().Registry
 	scopes := []string{dstRef.Scope(transport.PushScope)}
-	tr, err := transport.New(reg, dstAuth, remote.DefaultTransport, scopes)
+	tr, err := transport.New(reg, dstAuth, net.NewDefaultTransport(), scopes)
 	if err != nil {
 		return err
 	}
