@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:generate go run ./../../vendor/k8s.io/code-generator/cmd/deepcopy-gen/ -O zz_deepcopy_generated --go-header-file $BOILER_PLATE_FILE -i .
 // +k8s:deepcopy-gen=package
 
 // Package v1 defines structured types for OCI v1 images

@@ -30,4 +30,7 @@ export PATH="${GOPATH}/bin:${PATH}"
 go mod tidy
 go mod vendor
 go run $PROJECT_ROOT/cmd/crane/help/main.go --dir=$PROJECT_ROOT/cmd/crane/doc/
-go generate ./...
+
+go run ./vendor/github.com/maxbrunsfeld/counterfeiter/v6/ -o pkg/v1/fake/index.go ${PROJECT_ROOT}/pkg/v1 ImageIndex
+go run ./vendor/github.com/maxbrunsfeld/counterfeiter/v6/ -o pkg/v1/fake/image.go ${PROJECT_ROOT}/pkg/v1 Image
+go run ./vendor/k8s.io/code-generator/cmd/deepcopy-gen -O zz_deepcopy_generated --go-header-file $BOILER_PLATE_FILE -i github.com/google/go-containerregistry/pkg/v1
