@@ -28,23 +28,34 @@ import (
 
 // MultiWrite writes the given Images or ImageIndexes to the given refs, as
 // efficiently as possible, by deduping shared layer blobs and uploading layers
-// in parallel, then uploading all manifests in parallel.
+// in parallel, then uploading all manifests in parallel such that manifests
+// referenced by other manifests are always uploaded first.
+//
+// If writing to multiple repos, each repo's blobs and manifests will be
+// processed in parallel as well.
 //
 // Current limitations:
-// - All refs must share the same repository.
 // - Images cannot consist of stream.Layers.
 func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
-	// Determine the repository being pushed to; if asked to push to
-	// multiple repositories, give up.
-	var repo, zero name.Repository
-	for ref := range m {
-		if repo == zero {
-			repo = ref.Context()
-		} else if ref.Context() != repo {
-			return fmt.Errorf("MultiWrite can only push to the same repository (saw %q and %q)", repo, ref.Context())
+	// Split map by repository being pushed to, since each will require its
+	// own auth handshake.
+	perRepo := map[name.Repository]map[name.Reference]Taggable{}
+	for ref, taggable := range m {
+		repo := ref.Context()
+		if _, found := perRepo[repo]; !found {
+			perRepo[repo] = map[name.Reference]Taggable{}
 		}
+		perRepo[repo][ref] = taggable
 	}
+	var g errgroup.Group
+	for repo, rm := range perRepo {
+		repo, rm := repo, rm
+		g.Go(func() error { return multiWriteOneRepo(repo, rm, options...) })
+	}
+	return g.Wait()
+}
 
+func multiWriteOneRepo(repo name.Repository, m map[name.Reference]Taggable, options ...Option) error {
 	// Collect unique blobs (layers and config blobs).
 	blobs := map[v1.Hash]v1.Layer{}
 	newManifests := []map[name.Reference]Taggable{}

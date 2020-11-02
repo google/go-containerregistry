@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -30,6 +31,7 @@ type image struct {
 	base v1.Image
 	adds []Addendum
 
+	lock       sync.Mutex
 	computed   bool
 	configFile *v1.ConfigFile
 	manifest   *v1.Manifest
@@ -48,6 +50,9 @@ func (i *image) MediaType() (types.MediaType, error) {
 }
 
 func (i *image) compute() error {
+	i.lock.Lock()
+	defer i.lock.Unlock()
+
 	// Don't re-compute if already computed.
 	if i.computed {
 		return nil

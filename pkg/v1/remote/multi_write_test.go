@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -80,7 +81,7 @@ func TestMultiWrite(t *testing.T) {
 		tag2: img2,
 		tag3: idx,
 	}); err != nil {
-		t.Error("Write:", err)
+		t.Error("MultiWrite:", err)
 	}
 
 	// Check that tagged images are present.
@@ -129,7 +130,7 @@ func TestMultiWrite_Deep(t *testing.T) {
 	if err := MultiWrite(map[name.Reference]Taggable{
 		tag: idx,
 	}); err != nil {
-		t.Error("Write:", err)
+		t.Error("MultiWrite:", err)
 	}
 
 	// Check that tagged manfest list is present and valid.
@@ -139,5 +140,42 @@ func TestMultiWrite_Deep(t *testing.T) {
 	}
 	if err := validate.Index(got); err != nil {
 		t.Error("Validate() =", err)
+	}
+}
+
+func TestMultiWrite_MultipleRepos(t *testing.T) {
+	// Set up a fake registry.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a random image.
+	img, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal("random.Image:", err)
+	}
+
+	// Write image to multiple repos.
+	m := map[name.Reference]Taggable{}
+	for i := 0; i < 3; i++ {
+		tag := mustNewTag(t, fmt.Sprintf("%s/repo%d:tag", u.Host, i))
+		m[tag] = img
+	}
+	if err := MultiWrite(m); err != nil {
+		t.Error("MultiWrite:", err)
+	}
+
+	// Get and validate each image.
+	for tag := range m {
+		got, err := Image(tag)
+		if err != nil {
+			t.Errorf("Image(%q): %v", tag, err)
+		}
+		if err := validate.Image(got); err != nil {
+			t.Error("Validate() =", err)
+		}
 	}
 }
