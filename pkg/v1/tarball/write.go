@@ -294,7 +294,7 @@ func calculateManifest(refToImage map[name.Reference]v1.Image) (m Manifest, err 
 }
 
 // calculateTarballSize calculates the size of the tar file
-func calculateTarballSize(refToImage map[name.Reference]v1.Image, m []byte) (size int64, err error) {
+func calculateTarballSize(refToImage map[name.Reference]v1.Image, mBytes []byte) (size int64, err error) {
 	imageToTags := dedupRefToImage(refToImage)
 
 	for img, name := range imageToTags {
@@ -308,10 +308,6 @@ func calculateTarballSize(refToImage map[name.Reference]v1.Image, m []byte) (siz
 		}
 	}
 	// add the manifest
-	mBytes, err := json.Marshal(m)
-	if err != nil {
-		return size, err
-	}
 	size += CalculateTarFileSize(int64(len(mBytes)))
 
 	// add the two padding blocks that indicate end of a tar file
