@@ -26,10 +26,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Parallelism of blob and manifest uploads
-// TODO(jasonhall): Make this an Option.
-const jobs = 4
-
 // MultiWrite writes the given Images or ImageIndexes to the given refs, as
 // efficiently as possible, by deduping shared layer blobs and uploading layers
 // in parallel, then uploading all manifests in parallel.
@@ -96,9 +92,9 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
 	}
 
 	// Upload individual blobs and collect any errors.
-	blobChan := make(chan v1.Layer, 2*jobs)
+	blobChan := make(chan v1.Layer, 2*o.jobs)
 	var g errgroup.Group
-	for i := 0; i < jobs; i++ {
+	for i := 0; i < o.jobs; i++ {
 		// Start N workers consuming blobs to upload.
 		g.Go(func() error {
 			for b := range blobChan {
@@ -126,8 +122,8 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
 			i   Taggable
 			ref name.Reference
 		}
-		taskChan := make(chan task, 2*jobs)
-		for i := 0; i < jobs; i++ {
+		taskChan := make(chan task, 2*o.jobs)
+		for i := 0; i < o.jobs; i++ {
 			// Start N workers consuming tasks to upload manifests.
 			g.Go(func() error {
 				for t := range taskChan {
