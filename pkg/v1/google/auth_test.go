@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -221,27 +220,6 @@ func TestKeychainGCRandAR(t *testing.T) {
 	}
 }
 
-func TestKeychainEnv(t *testing.T) {
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("unexpected err os.Getwd: %v", err)
-	}
-
-	keyFile := filepath.Join(wd, "testdata", "key.json")
-
-	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", keyFile); err != nil {
-		t.Fatalf("unexpected err os.Setenv: %v", err)
-	}
-
-	// Reset the keychain to ensure we don't cache earlier results.
-	Keychain = &googleKeychain{}
-	if auth, err := Keychain.Resolve(mustRegistry("gcr.io")); err != nil {
-		t.Errorf("expected success, got: %v", err)
-	} else if auth == authn.Anonymous {
-		t.Errorf("expected not anonymous auth, got: %v", auth)
-	}
-}
-
 func TestKeychainError(t *testing.T) {
 	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/dev/null"); err != nil {
 		t.Fatalf("unexpected err os.Setenv: %v", err)
@@ -281,23 +259,5 @@ func TestNewEnvAuthenticatorFailure(t *testing.T) {
 	_, err := NewEnvAuthenticator()
 	if err == nil {
 		t.Errorf("expected err, got nil")
-	}
-}
-
-func TestNewEnvAuthenticatorSuccess(t *testing.T) {
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("unexpected err os.Getwd: %v", err)
-	}
-
-	keyFile := filepath.Join(wd, "testdata", "key.json")
-
-	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", keyFile); err != nil {
-		t.Fatalf("unexpected err os.Setenv: %v", err)
-	}
-
-	_, err = NewEnvAuthenticator()
-	if err != nil {
-		t.Fatalf("unexpected err NewEnvAuthenticator: %v", err)
 	}
 }
