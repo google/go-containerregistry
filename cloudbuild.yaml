@@ -27,7 +27,7 @@ steps:
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA"
 
     # Use the ko binary to build the crane and gcrane builder *debug* images.
-    KO_CONFIG_PATH=./ko/debug/
+    export KO_CONFIG_PATH=/workspace/.ko/debug/
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane -t debug
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t debug
 
