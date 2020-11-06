@@ -390,7 +390,7 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 			return err
 		}
 		if exists {
-			logs.Progress.Printf("existing manifest: %v", desc.Digest)
+			logs.Progress.Print("existing manifest: ", desc.Digest)
 			continue
 		}
 
