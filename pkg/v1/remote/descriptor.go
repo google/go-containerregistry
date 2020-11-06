@@ -348,14 +348,14 @@ func (f *fetcher) headManifest(ref name.Reference, acceptable []types.MediaType)
 	}, nil
 }
 
-func (f *fetcher) fetchBlob(h v1.Hash) (io.ReadCloser, error) {
+func (f *fetcher) fetchBlob(ctx context.Context, h v1.Hash) (io.ReadCloser, error) {
 	u := f.url("blobs", h.String())
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := f.Client.Do(req.WithContext(f.context))
+	resp, err := f.Client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}

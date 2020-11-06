@@ -17,7 +17,6 @@ package transport
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
@@ -37,8 +36,10 @@ func TestLogger(t *testing.T) {
 	cannedResponse := http.Response{
 		Status:     http.StatusText(http.StatusOK),
 		StatusCode: http.StatusOK,
-		Body:       ioutil.NopCloser(strings.NewReader(canary)),
-		Request:    req,
+		Header: http.Header{
+			"Foo": []string{canary},
+		},
+		Request: req,
 	}
 	tr := NewLogger(newRecorder(&cannedResponse, nil))
 	if _, err := tr.RoundTrip(req); err != nil {

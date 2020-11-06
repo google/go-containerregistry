@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/internal/redact"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -212,7 +213,16 @@ func (bt *bearerTransport) refreshOauth() ([]byte, error) {
 	}
 
 	client := http.Client{Transport: bt.inner}
-	resp, err := client.PostForm(u.String(), v)
+	req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(v.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	// We don't want to log credentials.
+	ctx := redact.NewContext(req.Context(), "oauth token response contains credentials")
+
+	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +253,15 @@ func (bt *bearerTransport) refreshBasic() ([]byte, error) {
 	v.Set("service", bt.service)
 	u.RawQuery = v.Encode()
 
-	resp, err := client.Get(u.String())
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// We don't want to log credentials.
+	ctx := redact.NewContext(req.Context(), "basic token response contains credentials")
+
+	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, err
 	}
