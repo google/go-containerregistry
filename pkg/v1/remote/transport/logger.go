@@ -15,7 +15,6 @@
 package transport
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -37,21 +36,37 @@ func NewLogger(inner http.RoundTripper) http.RoundTripper {
 
 func (t *logTransport) RoundTrip(in *http.Request) (out *http.Response, err error) {
 	// Inspired by: github.com/motemen/go-loghttp
-	logs.Debug.Printf("--> %s %s", in.Method, in.URL)
-	req := in.Clone(context.Background())
-	if req.Header != nil {
-		req.Header.Set("authorization", "<redacted>")
+	msg := fmt.Sprintf("--> %s %s", in.Method, in.URL)
+
+	// We redact token responses and binary blobs in response/request.
+	omitBody, reason := redact.FromContext(in.Context())
+	if omitBody {
+		msg = fmt.Sprintf("%s [body redacted: %s]", msg, reason)
 	}
 
-	b, err := httputil.DumpRequestOut(req, false)
+	logs.Debug.Printf(msg)
+
+	// Save these headers so we can redact Authorization.
+	savedHeaders := in.Header.Clone()
+	if in.Header != nil {
+		in.Header.Set("authorization", "<redacted>")
+	}
+
+	b, err := httputil.DumpRequestOut(in, !omitBody)
 	if err == nil {
 		logs.Debug.Println(string(b))
+	} else {
+		logs.Debug.Printf("Failed to dump request %s %s: %v", in.Method, in.URL, err)
 	}
+
+	// Restore the non-redacted headers.
+	in.Header = savedHeaders
+
 	start := time.Now()
 	out, err = t.inner.RoundTrip(in)
 	duration := time.Since(start)
 	if err != nil {
-		logs.Debug.Printf("<-- %v %s (%s)", err, in.URL, duration)
+		logs.Debug.Printf("<-- %v %s %s (%s)", err, in.Method, in.URL, duration)
 	}
 	if out != nil {
 		msg := fmt.Sprintf("<-- %d", out.StatusCode)
@@ -60,8 +75,6 @@ func (t *logTransport) RoundTrip(in *http.Request) (out *http.Response, err erro
 		}
 		msg = fmt.Sprintf("%s (%s)", msg, duration)
 
-		// We redact token responses and layer blobs.
-		omitBody, reason := redact.FromContext(in.Context())
 		if omitBody {
 			msg = fmt.Sprintf("%s [body redacted: %s]", msg, reason)
 		}
@@ -71,6 +84,8 @@ func (t *logTransport) RoundTrip(in *http.Request) (out *http.Response, err erro
 		b, err := httputil.DumpResponse(out, !omitBody)
 		if err == nil {
 			logs.Debug.Println(string(b))
+		} else {
+			logs.Debug.Printf("Failed to dump response %s %s: %v", in.Method, in.URL, err)
 		}
 	}
 	return

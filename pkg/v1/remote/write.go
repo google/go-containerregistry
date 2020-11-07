@@ -22,8 +22,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/internal/redact"
 	"github.com/google/go-containerregistry/pkg/internal/retry"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -261,13 +263,13 @@ func (w *writer) initiateUpload(from, mount string) (location string, mounted bo
 // streamBlob streams the contents of the blob to the specified location.
 // On failure, this will return an error.  On success, this will return the location
 // header indicating how to commit the streamed blob.
-func (w *writer) streamBlob(blob io.ReadCloser, streamLocation string) (commitLocation string, err error) {
+func (w *writer) streamBlob(ctx context.Context, blob io.ReadCloser, streamLocation string) (commitLocation string, err error) {
 	req, err := http.NewRequest(http.MethodPatch, streamLocation, blob)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := w.client.Do(req.WithContext(w.context))
+	resp, err := w.client.Do(req.WithContext(ctx))
 	if err != nil {
 		return "", err
 	}
@@ -330,6 +332,8 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		}
 	}
 
+	ctx := w.context
+
 	tryUpload := func() error {
 		location, mounted, err := w.initiateUpload(from, mount)
 		if err != nil {
@@ -343,11 +347,22 @@ func (w *writer) uploadOne(l v1.Layer) error {
 			return nil
 		}
 
+		// Only log layers with +json or +yaml. We can let through other stuff if it becomes popular.
+		// TODO(opencontainers/image-spec#791): Would be great to have an actual parser.
+		mt, err := l.MediaType()
+		if err != nil {
+			return err
+		}
+		smt := string(mt)
+		if !(strings.HasSuffix(smt, "+json") || strings.HasSuffix(smt, "+yaml")) {
+			ctx = redact.NewContext(ctx, "omitting binary blobs from logs")
+		}
+
 		blob, err := l.Compressed()
 		if err != nil {
 			return err
 		}
-		location, err = w.streamBlob(blob, location)
+		location, err = w.streamBlob(ctx, blob, location)
 		if err != nil {
 			return err
 		}
