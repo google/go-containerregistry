@@ -17,6 +17,8 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"regexp"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/gcrane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -27,27 +29,56 @@ import (
 // NewCmdGc creates a new cobra.Command for the gc subcommand.
 func NewCmdGc() *cobra.Command {
 	recursive := false
+	before := int64(-1)
+	pattern := ""
+
 	cmd := &cobra.Command{
 		Use:   "gc",
 		Short: "List images that are not tagged",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			gc(args[0], recursive)
+			gc(args[0], recursive, time.Unix(before, 0), pattern)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
+	cmd.Flags().Int64VarP(&before, "before", "b", time.Now().Unix(), "Oldest upload time (unix timestamp)")
+	cmd.Flags().StringVarP(&pattern, "pattern", "p", "", "Will also collect images with no tags matching this pattern")
 
 	return cmd
 }
 
-func gc(root string, recursive bool) {
+func gc(root string, recursive bool, before time.Time, pattern string) {
 	repo, err := name.NewRepository(root)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	auth := google.WithAuthFromKeychain(gcrane.Keychain)
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	filters := []func(manifest google.ManifestInfo) bool{
+		func(manifest google.ManifestInfo) bool {
+			return manifest.Uploaded.Before(before)
+		},
+		func(manifest google.ManifestInfo) bool {
+			if pattern == "" {
+				return len(manifest.Tags) == 0
+			} else {
+				for _, tag := range manifest.Tags {
+					if re.MatchString(tag) {
+						return false
+					}
+				}
+				return true
+			}
+		},
+	}
+
+	printUntaggedImages := collector(filters)
 
 	if recursive {
 		if err := google.Walk(repo, printUntaggedImages, auth); err != nil {
@@ -62,16 +93,25 @@ func gc(root string, recursive bool) {
 	}
 }
 
-func printUntaggedImages(repo name.Repository, tags *google.Tags, err error) error {
-	if err != nil {
-		return err
-	}
-
-	for digest, manifest := range tags.Manifests {
-		if len(manifest.Tags) == 0 {
-			fmt.Printf("%s@%s\n", repo, digest)
+func collector(filters []func(manifest google.ManifestInfo) bool) func(repo name.Repository, tags *google.Tags, err error) error {
+	return func(repo name.Repository, tags *google.Tags, err error) error {
+		if err != nil {
+			return err
 		}
-	}
 
-	return nil
+		for digest, manifest := range tags.Manifests {
+			collect := true
+			for _, f := range filters {
+				if !f(manifest) {
+					collect = false
+					break
+				}
+			}
+			if collect {
+				fmt.Printf("%s@%s\n", repo, digest)
+			}
+		}
+
+		return nil
+	}
 }
