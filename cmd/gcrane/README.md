@@ -36,6 +36,14 @@ for backing up images, georeplicating images, or renaming images en masse.
 `gcrane gc` will calculate images that can be garbage-collected.
 By default, it will print any images that do not have tags pointing to them.
 
+`gcrane gc` can be extended with `--before <unix timestamp>` and `--pattern <regex>` options to extend its behaviour. Any image that has been uploaded after `timestamp` will **not** be printed. If pattern is not empty, any images that does not have at least one tag matching `<regex>` will be printed. For example
+
+```shell
+gcrane gc gcr.io/${PROJECT_ID}/repo --before 1604793600 --pattern "^(latest|stable)$"
+```
+
+will print any image that has been uploaded before Sun, 08 Nov 2020 **and** that has not been tagged `latest` nor `stable`.
+
 This can be composed with `gcrane delete` to actually garbage collect them:
 ```shell
 gcrane gc gcr.io/${PROJECT_ID}/repo | xargs -n1 gcrane delete
