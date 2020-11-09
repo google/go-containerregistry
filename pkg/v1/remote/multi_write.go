@@ -127,7 +127,7 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
 			// Start N workers consuming tasks to upload manifests.
 			g.Go(func() error {
 				for t := range taskChan {
-					if err := w.commitImage(t.i, t.ref); err != nil {
+					if err := w.commitManifest(t.i, t.ref); err != nil {
 						return err
 					}
 				}
