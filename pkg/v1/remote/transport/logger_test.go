@@ -16,29 +16,41 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/internal/redact"
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 
 func TestLogger(t *testing.T) {
 	canary := "logs.Debug canary"
-	req, err := http.NewRequest("GET", "http://example.com", nil)
+	secret := "super secret do not log"
+	auth := "my token pls do not log"
+	reason := "should not log the secret"
+
+	ctx := redact.NewContext(context.Background(), reason)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", "http://example.com", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error during NewRequest: %v", err)
 	}
+	req.Header.Set("authorization", auth)
 
 	var b bytes.Buffer
 	logs.Debug.SetOutput(&b)
 	cannedResponse := http.Response{
 		Status:     http.StatusText(http.StatusOK),
 		StatusCode: http.StatusOK,
-		Body:       ioutil.NopCloser(strings.NewReader(canary)),
-		Request:    req,
+		Header: http.Header{
+			"Foo": []string{canary},
+		},
+		Body:    ioutil.NopCloser(strings.NewReader(secret)),
+		Request: req,
 	}
 	tr := NewLogger(newRecorder(&cannedResponse, nil))
 	if _, err := tr.RoundTrip(req); err != nil {
@@ -48,6 +60,15 @@ func TestLogger(t *testing.T) {
 	logged := b.String()
 	if !strings.Contains(logged, canary) {
 		t.Errorf("Expected logs to contain %s, got %s", canary, logged)
+	}
+	if !strings.Contains(logged, reason) {
+		t.Errorf("Expected logs to contain %s, got %s", canary, logged)
+	}
+	if strings.Contains(logged, secret) {
+		t.Errorf("Expected logs NOT to contain %s, got %s", secret, logged)
+	}
+	if strings.Contains(logged, auth) {
+		t.Errorf("Expected logs NOT to contain %s, got %s", auth, logged)
 	}
 }
 

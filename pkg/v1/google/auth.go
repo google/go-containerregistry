@@ -120,13 +120,6 @@ func (tsa *tokenSourceAuth) Authorization() (*authn.AuthConfig, error) {
 		return nil, err
 	}
 
-	if logs.Enabled(logs.Debug) {
-		b, err := json.Marshal(token)
-		if err == nil {
-			logs.Debug.Printf("google.Keychain: %s", string(b))
-		}
-	}
-
 	return &authn.AuthConfig{
 		Username: "_token",
 		Password: token.AccessToken,

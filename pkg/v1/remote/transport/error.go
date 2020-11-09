@@ -59,7 +59,7 @@ var _ error = (*Error)(nil)
 func (e *Error) Error() string {
 	prefix := ""
 	if e.request != nil {
-		prefix = fmt.Sprintf("%s %s: ", e.request.Method, redact(e.request.URL))
+		prefix = fmt.Sprintf("%s %s: ", e.request.Method, redactURL(e.request.URL))
 	}
 	return prefix + e.responseErr()
 }
@@ -96,7 +96,8 @@ func (e *Error) Temporary() bool {
 	return true
 }
 
-func redact(original *url.URL) *url.URL {
+// TODO(jonjohnsonjr): Consider moving to pkg/internal/redact.
+func redactURL(original *url.URL) *url.URL {
 	qs := original.Query()
 	for k, v := range qs {
 		for i := range v {
