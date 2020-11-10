@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
 )
@@ -66,7 +67,7 @@ func parseChallenge(suffix string) map[string]string {
 }
 
 func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
-	client := http.Client{Transport: t}
+	client := http.Client{Transport: t, Timeout: 2 * time.Second}
 
 	// This first attempts to use "https" for every request, falling back to http
 	// if the registry matches our localhost heuristic or if it is intentionally
