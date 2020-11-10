@@ -29,7 +29,7 @@ import (
 // NewCmdGc creates a new cobra.Command for the gc subcommand.
 func NewCmdGc() *cobra.Command {
 	recursive := false
-	before := int64(-1)
+	before := time.Duration(0)
 	pattern := ""
 
 	cmd := &cobra.Command{
@@ -37,12 +37,12 @@ func NewCmdGc() *cobra.Command {
 		Short: "List images that are not tagged",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			gc(args[0], recursive, time.Unix(before, 0), pattern)
+			gc(args[0], recursive, time.Now().Add(-before), pattern)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
-	cmd.Flags().Int64VarP(&before, "before", "b", time.Now().Unix(), "Oldest upload time (unix timestamp)")
+	cmd.Flags().DurationVarP(&before, "before", "b", time.Duration(0), "Age of the oldest uploaded image to print (ns, us, ms, s, m, h)")
 	cmd.Flags().StringVarP(&pattern, "pattern", "p", "", "Will also collect images with no tags matching this pattern")
 
 	return cmd
