@@ -42,7 +42,7 @@ func NewCmdGc() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Whether to recurse through repos")
-	cmd.Flags().DurationVarP(&before, "before", "b", time.Duration(0), "Age of the oldest uploaded image to print (ns, us, ms, s, m, h)")
+	cmd.Flags().DurationVarP(&before, "grace", "g", time.Duration(0), "Relative duration in which to ignore references. Only checks the uploaded time. If set, refs newer than the duration will not be print.")
 	cmd.Flags().StringVarP(&pattern, "pattern", "p", "", "Will also collect images with no tags matching this pattern")
 
 	return cmd
