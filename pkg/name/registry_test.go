@@ -108,6 +108,24 @@ func TestDefaultRegistryNames(t *testing.T) {
 	}
 }
 
+func TestOverrideDefaultRegistryNames(t *testing.T) {
+	testRegistries := []string{"docker.io", ""}
+	expectedRegistries := []string{"index.docker.io", "gcr.io"}
+	overrideDefault := "gcr.io"
+
+	for i, testRegistry := range testRegistries {
+		registry, err := NewRegistry(testRegistry, WeakValidation, WithDefaultRegistry(overrideDefault))
+		if err != nil {
+			t.Fatalf("`%s` should be a valid Registry name, got error: %v", testRegistry, err)
+		}
+
+		actualRegistry := registry.RegistryStr()
+		if actualRegistry != expectedRegistries[i] {
+			t.Errorf("RegistryStr() was incorrect for %v. Wanted: `%s` Got: `%s`", registry, expectedRegistries[i], actualRegistry)
+		}
+	}
+}
+
 func TestRegistryComponents(t *testing.T) {
 	t.Parallel()
 	testRegistry := "gcr.io"
