@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"time"
 
@@ -36,11 +35,8 @@ func NewCmdGc() *cobra.Command {
 		Use:   "gc",
 		Short: "List images that are not tagged",
 		Args:  cobra.ExactArgs(1),
-		Run: func(_ *cobra.Command, args []string) {
-			err := gc(args[0], recursive, time.Now().Add(-before), pattern)
-			if err != nil {
-				log.Fatalln(err)
-			}
+		RunE: func(_ *cobra.Command, args []string) error {
+			return gc(args[0], recursive, time.Now().Add(-before), pattern)
 		},
 	}
 
