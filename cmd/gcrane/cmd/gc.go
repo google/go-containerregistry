@@ -108,6 +108,9 @@ func collector(filters []func(manifest google.ManifestInfo) bool) func(repo name
 				}
 			}
 			if collect {
+				for _, tag := range manifest.Tags {
+					fmt.Printf("%s:%s\n", repo, tag)
+				}
 				fmt.Printf("%s@%s\n", repo, digest)
 			}
 		}
