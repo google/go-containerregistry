@@ -1,5 +1,7 @@
 # `gcrane`
 
+<img src="../../images/gcrane.png" width="40%">
+
 This tool implements a superset of the [`crane`](../crane/README.md) commands, with
 additional commands that are specific to [gcr.io](https://gcr.io).
 
@@ -8,6 +10,10 @@ consistent with the [registry spec](https://docs.docker.com/registry/spec/api/),
 so this may break in the future.
 
 ## Installation
+
+Download [latest release](https://github.com/google/go-containerregistry/releases/latest).
+
+Install manually:
 
 ```
 GO111MODULE=on go get -u github.com/google/go-containerregistry/cmd/gcrane
