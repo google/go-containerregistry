@@ -37,7 +37,10 @@ func NewCmdGc() *cobra.Command {
 		Short: "List images that are not tagged",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			gc(args[0], recursive, time.Now().Add(-before), pattern)
+			err := gc(args[0], recursive, time.Now().Add(-before), pattern)
+			if err != nil {
+				log.Fatalln(err)
+			}
 		},
 	}
 
@@ -48,17 +51,17 @@ func NewCmdGc() *cobra.Command {
 	return cmd
 }
 
-func gc(root string, recursive bool, before time.Time, pattern string) {
+func gc(root string, recursive bool, before time.Time, pattern string) error {
 	repo, err := name.NewRepository(root)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	auth := google.WithAuthFromKeychain(gcrane.Keychain)
 
 	re, err := regexp.Compile(pattern)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 	filters := []func(manifest google.ManifestInfo) bool{
 		func(manifest google.ManifestInfo) bool {
@@ -82,15 +85,16 @@ func gc(root string, recursive bool, before time.Time, pattern string) {
 
 	if recursive {
 		if err := google.Walk(repo, printUntaggedImages, auth); err != nil {
-			log.Fatalln(err)
+			return err
 		}
-		return
+		return nil
 	}
 
 	tags, err := google.List(repo, auth)
 	if err := printUntaggedImages(repo, tags, err); err != nil {
-		log.Fatalln(err)
+		return err
 	}
+	return nil
 }
 
 func collector(filters []func(manifest google.ManifestInfo) bool) func(repo name.Repository, tags *google.Tags, err error) error {
