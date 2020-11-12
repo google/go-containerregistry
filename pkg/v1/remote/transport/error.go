@@ -68,9 +68,12 @@ func (e *Error) responseErr() string {
 	switch len(e.Errors) {
 	case 0:
 		if len(e.rawBody) == 0 {
-			return fmt.Sprintf("unsupported status code %d", e.StatusCode)
+			if e.request != nil && e.request.Method == http.MethodHead {
+				return fmt.Sprintf("unexpected status code %d %s (HEAD responses have no body, use GET for details)", e.StatusCode, http.StatusText(e.StatusCode))
+			}
+			return fmt.Sprintf("unexpected status code %d %s", e.StatusCode, http.StatusText(e.StatusCode))
 		}
-		return fmt.Sprintf("unsupported status code %d; body: %s", e.StatusCode, e.rawBody)
+		return fmt.Sprintf("unexpected status code %d %s: %s", e.StatusCode, http.StatusText(e.StatusCode), e.rawBody)
 	case 1:
 		return e.Errors[0].String()
 	default:

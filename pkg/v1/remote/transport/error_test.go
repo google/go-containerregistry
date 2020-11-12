@@ -95,16 +95,16 @@ func TestCheckErrorNotError(t *testing.T) {
 	}{{
 		code: http.StatusBadRequest,
 		body: "",
-		msg:  "unsupported status code 400",
+		msg:  "unexpected status code 400 Bad Request",
 	}, {
 		code: http.StatusUnauthorized,
 		// Valid JSON, but not a structured error -- we should still print the body.
 		body: `{"details":"incorrect username or password"}`,
-		msg:  `unsupported status code 401; body: {"details":"incorrect username or password"}`,
+		msg:  `unexpected status code 401 Unauthorized: {"details":"incorrect username or password"}`,
 	}, {
 		code: http.StatusUnauthorized,
 		body: "Not JSON",
-		msg:  "GET https://example.com/somepath?access_token=REDACTED&scope=foo&service=bar: unsupported status code 401; body: Not JSON",
+		msg:  "GET https://example.com/somepath?access_token=REDACTED&scope=foo&service=bar: unexpected status code 401 Unauthorized: Not JSON",
 		request: &http.Request{
 			Method: http.MethodGet,
 			URL: &url.URL{
@@ -116,6 +116,18 @@ func TestCheckErrorNotError(t *testing.T) {
 					"service":      []string{"bar"},
 					"access_token": []string{"hunter2"},
 				}.Encode(),
+			},
+		},
+	}, {
+		code: http.StatusUnauthorized,
+		body: "",
+		msg:  "HEAD https://example.com/somepath: unexpected status code 401 Unauthorized (HEAD responses have no body, use GET for details)",
+		request: &http.Request{
+			Method: http.MethodHead,
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   "example.com",
+				Path:   "somepath",
 			},
 		},
 	}}
@@ -166,7 +178,7 @@ func TestCheckErrorWithError(t *testing.T) {
 		error: &Error{
 			StatusCode: 400,
 		},
-		msg: "unsupported status code 400",
+		msg: "unexpected status code 400 Bad Request",
 	}, {
 		code: http.StatusBadRequest,
 		error: &Error{

@@ -36,15 +36,14 @@ func NewLogger(inner http.RoundTripper) http.RoundTripper {
 
 func (t *logTransport) RoundTrip(in *http.Request) (out *http.Response, err error) {
 	// Inspired by: github.com/motemen/go-loghttp
-	msg := fmt.Sprintf("--> %s %s", in.Method, in.URL)
 
 	// We redact token responses and binary blobs in response/request.
 	omitBody, reason := redact.FromContext(in.Context())
 	if omitBody {
-		msg = fmt.Sprintf("%s [body redacted: %s]", msg, reason)
+		logs.Debug.Printf("--> %s %s [body redacted: %s]", in.Method, in.URL, reason)
+	} else {
+		logs.Debug.Printf("--> %s %s", in.Method, in.URL)
 	}
-
-	logs.Debug.Printf(msg)
 
 	// Save these headers so we can redact Authorization.
 	savedHeaders := in.Header.Clone()
