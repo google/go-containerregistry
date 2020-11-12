@@ -87,6 +87,9 @@ func Get(ref name.Reference, options ...Option) (*Descriptor, error) {
 
 // Head returns a v1.Descriptor for the given reference by issuing a HEAD
 // request.
+//
+// Note that the server response will not have a body, so any errors encountered
+// should be retried with Get to get more details.
 func Head(ref name.Reference, options ...Option) (*v1.Descriptor, error) {
 	acceptable := []types.MediaType{
 		// Just to look at them.
