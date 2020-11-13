@@ -146,3 +146,17 @@ func TestAllDefaults(t *testing.T) {
 		t.Errorf("Name() was incorrect for %v. Wanted: `%s` Got: `%s`", tag, expectedName, actualName)
 	}
 }
+
+func TestOverrideDefault(t *testing.T) {
+	tagNameStr := "ubuntu"
+	tag, err := NewTag(tagNameStr, WeakValidation, WithDefaultTag("other"))
+	if err != nil {
+		t.Fatalf("`%s` should be a valid Tag name, got error: %v", tagNameStr, err)
+	}
+
+	expectedName := "index.docker.io/library/ubuntu:other"
+	actualName := tag.Name()
+	if actualName != expectedName {
+		t.Errorf("Name() was incorrect for %v. Wanted: `%s` Got: `%s`", tag, expectedName, actualName)
+	}
+}

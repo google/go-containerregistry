@@ -18,6 +18,35 @@ import (
 	"testing"
 )
 
+var (
+	testDefaultRegistry = "registry.upbound.io"
+	testDefaultTag      = "stable"
+	inputDefaultNames   = []string{
+		"crossplane/provider-gcp",
+		"crossplane/provider-gcp:v0.14.0",
+		"ubuntu",
+		"gcr.io/crossplane/provider-gcp:latest",
+	}
+	outputDefaultNames = []string{
+		"registry.upbound.io/crossplane/provider-gcp:stable",
+		"registry.upbound.io/crossplane/provider-gcp:v0.14.0",
+		"registry.upbound.io/ubuntu:stable",
+		"gcr.io/crossplane/provider-gcp:latest",
+	}
+)
+
+func TestParseReferenceDefaulting(t *testing.T) {
+	for i, name := range inputDefaultNames {
+		ref, err := ParseReference(name, WithDefaultRegistry(testDefaultRegistry), WithDefaultTag(testDefaultTag))
+		if err != nil {
+			t.Errorf("ParseReference(%q); %v", name, err)
+		}
+		if ref.Name() != outputDefaultNames[i] {
+			t.Errorf("ParseReference(%q); got %v, want %v", name, ref.String(), outputDefaultNames[i])
+		}
+	}
+}
+
 func TestParseReference(t *testing.T) {
 	for _, name := range goodWeakValidationDigestNames {
 		ref, err := ParseReference(name, WeakValidation)
