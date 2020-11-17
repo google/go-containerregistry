@@ -268,7 +268,7 @@ func TestMutateConfig(t *testing.T) {
 func TestMutateCreatedAt(t *testing.T) {
 	source := sourceImage(t)
 	want := time.Now().Add(-2 * time.Minute)
-	result, err := mutate.CreatedAt(source, v1.Time{want})
+	result, err := mutate.CreatedAt(source, v1.Time{Time: want})
 	if err != nil {
 		t.Fatalf("CreatedAt: %v", err)
 	}
