@@ -15,12 +15,12 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
 )
@@ -66,8 +66,8 @@ func parseChallenge(suffix string) map[string]string {
 	return kv
 }
 
-func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
-	client := http.Client{Transport: t, Timeout: 120 * time.Second}
+func ping(ctx context.Context, reg name.Registry, t http.RoundTripper) (*pingResp, error) {
+	client := http.Client{Transport: t}
 
 	// This first attempts to use "https" for every request, falling back to http
 	// if the registry matches our localhost heuristic or if it is intentionally
@@ -80,7 +80,11 @@ func ping(reg name.Registry, t http.RoundTripper) (*pingResp, error) {
 	var connErr error
 	for _, scheme := range schemes {
 		url := fmt.Sprintf("%s://%s/v2/", scheme, reg.Name())
-		resp, err := client.Get(url)
+		req, err := http.NewRequest(http.MethodGet, url, nil)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := client.Do(req.WithContext(ctx))
 		if err != nil {
 			connErr = err
 			// Potentially retry with http.

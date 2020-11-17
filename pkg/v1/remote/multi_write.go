@@ -81,7 +81,7 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
 		ls = append(ls, l)
 	}
 	scopes := scopesForUploadingImage(repo, ls)
-	tr, err := transport.New(repo.Registry, o.auth, o.transport, scopes)
+	tr, err := transport.NewWithContext(o.context, repo.Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}

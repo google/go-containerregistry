@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -83,7 +84,7 @@ func TestPingNoChallenge(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(testRegistry, tprt)
+	pr, err := ping(context.Background(), testRegistry, tprt)
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
@@ -108,7 +109,7 @@ func TestPingBasicChallengeNoParams(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(testRegistry, tprt)
+	pr, err := ping(context.Background(), testRegistry, tprt)
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
@@ -133,7 +134,7 @@ func TestPingBearerChallengeWithParams(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(testRegistry, tprt)
+	pr, err := ping(context.Background(), testRegistry, tprt)
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
@@ -158,7 +159,7 @@ func TestUnsupportedStatus(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(testRegistry, tprt)
+	pr, err := ping(context.Background(), testRegistry, tprt)
 	if err == nil {
 		t.Errorf("ping() = %v", pr)
 	}
@@ -194,7 +195,7 @@ func TestPingHttpFallback(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pr, err := ping(test.reg, tprt)
+		pr, err := ping(context.Background(), test.reg, tprt)
 		if err == nil {
 			t.Errorf("ping() = %v", pr)
 		}

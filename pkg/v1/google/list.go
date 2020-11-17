@@ -66,7 +66,7 @@ func newLister(repo name.Repository, options ...ListerOption) (*lister, error) {
 	l.transport = transport.NewRetry(l.transport)
 
 	scopes := []string{repo.Scope(transport.PullScope)}
-	tr, err := transport.New(repo.Registry, l.auth, l.transport, scopes)
+	tr, err := transport.NewWithContext(l.ctx, repo.Registry, l.auth, l.transport, scopes)
 	if err != nil {
 		return nil, err
 	}

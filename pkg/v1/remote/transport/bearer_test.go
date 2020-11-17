@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -79,7 +80,7 @@ func TestBearerRefresh(t *testing.T) {
 				scheme:   "http",
 			}
 
-			if err := bt.refresh(); (err != nil) != tc.wantErr {
+			if err := bt.refresh(context.Background()); (err != nil) != tc.wantErr {
 				t.Errorf("refresh() = %v", err)
 			}
 		})
