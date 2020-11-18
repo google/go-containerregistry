@@ -218,7 +218,7 @@ type fetcher struct {
 }
 
 func makeFetcher(ref name.Reference, o *options) (*fetcher, error) {
-	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, []string{ref.Scope(transport.PullScope)})
+	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, []string{ref.Scope(transport.PullScope)})
 	if err != nil {
 		return nil, err
 	}

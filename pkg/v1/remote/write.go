@@ -54,7 +54,7 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 	}
 
 	scopes := scopesForUploadingImage(ref.Context(), ls)
-	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
+	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}
@@ -549,7 +549,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 		return err
 	}
 	scopes := []string{ref.Scope(transport.PushScope)}
-	tr, err := transport.New(ref.Context().Registry, o.auth, o.transport, scopes)
+	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}
@@ -568,7 +568,7 @@ func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) error {
 		return err
 	}
 	scopes := scopesForUploadingImage(repo, []v1.Layer{layer})
-	tr, err := transport.New(repo.Registry, o.auth, o.transport, scopes)
+	tr, err := transport.NewWithContext(o.context, repo.Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}
@@ -595,7 +595,7 @@ func Tag(tag name.Tag, t Taggable, options ...Option) error {
 	// * Allow callers to pass in a transport.Transport, typecheck
 	//   it to allow them to reuse the transport across multiple calls.
 	// * WithTag option to do multiple manifest PUTs in commitManifest.
-	tr, err := transport.New(tag.Context().Registry, o.auth, o.transport, scopes)
+	tr, err := transport.NewWithContext(o.context, tag.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}

@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -75,7 +76,7 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 
 	// Perform a token refresh() and retry the request in case the token has expired
 	if res.StatusCode == http.StatusUnauthorized {
-		if err = bt.refresh(); err != nil {
+		if err = bt.refresh(in.Context()); err != nil {
 			return nil, err
 		}
 		return sendRequest()
@@ -88,7 +89,7 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 // so we rely on heuristics and fallbacks to support as many registries as possible.
 // The basic token exchange is attempted first, falling back to the oauth flow.
 // If the IdentityToken is set, this indicates that we should start with the oauth flow.
-func (bt *bearerTransport) refresh() error {
+func (bt *bearerTransport) refresh(ctx context.Context) error {
 	auth, err := bt.basic.Authorization()
 	if err != nil {
 		return err
@@ -104,15 +105,15 @@ func (bt *bearerTransport) refresh() error {
 		// If the secret being stored is an identity token,
 		// the Username should be set to <token>, which indicates
 		// we are using an oauth flow.
-		content, err = bt.refreshOauth()
+		content, err = bt.refreshOauth(ctx)
 		if terr, ok := err.(*Error); ok && terr.StatusCode == http.StatusNotFound {
 			// Note: Not all token servers implement oauth2.
 			// If the request to the endpoint returns 404 using the HTTP POST method,
 			// refer to Token Documentation for using the HTTP GET method supported by all token servers.
-			content, err = bt.refreshBasic()
+			content, err = bt.refreshBasic(ctx)
 		}
 	} else {
-		content, err = bt.refreshBasic()
+		content, err = bt.refreshBasic(ctx)
 	}
 	if err != nil {
 		return err
@@ -186,7 +187,7 @@ func canonicalAddress(host, scheme string) (address string) {
 }
 
 // https://docs.docker.com/registry/spec/auth/oauth/
-func (bt *bearerTransport) refreshOauth() ([]byte, error) {
+func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 	auth, err := bt.basic.Authorization()
 	if err != nil {
 		return nil, err
@@ -220,7 +221,7 @@ func (bt *bearerTransport) refreshOauth() ([]byte, error) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// We don't want to log credentials.
-	ctx := redact.NewContext(req.Context(), "oauth token response contains credentials")
+	ctx = redact.NewContext(ctx, "oauth token response contains credentials")
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
@@ -236,7 +237,7 @@ func (bt *bearerTransport) refreshOauth() ([]byte, error) {
 }
 
 // https://docs.docker.com/registry/spec/auth/token/
-func (bt *bearerTransport) refreshBasic() ([]byte, error) {
+func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 	u, err := url.Parse(bt.realm)
 	if err != nil {
 		return nil, err
@@ -259,7 +260,7 @@ func (bt *bearerTransport) refreshBasic() ([]byte, error) {
 	}
 
 	// We don't want to log credentials.
-	ctx := redact.NewContext(req.Context(), "basic token response contains credentials")
+	ctx = redact.NewContext(ctx, "basic token response contains credentials")
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
