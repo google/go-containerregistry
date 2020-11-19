@@ -48,6 +48,17 @@ type Descriptor struct {
 	Platform    *Platform         `json:"platform,omitempty"`
 }
 
+// ResolvableDescriptor an item that represents a descriptor that can be resolved
+// into either an Image or an ImageIndex
+type ResolvableDescriptor interface {
+	// Image resolve this Descriptor into an Image, if it is the correct image type.
+	// Returns an error if the underlying manifest does not describe an Image.
+	Image() (Image, error)
+	// ImageIndex resolve this Descriptor into an ImageIndex, if it is the correct image type.
+	// Returns an error if the underlying manifest does not describe an ImageIndex.
+	ImageIndex() (ImageIndex, error)
+}
+
 // ParseManifest parses the io.Reader's contents into a Manifest.
 func ParseManifest(r io.Reader) (*Manifest, error) {
 	m := Manifest{}

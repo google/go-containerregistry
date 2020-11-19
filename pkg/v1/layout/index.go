@@ -32,6 +32,8 @@ type layoutIndex struct {
 	mediaType types.MediaType
 	path      Path
 	rawIndex  []byte
+
+	v1.ResolvableDescriptor
 }
 
 // ImageIndexFromPath is a convenience function which constructs a Path and returns its v1.ImageIndex.

@@ -55,9 +55,11 @@ func (e *ErrSchema1) Error() string {
 
 // Descriptor provides access to metadata about remote artifact and accessors
 // for efficiently converting it into a v1.Image or v1.ImageIndex.
+// Implements v1.ResolvableDescriptor.
 type Descriptor struct {
 	fetcher
 	v1.Descriptor
+	v1.ResolvableDescriptor
 	Manifest []byte
 
 	// So we can share this implementation with Image..
