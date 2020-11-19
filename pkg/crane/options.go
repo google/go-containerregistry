@@ -89,3 +89,11 @@ func WithAuth(auth authn.Authenticator) Option {
 		o.remote[0] = remote.WithAuth(auth)
 	}
 }
+
+// WithUserAgent adds the given string to the User-Agent header for any HTTP
+// requests.
+func WithUserAgent(ua string) Option {
+	return func(o *options) {
+		o.remote = append(o.remote, remote.WithUserAgent(ua))
+	}
+}
