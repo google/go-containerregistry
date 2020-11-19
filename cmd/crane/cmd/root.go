@@ -13,8 +13,10 @@
 package cmd
 
 import (
+	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -48,6 +50,13 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 			}
 			if insecure {
 				options = append(options, crane.Insecure)
+			}
+			if Version != "" {
+				binary := "crane"
+				if len(os.Args[0]) != 0 {
+					binary = filepath.Base(os.Args[0])
+				}
+				options = append(options, crane.WithUserAgent(fmt.Sprintf("%s/%s", binary, Version)))
 			}
 
 			options = append(options, crane.WithPlatform(platform.platform))
