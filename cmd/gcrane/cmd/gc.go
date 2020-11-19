@@ -24,8 +24,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdGc()) }
-
 // NewCmdGc creates a new cobra.Command for the gc subcommand.
 func NewCmdGc() *cobra.Command {
 	recursive := false

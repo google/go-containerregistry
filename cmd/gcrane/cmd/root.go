@@ -13,29 +13,15 @@
 package cmd
 
 import (
-	"os"
-
-	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/spf13/cobra"
 )
 
-func init() {
-	Root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
-}
-
 var (
-	verbose = false
-
 	// Root is the top-level cobra.Command for gcrane.
 	Root = &cobra.Command{
 		Use:               "gcrane",
-		Short:             "gcrane is a tool for managing container images on gcr.io",
+		Short:             "gcrane is a tool for managing container images on gcr.io and pkg.dev",
 		Run:               func(cmd *cobra.Command, _ []string) { cmd.Usage() },
 		DisableAutoGenTag: true,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			if verbose {
-				logs.Debug.SetOutput(os.Stderr)
-			}
-		},
 	}
 )

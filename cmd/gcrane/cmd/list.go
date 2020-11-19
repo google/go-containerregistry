@@ -24,8 +24,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdList()) }
-
 // NewCmdList creates a new cobra.Command for the ls subcommand.
 func NewCmdList() *cobra.Command {
 	recursive := false
