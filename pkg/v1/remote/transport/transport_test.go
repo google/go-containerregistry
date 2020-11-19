@@ -64,9 +64,6 @@ func TestTransportSelectionAnonymous(t *testing.T) {
 	if got, want := recorded.URL.Scheme, "https"; got != want {
 		t.Errorf("wrong scheme, want %s got %s", want, got)
 	}
-	if want, got := recorded.Header.Get("User-Agent"), transportName; want != got {
-		t.Errorf("wrong useragent, want %s got %s", want, got)
-	}
 }
 
 func TestTransportSelectionBasic(t *testing.T) {

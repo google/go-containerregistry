@@ -55,14 +55,16 @@ func NewWithContext(ctx context.Context, reg name.Registry, auth authn.Authentic
 		return nil, err
 	}
 
-	// Wrap the given transport in transports that use an appropriate scheme,
-	// (based on the ping response) and set the user agent.
-	t = &useragentTransport{
-		inner: &schemeTransport{
-			scheme:   pr.scheme,
-			registry: reg,
-			inner:    t,
-		},
+	// Wrap t with a useragent transport unless we already have one.
+	if _, ok := t.(*userAgentTransport); !ok {
+		t = NewUserAgent(t, "")
+	}
+
+	// Wrap t in a transport that selects the appropriate scheme based on the ping response.
+	t = &schemeTransport{
+		scheme:   pr.scheme,
+		registry: reg,
+		inner:    t,
 	}
 
 	switch pr.challenge.Canonical() {
