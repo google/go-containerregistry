@@ -64,23 +64,23 @@ func TestAnnotation(t *testing.T) {
 	}
 }
 
-func TestPlatform(t *testing.T) {
+func TestPlatforms(t *testing.T) {
 	tests := []struct {
-		desc     v1.Descriptor
-		platform v1.Platform
-		match    bool
+		desc      v1.Descriptor
+		platforms []v1.Platform
+		match     bool
 	}{
-		{v1.Descriptor{Platform: &v1.Platform{Architecture: "amd64", OS: "linux"}}, v1.Platform{Architecture: "amd64", OS: "linux"}, true},
-		{v1.Descriptor{Platform: &v1.Platform{Architecture: "amd64", OS: "linux"}}, v1.Platform{Architecture: "arm64", OS: "linux"}, false},
-		{v1.Descriptor{Platform: &v1.Platform{OS: "linux"}}, v1.Platform{Architecture: "arm64", OS: "linux"}, false},
-		{v1.Descriptor{Platform: &v1.Platform{}}, v1.Platform{Architecture: "arm64", OS: "linux"}, false},
-		{v1.Descriptor{Platform: nil}, v1.Platform{Architecture: "arm64", OS: "linux"}, false},
-		{v1.Descriptor{}, v1.Platform{Architecture: "arm64", OS: "linux"}, false},
+		{v1.Descriptor{Platform: &v1.Platform{Architecture: "amd64", OS: "linux"}}, []v1.Platform{{Architecture: "amd64", OS: "darwin"}, {Architecture: "amd64", OS: "linux"}}, true},
+		{v1.Descriptor{Platform: &v1.Platform{Architecture: "amd64", OS: "linux"}}, []v1.Platform{{Architecture: "arm64", OS: "linux"}, {Architecture: "s390x", OS: "linux"}}, false},
+		{v1.Descriptor{Platform: &v1.Platform{OS: "linux"}}, []v1.Platform{{Architecture: "arm64", OS: "linux"}}, false},
+		{v1.Descriptor{Platform: &v1.Platform{}}, []v1.Platform{{Architecture: "arm64", OS: "linux"}}, false},
+		{v1.Descriptor{Platform: nil}, []v1.Platform{{Architecture: "arm64", OS: "linux"}}, false},
+		{v1.Descriptor{}, []v1.Platform{{Architecture: "arm64", OS: "linux"}}, false},
 	}
 	for i, tt := range tests {
-		f := match.Platform(tt.platform)
+		f := match.Platforms(tt.platforms...)
 		if match := f(tt.desc); match != tt.match {
-			t.Errorf("%d: mismatched, got %v expected %v for desc %#v platform %#v", i, match, tt.match, tt.desc, tt.platform)
+			t.Errorf("%d: mismatched, got %v expected %v for desc %#v platform %#v", i, match, tt.match, tt.desc, tt.platforms)
 		}
 	}
 }
@@ -98,9 +98,34 @@ func TestMediaTypes(t *testing.T) {
 		{v1.Descriptor{}, []string{string(types.OCIManifestSchema1), string(types.OCIImageIndex)}, false},
 	}
 	for i, tt := range tests {
-		f := match.MediaTypes(tt.mediaTypes)
+		f := match.MediaTypes(tt.mediaTypes...)
 		if match := f(tt.desc); match != tt.match {
 			t.Errorf("%d: mismatched, got %v expected %v for desc %#v mediaTypes %#v", i, match, tt.match, tt.desc, tt.mediaTypes)
+		}
+	}
+}
+
+func TestDigests(t *testing.T) {
+	hashes := []string{
+		"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+		"abcde1111111222f0123456789abcdef0123456789abcdef0123456789abcdef",
+		"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	}
+	algo := "sha256"
+
+	tests := []struct {
+		desc    v1.Descriptor
+		digests []v1.Hash
+		match   bool
+	}{
+		{v1.Descriptor{Digest: v1.Hash{Algorithm: algo, Hex: hashes[0]}}, []v1.Hash{{Algorithm: algo, Hex: hashes[0]}, {Algorithm: algo, Hex: hashes[1]}}, true},
+		{v1.Descriptor{Digest: v1.Hash{Algorithm: algo, Hex: hashes[1]}}, []v1.Hash{{Algorithm: algo, Hex: hashes[0]}, {Algorithm: algo, Hex: hashes[1]}}, true},
+		{v1.Descriptor{Digest: v1.Hash{Algorithm: algo, Hex: hashes[2]}}, []v1.Hash{{Algorithm: algo, Hex: hashes[0]}, {Algorithm: algo, Hex: hashes[1]}}, false},
+	}
+	for i, tt := range tests {
+		f := match.Digests(tt.digests...)
+		if match := f(tt.desc); match != tt.match {
+			t.Errorf("%d: mismatched, got %v expected %v for desc %#v digests %#v", i, match, tt.match, tt.desc, tt.digests)
 		}
 	}
 }
