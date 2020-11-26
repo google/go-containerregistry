@@ -22,6 +22,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	use   = "crane"
+	short = "Crane is a tool for managing container images"
+)
+
+var Root = New(use, short, []crane.Option{})
+
 // New returns a top-level command for crane. This is mostly exposed
 // to share code with gcrane.
 func New(use, short string, options []crane.Option) *cobra.Command {

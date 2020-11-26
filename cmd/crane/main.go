@@ -19,7 +19,6 @@ import (
 	"os"
 
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
-	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 
@@ -28,13 +27,8 @@ func init() {
 	logs.Progress.SetOutput(os.Stderr)
 }
 
-const (
-	use   = "crane"
-	short = "Crane is a tool for managing container images"
-)
-
 func main() {
-	if err := cmd.New(use, short, []crane.Option{}).Execute(); err != nil {
+	if err := cmd.Root.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
