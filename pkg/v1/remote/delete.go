@@ -21,27 +21,64 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"golang.org/x/sync/errgroup"
 )
 
-// Delete removes the specified image reference from the remote registry.
-func Delete(ref name.Reference, options ...Option) error {
-	o, err := makeOptions(ref.Context(), options...)
+// MultiDelete removes the specified image references from remote registries.
+//
+// Current limitations:
+// - All refs must share the same repository.
+func MultiDelete(refs []name.Reference, options ...Option) error {
+	// Determine the repository being pushed to; if asked to push to
+	// multiple repositories, give up.
+	var repo, zero name.Repository
+	for _, ref := range refs {
+		if repo == zero {
+			repo = ref.Context()
+		} else if ref.Context() != repo {
+			return fmt.Errorf("MultiWrite can only push to the same repository (saw %q and %q)", repo, ref.Context())
+		}
+	}
+
+	o, err := makeOptions(repo, options...)
 	if err != nil {
 		return err
 	}
-	scopes := []string{ref.Scope(transport.DeleteScope)}
-	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
+	scopes := []string{repo.Scope(transport.DeleteScope)}
+	tr, err := transport.NewWithContext(o.context, repo.Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}
 	c := &http.Client{Transport: tr}
 
+	ch := make(chan name.Reference, 2*o.jobs)
+	var g errgroup.Group
+	for i := 0; i < o.jobs; i++ {
+		// Start N workers consuming refs to delete.
+		g.Go(func() error {
+			for ref := range ch {
+				if err := deleteOne(ref, c, o); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
+	go func() {
+		for _, ref := range refs {
+			ch <- ref
+		}
+		close(ch)
+	}()
+	return g.Wait()
+}
+
+func deleteOne(ref name.Reference, c *http.Client, o *options) error {
 	u := url.URL{
 		Scheme: ref.Context().Registry.Scheme(),
 		Host:   ref.Context().RegistryStr(),
 		Path:   fmt.Sprintf("/v2/%s/manifests/%s", ref.Context().RepositoryStr(), ref.Identifier()),
 	}
-
 	req, err := http.NewRequest(http.MethodDelete, u.String(), nil)
 	if err != nil {
 		return err
@@ -54,4 +91,9 @@ func Delete(ref name.Reference, options ...Option) error {
 	defer resp.Body.Close()
 
 	return transport.CheckError(resp, http.StatusOK, http.StatusAccepted)
+}
+
+// Delete removes the specified image reference from the remote registry.
+func Delete(ref name.Reference, options ...Option) error {
+	return MultiDelete([]name.Reference{ref}, options...)
 }

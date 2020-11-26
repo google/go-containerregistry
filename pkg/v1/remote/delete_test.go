@@ -24,15 +24,17 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
-func TestDelete(t *testing.T) {
+func TestMultiDelete(t *testing.T) {
 	expectedRepo := "write/time"
-	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	expectedTag1, expectedTag2 := "latest", "another"
+	manifestPath1 := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, expectedTag1)
+	manifestPath2 := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, expectedTag2)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v2/":
 			w.WriteHeader(http.StatusOK)
-		case manifestPath:
+		case manifestPath1, manifestPath2:
 			if r.Method != http.MethodDelete {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodDelete)
 			}
@@ -46,13 +48,18 @@ func TestDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
 	}
-	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo), name.WeakValidation)
+
+	tag1, err := name.NewTag(fmt.Sprintf("%s/%s:%s", u.Host, expectedRepo, expectedTag1), name.WeakValidation)
 	if err != nil {
-		t.Fatalf("NewTag() = %v", err)
+		t.Fatal("NewTag() =", err)
+	}
+	tag2, err := name.NewTag(fmt.Sprintf("%s/%s:%s", u.Host, expectedRepo, expectedTag2), name.WeakValidation)
+	if err != nil {
+		t.Fatal("NewTag() =", err)
 	}
 
-	if err := Delete(tag); err != nil {
-		t.Errorf("Delete() = %v", err)
+	if err := MultiDelete([]name.Reference{tag1, tag2}); err != nil {
+		t.Error("MultiDelete() =", err)
 	}
 }
 

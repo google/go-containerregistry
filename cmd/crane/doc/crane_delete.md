@@ -1,10 +1,10 @@
 ## crane delete
 
-Delete an image reference from its registry
+Deletes image references from their registries
 
 ### Synopsis
 
-Delete an image reference from its registry
+Deletes image references from their registries
 
 ```
 crane delete IMAGE [flags]

@@ -38,7 +38,7 @@ By default, it will print any images that do not have tags pointing to them.
 
 This can be composed with `gcrane delete` to actually garbage collect them:
 ```shell
-gcrane gc gcr.io/${PROJECT_ID}/repo | xargs -n1 gcrane delete
+gcrane gc gcr.io/${PROJECT_ID}/repo | xargs gcrane delete
 ```
 
 ## Images

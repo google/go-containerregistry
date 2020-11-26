@@ -25,12 +25,11 @@ import (
 func NewCmdDelete(options *[]crane.Option) *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete IMAGE",
-		Short: "Delete an image reference from its registry",
-		Args:  cobra.ExactArgs(1),
+		Short: "Deletes image references from their registries",
+		Args:  cobra.MinimumNArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
-			ref := args[0]
-			if err := crane.Delete(ref, *options...); err != nil {
-				log.Fatalf("deleting %s: %v", ref, err)
+			if err := crane.MultiDelete(args, *options...); err != nil {
+				log.Fatal("deleting: ", err)
 			}
 		},
 	}

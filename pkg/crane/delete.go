@@ -23,11 +23,21 @@ import (
 
 // Delete deletes the remote reference at src.
 func Delete(src string, opt ...Option) error {
+	return MultiDelete([]string{src}, opt...)
+}
+
+// MultiDelete deletes the remote references in srcs.
+func MultiDelete(srcs []string, opt ...Option) error {
 	o := makeOptions(opt...)
-	ref, err := name.ParseReference(src, o.name...)
-	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", src, err)
+
+	var refs []name.Reference
+	for _, src := range srcs {
+		ref, err := name.ParseReference(src, o.name...)
+		if err != nil {
+			return fmt.Errorf("parsing reference %q: %v", src, err)
+		}
+		refs = append(refs, ref)
 	}
 
-	return remote.Delete(ref, o.remote...)
+	return remote.MultiDelete(refs, o.remote...)
 }
