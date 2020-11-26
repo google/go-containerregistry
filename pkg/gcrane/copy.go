@@ -68,8 +68,6 @@ func Copy(src, dst string) error {
 // CopyRepository copies everything from the src GCR repository to the
 // dst GCR repository.
 func CopyRepository(ctx context.Context, src, dst string, opts ...Option) error {
-	// Just reuse crane's copy logic with gcrane's credential logic.
-	return crane.Copy(src, dst, crane.WithAuthFromKeychain(Keychain))
 	o := makeOptions(opts...)
 	return recursiveCopy(ctx, src, dst, o.jobs)
 }
