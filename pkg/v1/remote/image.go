@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/google/go-containerregistry/pkg/internal/redact"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -142,6 +143,9 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 		return nil, err
 	}
 
+	// We don't want to log binary layers -- this can break terminals.
+	ctx := redact.NewContext(rl.ri.context, "omitting binary blobs from logs")
+
 	for _, s := range d.URLs {
 		u, err := url.Parse(s)
 		if err != nil {
@@ -161,7 +165,7 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 			return nil, err
 		}
 
-		resp, err := rl.ri.Client.Do(req.WithContext(rl.ri.context))
+		resp, err := rl.ri.Client.Do(req.WithContext(ctx))
 		if err != nil {
 			lastErr = err
 			continue
