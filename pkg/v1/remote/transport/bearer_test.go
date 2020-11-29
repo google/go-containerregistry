@@ -504,12 +504,11 @@ func TestInsufficientScope(t *testing.T) {
 
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			t.Logf("%v", r.URL)
 			query := r.URL.Query()
 
 			if scopes := query["scope"]; len(scopes) == 0 {
 				if !passed {
-					w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer realm="%s",scope="%s"`, realm, right))
+					w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer realm=%q,scope=%q", realm, right))
 					w.WriteHeader(http.StatusUnauthorized)
 				}
 			} else if len(scopes) == 1 {
@@ -517,8 +516,6 @@ func TestInsufficientScope(t *testing.T) {
 			} else if len(scopes) == 2 && scopes[1] == right {
 				passed = true
 				w.Write([]byte(`{"token": "arbitrary-token-2"}`))
-			} else {
-				t.Logf("%v", scopes)
 			}
 		}))
 	defer server.Close()
@@ -526,13 +523,13 @@ func TestInsufficientScope(t *testing.T) {
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
 	u, err := url.Parse(server.URL)
 	if err != nil {
-		t.Errorf("Unexpected error during url.Parse: %v", err)
+		t.Error("Unexpected error during url.Parse: ", err)
 	}
 	realm = u.Host
 
 	registry, err := name.NewRegistry(expectedService, name.WeakValidation)
 	if err != nil {
-		t.Errorf("Unexpected error during NewRegistry: %v", err)
+		t.Error("Unexpected error during NewRegistry: ", err)
 	}
 
 	bt := &bearerTransport{
@@ -549,7 +546,7 @@ func TestInsufficientScope(t *testing.T) {
 
 	res, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
 	if err != nil {
-		t.Errorf("Unexpected error during client.Get: %v", err)
+		t.Error("Unexpected error during client.Get: ", err)
 		return
 	}
 	if res.StatusCode != http.StatusOK {
@@ -557,6 +554,6 @@ func TestInsufficientScope(t *testing.T) {
 	}
 
 	if !passed {
-		t.Errorf("didn't refresh insufficient scope")
+		t.Error("didn't refresh insufficient scope")
 	}
 }
