@@ -17,8 +17,13 @@ os:
   - windows
   - linux
 
-# Don't run all combos on Windows
 jobs:
+  include:
+   - arch: amd64
+   - arch: arm
+   - arch: arm64
+   - arch: 386
+# Don't run all combos on Windows
   exclude:
     - os: windows
       go: "1.14"
