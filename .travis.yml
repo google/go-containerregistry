@@ -22,12 +22,29 @@ os:
   - windows
   - linux
 
-# Don't run all combos on Windows
+# Only run all combos for amd64.
+# Everything else is GO111MODULE=on + go 1.15
 jobs:
   exclude:
     - os: windows
       go: "1.14"
     - os: windows
+      go: "1.15"
+      env: "GO111MODULE=off"
+
+    - os: linux
+      arch: arm64
+      go: "1.14"
+    - os: linux
+      arch: arm64
+      go: "1.15"
+      env: "GO111MODULE=off"
+
+    - os: linux
+      arch: i386
+      go: "1.14"
+    - os: linux
+      arch: i386
       go: "1.15"
       env: "GO111MODULE=off"
 
