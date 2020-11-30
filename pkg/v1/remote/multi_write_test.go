@@ -15,6 +15,8 @@
 package remote
 
 import (
+	"io/ioutil"
+	"log"
 	"net/http/httptest"
 	"net/url"
 	"testing"
@@ -116,8 +118,9 @@ func TestMultiWrite_Deep(t *testing.T) {
 		idx = mutate.AppendManifests(idx, mutate.IndexAddendum{Add: idx})
 	}
 
-	// Set up a fake registry.
-	s := httptest.NewServer(registry.New())
+	// Set up a fake registry (with NOP logger to avoid spamming test logs).
+	nopLog := log.New(ioutil.Discard, "", 0)
+	s := httptest.NewServer(registry.New(registry.Logger(nopLog)))
 	defer s.Close()
 	u, err := url.Parse(s.URL)
 	if err != nil {
