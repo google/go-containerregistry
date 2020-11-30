@@ -21,7 +21,7 @@ jobs:
   include:
    - arch: amd64
    - arch: arm64
-   - arch: 386
+   - arch: i386
 # Don't run all combos on Windows
   exclude:
     - os: windows
