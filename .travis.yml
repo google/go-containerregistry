@@ -13,16 +13,17 @@ env:
   - "GO111MODULE=off"
   - "GO111MODULE=on"
 
+arch:
+  - amd64
+  - arm64
+  - i386
+
 os:
   - windows
   - linux
 
-jobs:
-  include:
-   - arch: amd64
-   - arch: arm64
-   - arch: i386
 # Don't run all combos on Windows
+jobs:
   exclude:
     - os: windows
       go: "1.14"
