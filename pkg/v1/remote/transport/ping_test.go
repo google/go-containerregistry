@@ -124,7 +124,7 @@ func TestPingBasicChallengeNoParams(t *testing.T) {
 func TestPingBearerChallengeWithParams(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="http://auth.foo.io/token`)
+			w.Header().Set("WWW-Authenticate", `Bearer realm="http://auth.example.com/token"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
@@ -149,7 +149,7 @@ func TestPingBearerChallengeWithParams(t *testing.T) {
 func TestUnsupportedStatus(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="http://auth.foo.io/token`)
+			w.Header().Set("WWW-Authenticate", `Bearer realm="http://auth.example.com/token`)
 			http.Error(w, "Forbidden", http.StatusForbidden)
 		}))
 	defer server.Close()

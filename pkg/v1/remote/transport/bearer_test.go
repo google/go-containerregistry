@@ -159,6 +159,7 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 				w.Write([]byte(fmt.Sprintf(`{"token": %q}`, refreshedToken)))
 			}
 
+			w.Header().Set("WWW-Authenticate", "scope=foo")
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
 	defer server.Close()
@@ -238,6 +239,7 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 				return
 			}
 
+			w.Header().Set("WWW-Authenticate", "scope=foo")
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
 	defer server.Close()
@@ -302,6 +304,7 @@ func TestBearerTransportOauth404Fallback(t *testing.T) {
 				return
 			}
 
+			w.Header().Set("WWW-Authenticate", "scope=foo")
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
 	defer server.Close()
@@ -489,5 +492,68 @@ func TestCanonicalAddressResolution(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("Wrong canonical host: wanted %v got %v", tt.want, got)
 		}
+	}
+}
+
+func TestInsufficientScope(t *testing.T) {
+	wrong := "the-wrong-scope"
+	right := "the-right-scope"
+	realm := ""
+	expectedService := "my-service.io"
+	passed := false
+
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			query := r.URL.Query()
+
+			if scopes := query["scope"]; len(scopes) == 0 {
+				if !passed {
+					w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer realm=%q,scope=%q", realm, right))
+					w.WriteHeader(http.StatusUnauthorized)
+				}
+			} else if len(scopes) == 1 {
+				w.Write([]byte(`{"token": "arbitrary-token"}`))
+			} else if len(scopes) == 2 && scopes[1] == right {
+				passed = true
+				w.Write([]byte(`{"token": "arbitrary-token-2"}`))
+			}
+		}))
+	defer server.Close()
+
+	basic := &authn.Basic{Username: "foo", Password: "bar"}
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Error("Unexpected error during url.Parse: ", err)
+	}
+	realm = u.Host
+
+	registry, err := name.NewRegistry(expectedService, name.WeakValidation)
+	if err != nil {
+		t.Error("Unexpected error during NewRegistry: ", err)
+	}
+
+	bt := &bearerTransport{
+		inner:    http.DefaultTransport,
+		basic:    basic,
+		registry: registry,
+		realm:    server.URL,
+		scopes:   []string{wrong},
+		service:  expectedService,
+		scheme:   "http",
+	}
+
+	client := http.Client{Transport: bt}
+
+	res, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
+	if err != nil {
+		t.Error("Unexpected error during client.Get: ", err)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
+	}
+
+	if !passed {
+		t.Error("didn't refresh insufficient scope")
 	}
 }

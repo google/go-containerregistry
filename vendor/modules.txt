@@ -85,6 +85,7 @@ github.com/docker/cli/cli/config/types
 github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
 github.com/docker/distribution/registry/api/errcode
+github.com/docker/distribution/registry/client/auth/challenge
 # github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7
 ## explicit
 github.com/docker/docker/api

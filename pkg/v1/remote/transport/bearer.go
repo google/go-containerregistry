@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"strings"
 
+	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/internal/redact"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -54,6 +55,14 @@ var portMap = map[string]string{
 	"https": "443",
 }
 
+func stringSet(ss []string) map[string]struct{} {
+	set := make(map[string]struct{})
+	for _, s := range ss {
+		set[s] = struct{}{}
+	}
+	return set
+}
+
 // RoundTrip implements http.RoundTripper
 func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	sendRequest := func() (*http.Response, error) {
@@ -74,8 +83,31 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 
-	// Perform a token refresh() and retry the request in case the token has expired
-	if res.StatusCode == http.StatusUnauthorized {
+	// If we hit a WWW-Authenticate challenge, it might be due to expired tokens or insufficient scope.
+	if challenges := authchallenge.ResponseChallenges(res); len(challenges) != 0 {
+		for _, wac := range challenges {
+			// TODO(jonjohnsonjr): Should we also update "realm" or "service"?
+			if scope, ok := wac.Parameters["scope"]; ok {
+				// From https://tools.ietf.org/html/rfc6750#section-3
+				// The "scope" attribute is defined in Section 3.3 of [RFC6749].  The
+				// "scope" attribute is a space-delimited list of case-sensitive scope
+				// values indicating the required scope of the access token for
+				// accessing the requested resource.
+				scopes := strings.Split(scope, " ")
+
+				// Add any scopes that we don't already request.
+				got := stringSet(bt.scopes)
+				for _, want := range scopes {
+					if _, ok := got[want]; !ok {
+						bt.scopes = append(bt.scopes, want)
+					}
+				}
+			}
+		}
+
+		// TODO(jonjohnsonjr): Teach transport.Error about "error" and "error_description" from challenge.
+
+		// Retry the request to attempt to get a valid token.
 		if err = bt.refresh(in.Context()); err != nil {
 			return nil, err
 		}
