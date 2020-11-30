@@ -32,9 +32,9 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// gcraneKeychain tries to use google-specific credential sources, falling back to
+// Keychain tries to use google-specific credential sources, falling back to
 // the DefaultKeychain (config-file based).
-var gcraneKeychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
+var Keychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
 
 // GCRBackoff returns a retry.Backoff that is suitable for use with gcr.io.
 //
@@ -61,26 +61,13 @@ func GCRBackoff() retry.Backoff {
 
 // Copy copies a remote image or index from src to dst.
 func Copy(src, dst string) error {
-	// This is a bit of a hack, but we want to use crane's copy
-	// logic with gcrane's google credentials magic.
-	original := authn.DefaultKeychain
-	authn.DefaultKeychain = gcraneKeychain
-	defer func() {
-		authn.DefaultKeychain = original
-	}()
-	return crane.Copy(src, dst)
+	// Just reuse crane's copy logic with gcrane's credential logic.
+	return crane.Copy(src, dst, crane.WithAuthFromKeychain(Keychain))
 }
 
 // CopyRepository copies everything from the src GCR repository to the
 // dst GCR repository.
 func CopyRepository(ctx context.Context, src, dst string, opts ...Option) error {
-	// This is a bit of a hack, but we want to use crane's copy
-	// logic with gcrane's google credentials magic.
-	original := authn.DefaultKeychain
-	authn.DefaultKeychain = gcraneKeychain
-	defer func() {
-		authn.DefaultKeychain = original
-	}()
 	o := makeOptions(opts...)
 	return recursiveCopy(ctx, src, dst, o.jobs)
 }
@@ -129,7 +116,7 @@ func recursiveCopy(ctx context.Context, src, dst string, jobs int) error {
 			logs.Warn.Printf("failed walkFn for repo %s: %v", repo, err)
 			// If we hit an error when listing the repo, try re-listing with backoff.
 			if err := backoffErrors(GCRBackoff(), func() error {
-				tags, err = google.List(repo, google.WithAuthFromKeychain(google.Keychain))
+				tags, err = google.List(repo, google.WithAuthFromKeychain(Keychain))
 				return err
 			}); err != nil {
 				return fmt.Errorf("failed List for repo %s: %v", repo, err)
@@ -149,7 +136,7 @@ func recursiveCopy(ctx context.Context, src, dst string, jobs int) error {
 	// Start walking the repo, enqueuing items in c.tasks.
 	g.Go(func() error {
 		defer close(c.tasks)
-		if err := google.Walk(c.srcRepo, walkFn, google.WithAuthFromKeychain(google.Keychain)); err != nil {
+		if err := google.Walk(c.srcRepo, walkFn, google.WithAuthFromKeychain(Keychain)); err != nil {
 			return fmt.Errorf("failed to Walk: %v", err)
 		}
 		return nil
@@ -186,7 +173,7 @@ func (c *copier) copyRepo(ctx context.Context, oldRepo name.Repository, tags *go
 	// Figure out what we actually need to copy.
 	want := tags.Manifests
 	have := make(map[string]google.ManifestInfo)
-	haveTags, err := google.List(newRepo, google.WithAuthFromKeychain(google.Keychain))
+	haveTags, err := google.List(newRepo, google.WithAuthFromKeychain(Keychain))
 	if err != nil {
 		if !hasStatusCode(err, http.StatusNotFound) {
 			return err
@@ -224,7 +211,7 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 		srcImg := fmt.Sprintf("%s@%s", t.oldRepo, t.digest)
 		dstImg := fmt.Sprintf("%s@%s", t.newRepo, t.digest)
 
-		return crane.Copy(srcImg, dstImg)
+		return Copy(srcImg, dstImg)
 	}
 
 	// We only need to push the whole image once.
@@ -232,7 +219,7 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 	srcImg := fmt.Sprintf("%s:%s", t.oldRepo, tag)
 	dstImg := fmt.Sprintf("%s:%s", t.newRepo, tag)
 
-	if err := crane.Copy(srcImg, dstImg); err != nil {
+	if err := Copy(srcImg, dstImg); err != nil {
 		return err
 	}
 
@@ -246,7 +233,7 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 	if err != nil {
 		return err
 	}
-	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(google.Keychain))
+	desc, err := remote.Get(srcRef, remote.WithAuthFromKeychain(Keychain))
 	if err != nil {
 		return err
 	}
@@ -254,7 +241,7 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 	for _, tag := range t.manifest.Tags[1:] {
 		dstImg := t.newRepo.Tag(tag)
 
-		if err := remote.Tag(dstImg, desc, remote.WithAuthFromKeychain(google.Keychain)); err != nil {
+		if err := remote.Tag(dstImg, desc, remote.WithAuthFromKeychain(Keychain)); err != nil {
 			return err
 		}
 	}

@@ -11,8 +11,6 @@ import (
 // -ldflags="-X 'github.com/google/go-containerregistry/cmd/crane/cmd.Version=$TAG'"
 var Version string
 
-func init() { Root.AddCommand(NewCmdVersion()) }
-
 // NewCmdVersion creates a new cobra.Command for the version subcommand.
 func NewCmdVersion() *cobra.Command {
 	return &cobra.Command{

@@ -18,9 +18,12 @@ import (
 	"fmt"
 	"os"
 
-	crane "github.com/google/go-containerregistry/cmd/crane/cmd"
-	gcrane "github.com/google/go-containerregistry/cmd/gcrane/cmd"
+	"github.com/google/go-containerregistry/cmd/crane/cmd"
+	gcmd "github.com/google/go-containerregistry/cmd/gcrane/cmd"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/gcrane"
 	"github.com/google/go-containerregistry/pkg/logs"
+	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -28,21 +31,37 @@ func init() {
 	logs.Progress.SetOutput(os.Stderr)
 }
 
+const (
+	use   = "gcrane"
+	short = "gcrane is a tool for managing container images on gcr.io and pkg.dev"
+)
+
 func main() {
+	// Same as crane, but override usage and keychain.
+	root := cmd.New(use, short, []crane.Option{crane.WithAuthFromKeychain(gcrane.Keychain)})
+
+	// Add or override commands.
+	gcraneCmds := []*cobra.Command{gcmd.NewCmdList(), gcmd.NewCmdGc(), gcmd.NewCmdCopy()}
+
 	// Maintain a map of google-specific commands that we "override".
-	gcrCmds := make(map[string]bool)
-	for _, cmd := range gcrane.Root.Commands() {
-		gcrCmds[cmd.Use] = true
+	used := make(map[string]bool)
+	for _, cmd := range gcraneCmds {
+		used[cmd.Use] = true
 	}
 
-	// Use crane for everything else so that this can be a drop-in replacement.
-	for _, cmd := range crane.Root.Commands() {
-		if _, ok := gcrCmds[cmd.Use]; !ok {
-			gcrane.Root.AddCommand(cmd)
+	// Remove those from crane's set of commands.
+	for _, cmd := range root.Commands() {
+		if _, ok := used[cmd.Use]; ok {
+			root.RemoveCommand(cmd)
 		}
 	}
 
-	if err := gcrane.Root.Execute(); err != nil {
+	// Add our own.
+	for _, cmd := range gcraneCmds {
+		root.AddCommand(cmd)
+	}
+
+	if err := root.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}

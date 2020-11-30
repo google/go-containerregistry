@@ -29,8 +29,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func init() { Root.AddCommand(NewCmdAuth()) }
-
 // NewCmdAuth creates a new cobra.Command for the auth subcommand.
 func NewCmdAuth() *cobra.Command {
 	cmd := &cobra.Command{
