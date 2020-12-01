@@ -12,6 +12,10 @@ builds:
   - CGO_ENABLED=0
   main: ./cmd/crane/main.go
   binary: crane
+  flags:
+  - -trimpath
+  ldflags:
+  - "-s -w -X github.com/google/go-containerregistry/cmd/crane/cmd.Version={{.Version}}"
   goarch:
     - amd64
     - arm
@@ -30,6 +34,10 @@ builds:
   - CGO_ENABLED=0
   main: ./cmd/gcrane/main.go
   binary: gcrane
+  flags:
+  - -trimpath
+  ldflags:
+  - "-s -w -X github.com/google/go-containerregistry/cmd/crane/cmd.Version={{.Version}}"
   goarch:
     - amd64
     - arm
