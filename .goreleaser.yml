@@ -12,6 +12,11 @@ builds:
   - CGO_ENABLED=0
   main: ./cmd/crane/main.go
   binary: crane
+  goarch:
+    - amd64
+    - arm
+    - arm64
+    - 386
   goos:
     - linux
     - darwin
@@ -25,6 +30,11 @@ builds:
   - CGO_ENABLED=0
   main: ./cmd/gcrane/main.go
   binary: gcrane
+  goarch:
+    - amd64
+    - arm
+    - arm64
+    - 386
   goos:
     - linux
     - darwin
