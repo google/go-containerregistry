@@ -35,6 +35,7 @@ type options struct {
 	platform  v1.Platform
 	context   context.Context
 	jobs      int
+	userAgent string
 }
 
 var defaultPlatform = v1.Platform{
@@ -79,6 +80,11 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 
 	// Wrap the transport in something that can retry network flakes.
 	o.transport = transport.NewRetry(o.transport)
+
+	// Wrap this last to prevent transport.New from double-wrapping.
+	if o.userAgent != "" {
+		o.transport = transport.NewUserAgent(o.transport, o.userAgent)
+	}
 
 	return o, nil
 }
@@ -153,6 +159,17 @@ func WithJobs(jobs int) Option {
 			return errors.New("jobs must be greater than zero")
 		}
 		o.jobs = jobs
+		return nil
+	}
+}
+
+// WithUserAgent adds the given string to the User-Agent header for any HTTP
+// requests. This header will also include "go-containerregistry/${version}".
+//
+// If you want to completely overwrite the User-Agent header, use WithTransport.
+func WithUserAgent(ua string) Option {
+	return func(o *options) error {
+		o.userAgent = ua
 		return nil
 	}
 }

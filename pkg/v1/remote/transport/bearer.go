@@ -233,7 +233,7 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 	v := url.Values{}
 	v.Set("scope", strings.Join(bt.scopes, " "))
 	v.Set("service", bt.service)
-	v.Set("client_id", transportName)
+	v.Set("client_id", defaultUserAgent)
 	if auth.IdentityToken != "" {
 		v.Set("grant_type", "refresh_token")
 		v.Set("refresh_token", auth.IdentityToken)
