@@ -189,8 +189,6 @@ func TestPingHttpFallback(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotCount++
-			t.Logf("incoming: %v", r)
-
 			w.WriteHeader(http.StatusOK)
 		}))
 	defer server.Close()
