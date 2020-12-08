@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -169,22 +170,26 @@ func TestPingHttpFallback(t *testing.T) {
 	tests := []struct {
 		reg       name.Registry
 		wantCount int
+		err       string
+		contains  []string
 	}{{
 		reg:       mustRegistry("gcr.io"),
 		wantCount: 1,
+		err:       `Get "https://gcr.io/v2/": http: server gave HTTP response to HTTPS client`,
 	}, {
 		reg:       mustRegistry("ko.local"),
 		wantCount: 2,
 	}, {
 		reg:       mustInsecureRegistry("us.gcr.io"),
-		wantCount: 2,
+		wantCount: 0,
+		contains:  []string{"https://us.gcr.io/v2/", "http://us.gcr.io/v2/"},
 	}}
 
 	gotCount := 0
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			gotCount++
-			http.Error(w, "Forbidden", http.StatusForbidden)
+			w.WriteHeader(http.StatusOK)
 		}))
 	defer server.Close()
 
@@ -195,15 +200,32 @@ func TestPingHttpFallback(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		pr, err := ping(context.Background(), test.reg, tprt)
-		if err == nil {
-			t.Errorf("ping() = %v", pr)
+		// This is the last one, fatal error it.
+		if strings.Contains(test.reg.String(), "us.gcr.io") {
+			server.Close()
 		}
 
-		if test.wantCount != gotCount {
-			t.Errorf("%s: got %d requests, wanted %d", test.reg.String(), test.wantCount, gotCount)
+		_, err := ping(context.Background(), test.reg, tprt)
+		if got, want := gotCount, test.wantCount; got != want {
+			t.Errorf("%s: got %d requests, wanted %d", test.reg.String(), got, want)
 		}
 		gotCount = 0
+
+		if err == nil {
+			if test.err != "" {
+				t.Error("expected err, got nil")
+			}
+			continue
+		}
+		if len(test.contains) != 0 {
+			for _, c := range test.contains {
+				if !strings.Contains(err.Error(), c) {
+					t.Errorf("expected err to contain %q but did not: %q", c, err)
+				}
+			}
+		} else if got, want := err.Error(), test.err; got != want {
+			t.Errorf("got %q want %q", got, want)
+		}
 	}
 }
 
