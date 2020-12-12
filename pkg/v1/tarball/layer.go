@@ -103,7 +103,16 @@ func LayerFromFile(path string, opts ...LayerOption) (v1.Layer, error) {
 	return LayerFromOpener(opener, opts...)
 }
 
-// LayerFromOpener returns a v1.Layer given an Opener function
+// LayerFromOpener returns a v1.Layer given an Opener function.
+// The Opener may return either an uncompressed tarball (common),
+// or a compressed tarball (uncommon).
+//
+// When using this in conjunction with something like remote.Write
+// the uncompressed path may end up gzipping things multiple times:
+//  1. Compute the layer SHA256
+//  2. Upload the compressed layer.
+// Since gzip can be expensive, we support an option to memoize the
+// compression that can be passed here: tarball.WithCompressedCaching
 func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	rc, err := opener()
 	if err != nil {
