@@ -92,7 +92,7 @@ func TestLayerFromOpenerReader(t *testing.T) {
 	}
 	tarLayer, err := LayerFromOpener(ucOpener, WithCompressedCaching)
 	if err != nil {
-		t.Fatalf("Unable to create layer from tar file: %v", err)
+		t.Fatal("Unable to create layer from tar file:", err)
 	}
 	for i := 0; i < 10; i++ {
 		tarLayer.Compressed()
@@ -104,7 +104,7 @@ func TestLayerFromOpenerReader(t *testing.T) {
 
 	tarLayer, err = LayerFromOpener(ucOpener)
 	if err != nil {
-		t.Fatalf("Unable to create layer from tar file: %v", err)
+		t.Fatal("Unable to create layer from tar file:", err)
 	}
 	for i := 0; i < 10; i++ {
 		tarLayer.Compressed()
