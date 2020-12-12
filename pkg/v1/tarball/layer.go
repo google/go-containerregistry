@@ -63,14 +63,17 @@ func (l *layer) MediaType() (types.MediaType, error) {
 // LayerOption applies options to layer
 type LayerOption func(*layer)
 
-// WithCompressionLevel sets the gzip compression. See `gzip.NewWriterLevel` for possible values.
+// WithCompressionLevel is a functional option for overriding the default
+// compression level used for compressing uncompressed tarballs.
 func WithCompressionLevel(level int) LayerOption {
 	return func(l *layer) {
 		l.compression = level
 	}
 }
 
-// WithCompressedCaching ensures that we only compress the tarball once.
+// WithCompressedCaching is a functional option that overrides the
+// logic for accessing the compressed bytes to memoize the result
+// and avoid expensive repeated gzips.
 func WithCompressedCaching(l *layer) {
 	var once sync.Once
 	var err error
