@@ -85,12 +85,37 @@ func TestLayerFromOpenerReader(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unable to read tar file: %v", err)
 	}
+	count := 0
 	ucOpener := func() (io.ReadCloser, error) {
+		count++
 		return ioutil.NopCloser(bytes.NewReader(ucBytes)), nil
 	}
-	tarLayer, err := LayerFromOpener(ucOpener)
+	tarLayer, err := LayerFromOpener(ucOpener, WithCompressedCaching)
 	if err != nil {
-		t.Fatalf("Unable to create layer from tar file: %v", err)
+		t.Fatal("Unable to create layer from tar file:", err)
+	}
+	for i := 0; i < 10; i++ {
+		tarLayer.Compressed()
+	}
+
+	// Store the count and reset the counter.
+	cachedCount := count
+	count = 0
+
+	tarLayer, err = LayerFromOpener(ucOpener)
+	if err != nil {
+		t.Fatal("Unable to create layer from tar file:", err)
+	}
+	for i := 0; i < 10; i++ {
+		tarLayer.Compressed()
+	}
+
+	// We expect three calls: gzip sniff, diffid computation, cached compression
+	if cachedCount != 3 {
+		t.Errorf("cached count = %d, wanted %d", cachedCount, 3)
+	}
+	if cachedCount+10 != count {
+		t.Errorf("count = %d, wanted %d", count, cachedCount+10)
 	}
 
 	gzBytes, err := ioutil.ReadFile("gzip_content.tgz")
