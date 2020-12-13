@@ -135,20 +135,20 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	if compressed {
 		layer.compressedopener = opener
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
-			rc, err := opener()
+			urc, err := opener()
 			if err != nil {
 				return nil, err
 			}
-			return v1util.GunzipReadCloser(rc)
+			return v1util.GunzipReadCloser(urc)
 		}
 	} else {
 		layer.uncompressedopener = opener
 		layer.compressedopener = func() (io.ReadCloser, error) {
-			rc, err := opener()
+			crc, err := opener()
 			if err != nil {
 				return nil, err
 			}
-			return v1util.GzipReadCloserLevel(rc, layer.compression), nil
+			return v1util.GzipReadCloserLevel(crc, layer.compression), nil
 		}
 	}
 
