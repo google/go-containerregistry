@@ -437,10 +437,11 @@ type Writer struct {
 	toc      *jtoc
 	diffHash hash.Hash // SHA-256 of uncompressed tar
 
-	closed        bool
-	gz            *gzip.Writer
-	lastUsername  map[int]string
-	lastGroupname map[int]string
+	closed           bool
+	gz               *gzip.Writer
+	lastUsername     map[int]string
+	lastGroupname    map[int]string
+	compressionLevel int
 
 	// ChunkSize optionally controls the maximum number of bytes
 	// of data of a regular file that can be written in one gzip
@@ -472,13 +473,22 @@ func (w *Writer) chunkSize() int {
 //
 // The writer must be closed to write its trailing table of contents.
 func NewWriter(w io.Writer) *Writer {
+	return NewWriterLevel(w, gzip.BestCompression)
+}
+
+// NewWriterLevel returns a new stargz writer writing to w.
+// The compression level is configurable.
+//
+// The writer must be closed to write its trailing table of contents.
+func NewWriterLevel(w io.Writer, compressionLevel int) *Writer {
 	bw := bufio.NewWriter(w)
 	cw := &countWriter{w: bw}
 	return &Writer{
-		bw:       bw,
-		cw:       cw,
-		toc:      &jtoc{Version: 1},
-		diffHash: sha256.New(),
+		bw:               bw,
+		cw:               cw,
+		toc:              &jtoc{Version: 1},
+		diffHash:         sha256.New(),
+		compressionLevel: compressionLevel,
 	}
 }
 
@@ -496,7 +506,7 @@ func (w *Writer) Close() (digest.Digest, error) {
 
 	// Write the TOC index.
 	tocOff := w.cw.n
-	w.gz, _ = gzip.NewWriterLevel(w.cw, gzip.BestCompression)
+	w.gz, _ = gzip.NewWriterLevel(w.cw, w.compressionLevel)
 	tw := tar.NewWriter(currentGzipWriter{w})
 	tocJSON, err := json.MarshalIndent(w.toc, "", "\t")
 	if err != nil {
@@ -563,7 +573,7 @@ func (w *Writer) nameIfChanged(mp *map[int]string, id int, name string) string {
 
 func (w *Writer) condOpenGz() {
 	if w.gz == nil {
-		w.gz, _ = gzip.NewWriterLevel(w.cw, gzip.BestCompression)
+		w.gz, _ = gzip.NewWriterLevel(w.cw, w.compressionLevel)
 	}
 }
 
@@ -712,7 +722,7 @@ func (w *Writer) DiffID() string {
 // footerBytes returns the 51 bytes footer.
 func footerBytes(tocOff int64) []byte {
 	buf := bytes.NewBuffer(make([]byte, 0, FooterSize))
-	gz, _ := gzip.NewWriterLevel(buf, gzip.NoCompression)
+	gz, _ := gzip.NewWriterLevel(buf, gzip.NoCompression) // MUST be NoCompression to keep 51 bytes
 
 	// Extra header indicating the offset of TOCJSON
 	// https://tools.ietf.org/html/rfc1952#section-2.3.1.1

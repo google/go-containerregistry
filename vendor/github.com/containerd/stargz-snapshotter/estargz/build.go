@@ -43,7 +43,8 @@ import (
 )
 
 type options struct {
-	chunkSize int
+	chunkSize        int
+	compressionLevel int
 }
 
 type Option func(o *options)
@@ -55,6 +56,15 @@ func WithChunkSize(chunkSize int) Option {
 	}
 }
 
+// WithCompressionLevel option specifies the gzip compression level.
+// The default is gzip.BestCompression.
+// See also: https://godoc.org/compress/gzip#pkg-constants
+func WithCompressionLevel(level int) Option {
+	return func(o *options) {
+		o.compressionLevel = level
+	}
+}
+
 // Build builds an eStargz blob which is an extended version of stargz, from tar blob passed
 // through the argument. If there are some prioritized files are listed in the argument, these
 // files are grouped as "prioritized" and can be used for runtime optimization (e.g. prefetch).
@@ -62,6 +72,7 @@ func WithChunkSize(chunkSize int) Option {
 // number of runtime.GOMAXPROCS(0)) sub-blobs.
 func Build(tarBlob *io.SectionReader, prioritized []string, opt ...Option) (_ io.ReadCloser, _ digest.Digest, rErr error) {
 	var opts options
+	opts.compressionLevel = gzip.BestCompression // BestCompression by default
 	for _, o := range opt {
 		o(&opts)
 	}
@@ -90,7 +101,7 @@ func Build(tarBlob *io.SectionReader, prioritized []string, opt ...Option) (_ io
 			if err != nil {
 				return err
 			}
-			sw := NewWriter(esgzFile)
+			sw := NewWriterLevel(esgzFile, opts.compressionLevel)
 			sw.ChunkSize = opts.chunkSize
 			if err := sw.AppendTar(readerFromEntries(parts...)); err != nil {
 				return err
@@ -106,7 +117,7 @@ func Build(tarBlob *io.SectionReader, prioritized []string, opt ...Option) (_ io
 		rErr = err
 		return nil, "", err
 	}
-	tocAndFooter, tocDgst, err := closeWithCombine(writers...)
+	tocAndFooter, tocDgst, err := closeWithCombine(opts.compressionLevel, writers...)
 	if err != nil {
 		rErr = err
 		return nil, "", err
@@ -130,7 +141,7 @@ func Build(tarBlob *io.SectionReader, prioritized []string, opt ...Option) (_ io
 // Writers doesn't write TOC and footer to the underlying writers so they can be
 // combined into a single eStargz and tocAndFooter returned by this function can
 // be appended at the tail of that combined blob.
-func closeWithCombine(ws ...*Writer) (tocAndFooter io.Reader, tocDgst digest.Digest, err error) {
+func closeWithCombine(compressionLevel int, ws ...*Writer) (tocAndFooter io.Reader, tocDgst digest.Digest, err error) {
 	if len(ws) == 0 {
 		return nil, "", fmt.Errorf("at least one writer must be passed")
 	}
@@ -171,7 +182,7 @@ func closeWithCombine(ws ...*Writer) (tocAndFooter io.Reader, tocDgst digest.Dig
 	}
 	pr, pw := io.Pipe()
 	go func() {
-		zw, _ := gzip.NewWriterLevel(pw, gzip.BestCompression)
+		zw, _ := gzip.NewWriterLevel(pw, compressionLevel)
 		tw := tar.NewWriter(zw)
 		if err := tw.WriteHeader(&tar.Header{
 			Typeflag: tar.TypeReg,
