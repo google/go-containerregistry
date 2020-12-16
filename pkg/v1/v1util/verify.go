@@ -20,4 +20,5 @@ import (
 
 // VerifyReadCloser wraps the given io.ReadCloser to verify that its contents match
 // the provided v1.Hash before io.EOF is returned.
+// DEPRECATED please use v1.VerifyReadCloser
 var VerifyReadCloser = v1.VerifyReadCloser
