@@ -23,8 +23,8 @@ import (
 	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	ggzip "github.com/google/go-containerregistry/pkg/v1/internal/gzip"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 type layer struct {
@@ -123,7 +123,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	}
 	defer rc.Close()
 
-	compressed, err := v1util.IsGzipped(rc)
+	compressed, err := ggzip.IsGzipped(rc)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			if err != nil {
 				return nil, err
 			}
-			return v1util.GunzipReadCloser(urc)
+			return ggzip.GunzipReadCloser(urc)
 		}
 	} else {
 		layer.uncompressedopener = opener
@@ -148,7 +148,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			if err != nil {
 				return nil, err
 			}
-			return v1util.GzipReadCloserLevel(crc, layer.compression), nil
+			return ggzip.GzipReadCloserLevel(crc, layer.compression), nil
 		}
 	}
 

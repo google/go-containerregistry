@@ -27,7 +27,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
 )
 
 var acceptableImageMediaTypes = []types.MediaType{
@@ -177,7 +176,7 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 			continue
 		}
 
-		return v1util.VerifyReadCloser(resp.Body, rl.digest)
+		return v1.VerifyReadCloser(resp.Body, rl.digest)
 	}
 
 	return nil, lastErr
