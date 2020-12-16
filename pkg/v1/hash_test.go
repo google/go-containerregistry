@@ -15,7 +15,9 @@
 package v1
 
 import (
+	"bytes"
 	"encoding/json"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
@@ -111,5 +113,50 @@ func TestTextMarshalling(t *testing.T) {
 
 	if h.String() != g.String() {
 		t.Errorf("mismatched hash: %s != %s", h, g)
+	}
+}
+
+func mustHash(s string, t *testing.T) Hash {
+	h, _, err := SHA256(strings.NewReader(s))
+	if err != nil {
+		t.Fatalf("SHA256(%s) = %v", s, err)
+	}
+	return h
+}
+
+func TestVerificationFailure(t *testing.T) {
+	want := "This is the input string."
+	buf := bytes.NewBufferString(want)
+
+	verified, err := VerifyReadCloser(ioutil.NopCloser(buf), mustHash("not the same", t))
+	if err != nil {
+		t.Fatalf("VerifyReadCloser() = %v", err)
+	}
+	if b, err := ioutil.ReadAll(verified); err == nil {
+		t.Errorf("ReadAll() = %q; want verification error", string(b))
+	}
+}
+
+func TestVerification(t *testing.T) {
+	want := "This is the input string."
+	buf := bytes.NewBufferString(want)
+
+	verified, err := VerifyReadCloser(ioutil.NopCloser(buf), mustHash(want, t))
+	if err != nil {
+		t.Fatalf("VerifyReadCloser() = %v", err)
+	}
+	if _, err := ioutil.ReadAll(verified); err != nil {
+		t.Errorf("ReadAll() = %v", err)
+	}
+}
+
+func TestBadHash(t *testing.T) {
+	h := Hash{
+		Algorithm: "fake256",
+		Hex:       "whatever",
+	}
+	_, err := VerifyReadCloser(ioutil.NopCloser(strings.NewReader("hi")), h)
+	if err == nil {
+		t.Errorf("VerifyReadCloser() = %v, wanted err", err)
 	}
 }

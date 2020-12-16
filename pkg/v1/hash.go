@@ -23,6 +23,8 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/google/go-containerregistry/pkg/v1/internal/and"
 )
 
 // Hash is an unqualified digest of some content, e.g. sha256:deadbeef
@@ -120,4 +122,41 @@ func SHA256(r io.Reader) (Hash, int64, error) {
 		Algorithm: "sha256",
 		Hex:       hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
 	}, n, nil
+}
+
+type verifyReader struct {
+	inner    io.Reader
+	hasher   hash.Hash
+	expected Hash
+}
+
+// Read implements io.Reader
+func (vc *verifyReader) Read(b []byte) (int, error) {
+	n, err := vc.inner.Read(b)
+	if err == io.EOF {
+		got := hex.EncodeToString(vc.hasher.Sum(make([]byte, 0, vc.hasher.Size())))
+		if want := vc.expected.Hex; got != want {
+			return n, fmt.Errorf("error verifying %s checksum; got %q, want %q",
+				vc.expected.Algorithm, got, want)
+		}
+	}
+	return n, err
+}
+
+// VerifyReadCloser wraps the given io.ReadCloser to verify that its contents match
+// the provided Hash before io.EOF is returned.
+func VerifyReadCloser(r io.ReadCloser, h Hash) (io.ReadCloser, error) {
+	w, err := Hasher(h.Algorithm)
+	if err != nil {
+		return nil, err
+	}
+	r2 := io.TeeReader(r, w)
+	return &and.ReadCloser{
+		Reader: &verifyReader{
+			inner:    r2,
+			hasher:   w,
+			expected: h,
+		},
+		CloseFunc: r.Close,
+	}, nil
 }
