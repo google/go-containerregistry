@@ -28,18 +28,18 @@ func TestReader(t *testing.T) {
 	zipped := ReadCloser(ioutil.NopCloser(buf))
 	unzipped, err := UnzipReadCloser(zipped)
 	if err != nil {
-		t.Errorf("UnzipReadCloser() = %v", err)
+		t.Error("UnzipReadCloser() =", err)
 	}
 
 	b, err := ioutil.ReadAll(unzipped)
 	if err != nil {
-		t.Errorf("ReadAll() = %v", err)
+		t.Error("ReadAll() =", err)
 	}
 	if got := string(b); got != want {
 		t.Errorf("ReadAll(); got %q, want %q", got, want)
 	}
 	if err := unzipped.Close(); err != nil {
-		t.Errorf("Close() = %v", err)
+		t.Error("Close() =", err)
 	}
 }
 
@@ -78,21 +78,21 @@ func (f failReader) Read(_ []byte) (int, error) {
 func TestReadErrors(t *testing.T) {
 	fr := failReader{}
 	if _, err := Is(fr); err != errRead {
-		t.Errorf("Is: expected errRead, got %v", err)
+		t.Error("Is: expected errRead, got", err)
 	}
 
 	frc := ioutil.NopCloser(fr)
 	if _, err := UnzipReadCloser(frc); err != errRead {
-		t.Errorf("UnzipReadCloser: expected errRead, got %v", err)
+		t.Error("UnzipReadCloser: expected errRead, got", err)
 	}
 
 	zr := ReadCloser(ioutil.NopCloser(fr))
 	if _, err := zr.Read(nil); err != errRead {
-		t.Errorf("ReadCloser: expected errRead, got %v", err)
+		t.Error("ReadCloser: expected errRead, got", err)
 	}
 
 	zr = ReadCloserLevel(ioutil.NopCloser(strings.NewReader("zip me")), -10)
 	if _, err := zr.Read(nil); err == nil {
-		t.Errorf("Expected invalid level error, got: %v", err)
+		t.Error("Expected invalid level error, got:", err)
 	}
 }
