@@ -14,12 +14,10 @@
 
 package v1util
 
-import (
-	v1 "github.com/google/go-containerregistry/pkg/v1"
-)
+import "github.com/google/go-containerregistry/pkg/v1/internal/verify"
 
 // VerifyReadCloser wraps the given io.ReadCloser to verify that its contents match
 // the provided v1.Hash before io.EOF is returned.
 // TODO(#873): Remove this package.
 // Deprecated: please use v1.VerifyReadCloser
-var VerifyReadCloser = v1.VerifyReadCloser
+var VerifyReadCloser = verify.ReadCloser
