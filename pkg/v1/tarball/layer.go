@@ -123,7 +123,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	}
 	defer rc.Close()
 
-	compressed, err := ggzip.IsGzipped(rc)
+	compressed, err := ggzip.Is(rc)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +139,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			if err != nil {
 				return nil, err
 			}
-			return ggzip.GunzipReadCloser(urc)
+			return ggzip.UnzipReadCloser(urc)
 		}
 	} else {
 		layer.uncompressedopener = opener
@@ -148,7 +148,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			if err != nil {
 				return nil, err
 			}
-			return ggzip.GzipReadCloserLevel(crc, layer.compression), nil
+			return ggzip.ReadCloserLevel(crc, layer.compression), nil
 		}
 	}
 

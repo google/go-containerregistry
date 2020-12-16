@@ -21,7 +21,7 @@ import "github.com/google/go-containerregistry/pkg/v1/internal/gzip"
 // This uses gzip.BestSpeed for the compression level.
 // TODO(#873): Remove this package.
 // Deprecated: please move off of this API
-var GzipReadCloser = gzip.GzipReadCloser
+var GzipReadCloser = gzip.ReadCloser
 
 // GzipReadCloserLevel reads uncompressed input data from the io.ReadCloser and
 // returns an io.ReadCloser from which compressed data may be read.
@@ -29,15 +29,15 @@ var GzipReadCloser = gzip.GzipReadCloser
 // https://golang.org/pkg/compress/gzip/#pkg-constants
 // TODO(#873): Remove this package.
 // Deprecated: please move off of this API
-var GzipReadCloserLevel = gzip.GzipReadCloserLevel
+var GzipReadCloserLevel = gzip.ReadCloserLevel
 
 // GunzipReadCloser reads compressed input data from the io.ReadCloser and
 // returns an io.ReadCloser from which uncompessed data may be read.
 // TODO(#873): Remove this package.
 // Deprecated: please move off of this API
-var GunzipReadCloser = gzip.GunzipReadCloser
+var GunzipReadCloser = gzip.UnzipReadCloser
 
 // IsGzipped detects whether the input stream is compressed.
 // TODO(#873): Remove this package.
 // Deprecated: please move off of this API
-var IsGzipped = gzip.IsGzipped
+var IsGzipped = gzip.Is

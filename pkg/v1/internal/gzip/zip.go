@@ -24,18 +24,18 @@ import (
 
 var gzipMagicHeader = []byte{'\x1f', '\x8b'}
 
-// GzipReadCloser reads uncompressed input data from the io.ReadCloser and
+// ReadCloser reads uncompressed input data from the io.ReadCloser and
 // returns an io.ReadCloser from which compressed data may be read.
 // This uses gzip.BestSpeed for the compression level.
-func GzipReadCloser(r io.ReadCloser) io.ReadCloser {
-	return GzipReadCloserLevel(r, gzip.BestSpeed)
+func ReadCloser(r io.ReadCloser) io.ReadCloser {
+	return ReadCloserLevel(r, gzip.BestSpeed)
 }
 
-// GzipReadCloserLevel reads uncompressed input data from the io.ReadCloser and
+// ReadCloserLevel reads uncompressed input data from the io.ReadCloser and
 // returns an io.ReadCloser from which compressed data may be read.
 // Refer to compress/gzip for the level:
 // https://golang.org/pkg/compress/gzip/#pkg-constants
-func GzipReadCloserLevel(r io.ReadCloser, level int) io.ReadCloser {
+func ReadCloserLevel(r io.ReadCloser, level int) io.ReadCloser {
 	pr, pw := io.Pipe()
 
 	// Returns err so we can pw.CloseWithError(err)
@@ -62,9 +62,9 @@ func GzipReadCloserLevel(r io.ReadCloser, level int) io.ReadCloser {
 	return pr
 }
 
-// GunzipReadCloser reads compressed input data from the io.ReadCloser and
+// UnzipReadCloser reads compressed input data from the io.ReadCloser and
 // returns an io.ReadCloser from which uncompessed data may be read.
-func GunzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
+func UnzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
 		return nil, err
@@ -82,8 +82,8 @@ func GunzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	}, nil
 }
 
-// IsGzipped detects whether the input stream is compressed.
-func IsGzipped(r io.Reader) (bool, error) {
+// Is detects whether the input stream is compressed.
+func Is(r io.Reader) (bool, error) {
 	magicHeader := make([]byte, 2)
 	n, err := r.Read(magicHeader)
 	if n == 0 && err == io.EOF {

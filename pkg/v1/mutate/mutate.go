@@ -335,7 +335,7 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 	b := w.Bytes()
 	// gzip the contents, then create the layer
 	opener := func() (io.ReadCloser, error) {
-		return gzip.GzipReadCloser(ioutil.NopCloser(bytes.NewReader(b))), nil
+		return gzip.ReadCloser(ioutil.NopCloser(bytes.NewReader(b))), nil
 	}
 	layer, err = tarball.LayerFromOpener(opener)
 	if err != nil {

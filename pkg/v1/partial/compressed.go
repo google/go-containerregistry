@@ -49,7 +49,7 @@ func (cle *compressedLayerExtender) Uncompressed() (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return gzip.GunzipReadCloser(r)
+	return gzip.UnzipReadCloser(r)
 }
 
 // DiffID implements v1.Layer

@@ -25,10 +25,10 @@ import (
 func TestReader(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
-	zipped := GzipReadCloser(ioutil.NopCloser(buf))
-	unzipped, err := GunzipReadCloser(zipped)
+	zipped := ReadCloser(ioutil.NopCloser(buf))
+	unzipped, err := UnzipReadCloser(zipped)
 	if err != nil {
-		t.Errorf("GunzipReadCloser() = %v", err)
+		t.Errorf("UnzipReadCloser() = %v", err)
 	}
 
 	b, err := ioutil.ReadAll(unzipped)
@@ -43,7 +43,7 @@ func TestReader(t *testing.T) {
 	}
 }
 
-func TestIsGzipped(t *testing.T) {
+func TestIs(t *testing.T) {
 	tests := []struct {
 		in  []byte
 		out bool
@@ -55,12 +55,12 @@ func TestIsGzipped(t *testing.T) {
 	}
 	for _, test := range tests {
 		reader := bytes.NewReader(test.in)
-		got, err := IsGzipped(reader)
+		got, err := Is(reader)
 		if got != test.out {
-			t.Errorf("IsGzipped; n: got %v, wanted %v\n", got, test.out)
+			t.Errorf("Is; n: got %v, wanted %v\n", got, test.out)
 		}
 		if err != test.err {
-			t.Errorf("IsGzipped; err: got %v, wanted %v\n", err, test.err)
+			t.Errorf("Is; err: got %v, wanted %v\n", err, test.err)
 		}
 	}
 }
@@ -77,21 +77,21 @@ func (f failReader) Read(_ []byte) (int, error) {
 
 func TestReadErrors(t *testing.T) {
 	fr := failReader{}
-	if _, err := IsGzipped(fr); err != errRead {
-		t.Errorf("IsGzipped: expected errRead, got %v", err)
+	if _, err := Is(fr); err != errRead {
+		t.Errorf("Is: expected errRead, got %v", err)
 	}
 
 	frc := ioutil.NopCloser(fr)
-	if _, err := GunzipReadCloser(frc); err != errRead {
-		t.Errorf("GunzipReadCloser: expected errRead, got %v", err)
+	if _, err := UnzipReadCloser(frc); err != errRead {
+		t.Errorf("UnzipReadCloser: expected errRead, got %v", err)
 	}
 
-	zr := GzipReadCloser(ioutil.NopCloser(fr))
+	zr := ReadCloser(ioutil.NopCloser(fr))
 	if _, err := zr.Read(nil); err != errRead {
-		t.Errorf("GzipReadCloser: expected errRead, got %v", err)
+		t.Errorf("ReadCloser: expected errRead, got %v", err)
 	}
 
-	zr = GzipReadCloserLevel(ioutil.NopCloser(strings.NewReader("zip me")), -10)
+	zr = ReadCloserLevel(ioutil.NopCloser(strings.NewReader("zip me")), -10)
 	if _, err := zr.Read(nil); err == nil {
 		t.Errorf("Expected invalid level error, got: %v", err)
 	}
