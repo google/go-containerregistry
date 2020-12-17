@@ -188,7 +188,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			if err != nil {
 				return nil, err
 			}
-			layer.annotations[gestargz.TOCDigestKey] = h.String()
+			layer.annotations[estargz.TOCJSONDigestAnnotation] = h.String()
 			return &and.ReadCloser{
 				Reader: rc,
 				CloseFunc: func() error {

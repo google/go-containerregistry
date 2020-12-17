@@ -24,7 +24,6 @@ import (
 
 	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/pkg/internal/compare"
-	gestargz "github.com/google/go-containerregistry/pkg/v1/internal/estargz"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
@@ -130,10 +129,10 @@ func TestLayerFromFileEstargz(t *testing.T) {
 		t.Errorf("expected digests to differ: %s", defaultDigest.String())
 	}
 
-	if descriptorDefaultCompression.Annotations[gestargz.TOCDigestKey] == descriptorSpeedCompression.Annotations[gestargz.TOCDigestKey] {
+	if descriptorDefaultCompression.Annotations[estargz.TOCJSONDigestAnnotation] == descriptorSpeedCompression.Annotations[estargz.TOCJSONDigestAnnotation] {
 		t.Errorf("wanted different toc digests got default: %s, speed: %s",
-			descriptorDefaultCompression.Annotations[gestargz.TOCDigestKey],
-			descriptorSpeedCompression.Annotations[gestargz.TOCDigestKey])
+			descriptorDefaultCompression.Annotations[estargz.TOCJSONDigestAnnotation],
+			descriptorSpeedCompression.Annotations[estargz.TOCJSONDigestAnnotation])
 	}
 
 	tarLayerPrioritizedFiles, err := LayerFromFile("testdata/content.tar",
@@ -162,10 +161,10 @@ func TestLayerFromFileEstargz(t *testing.T) {
 		t.Errorf("expected digests to differ: %s", defaultDigest.String())
 	}
 
-	if descriptorDefaultCompression.Annotations[gestargz.TOCDigestKey] == descriptorPrioritizedFiles.Annotations[gestargz.TOCDigestKey] {
+	if descriptorDefaultCompression.Annotations[estargz.TOCJSONDigestAnnotation] == descriptorPrioritizedFiles.Annotations[estargz.TOCJSONDigestAnnotation] {
 		t.Errorf("wanted different toc digests got default: %s, prioritized: %s",
-			descriptorDefaultCompression.Annotations[gestargz.TOCDigestKey],
-			descriptorPrioritizedFiles.Annotations[gestargz.TOCDigestKey])
+			descriptorDefaultCompression.Annotations[estargz.TOCJSONDigestAnnotation],
+			descriptorPrioritizedFiles.Annotations[estargz.TOCJSONDigestAnnotation])
 	}
 }
 

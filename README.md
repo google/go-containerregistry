@@ -26,6 +26,15 @@ There are a number of packages for reading/writing these interfaces from/to vari
 The main focus has been registry interactions (hence the name) via the [`remote`](pkg/v1/remote) package,
 but we have implemented other formats as we needed them to interoperate with various tools.
 
+### Experiments
+
+Over time, we will add new functionality under experimental environment variables listed here.
+
+| Env Var | Value(s) | What is does |
+|---------|----------|--------------|
+| `GGCR_EXPERIMENT_ESTARGZ` | `"1"` | When enabled this experiment will direct `tarball.LayerFromOpener` to emit [estargz](https://github.com/opencontainers/image-spec/issues/815) compatible layers, which enable them to be lazily loaded by an appropriately configured containerd. |
+
+
 ### `v1.Image`
 
 #### Sources
