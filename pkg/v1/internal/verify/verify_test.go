@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2020 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1util
+package verify
 
 import (
 	"bytes"
@@ -26,7 +26,7 @@ import (
 func mustHash(s string, t *testing.T) v1.Hash {
 	h, _, err := v1.SHA256(strings.NewReader(s))
 	if err != nil {
-		t.Fatalf("SHA256(%s) = %v", s, err)
+		t.Fatalf("v1.SHA256(%s) = %v", s, err)
 	}
 	return h
 }
@@ -35,9 +35,9 @@ func TestVerificationFailure(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
 
-	verified, err := VerifyReadCloser(ioutil.NopCloser(buf), mustHash("not the same", t))
+	verified, err := ReadCloser(ioutil.NopCloser(buf), mustHash("not the same", t))
 	if err != nil {
-		t.Fatalf("VerifyReadCloser() = %v", err)
+		t.Fatal("ReadCloser() =", err)
 	}
 	if b, err := ioutil.ReadAll(verified); err == nil {
 		t.Errorf("ReadAll() = %q; want verification error", string(b))
@@ -48,12 +48,12 @@ func TestVerification(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
 
-	verified, err := VerifyReadCloser(ioutil.NopCloser(buf), mustHash(want, t))
+	verified, err := ReadCloser(ioutil.NopCloser(buf), mustHash(want, t))
 	if err != nil {
-		t.Fatalf("VerifyReadCloser() = %v", err)
+		t.Fatal("ReadCloser() =", err)
 	}
 	if _, err := ioutil.ReadAll(verified); err != nil {
-		t.Errorf("ReadAll() = %v", err)
+		t.Error("ReadAll() =", err)
 	}
 }
 
@@ -62,8 +62,8 @@ func TestBadHash(t *testing.T) {
 		Algorithm: "fake256",
 		Hex:       "whatever",
 	}
-	_, err := VerifyReadCloser(ioutil.NopCloser(strings.NewReader("hi")), h)
+	_, err := ReadCloser(ioutil.NopCloser(strings.NewReader("hi")), h)
 	if err == nil {
-		t.Errorf("VerifyReadCloser() = %v, wanted err", err)
+		t.Errorf("ReadCloser() = %v, wanted err", err)
 	}
 }

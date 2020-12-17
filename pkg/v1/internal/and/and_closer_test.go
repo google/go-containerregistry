@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2020 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1util
+package and
 
 import (
 	"bytes"
@@ -25,7 +25,7 @@ func TestRead(t *testing.T) {
 	r := bytes.NewBufferString(want)
 	called := false
 
-	rac := &readAndCloser{
+	rac := &ReadCloser{
 		Reader: r,
 		CloseFunc: func() error {
 			called = true
@@ -56,7 +56,7 @@ func TestWrite(t *testing.T) {
 	w := bytes.NewBuffer([]byte{})
 	called := false
 
-	wac := &writeAndCloser{
+	wac := &WriteCloser{
 		Writer: w,
 		CloseFunc: func() error {
 			called = true

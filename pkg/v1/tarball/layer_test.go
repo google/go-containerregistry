@@ -165,7 +165,7 @@ func TestLayerFromReader(t *testing.T) {
 // Compression settings matter in order for the digest, size,
 // compressed assertions to pass
 //
-// Since our v1util.GzipReadCloser uses gzip.BestSpeed
+// Since our gzip.GzipReadCloser uses gzip.BestSpeed
 // we need our fixture to use the same - bazel's pkg_tar doesn't
 // seem to let you control compression settings
 func setupFixtures(t *testing.T) {

@@ -30,14 +30,14 @@ func TestGoodHashes(t *testing.T) {
 	for _, s := range good {
 		h, err := NewHash(s)
 		if err != nil {
-			t.Errorf("Unexpected error parsing hash: %v", err)
+			t.Error("Unexpected error parsing hash:", err)
 		}
 		if got, want := h.String(), s; got != want {
 			t.Errorf("String(); got %q, want %q", got, want)
 		}
 		bytes, err := json.Marshal(h)
 		if err != nil {
-			t.Errorf("Unexpected error json.Marshaling hash: %v", err)
+			t.Error("Unexpected error json.Marshaling hash:", err)
 		}
 		if got, want := string(bytes), strconv.Quote(h.String()); got != want {
 			t.Errorf("json.Marshal(); got %q, want %q", got, want)
@@ -62,7 +62,7 @@ func TestBadHashes(t *testing.T) {
 	for _, s := range bad {
 		h, err := NewHash(s)
 		if err == nil {
-			t.Errorf("Expected error, got: %v", h)
+			t.Error("Expected error, got:", h)
 		}
 	}
 }
@@ -71,7 +71,7 @@ func TestSHA256(t *testing.T) {
 	input := "asdf"
 	h, n, err := SHA256(strings.NewReader(input))
 	if err != nil {
-		t.Errorf("SHA256(asdf) = %v", err)
+		t.Error("SHA256(asdf) =", err)
 	}
 	if got, want := h.Algorithm, "sha256"; got != want {
 		t.Errorf("Algorithm; got %v, want %v", got, want)
@@ -90,10 +90,10 @@ func TestTextMarshalling(t *testing.T) {
 	foo := make(map[Hash]string)
 	b, err := json.Marshal(foo)
 	if err != nil {
-		t.Fatalf("could not marshal: %v", err)
+		t.Fatal("could not marshal:", err)
 	}
 	if err := json.Unmarshal(b, &foo); err != nil {
-		t.Errorf("could not unmarshal: %v", err)
+		t.Error("could not unmarshal:", err)
 	}
 
 	h := &Hash{
