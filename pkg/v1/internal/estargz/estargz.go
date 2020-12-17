@@ -34,6 +34,7 @@ import (
 func ReadCloser(r io.ReadCloser, opts ...estargz.Option) (io.ReadCloser, v1.Hash, error) {
 	defer r.Close()
 
+	// TODO(#876): Avoid buffering into memory.
 	bs, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, v1.Hash{}, err
