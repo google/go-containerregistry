@@ -17,14 +17,21 @@ The following diagram shows the main types that this library handles.
 
 ## Philosophy
 
-This library primarily revolves around an [`Image`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#Image)
-interface (and to a lesser extent, [`ImageIndex`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#ImageIndex)
-and [`Layer`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#Layer)).
+The overarching design philosophy of this library is to define interfaces that present an immutable
+view of resources (e.g. [`Image`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#Image),
+[`Layer`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#Layer),
+[`ImageIndex`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1#ImageIndex)),
+which can be backed by a variety of medium (e.g. [registry](./pkg/v1/remote/README.md),
+[tarball](./pkg/v1/tarball/README.md), [daemon](./pkg/v1/daemon/README.md), ...).
 
-There are a number of packages for reading/writing these interfaces from/to various formats.
+To complement these immutable views, we support functional mutations that produce new immutable views
+of the resulting resource (e.g. [mutate](./pkg/v1/mutate/README.md)).  The end goal is to provide a
+set of versatile primives that can compose to do extraordinarily powerful things efficiently and easily.
 
-The main focus has been registry interactions (hence the name) via the [`remote`](pkg/v1/remote) package,
-but we have implemented other formats as we needed them to interoperate with various tools.
+Both the resource views and mutations may be lazy, eager, memoizing, etc, and most are optimized
+for common paths based on the tooling we have seen in the wild (e.g. writing new images from disk
+to the registry as a compressed tarball).
+
 
 ### Experiments
 
