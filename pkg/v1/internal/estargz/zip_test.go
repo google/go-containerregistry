@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-containerregistry/pkg/v1/v1util"
+	"github.com/google/go-containerregistry/pkg/v1/internal/gzip"
 )
 
 func TestReader(t *testing.T) {
@@ -46,9 +46,9 @@ func TestReader(t *testing.T) {
 	if err != nil {
 		t.Fatal("ReadCloser() =", err)
 	}
-	unzipped, err := v1util.GunzipReadCloser(zipped)
+	unzipped, err := gzip.UnzipReadCloser(zipped)
 	if err != nil {
-		t.Error("v1util.GunzipReadCloser() =", err)
+		t.Error("gzip.UnzipReadCloser() =", err)
 	}
 	defer unzipped.Close()
 
