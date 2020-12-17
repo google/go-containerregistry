@@ -42,7 +42,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/containerd/stargz-snapshotter/estargz/errorutil"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -124,7 +124,7 @@ func (r *Reader) initFields() error {
 	gname := map[int]string{}
 	var lastRegEnt *TOCEntry
 	for _, ent := range r.toc.Entries {
-		ent.Name = strings.TrimPrefix(ent.Name, "./")
+		ent.Name = trimNamePrefix(ent.Name)
 		if ent.Type == "reg" {
 			lastRegEnt = ent
 		}
@@ -191,7 +191,7 @@ func (r *Reader) initFields() error {
 		pdir := r.getOrCreateDir(parentDir(name))
 		ent.NumLink++ // at least one name(ent.Name) references this entry.
 		if ent.Type == "hardlink" {
-			if org, ok := r.m[ent.LinkName]; ok {
+			if org, ok := r.m[trimNamePrefix(ent.LinkName)]; ok {
 				org.NumLink++ // original entry is referenced by this ent.Name.
 				ent = org
 			} else {
@@ -739,11 +739,13 @@ func footerBytes(tocOff int64) []byte {
 }
 
 func parseFooter(p []byte) (tocOffset int64, footerSize int64, rErr error) {
+	var allErr []error
+
 	tocOffset, err := parseEStargzFooter(p)
 	if err == nil {
 		return tocOffset, FooterSize, nil
 	}
-	rErr = multierror.Append(rErr, err)
+	allErr = append(allErr, err)
 
 	pad := len(p) - legacyFooterSize
 	if pad < 0 {
@@ -753,8 +755,7 @@ func parseFooter(p []byte) (tocOffset int64, footerSize int64, rErr error) {
 	if err == nil {
 		return tocOffset, legacyFooterSize, nil
 	}
-	rErr = multierror.Append(rErr, err)
-	return
+	return 0, 0, errorutil.Aggregate(append(allErr, err))
 }
 
 func parseEStargzFooter(p []byte) (tocOffset int64, err error) {
@@ -802,6 +803,11 @@ func formatModtime(t time.Time) string {
 		return ""
 	}
 	return t.UTC().Round(time.Second).Format(time.RFC3339)
+}
+
+func trimNamePrefix(name string) string {
+	// We don't use filepath.Clean here to preserve "/" suffix for directory entry.
+	return strings.TrimPrefix(name, "./")
 }
 
 // countWriter counts how many bytes have been written to its wrapped

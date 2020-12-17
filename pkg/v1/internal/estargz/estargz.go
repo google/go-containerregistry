@@ -40,10 +40,11 @@ func ReadCloser(r io.ReadCloser, opts ...estargz.Option) (io.ReadCloser, v1.Hash
 	}
 	br := bytes.NewReader(bs)
 
-	rc, d, err := estargz.Build(io.NewSectionReader(br, 0, int64(len(bs))), nil, opts...)
+	rc, err := estargz.Build(io.NewSectionReader(br, 0, int64(len(bs))), opts...)
 	if err != nil {
 		return nil, v1.Hash{}, err
 	}
-	h, err := v1.NewHash(d.String())
+
+	h, err := v1.NewHash(rc.TOCDigest().String())
 	return rc, h, err
 }

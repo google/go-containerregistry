@@ -10,7 +10,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/aws/aws-sdk-go v1.31.6 // indirect
 	github.com/containerd/containerd v1.3.0 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.0.0-20201216170557-0c8b1bd96905
+	github.com/containerd/stargz-snapshotter/estargz v0.0.0-20201217071531-2b97b583765b
 	github.com/docker/cli v0.0.0-20191017083524-a8ff7f821017
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7
@@ -22,7 +22,6 @@ require (
 	github.com/google/go-cmp v0.4.1
 	github.com/googleapis/gnostic v0.2.2 // indirect
 	github.com/gorilla/mux v1.7.3 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.2.2

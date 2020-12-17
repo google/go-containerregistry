@@ -36,7 +36,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hashicorp/go-multierror"
+	"github.com/containerd/stargz-snapshotter/estargz/errorutil"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -45,6 +45,7 @@ import (
 type options struct {
 	chunkSize        int
 	compressionLevel int
+	prioritizedFiles []string
 }
 
 type Option func(o *options)
@@ -65,12 +66,39 @@ func WithCompressionLevel(level int) Option {
 	}
 }
 
+// WithPrioritizedFiles option specifies the list of prioritized files.
+// These files must be a complete path relative to "/" (e.g. "foo/bar",
+// "./foo/bar")
+func WithPrioritizedFiles(files []string) Option {
+	return func(o *options) {
+		o.prioritizedFiles = files
+	}
+}
+
+// Blob is an eStargz blob.
+type Blob struct {
+	io.ReadCloser
+	diffID    digest.Digester
+	tocDigest digest.Digest
+}
+
+// DiffID returns the digest of uncompressed blob.
+// It is only valid to call DiffID after Close.
+func (b *Blob) DiffID() digest.Digest {
+	return b.diffID.Digest()
+}
+
+// TOCDigest returns the digest of uncompressed TOC JSON.
+func (b *Blob) TOCDigest() digest.Digest {
+	return b.tocDigest
+}
+
 // Build builds an eStargz blob which is an extended version of stargz, from tar blob passed
-// through the argument. If there are some prioritized files are listed in the argument, these
+// through the argument. If there are some prioritized files are listed in the option, these
 // files are grouped as "prioritized" and can be used for runtime optimization (e.g. prefetch).
 // This function builds a blob in parallel, with dividing that blob into several (at least the
 // number of runtime.GOMAXPROCS(0)) sub-blobs.
-func Build(tarBlob *io.SectionReader, prioritized []string, opt ...Option) (_ io.ReadCloser, _ digest.Digest, rErr error) {
+func Build(tarBlob *io.SectionReader, opt ...Option) (_ *Blob, rErr error) {
 	var opts options
 	opts.compressionLevel = gzip.BestCompression // BestCompression by default
 	for _, o := range opt {
@@ -84,9 +112,9 @@ func Build(tarBlob *io.SectionReader, prioritized []string, opt ...Option) (_ io
 			}
 		}
 	}()
-	entries, err := sortEntries(tarBlob, prioritized)
+	entries, err := sortEntries(tarBlob, opts.prioritizedFiles)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	tarParts := divideEntries(entries, runtime.GOMAXPROCS(0))
 	writers := make([]*Writer, len(tarParts))
@@ -115,25 +143,43 @@ func Build(tarBlob *io.SectionReader, prioritized []string, opt ...Option) (_ io
 	}
 	if err := eg.Wait(); err != nil {
 		rErr = err
-		return nil, "", err
+		return nil, err
 	}
 	tocAndFooter, tocDgst, err := closeWithCombine(opts.compressionLevel, writers...)
 	if err != nil {
 		rErr = err
-		return nil, "", err
+		return nil, err
 	}
 	var rs []io.Reader
 	for _, p := range payloads {
 		fs, err := fileSectionReader(p)
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
 		rs = append(rs, fs)
 	}
-	return readCloser{
-		Reader:    io.MultiReader(append(rs, tocAndFooter)...),
-		closeFunc: layerFiles.CleanupAll,
-	}, tocDgst, nil
+	diffID := digest.Canonical.Digester()
+	pr, pw := io.Pipe()
+	go func() {
+		r, err := gzip.NewReader(io.TeeReader(io.MultiReader(append(rs, tocAndFooter)...), pw))
+		if err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		if _, err := io.Copy(diffID.Hash(), r); err != nil {
+			pw.CloseWithError(err)
+			return
+		}
+		pw.Close()
+	}()
+	return &Blob{
+		ReadCloser: readCloser{
+			Reader:    pr,
+			closeFunc: layerFiles.CleanupAll,
+		},
+		tocDigest: tocDgst,
+		diffID:    diffID,
+	}, nil
 }
 
 // closeWithCombine takes unclosed Writers and close them. This also returns the
@@ -317,7 +363,8 @@ func importTar(in io.ReaderAt) (*tarFile, error) {
 				return nil, errors.Wrap(err, "failed to parse tar file")
 			}
 		}
-		if h.Name == PrefetchLandmark || h.Name == NoPrefetchLandmark {
+		switch trimNamePrefix(h.Name) {
+		case PrefetchLandmark, NoPrefetchLandmark:
 			// Ignore existing landmark
 			continue
 		}
@@ -364,17 +411,18 @@ func (f *tarFile) add(e *entry) {
 	if f.index == nil {
 		f.index = make(map[string]*entry)
 	}
-	f.index[e.header.Name] = e
+	f.index[trimNamePrefix(e.header.Name)] = e
 	f.stream = append(f.stream, e)
 }
 
 func (f *tarFile) remove(name string) {
+	name = trimNamePrefix(name)
 	if f.index != nil {
 		delete(f.index, name)
 	}
 	var filtered []*entry
 	for _, e := range f.stream {
-		if e.header.Name == name {
+		if trimNamePrefix(e.header.Name) == name {
 			continue
 		}
 		filtered = append(filtered, e)
@@ -386,7 +434,7 @@ func (f *tarFile) get(name string) (e *entry, ok bool) {
 	if f.index == nil {
 		return nil, false
 	}
-	e, ok = f.index[name]
+	e, ok = f.index[trimNamePrefix(name)]
 	return
 }
 
@@ -431,19 +479,20 @@ func (tf *tempFiles) TempFile(dir, pattern string) (*os.File, error) {
 	return f, nil
 }
 
-func (tf *tempFiles) CleanupAll() (allErr error) {
+func (tf *tempFiles) CleanupAll() error {
 	tf.filesMu.Lock()
 	defer tf.filesMu.Unlock()
+	var allErr []error
 	for _, f := range tf.files {
 		if err := f.Close(); err != nil {
-			allErr = multierror.Append(allErr, err)
+			allErr = append(allErr, err)
 		}
 		if err := os.Remove(f.Name()); err != nil {
-			allErr = multierror.Append(allErr, err)
+			allErr = append(allErr, err)
 		}
 	}
 	tf.files = nil
-	return nil
+	return errorutil.Aggregate(allErr)
 }
 
 func newCountReader(r io.ReaderAt) (*countReader, error) {
