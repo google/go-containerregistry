@@ -124,7 +124,7 @@ func WithCompressedCaching(l *layer) {
 	}
 }
 
-// WithEstargzOption is a functional option that allow the caller to pass
+// WithEstargzOptions is a functional option that allow the caller to pass
 // through estargz.Options to the underlying compression layer.  This is
 // only meaningful when estargz is enabled.
 func WithEstargzOptions(opts ...estargz.Option) LayerOption {
