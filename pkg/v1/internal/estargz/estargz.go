@@ -23,6 +23,9 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
+// Assert that what we're returning is an io.ReadCloser
+var _ io.ReadCloser = (*estargz.Blob)(nil)
+
 // ReadCloser reads uncompressed tarball input from the io.ReadCloser and
 // returns:
 //  * An io.ReadCloser from which compressed data may be read, and
@@ -31,7 +34,7 @@ import (
 //
 // Refer to estargz for the options:
 // https://pkg.go.dev/github.com/containerd/stargz-snapshotter@v0.2.0/estargz#Option
-func ReadCloser(r io.ReadCloser, opts ...estargz.Option) (io.ReadCloser, v1.Hash, error) {
+func ReadCloser(r io.ReadCloser, opts ...estargz.Option) (*estargz.Blob, v1.Hash, error) {
 	defer r.Close()
 
 	// TODO(#876): Avoid buffering into memory.
