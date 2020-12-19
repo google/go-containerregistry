@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/google/go-containerregistry/pkg/gcrane"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/spf13/cobra"
@@ -50,13 +51,13 @@ func ls(root string, recursive, j bool) {
 	}
 
 	if recursive {
-		if err := google.Walk(repo, printImages(j), google.WithAuthFromKeychain(google.Keychain)); err != nil {
+		if err := google.Walk(repo, printImages(j), google.WithAuthFromKeychain(gcrane.Keychain)); err != nil {
 			log.Fatalln(err)
 		}
 		return
 	}
 
-	tags, err := google.List(repo, google.WithAuthFromKeychain(google.Keychain))
+	tags, err := google.List(repo, google.WithAuthFromKeychain(gcrane.Keychain))
 	if err != nil {
 		log.Fatalln(err)
 	}
