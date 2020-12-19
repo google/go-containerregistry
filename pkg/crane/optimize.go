@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -29,7 +30,7 @@ import (
 )
 
 // Optimize optimizes a remote image or index from src to dst.
-func Optimize(src, dst string, opt ...Option) error {
+func Optimize(src, dst string, prioritize []string, opt ...Option) error {
 	o := makeOptions(opt...)
 	srcRef, err := name.ParseReference(src, o.name...)
 	if err != nil {
@@ -52,11 +53,11 @@ func Optimize(src, dst string, opt ...Option) error {
 		// Handle indexes separately.
 		if o.platform != nil {
 			// If platform is explicitly set, don't optimize the whole index, just the appropriate image.
-			if err := optimizeAndPushImage(desc, dstRef, o); err != nil {
+			if err := optimizeAndPushImage(desc, dstRef, prioritize, o); err != nil {
 				return fmt.Errorf("failed to optimize image: %v", err)
 			}
 		} else {
-			if err := optimizeAndPushIndex(desc, dstRef, o); err != nil {
+			if err := optimizeAndPushIndex(desc, dstRef, prioritize, o); err != nil {
 				return fmt.Errorf("failed to optimize index: %v", err)
 			}
 		}
@@ -66,7 +67,7 @@ func Optimize(src, dst string, opt ...Option) error {
 
 	default:
 		// Assume anything else is an image, since some registries don't set mediaTypes properly.
-		if err := optimizeAndPushImage(desc, dstRef, o); err != nil {
+		if err := optimizeAndPushImage(desc, dstRef, prioritize, o); err != nil {
 			return fmt.Errorf("failed to optimize image: %v", err)
 		}
 	}
@@ -74,13 +75,13 @@ func Optimize(src, dst string, opt ...Option) error {
 	return nil
 }
 
-func optimizeAndPushImage(desc *remote.Descriptor, dstRef name.Reference, o options) error {
+func optimizeAndPushImage(desc *remote.Descriptor, dstRef name.Reference, prioritize []string, o options) error {
 	img, err := desc.Image()
 	if err != nil {
 		return err
 	}
 
-	oimg, err := optimizeImage(img, o)
+	oimg, err := optimizeImage(img, prioritize)
 	if err != nil {
 		return err
 	}
@@ -88,7 +89,7 @@ func optimizeAndPushImage(desc *remote.Descriptor, dstRef name.Reference, o opti
 	return remote.Write(dstRef, oimg, o.remote...)
 }
 
-func optimizeImage(img v1.Image, o options) (v1.Image, error) {
+func optimizeImage(img v1.Image, prioritize []string) (v1.Image, error) {
 	cfg, err := img.ConfigFile()
 	if err != nil {
 		return nil, err
@@ -109,7 +110,8 @@ func optimizeImage(img v1.Image, o options) (v1.Image, error) {
 
 	olayers := make([]mutate.Addendum, 0, len(layers))
 	for i, layer := range layers {
-		olayer, err := tarball.LayerFromOpener(layer.Uncompressed)
+		olayer, err := tarball.LayerFromOpener(layer.Uncompressed,
+			tarball.WithEstargzOptions(estargz.WithPrioritizedFiles(prioritize)))
 		if err != nil {
 			return nil, err
 		}
@@ -124,13 +126,13 @@ func optimizeImage(img v1.Image, o options) (v1.Image, error) {
 	return mutate.Append(oimg, olayers...)
 }
 
-func optimizeAndPushIndex(desc *remote.Descriptor, dstRef name.Reference, o options) error {
+func optimizeAndPushIndex(desc *remote.Descriptor, dstRef name.Reference, prioritize []string, o options) error {
 	idx, err := desc.ImageIndex()
 	if err != nil {
 		return err
 	}
 
-	oidx, err := optimizeIndex(idx, o)
+	oidx, err := optimizeIndex(idx, prioritize)
 	if err != nil {
 		return err
 	}
@@ -138,7 +140,7 @@ func optimizeAndPushIndex(desc *remote.Descriptor, dstRef name.Reference, o opti
 	return remote.WriteIndex(dstRef, oidx, o.remote...)
 }
 
-func optimizeIndex(idx v1.ImageIndex, o options) (v1.ImageIndex, error) {
+func optimizeIndex(idx v1.ImageIndex, prioritize []string) (v1.ImageIndex, error) {
 	im, err := idx.IndexManifest()
 	if err != nil {
 		return nil, err
@@ -152,7 +154,7 @@ func optimizeIndex(idx v1.ImageIndex, o options) (v1.ImageIndex, error) {
 			return nil, err
 		}
 
-		oimg, err := optimizeImage(img, o)
+		oimg, err := optimizeImage(img, prioritize)
 		if err != nil {
 			return nil, err
 		}

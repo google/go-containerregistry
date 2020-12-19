@@ -23,7 +23,9 @@ import (
 
 // NewCmdOptimize creates a new cobra.Command for the optimize subcommand.
 func NewCmdOptimize(options *[]crane.Option) *cobra.Command {
-	return &cobra.Command{
+	var files []string
+
+	cmd := &cobra.Command{
 		Use:     "optimize SRC DST",
 		Hidden:  true,
 		Aliases: []string{"opt"},
@@ -31,9 +33,14 @@ func NewCmdOptimize(options *[]crane.Option) *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
 			src, dst := args[0], args[1]
-			if err := crane.Optimize(src, dst, *options...); err != nil {
+			if err := crane.Optimize(src, dst, files, *options...); err != nil {
 				log.Fatal(err)
 			}
 		},
 	}
+
+	cmd.Flags().StringSliceVar(&files, "prioritize", nil,
+		"The list of files to prioritize in the optimized image.")
+
+	return cmd
 }
