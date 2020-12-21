@@ -30,6 +30,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/match"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
@@ -482,6 +483,39 @@ func TestCanonical(t *testing.T) {
 	layers := getLayers(t, img)
 	for _, layer := range layers {
 		assertMTime(t, layer, expectedLayerTime)
+	}
+}
+
+func TestRemoveManifests(t *testing.T) {
+	// Load up the registry.
+	count := 3
+	for i := 0; i < count; i++ {
+		ii, err := random.Index(1024, int64(count), int64(count))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// test removing the first layer, second layer or the third layer
+		manifest, err := ii.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(manifest.Manifests) != count {
+			t.Fatalf("mismatched manifests on setup, had %d, expected %d", len(manifest.Manifests), count)
+		}
+		digest := manifest.Manifests[i].Digest
+		ii = mutate.RemoveManifests(ii, match.Digests(digest))
+		manifest, err = ii.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(manifest.Manifests) != (count - 1) {
+			t.Fatalf("mismatched manifests after removal, had %d, expected %d", len(manifest.Manifests), count-1)
+		}
+		for j, m := range manifest.Manifests {
+			if m.Digest == digest {
+				t.Fatalf("unexpectedly found removed hash %v at position %d", digest, j)
+			}
+		}
 	}
 }
 

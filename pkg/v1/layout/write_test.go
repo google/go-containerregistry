@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/match"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
@@ -233,5 +234,216 @@ func TestDeduplicatedWrites(t *testing.T) {
 
 	if err := lp.WriteBlob(configDigest, ioutil.NopCloser(bytes.NewBuffer(buf.Bytes()))); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestRemoveDescriptor(t *testing.T) {
+	// need to set up a basic path
+	tmp, err := ioutil.TempDir("", "remove-descriptor-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmp)
+
+	var ii v1.ImageIndex
+	ii = empty.Index
+	l, err := Write(tmp, ii)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// add two images
+	image1, err := random.Image(1024, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AppendImage(image1); err != nil {
+		t.Fatal(err)
+	}
+	image2, err := random.Image(1024, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AppendImage(image2); err != nil {
+		t.Fatal(err)
+	}
+
+	// remove one of the images by descriptor and ensure it is correct
+	digest1, err := image1.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest2, err := image2.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.RemoveDescriptors(match.Digests(digest1)); err != nil {
+		t.Fatal(err)
+	}
+	// ensure we only have one
+	ii, err = l.ImageIndex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := ii.IndexManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Manifests) != 1 {
+		t.Fatalf("mismatched manifests count, had %d, expected %d", len(manifest.Manifests), 1)
+	}
+	if manifest.Manifests[0].Digest != digest2 {
+		t.Fatal("removed wrong digest")
+	}
+}
+
+func TestReplaceIndex(t *testing.T) {
+	// need to set up a basic path
+	tmp, err := ioutil.TempDir("", "replace-index-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmp)
+
+	var ii v1.ImageIndex
+	ii = empty.Index
+	l, err := Write(tmp, ii)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// add two indexes
+	index1, err := random.Index(1024, 3, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AppendIndex(index1); err != nil {
+		t.Fatal(err)
+	}
+	index2, err := random.Index(1024, 3, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AppendIndex(index2); err != nil {
+		t.Fatal(err)
+	}
+	index3, err := random.Index(1024, 3, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// remove one of the indexes by descriptor and ensure it is correct
+	digest1, err := index1.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest3, err := index3.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.ReplaceIndex(index3, match.Digests(digest1)); err != nil {
+		t.Fatal(err)
+	}
+	// ensure we only have one
+	ii, err = l.ImageIndex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := ii.IndexManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Manifests) != 2 {
+		t.Fatalf("mismatched manifests count, had %d, expected %d", len(manifest.Manifests), 2)
+	}
+	// we should have digest3, and *not* have digest1
+	var have3 bool
+	for _, m := range manifest.Manifests {
+		if m.Digest == digest1 {
+			t.Fatal("found digest1 still not replaced", digest1)
+		}
+		if m.Digest == digest3 {
+			have3 = true
+		}
+	}
+	if !have3 {
+		t.Fatal("could not find digest3", digest3)
+	}
+}
+
+func TestReplaceImage(t *testing.T) {
+	// need to set up a basic path
+	tmp, err := ioutil.TempDir("", "replace-image-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmp)
+
+	var ii v1.ImageIndex
+	ii = empty.Index
+	l, err := Write(tmp, ii)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// add two images
+	image1, err := random.Image(1024, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AppendImage(image1); err != nil {
+		t.Fatal(err)
+	}
+	image2, err := random.Image(1024, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.AppendImage(image2); err != nil {
+		t.Fatal(err)
+	}
+	image3, err := random.Image(1024, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// remove one of the images by descriptor and ensure it is correct
+	digest1, err := image1.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest3, err := image3.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := l.ReplaceImage(image3, match.Digests(digest1)); err != nil {
+		t.Fatal(err)
+	}
+	// ensure we only have one
+	ii, err = l.ImageIndex()
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := ii.IndexManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Manifests) != 2 {
+		t.Fatalf("mismatched manifests count, had %d, expected %d", len(manifest.Manifests), 2)
+	}
+	// we should have digest3, and *not* have digest1
+	var have3 bool
+	for _, m := range manifest.Manifests {
+		if m.Digest == digest1 {
+			t.Fatal("found digest1 still not replaced", digest1)
+		}
+		if m.Digest == digest3 {
+			have3 = true
+		}
+	}
+	if !have3 {
+		t.Fatal("could not find digest3", digest3)
 	}
 }
