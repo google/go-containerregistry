@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/gcrane"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/spf13/cobra"
@@ -47,7 +47,7 @@ func gc(root string, recursive bool) {
 		log.Fatalln(err)
 	}
 
-	auth := google.WithAuthFromKeychain(authn.DefaultKeychain)
+	auth := google.WithAuthFromKeychain(gcrane.Keychain)
 
 	if recursive {
 		if err := google.Walk(repo, printUntaggedImages, auth); err != nil {
