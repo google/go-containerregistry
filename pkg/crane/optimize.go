@@ -30,6 +30,7 @@ import (
 )
 
 // Optimize optimizes a remote image or index from src to dst.
+// THIS API IS EXPERIMENTAL AND SUBJECT TO CHANGE WITHOUT WARNING.
 func Optimize(src, dst string, prioritize []string, opt ...Option) error {
 	o := makeOptions(opt...)
 	srcRef, err := name.ParseReference(src, o.name...)
