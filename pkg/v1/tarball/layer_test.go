@@ -79,12 +79,10 @@ func TestLayerFromFile(t *testing.T) {
 }
 
 func TestLayerFromFileEstargz(t *testing.T) {
-	os.Setenv("GGCR_EXPERIMENT_ESTARGZ", "1")
-	defer os.Unsetenv("GGCR_EXPERIMENT_ESTARGZ")
 	setupFixtures(t)
 	defer teardownFixtures(t)
 
-	tarLayer, err := LayerFromFile("testdata/content.tar")
+	tarLayer, err := LayerFromFile("testdata/content.tar", WithEstargz)
 	if err != nil {
 		t.Fatalf("Unable to create layer from tar file: %v", err)
 	}
@@ -93,7 +91,7 @@ func TestLayerFromFileEstargz(t *testing.T) {
 		t.Errorf("validate.Layer(tarLayer): %v", err)
 	}
 
-	tarLayerDefaultCompression, err := LayerFromFile("testdata/content.tar", WithCompressionLevel(gzip.DefaultCompression))
+	tarLayerDefaultCompression, err := LayerFromFile("testdata/content.tar", WithEstargz, WithCompressionLevel(gzip.DefaultCompression))
 	if err != nil {
 		t.Fatalf("Unable to create layer with 'Default' compression from tar file: %v", err)
 	}
@@ -109,7 +107,7 @@ func TestLayerFromFileEstargz(t *testing.T) {
 		t.Fatal("Unable to generate digest with 'Default' compression", err)
 	}
 
-	tarLayerSpeedCompression, err := LayerFromFile("testdata/content.tar", WithCompressionLevel(gzip.BestSpeed))
+	tarLayerSpeedCompression, err := LayerFromFile("testdata/content.tar", WithEstargz, WithCompressionLevel(gzip.BestSpeed))
 	if err != nil {
 		t.Fatalf("Unable to create layer with 'BestSpeed' compression from tar file: %v", err)
 	}
@@ -136,6 +134,7 @@ func TestLayerFromFileEstargz(t *testing.T) {
 	}
 
 	tarLayerPrioritizedFiles, err := LayerFromFile("testdata/content.tar",
+		WithEstargz,
 		// We compare with default, so pass for apples-to-apples comparison.
 		WithCompressionLevel(gzip.DefaultCompression),
 		// By passing a list of priority files, we expect the layer to be different.

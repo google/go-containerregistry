@@ -111,6 +111,7 @@ func optimizeImage(img v1.Image, prioritize []string) (v1.Image, error) {
 	olayers := make([]mutate.Addendum, 0, len(layers))
 	for _, layer := range layers {
 		olayer, err := tarball.LayerFromOpener(layer.Uncompressed,
+			tarball.WithEstargz,
 			tarball.WithEstargzOptions(estargz.WithPrioritizedFiles(prioritize)))
 		if err != nil {
 			return nil, err
