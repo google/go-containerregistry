@@ -49,7 +49,7 @@ func WithAuthFromKeychain(keys authn.Keychain) ListerOption {
 			return err
 		}
 		if auth == authn.Anonymous {
-			logs.Warn.Println("No matching credentials were found, falling back on anonymous")
+			logs.Warn.Printf("No matching credentials were found for %q, falling back on anonymous", l.repo.Registry)
 		}
 		l.auth = auth
 		return nil
