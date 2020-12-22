@@ -10,7 +10,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/aws/aws-sdk-go v1.31.6 // indirect
 	github.com/containerd/containerd v1.3.0 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.0.0-20201222125901-3f61aae14548
+	github.com/containerd/stargz-snapshotter/estargz v0.0.0-20201223015020-a9a0c2d64694
 	github.com/docker/cli v0.0.0-20191017083524-a8ff7f821017
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7
