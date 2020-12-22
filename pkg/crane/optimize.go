@@ -27,11 +27,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // Optimize optimizes a remote image or index from src to dst.
 // THIS API IS EXPERIMENTAL AND SUBJECT TO CHANGE WITHOUT WARNING.
-func Optimize(src, dst string, prioritize []string, opt ...Option) error {
+func Optimize(src, dst string, prioritize sets.String, opt ...Option) error {
 	o := makeOptions(opt...)
 	srcRef, err := name.ParseReference(src, o.name...)
 	if err != nil {
@@ -76,24 +77,28 @@ func Optimize(src, dst string, prioritize []string, opt ...Option) error {
 	return nil
 }
 
-func optimizeAndPushImage(desc *remote.Descriptor, dstRef name.Reference, prioritize []string, o options) error {
+func optimizeAndPushImage(desc *remote.Descriptor, dstRef name.Reference, prioritize sets.String, o options) error {
 	img, err := desc.Image()
 	if err != nil {
 		return err
 	}
 
-	oimg, err := optimizeImage(img, prioritize)
+	missing, oimg, err := optimizeImage(img, prioritize)
 	if err != nil {
 		return err
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("the following prioritized files were missing from image: %v", missing.List())
 	}
 
 	return remote.Write(dstRef, oimg, o.remote...)
 }
 
-func optimizeImage(img v1.Image, prioritize []string) (v1.Image, error) {
+func optimizeImage(img v1.Image, prioritize sets.String) (sets.String, v1.Image, error) {
 	cfg, err := img.ConfigFile()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ocfg := cfg.DeepCopy()
 	ocfg.History = nil
@@ -101,22 +106,28 @@ func optimizeImage(img v1.Image, prioritize []string) (v1.Image, error) {
 
 	oimg, err := mutate.ConfigFile(empty.Image, ocfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	layers, err := img.Layers()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	missingFromImage := sets.NewString(prioritize.UnsortedList()...)
 	olayers := make([]mutate.Addendum, 0, len(layers))
 	for _, layer := range layers {
+		missingFromLayer := []string{}
 		olayer, err := tarball.LayerFromOpener(layer.Uncompressed,
 			tarball.WithEstargz,
-			tarball.WithEstargzOptions(estargz.WithPrioritizedFiles(prioritize)))
+			tarball.WithEstargzOptions(
+				estargz.WithPrioritizedFiles(prioritize.List()),
+				estargz.WithAllowPrioritizeNotFound(&missingFromLayer),
+			))
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		missingFromImage = missingFromImage.Intersection(sets.NewString(missingFromLayer...))
 
 		olayers = append(olayers, mutate.Addendum{
 			Layer:     olayer,
@@ -124,41 +135,52 @@ func optimizeImage(img v1.Image, prioritize []string) (v1.Image, error) {
 		})
 	}
 
-	return mutate.Append(oimg, olayers...)
+	oimg, err = mutate.Append(oimg, olayers...)
+	if err != nil {
+		return nil, nil, err
+	}
+	return missingFromImage, oimg, nil
 }
 
-func optimizeAndPushIndex(desc *remote.Descriptor, dstRef name.Reference, prioritize []string, o options) error {
+func optimizeAndPushIndex(desc *remote.Descriptor, dstRef name.Reference, prioritize sets.String, o options) error {
 	idx, err := desc.ImageIndex()
 	if err != nil {
 		return err
 	}
 
-	oidx, err := optimizeIndex(idx, prioritize)
+	missing, oidx, err := optimizeIndex(idx, prioritize)
 	if err != nil {
 		return err
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("the following prioritized files were missing from all images: %v", missing.List())
 	}
 
 	return remote.WriteIndex(dstRef, oidx, o.remote...)
 }
 
-func optimizeIndex(idx v1.ImageIndex, prioritize []string) (v1.ImageIndex, error) {
+func optimizeIndex(idx v1.ImageIndex, prioritize sets.String) (sets.String, v1.ImageIndex, error) {
 	im, err := idx.IndexManifest()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	missingFromIndex := sets.NewString(prioritize.UnsortedList()...)
 
 	// Build an image for each child from the base and append it to a new index to produce the result.
 	adds := make([]mutate.IndexAddendum, 0, len(im.Manifests))
 	for _, desc := range im.Manifests {
 		img, err := idx.Image(desc.Digest)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		oimg, err := optimizeImage(img, prioritize)
+		missingFromImage, oimg, err := optimizeImage(img, prioritize)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
+		missingFromIndex = missingFromIndex.Intersection(missingFromImage)
 		adds = append(adds, mutate.IndexAddendum{
 			Add: oimg,
 			Descriptor: v1.Descriptor{
@@ -172,8 +194,8 @@ func optimizeIndex(idx v1.ImageIndex, prioritize []string) (v1.ImageIndex, error
 
 	idxType, err := idx.MediaType()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return mutate.IndexMediaType(mutate.AppendManifests(empty.Index, adds...), idxType), nil
+	return missingFromIndex, mutate.IndexMediaType(mutate.AppendManifests(empty.Index, adds...), idxType), nil
 }
