@@ -86,6 +86,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 		NewCmdExport(&options),
 		NewCmdList(&options),
 		NewCmdManifest(&options),
+		NewCmdOptimize(&options),
 		NewCmdPull(&options),
 		NewCmdPush(&options),
 		NewCmdRebase(&options),
