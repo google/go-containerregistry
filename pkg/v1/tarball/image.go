@@ -148,7 +148,10 @@ func (i *image) areLayersCompressed() (bool, error) {
 		return false, err
 	}
 	defer blob.Close()
-	return gzip.Is(blob)
+
+	// TODO: Can we reuse this reader?
+	ok, _, err := gzip.Is(blob)
+	return ok, err
 }
 
 func (i *image) loadTarDescriptorAndConfig() error {

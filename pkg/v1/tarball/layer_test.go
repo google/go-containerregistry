@@ -200,9 +200,10 @@ func TestLayerFromOpenerReader(t *testing.T) {
 		tarLayer.Compressed()
 	}
 
-	// We expect three calls: gzip sniff, diffid computation, cached compression
-	if cachedCount != 3 {
-		t.Errorf("cached count = %d, wanted %d", cachedCount, 3)
+	// We expect two calls: diffid computation and cached compression, because the
+	// gzip sniff uses reopener() to avoid paying for open() just to read two bytes.
+	if cachedCount != 2 {
+		t.Errorf("cached count = %d, wanted %d", cachedCount, 2)
 	}
 	if cachedCount+10 != count {
 		t.Errorf("count = %d, wanted %d", count, cachedCount+10)

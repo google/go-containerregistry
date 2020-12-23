@@ -15,6 +15,7 @@
 package gzip
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"io"
@@ -82,15 +83,18 @@ func UnzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	}, nil
 }
 
-// Is detects whether the input stream is compressed.
-func Is(r io.Reader) (bool, error) {
-	magicHeader := make([]byte, 2)
-	n, err := r.Read(magicHeader)
-	if n == 0 && err == io.EOF {
-		return false, nil
-	}
+// Is detects whether the input stream is gzip compressed. A small number
+// of bytes are buffered to Peek at the gzip header so that the returned
+// io.Reader can be used as a replacement for the consumed input io.Reader.
+func Is(r io.Reader) (bool, *bufio.Reader, error) {
+	buf := bufio.NewReader(r)
+	header, err := buf.Peek(2)
 	if err != nil {
-		return false, err
+		// https://github.com/google/go-containerregistry/issues/367
+		if err == io.EOF {
+			return false, buf, nil
+		}
+		return false, buf, err
 	}
-	return bytes.Equal(magicHeader, gzipMagicHeader), nil
+	return bytes.Equal(header, gzipMagicHeader), buf, nil
 }

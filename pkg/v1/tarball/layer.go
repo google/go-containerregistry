@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/containerd/stargz-snapshotter/estargz"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -195,12 +196,17 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rc.Close()
 
-	compressed, err := ggzip.Is(rc)
+	compressed, r, err := ggzip.Is(rc)
 	if err != nil {
+		rc.Close()
 		return nil, err
 	}
+
+	reopen := reopener(&and.ReadCloser{
+		Reader:    r,
+		CloseFunc: rc.Close,
+	}, opener)
 
 	layer := &layer{
 		compression: gzip.BestSpeed,
@@ -212,18 +218,18 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	}
 
 	if compressed {
-		layer.compressedopener = opener
+		layer.compressedopener = reopen
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
-			urc, err := opener()
+			urc, err := reopen()
 			if err != nil {
 				return nil, err
 			}
 			return ggzip.UnzipReadCloser(urc)
 		}
 	} else {
-		layer.uncompressedopener = opener
+		layer.uncompressedopener = reopen
 		layer.compressedopener = func() (io.ReadCloser, error) {
-			crc, err := opener()
+			crc, err := reopen()
 			if err != nil {
 				return nil, err
 			}
@@ -280,4 +286,17 @@ func computeDiffID(opener Opener) (v1.Hash, error) {
 
 	digest, _, err := v1.SHA256(rc)
 	return digest, err
+}
+
+// reopener returns an Opener that returns rc on the first call and opener()
+// on subsequent calls. This is used in conjunction with gzip.Is to avoid
+// calling an opener just to read two bytes.
+func reopener(rc io.ReadCloser, opener Opener) Opener {
+	consumed := int32(0)
+	return func() (io.ReadCloser, error) {
+		if atomic.CompareAndSwapInt32(&consumed, 0, 1) {
+			return rc, nil
+		}
+		return opener()
+	}
 }

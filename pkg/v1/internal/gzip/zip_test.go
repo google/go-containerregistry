@@ -55,7 +55,7 @@ func TestIs(t *testing.T) {
 	}
 	for _, test := range tests {
 		reader := bytes.NewReader(test.in)
-		got, err := Is(reader)
+		got, _, err := Is(reader)
 		if got != test.out {
 			t.Errorf("Is; n: got %v, wanted %v\n", got, test.out)
 		}
@@ -77,7 +77,7 @@ func (f failReader) Read(_ []byte) (int, error) {
 
 func TestReadErrors(t *testing.T) {
 	fr := failReader{}
-	if _, err := Is(fr); err != errRead {
+	if _, _, err := Is(fr); err != errRead {
 		t.Error("Is: expected errRead, got", err)
 	}
 
