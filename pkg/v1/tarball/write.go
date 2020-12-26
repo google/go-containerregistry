@@ -222,6 +222,10 @@ func writeImagesToTar(refToImage map[name.Reference]v1.Image, m []byte, size int
 func calculateManifest(refToImage map[name.Reference]v1.Image) (m Manifest, err error) {
 	imageToTags := dedupRefToImage(refToImage)
 
+	if len(imageToTags) == 0 {
+		return nil, errors.New("at least one reference must be provided to calculate a manifest")
+	}
+
 	for img, tags := range imageToTags {
 		cfgName, err := img.ConfigName()
 		if err != nil {
