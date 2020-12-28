@@ -17,6 +17,7 @@ package tarball
 import (
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
@@ -93,5 +94,34 @@ func TestBundleMultiple(t *testing.T) {
 				t.Errorf("Validate() = %v", err)
 			}
 		})
+	}
+}
+
+func TestForeignLayers(t *testing.T) {
+	img, err := ImageFromPath("testdata/foreign.tar", nil)
+	if err != nil {
+		t.Fatalf("Error loading image: %v", err)
+	}
+	if _, err := img.Manifest(); err != nil {
+		t.Fatalf("Unexpected error loading manifest: %v", err)
+	}
+
+	if err := validate.Image(img); err != nil {
+		t.Errorf("Validate() = %v", err)
+	}
+}
+
+func TestSparseForeignLayers(t *testing.T) {
+	fat, err := ImageFromPath("testdata/foreign.tar", nil)
+	if err != nil {
+		t.Fatalf("Error loading image: %v", err)
+	}
+	sparse, err := ImageFromPath("testdata/sparse_foreign.tar", nil)
+	if err != nil {
+		t.Fatalf("Error loading image: %v", err)
+	}
+
+	if err := compare.Images(fat, sparse); err != nil {
+		t.Errorf("compare.Images() = %v", err)
 	}
 }

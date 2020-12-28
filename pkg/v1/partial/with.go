@@ -343,6 +343,11 @@ func Descriptor(d Describable) (*v1.Descriptor, error) {
 	return &desc, nil
 }
 
+// WithSize defines a subset of the v1.Layer interface.
+type WithSize interface {
+	Size() (int64, error)
+}
+
 type withUncompressedSize interface {
 	UncompressedSize() (int64, error)
 }
