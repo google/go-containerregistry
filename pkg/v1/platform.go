@@ -15,7 +15,15 @@
 package v1
 
 import (
+	"encoding/json"
+	"fmt"
 	"sort"
+	"strings"
+)
+
+const (
+	platformSep = "/"
+	jsonStart   = "{"
 )
 
 // Platform represents the target os/arch for an image.
@@ -26,6 +34,38 @@ type Platform struct {
 	OSFeatures   []string `json:"os.features,omitempty"`
 	Variant      string   `json:"variant,omitempty"`
 	Features     []string `json:"features,omitempty"`
+}
+
+// ParsePlatform builds a structured Platform object based on either:
+// JSON string: {"os":"windows","architecture":"amd64","os.version":"10.0.14393.1066"}
+// Inline short format: linux/amd64 or linux/arm64/v8
+func ParsePlatform(p string) (*Platform, error) {
+	p = strings.TrimSpace(p)
+	if strings.HasPrefix(p, jsonStart) {
+		var platform Platform
+		err := json.Unmarshal([]byte(p), &platform)
+		if err != nil {
+			return nil, err
+		}
+
+		return &platform, nil
+	}
+
+	parts := strings.Split(p, platformSep)
+	if len(parts) < 2 || len(parts) > 3 {
+		return nil, fmt.Errorf("unable to parse platform: '%s', expected format is OS/ARCH(/VARIANT)", p)
+	}
+
+	platform := Platform{
+		OS:           parts[0],
+		Architecture: parts[1],
+	}
+
+	if len(parts) == 3 {
+		platform.Variant = parts[2]
+	}
+
+	return &platform, nil
 }
 
 // Equals returns true if the given platform is semantically equivalent to this one.

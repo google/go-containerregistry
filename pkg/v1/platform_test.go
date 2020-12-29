@@ -15,6 +15,7 @@
 package v1_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -48,6 +49,42 @@ func TestPlatformEquals(t *testing.T) {
 	for i, tt := range tests {
 		if equal := tt.a.Equals(tt.b); equal != tt.equal {
 			t.Errorf("%d: mismatched was %v expected %v; original (-want +got) %s", i, equal, tt.equal, cmp.Diff(tt.a, tt.b))
+		}
+	}
+}
+
+func TestPlatformParse(t *testing.T) {
+	tests := []struct {
+		s string
+		p *v1.Platform
+		e error
+	}{
+		{"linux/amd64", &v1.Platform{Architecture: "amd64", OS: "linux"}, nil},
+		{"linux/arm64/v8", &v1.Platform{Architecture: "arm64", OS: "linux", Variant: "v8"}, nil},
+		{`{"os":"windows","architecture":"amd64","os.version":"10.0.14393.1066"}`, &v1.Platform{Architecture: "amd64", OS: "windows", OSVersion: "10.0.14393.1066"}, nil},
+		{"linux", nil, errors.New("unable to parse platform: 'linux', expected format is OS/ARCH(/VARIANT)")},
+		{"linux/foo/bar/baz", nil, errors.New("unable to parse platform: 'linux/foo/bar/baz', expected format is OS/ARCH(/VARIANT)")},
+	}
+	for i, tt := range tests {
+		p, err := v1.ParsePlatform(tt.s)
+		if (tt.e != nil || err != nil) && err.Error() != tt.e.Error() {
+			t.Errorf("%d: mismatched, exepected error: %v, got: %v", i, tt.e, err)
+		}
+
+		if tt.p == nil && p != nil {
+			t.Errorf("%d: mismatched, expected nil platform, got: %v", i, *p)
+		}
+
+		if tt.p != nil && p == nil {
+			t.Errorf("%d: mismatched, expected platform: %v, got nil", i, *tt.p)
+		}
+
+		if tt.p == p {
+			continue
+		}
+
+		if !tt.p.Equals(*p) {
+			t.Errorf("%d: mismatched was %v expected %v; original (-want +got) %s", i, *p, *tt.p, cmp.Diff(*tt.p, *p))
 		}
 	}
 }

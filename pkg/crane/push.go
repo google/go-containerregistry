@@ -38,3 +38,13 @@ func Push(img v1.Image, dst string, opt ...Option) error {
 	}
 	return remote.Write(tag, img, o.remote...)
 }
+
+// PushIndex pushes the v1.ImageIndex index to a registry as dst.
+func PushIndex(idx v1.ImageIndex, dst string, opt ...Option) error {
+	o := makeOptions(opt...)
+	dstRef, err := name.ParseReference(dst, o.name...)
+	if err != nil {
+		return fmt.Errorf("parsing reference %q: %v", dst, err)
+	}
+	return remote.WriteIndex(dstRef, idx, o.remote...)
+}
