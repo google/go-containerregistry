@@ -55,7 +55,16 @@ func TestIs(t *testing.T) {
 	}
 	for _, test := range tests {
 		reader := bytes.NewReader(test.in)
-		got, _, err := Is(reader)
+		got, buf, err := Is(reader)
+		if got != test.out {
+			t.Errorf("Is; n: got %v, wanted %v\n", got, test.out)
+		}
+		if err != test.err {
+			t.Errorf("Is; err: got %v, wanted %v\n", err, test.err)
+		}
+
+		// Test reuse of the buffer should just get returned.
+		got, _, err = Is(buf)
 		if got != test.out {
 			t.Errorf("Is; n: got %v, wanted %v\n", got, test.out)
 		}
