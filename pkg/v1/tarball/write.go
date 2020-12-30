@@ -223,7 +223,7 @@ func calculateManifest(refToImage map[name.Reference]v1.Image) (m Manifest, err 
 	imageToTags := dedupRefToImage(refToImage)
 
 	if len(imageToTags) == 0 {
-		return nil, errors.New("at least one reference must be provided to calculate a manifest")
+		return nil, errors.New("set of images is empty")
 	}
 
 	for img, tags := range imageToTags {

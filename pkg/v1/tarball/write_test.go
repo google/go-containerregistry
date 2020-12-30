@@ -463,12 +463,12 @@ func TestComputeManifest(t *testing.T) {
 
 func TestComputeManifest_FailsOnNoRefs(t *testing.T) {
 	_, err := tarball.ComputeManifest(nil)
-	if err == nil || !strings.Contains(err.Error(), "at least one reference must be provided to calculate a manifest") {
+	if err == nil || !strings.Contains(err.Error(), "set of images is empty") {
 		t.Error("expected calculateManifest to fail with nil input")
 	}
 
 	_, err = tarball.ComputeManifest(map[name.Reference]v1.Image{})
-	if err == nil || !strings.Contains(err.Error(), "at least one reference must be provided to calculate a manifest") {
+	if err == nil || !strings.Contains(err.Error(), "set of images is empty") {
 		t.Error("expected calculateManifest to fail with empty input")
 	}
 }
