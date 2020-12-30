@@ -461,6 +461,18 @@ func TestComputeManifest(t *testing.T) {
 	}
 }
 
+func TestComputeManifest_FailsOnNoRefs(t *testing.T) {
+	_, err := tarball.ComputeManifest(nil)
+	if err == nil || !strings.Contains(err.Error(), "set of images is empty") {
+		t.Error("expected calculateManifest to fail with nil input")
+	}
+
+	_, err = tarball.ComputeManifest(map[name.Reference]v1.Image{})
+	if err == nil || !strings.Contains(err.Error(), "set of images is empty") {
+		t.Error("expected calculateManifest to fail with empty input")
+	}
+}
+
 func getLayersHashes(img v1.Image) ([]string, error) {
 	hashes := []string{}
 	layers, err := img.Layers()
