@@ -13,7 +13,8 @@ crane digest IMAGE [flags]
 ### Options
 
 ```
-  -h, --help   help for digest
+  -h, --help             help for digest
+      --tarball string   (Optional) path to tarball containing the image
 ```
 
 ### Options inherited from parent commands
