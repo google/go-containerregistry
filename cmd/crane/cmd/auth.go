@@ -44,6 +44,25 @@ func NewCmdAuth(argv ...string) *cobra.Command {
 	return cmd
 }
 
+type credentials struct {
+	Username string
+	Secret   string
+}
+
+// https://github.com/docker/cli/blob/2291f610ae73533e6e0749d4ef1e360149b1e46b/cli/config/credentials/native_store.go#L100-L109
+func toCreds(config *authn.AuthConfig) credentials {
+	creds := credentials{
+		Username: config.Username,
+		Secret:   config.Password,
+	}
+
+	if config.IdentityToken != "" {
+		creds.Username = "<token>"
+		creds.Secret = config.IdentityToken
+	}
+	return creds
+}
+
 // NewCmdAuthGet creates a new `crane auth get` command.
 func NewCmdAuthGet(argv ...string) *cobra.Command {
 	if len(argv) == 0 {
@@ -76,7 +95,11 @@ func NewCmdAuthGet(argv ...string) *cobra.Command {
 			if err != nil {
 				log.Fatal(err)
 			}
-			if err := json.NewEncoder(os.Stdout).Encode(auth); err != nil {
+
+			// Convert back to a form that credential helpers can parse so that this
+			// can act as a meta credential helper.
+			creds := toCreds(auth)
+			if err := json.NewEncoder(os.Stdout).Encode(creds); err != nil {
 				log.Fatal(err)
 			}
 		},
