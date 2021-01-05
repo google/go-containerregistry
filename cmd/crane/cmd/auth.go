@@ -91,6 +91,16 @@ func NewCmdAuthGet(argv ...string) *cobra.Command {
 			if err != nil {
 				log.Fatal(err)
 			}
+
+			// If we don't find any credentials, there's a magic error to return:
+			//
+			// https://github.com/docker/docker-credential-helpers/blob/f78081d1f7fef6ad74ad6b79368de6348386e591/credentials/error.go#L4-L6
+			// https://github.com/docker/docker-credential-helpers/blob/f78081d1f7fef6ad74ad6b79368de6348386e591/credentials/credentials.go#L61-L63
+			if authorizer == authn.Anonymous {
+				fmt.Fprint(os.Stdout, "credentials not found in native keychain\n")
+				os.Exit(1)
+			}
+
 			auth, err := authorizer.Authorization()
 			if err != nil {
 				log.Fatal(err)
