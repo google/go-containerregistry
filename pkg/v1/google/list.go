@@ -39,6 +39,7 @@ type lister struct {
 	repo      name.Repository
 	client    *http.Client
 	ctx       context.Context
+	userAgent string
 }
 
 func newLister(repo name.Repository, options ...ListerOption) (*lister, error) {
@@ -64,6 +65,11 @@ func newLister(repo name.Repository, options ...ListerOption) (*lister, error) {
 
 	// Wrap the transport in something that can retry network flakes.
 	l.transport = transport.NewRetry(l.transport)
+
+	// Wrap this last to prevent transport.New from double-wrapping.
+	if l.userAgent != "" {
+		l.transport = transport.NewUserAgent(l.transport, l.userAgent)
+	}
 
 	scopes := []string{repo.Scope(transport.PullScope)}
 	tr, err := transport.NewWithContext(l.ctx, repo.Registry, l.auth, l.transport, scopes)

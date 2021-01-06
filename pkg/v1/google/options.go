@@ -64,3 +64,14 @@ func WithContext(ctx context.Context) ListerOption {
 		return nil
 	}
 }
+
+// WithUserAgent adds the given string to the User-Agent header for any HTTP
+// requests. This header will also include "go-containerregistry/${version}".
+//
+// If you want to completely overwrite the User-Agent header, use WithTransport.
+func WithUserAgent(ua string) ListerOption {
+	return func(l *lister) error {
+		l.userAgent = ua
+		return nil
+	}
+}
