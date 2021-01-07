@@ -27,12 +27,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // Optimize optimizes a remote image or index from src to dst.
 // THIS API IS EXPERIMENTAL AND SUBJECT TO CHANGE WITHOUT WARNING.
-func Optimize(src, dst string, prioritize sets.String, opt ...Option) error {
+func Optimize(src, dst string, prioritize []string, opt ...Option) error {
+	pset := newStringSet(prioritize)
 	o := makeOptions(opt...)
 	srcRef, err := name.ParseReference(src, o.name...)
 	if err != nil {
@@ -55,11 +55,11 @@ func Optimize(src, dst string, prioritize sets.String, opt ...Option) error {
 		// Handle indexes separately.
 		if o.platform != nil {
 			// If platform is explicitly set, don't optimize the whole index, just the appropriate image.
-			if err := optimizeAndPushImage(desc, dstRef, prioritize, o); err != nil {
+			if err := optimizeAndPushImage(desc, dstRef, pset, o); err != nil {
 				return fmt.Errorf("failed to optimize image: %v", err)
 			}
 		} else {
-			if err := optimizeAndPushIndex(desc, dstRef, prioritize, o); err != nil {
+			if err := optimizeAndPushIndex(desc, dstRef, pset, o); err != nil {
 				return fmt.Errorf("failed to optimize index: %v", err)
 			}
 		}
@@ -69,7 +69,7 @@ func Optimize(src, dst string, prioritize sets.String, opt ...Option) error {
 
 	default:
 		// Assume anything else is an image, since some registries don't set mediaTypes properly.
-		if err := optimizeAndPushImage(desc, dstRef, prioritize, o); err != nil {
+		if err := optimizeAndPushImage(desc, dstRef, pset, o); err != nil {
 			return fmt.Errorf("failed to optimize image: %v", err)
 		}
 	}
@@ -77,7 +77,7 @@ func Optimize(src, dst string, prioritize sets.String, opt ...Option) error {
 	return nil
 }
 
-func optimizeAndPushImage(desc *remote.Descriptor, dstRef name.Reference, prioritize sets.String, o options) error {
+func optimizeAndPushImage(desc *remote.Descriptor, dstRef name.Reference, prioritize stringSet, o options) error {
 	img, err := desc.Image()
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func optimizeAndPushImage(desc *remote.Descriptor, dstRef name.Reference, priori
 	return remote.Write(dstRef, oimg, o.remote...)
 }
 
-func optimizeImage(img v1.Image, prioritize sets.String) (sets.String, v1.Image, error) {
+func optimizeImage(img v1.Image, prioritize stringSet) (stringSet, v1.Image, error) {
 	cfg, err := img.ConfigFile()
 	if err != nil {
 		return nil, nil, err
@@ -114,7 +114,7 @@ func optimizeImage(img v1.Image, prioritize sets.String) (sets.String, v1.Image,
 		return nil, nil, err
 	}
 
-	missingFromImage := sets.NewString(prioritize.UnsortedList()...)
+	missingFromImage := newStringSet(prioritize.List())
 	olayers := make([]mutate.Addendum, 0, len(layers))
 	for _, layer := range layers {
 		missingFromLayer := []string{}
@@ -127,7 +127,7 @@ func optimizeImage(img v1.Image, prioritize sets.String) (sets.String, v1.Image,
 		if err != nil {
 			return nil, nil, err
 		}
-		missingFromImage = missingFromImage.Intersection(sets.NewString(missingFromLayer...))
+		missingFromImage = missingFromImage.Intersection(newStringSet(missingFromLayer))
 
 		olayers = append(olayers, mutate.Addendum{
 			Layer:     olayer,
@@ -142,7 +142,7 @@ func optimizeImage(img v1.Image, prioritize sets.String) (sets.String, v1.Image,
 	return missingFromImage, oimg, nil
 }
 
-func optimizeAndPushIndex(desc *remote.Descriptor, dstRef name.Reference, prioritize sets.String, o options) error {
+func optimizeAndPushIndex(desc *remote.Descriptor, dstRef name.Reference, prioritize stringSet, o options) error {
 	idx, err := desc.ImageIndex()
 	if err != nil {
 		return err
@@ -160,13 +160,13 @@ func optimizeAndPushIndex(desc *remote.Descriptor, dstRef name.Reference, priori
 	return remote.WriteIndex(dstRef, oidx, o.remote...)
 }
 
-func optimizeIndex(idx v1.ImageIndex, prioritize sets.String) (sets.String, v1.ImageIndex, error) {
+func optimizeIndex(idx v1.ImageIndex, prioritize stringSet) (stringSet, v1.ImageIndex, error) {
 	im, err := idx.IndexManifest()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	missingFromIndex := sets.NewString(prioritize.UnsortedList()...)
+	missingFromIndex := newStringSet(prioritize.List())
 
 	// Build an image for each child from the base and append it to a new index to produce the result.
 	adds := make([]mutate.IndexAddendum, 0, len(im.Manifests))
@@ -198,4 +198,40 @@ func optimizeIndex(idx v1.ImageIndex, prioritize sets.String) (sets.String, v1.I
 	}
 
 	return missingFromIndex, mutate.IndexMediaType(mutate.AppendManifests(empty.Index, adds...), idxType), nil
+}
+
+type stringSet map[string]struct{}
+
+func newStringSet(in []string) stringSet {
+	ss := stringSet{}
+	for _, s := range in {
+		ss[s] = struct{}{}
+	}
+	return ss
+}
+
+func (s stringSet) List() []string {
+	result := make([]string, 0, len(s))
+	for k := range s {
+		result = append(result, k)
+	}
+	return result
+}
+
+func (s stringSet) Intersection(rhs stringSet) stringSet {
+	// To appease ST1016
+	lhs := s
+
+	// Make sure len(lhs) >= len(rhs)
+	if len(lhs) < len(rhs) {
+		return rhs.Intersection(lhs)
+	}
+
+	result := stringSet{}
+	for k := range lhs {
+		if _, ok := rhs[k]; ok {
+			result[k] = struct{}{}
+		}
+	}
+	return result
 }
