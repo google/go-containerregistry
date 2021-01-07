@@ -57,6 +57,11 @@ func TestTemporary(t *testing.T) {
 			}},
 		},
 		retry: true,
+	}, {
+		error: &Error{
+			StatusCode: http.StatusInternalServerError,
+		},
+		retry: true,
 	}}
 
 	for _, test := range tests {
