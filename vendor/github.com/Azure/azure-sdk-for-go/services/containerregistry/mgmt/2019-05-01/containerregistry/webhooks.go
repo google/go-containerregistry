@@ -135,7 +135,6 @@ func (client WebhooksClient) CreateSender(req *http.Request) (future WebhooksCre
 func (client WebhooksClient) CreateResponder(resp *http.Response) (result Webhook, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -227,7 +226,6 @@ func (client WebhooksClient) DeleteSender(req *http.Request) (future WebhooksDel
 func (client WebhooksClient) DeleteResponder(resp *http.Response) (result autorest.Response, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted, http.StatusNoContent),
 		autorest.ByClosing())
 	result.Response = resp
@@ -280,6 +278,7 @@ func (client WebhooksClient) Get(ctx context.Context, resourceGroupName string, 
 	result, err = client.GetResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.WebhooksClient", "Get", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -318,7 +317,6 @@ func (client WebhooksClient) GetSender(req *http.Request) (*http.Response, error
 func (client WebhooksClient) GetResponder(resp *http.Response) (result Webhook, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -372,6 +370,7 @@ func (client WebhooksClient) GetCallbackConfig(ctx context.Context, resourceGrou
 	result, err = client.GetCallbackConfigResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.WebhooksClient", "GetCallbackConfig", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -410,7 +409,6 @@ func (client WebhooksClient) GetCallbackConfigSender(req *http.Request) (*http.R
 func (client WebhooksClient) GetCallbackConfigResponder(resp *http.Response) (result CallbackConfig, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -460,6 +458,10 @@ func (client WebhooksClient) List(ctx context.Context, resourceGroupName string,
 	result.wlr, err = client.ListResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.WebhooksClient", "List", resp, "Failure responding to request")
+		return
+	}
+	if result.wlr.hasNextLink() && result.wlr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return
@@ -497,7 +499,6 @@ func (client WebhooksClient) ListSender(req *http.Request) (*http.Response, erro
 func (client WebhooksClient) ListResponder(resp *http.Response) (result WebhookListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -522,6 +523,7 @@ func (client WebhooksClient) listNextResults(ctx context.Context, lastResults We
 	result, err = client.ListResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.WebhooksClient", "listNextResults", resp, "Failure responding to next results request")
+		return
 	}
 	return
 }
@@ -589,6 +591,10 @@ func (client WebhooksClient) ListEvents(ctx context.Context, resourceGroupName s
 	result.elr, err = client.ListEventsResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.WebhooksClient", "ListEvents", resp, "Failure responding to request")
+		return
+	}
+	if result.elr.hasNextLink() && result.elr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return
@@ -627,7 +633,6 @@ func (client WebhooksClient) ListEventsSender(req *http.Request) (*http.Response
 func (client WebhooksClient) ListEventsResponder(resp *http.Response) (result EventListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -652,6 +657,7 @@ func (client WebhooksClient) listEventsNextResults(ctx context.Context, lastResu
 	result, err = client.ListEventsResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.WebhooksClient", "listEventsNextResults", resp, "Failure responding to next results request")
+		return
 	}
 	return
 }
@@ -718,6 +724,7 @@ func (client WebhooksClient) Ping(ctx context.Context, resourceGroupName string,
 	result, err = client.PingResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.WebhooksClient", "Ping", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -756,7 +763,6 @@ func (client WebhooksClient) PingSender(req *http.Request) (*http.Response, erro
 func (client WebhooksClient) PingResponder(resp *http.Response) (result EventInfo, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -851,7 +857,6 @@ func (client WebhooksClient) UpdateSender(req *http.Request) (future WebhooksUpd
 func (client WebhooksClient) UpdateResponder(resp *http.Response) (result Webhook, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())

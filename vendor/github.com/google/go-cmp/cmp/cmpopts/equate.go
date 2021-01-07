@@ -1,6 +1,6 @@
 // Copyright 2017, The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE.md file.
+// license that can be found in the LICENSE file.
 
 // Package cmpopts provides common options for the cmp package.
 package cmpopts
@@ -151,6 +151,6 @@ func areConcreteErrors(x, y interface{}) bool {
 func compareErrors(x, y interface{}) bool {
 	xe := x.(error)
 	ye := y.(error)
-	// TODO: Use errors.Is when go1.13 is the minimally supported version of Go.
+	// TODO(≥go1.13): Use standard definition of errors.Is.
 	return xerrors.Is(xe, ye) || xerrors.Is(ye, xe)
 }

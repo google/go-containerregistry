@@ -84,6 +84,7 @@ func (client RegistriesClient) CheckNameAvailability(ctx context.Context, regist
 	result, err = client.CheckNameAvailabilityResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "CheckNameAvailability", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -121,7 +122,6 @@ func (client RegistriesClient) CheckNameAvailabilitySender(req *http.Request) (*
 func (client RegistriesClient) CheckNameAvailabilityResponder(resp *http.Response) (result RegistryNameStatus, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -216,7 +216,6 @@ func (client RegistriesClient) CreateSender(req *http.Request) (future Registrie
 func (client RegistriesClient) CreateResponder(resp *http.Response) (result Registry, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -302,7 +301,6 @@ func (client RegistriesClient) DeleteSender(req *http.Request) (future Registrie
 func (client RegistriesClient) DeleteResponder(resp *http.Response) (result autorest.Response, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted, http.StatusNoContent),
 		autorest.ByClosing())
 	result.Response = resp
@@ -350,6 +348,7 @@ func (client RegistriesClient) Get(ctx context.Context, resourceGroupName string
 	result, err = client.GetResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "Get", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -387,7 +386,6 @@ func (client RegistriesClient) GetSender(req *http.Request) (*http.Response, err
 func (client RegistriesClient) GetResponder(resp *http.Response) (result Registry, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -436,6 +434,7 @@ func (client RegistriesClient) GetBuildSourceUploadURL(ctx context.Context, reso
 	result, err = client.GetBuildSourceUploadURLResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "GetBuildSourceUploadURL", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -473,7 +472,6 @@ func (client RegistriesClient) GetBuildSourceUploadURLSender(req *http.Request) 
 func (client RegistriesClient) GetBuildSourceUploadURLResponder(resp *http.Response) (result SourceUploadDefinition, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -568,7 +566,6 @@ func (client RegistriesClient) ImportImageSender(req *http.Request) (future Regi
 func (client RegistriesClient) ImportImageResponder(resp *http.Response) (result autorest.Response, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted),
 		autorest.ByClosing())
 	result.Response = resp
@@ -604,6 +601,10 @@ func (client RegistriesClient) List(ctx context.Context) (result RegistryListRes
 	result.rlr, err = client.ListResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "List", resp, "Failure responding to request")
+		return
+	}
+	if result.rlr.hasNextLink() && result.rlr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return
@@ -639,7 +640,6 @@ func (client RegistriesClient) ListSender(req *http.Request) (*http.Response, er
 func (client RegistriesClient) ListResponder(resp *http.Response) (result RegistryListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -664,6 +664,7 @@ func (client RegistriesClient) listNextResults(ctx context.Context, lastResults 
 	result, err = client.ListResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "listNextResults", resp, "Failure responding to next results request")
+		return
 	}
 	return
 }
@@ -721,6 +722,10 @@ func (client RegistriesClient) ListByResourceGroup(ctx context.Context, resource
 	result.rlr, err = client.ListByResourceGroupResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "ListByResourceGroup", resp, "Failure responding to request")
+		return
+	}
+	if result.rlr.hasNextLink() && result.rlr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return
@@ -757,7 +762,6 @@ func (client RegistriesClient) ListByResourceGroupSender(req *http.Request) (*ht
 func (client RegistriesClient) ListByResourceGroupResponder(resp *http.Response) (result RegistryListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -782,6 +786,7 @@ func (client RegistriesClient) listByResourceGroupNextResults(ctx context.Contex
 	result, err = client.ListByResourceGroupResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "listByResourceGroupNextResults", resp, "Failure responding to next results request")
+		return
 	}
 	return
 }
@@ -843,6 +848,7 @@ func (client RegistriesClient) ListCredentials(ctx context.Context, resourceGrou
 	result, err = client.ListCredentialsResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "ListCredentials", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -880,7 +886,6 @@ func (client RegistriesClient) ListCredentialsSender(req *http.Request) (*http.R
 func (client RegistriesClient) ListCredentialsResponder(resp *http.Response) (result RegistryListCredentialsResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -929,6 +934,7 @@ func (client RegistriesClient) ListUsages(ctx context.Context, resourceGroupName
 	result, err = client.ListUsagesResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "ListUsages", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -966,7 +972,6 @@ func (client RegistriesClient) ListUsagesSender(req *http.Request) (*http.Respon
 func (client RegistriesClient) ListUsagesResponder(resp *http.Response) (result RegistryUsageListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -1017,6 +1022,7 @@ func (client RegistriesClient) RegenerateCredential(ctx context.Context, resourc
 	result, err = client.RegenerateCredentialResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RegistriesClient", "RegenerateCredential", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -1056,7 +1062,6 @@ func (client RegistriesClient) RegenerateCredentialSender(req *http.Request) (*h
 func (client RegistriesClient) RegenerateCredentialResponder(resp *http.Response) (result RegistryListCredentialsResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -1145,7 +1150,6 @@ func (client RegistriesClient) ScheduleRunSender(req *http.Request) (future Regi
 func (client RegistriesClient) ScheduleRunResponder(resp *http.Response) (result Run, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -1234,7 +1238,6 @@ func (client RegistriesClient) UpdateSender(req *http.Request) (future Registrie
 func (client RegistriesClient) UpdateResponder(resp *http.Response) (result Registry, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())

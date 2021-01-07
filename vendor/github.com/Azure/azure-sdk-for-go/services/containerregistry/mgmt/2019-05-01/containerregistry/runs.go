@@ -122,7 +122,6 @@ func (client RunsClient) CancelSender(req *http.Request) (future RunsCancelFutur
 func (client RunsClient) CancelResponder(resp *http.Response) (result autorest.Response, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted),
 		autorest.ByClosing())
 	result.Response = resp
@@ -171,6 +170,7 @@ func (client RunsClient) Get(ctx context.Context, resourceGroupName string, regi
 	result, err = client.GetResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RunsClient", "Get", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -209,7 +209,6 @@ func (client RunsClient) GetSender(req *http.Request) (*http.Response, error) {
 func (client RunsClient) GetResponder(resp *http.Response) (result Run, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -259,6 +258,7 @@ func (client RunsClient) GetLogSasURL(ctx context.Context, resourceGroupName str
 	result, err = client.GetLogSasURLResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RunsClient", "GetLogSasURL", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -297,7 +297,6 @@ func (client RunsClient) GetLogSasURLSender(req *http.Request) (*http.Response, 
 func (client RunsClient) GetLogSasURLResponder(resp *http.Response) (result RunGetLogResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -350,6 +349,10 @@ func (client RunsClient) List(ctx context.Context, resourceGroupName string, reg
 	result.rlr, err = client.ListResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RunsClient", "List", resp, "Failure responding to request")
+		return
+	}
+	if result.rlr.hasNextLink() && result.rlr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return
@@ -393,7 +396,6 @@ func (client RunsClient) ListSender(req *http.Request) (*http.Response, error) {
 func (client RunsClient) ListResponder(resp *http.Response) (result RunListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -418,6 +420,7 @@ func (client RunsClient) listNextResults(ctx context.Context, lastResults RunLis
 	result, err = client.ListResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.RunsClient", "listNextResults", resp, "Failure responding to next results request")
+		return
 	}
 	return
 }
@@ -521,7 +524,6 @@ func (client RunsClient) UpdateSender(req *http.Request) (future RunsUpdateFutur
 func (client RunsClient) UpdateResponder(resp *http.Response) (result Run, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())

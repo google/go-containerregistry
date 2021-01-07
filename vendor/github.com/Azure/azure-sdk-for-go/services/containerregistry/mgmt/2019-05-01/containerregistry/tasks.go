@@ -142,7 +142,6 @@ func (client TasksClient) CreateSender(req *http.Request) (future TasksCreateFut
 func (client TasksClient) CreateResponder(resp *http.Response) (result Task, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -234,7 +233,6 @@ func (client TasksClient) DeleteSender(req *http.Request) (future TasksDeleteFut
 func (client TasksClient) DeleteResponder(resp *http.Response) (result autorest.Response, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted, http.StatusNoContent),
 		autorest.ByClosing())
 	result.Response = resp
@@ -287,6 +285,7 @@ func (client TasksClient) Get(ctx context.Context, resourceGroupName string, reg
 	result, err = client.GetResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.TasksClient", "Get", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -325,7 +324,6 @@ func (client TasksClient) GetSender(req *http.Request) (*http.Response, error) {
 func (client TasksClient) GetResponder(resp *http.Response) (result Task, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -379,6 +377,7 @@ func (client TasksClient) GetDetails(ctx context.Context, resourceGroupName stri
 	result, err = client.GetDetailsResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.TasksClient", "GetDetails", resp, "Failure responding to request")
+		return
 	}
 
 	return
@@ -417,7 +416,6 @@ func (client TasksClient) GetDetailsSender(req *http.Request) (*http.Response, e
 func (client TasksClient) GetDetailsResponder(resp *http.Response) (result Task, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -467,6 +465,10 @@ func (client TasksClient) List(ctx context.Context, resourceGroupName string, re
 	result.tlr, err = client.ListResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.TasksClient", "List", resp, "Failure responding to request")
+		return
+	}
+	if result.tlr.hasNextLink() && result.tlr.IsEmpty() {
+		err = result.NextWithContext(ctx)
 	}
 
 	return
@@ -504,7 +506,6 @@ func (client TasksClient) ListSender(req *http.Request) (*http.Response, error) 
 func (client TasksClient) ListResponder(resp *http.Response) (result TaskListResult, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
@@ -529,6 +530,7 @@ func (client TasksClient) listNextResults(ctx context.Context, lastResults TaskL
 	result, err = client.ListResponder(resp)
 	if err != nil {
 		err = autorest.NewErrorWithError(err, "containerregistry.TasksClient", "listNextResults", resp, "Failure responding to next results request")
+		return
 	}
 	return
 }
@@ -636,7 +638,6 @@ func (client TasksClient) UpdateSender(req *http.Request) (future TasksUpdateFut
 func (client TasksClient) UpdateResponder(resp *http.Response) (result Task, err error) {
 	err = autorest.Respond(
 		resp,
-		client.ByInspecting(),
 		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusCreated),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
