@@ -1,4 +1,5 @@
 // +build !arm64
+// +build !darwin
 // Copyright 2018 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,6 +57,8 @@ const (
 // out the gcloud dependency of gcloudSource. The exec package does this, too.
 //
 // See: https://www.joeshaw.org/testing-with-os-exec-and-testmain/
+//
+// TODO(#908): This doesn't work on arm64 or darwin for some reason.
 func TestMain(m *testing.M) {
 	switch os.Getenv("GO_TEST_MODE") {
 	case "":
