@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // NewCmdOptimize creates a new cobra.Command for the optimize subcommand.
@@ -34,7 +33,7 @@ func NewCmdOptimize(options *[]crane.Option) *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
 			src, dst := args[0], args[1]
-			if err := crane.Optimize(src, dst, sets.NewString(files...), *options...); err != nil {
+			if err := crane.Optimize(src, dst, files, *options...); err != nil {
 				log.Fatal(err)
 			}
 		},
