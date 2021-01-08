@@ -19,6 +19,9 @@ func Digest(ref string, opt ...Option) (string, error) {
 	o := makeOptions(opt...)
 	if o.platform != nil {
 		desc, err := getManifest(ref, opt...)
+		if !desc.MediaType.IsIndex() {
+			return desc.Digest.String(), nil
+		}
 		if err != nil {
 			return "", err
 		}
