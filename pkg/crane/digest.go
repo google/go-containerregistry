@@ -25,6 +25,8 @@ func Digest(ref string, opt ...Option) (string, error) {
 		if !desc.MediaType.IsIndex() {
 			return desc.Digest.String(), nil
 		}
+
+		// TODO: does not work for indexes which contain schema v1 manifests
 		img, err := desc.Image()
 		if err != nil {
 			return "", err
