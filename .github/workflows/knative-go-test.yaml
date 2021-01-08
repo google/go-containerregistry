@@ -32,7 +32,7 @@ jobs:
     strategy:
       matrix:
         go-version: [1.15.x]
-        platform: [ubuntu-latest]
+        platform: [ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.platform }}
 
