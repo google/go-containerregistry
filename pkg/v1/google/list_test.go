@@ -16,11 +16,13 @@ package google
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -109,11 +111,16 @@ func TestList(t *testing.T) {
 	}}
 
 	repoName := "ubuntu"
+	// To test WithUserAgent
+	uaSentinel := "this-is-the-user-agent"
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tagsPath := fmt.Sprintf("/v2/%s/tags/list", repoName)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if got, want := r.Header.Get("User-Agent"), uaSentinel; !strings.Contains(got, want) {
+					t.Errorf("request did not container useragent, got %q want Contains(%q)", got, want)
+				}
 				switch r.URL.Path {
 				case "/v2/":
 					w.WriteHeader(http.StatusOK)
@@ -138,7 +145,7 @@ func TestList(t *testing.T) {
 				t.Fatalf("name.NewRepository(%v) = %v", repoName, err)
 			}
 
-			tags, err := List(repo, WithAuthFromKeychain(authn.DefaultKeychain), WithTransport(http.DefaultTransport))
+			tags, err := List(repo, WithAuthFromKeychain(authn.DefaultKeychain), WithTransport(http.DefaultTransport), WithUserAgent(uaSentinel), WithContext(context.Background()))
 			if (err != nil) != tc.wantErr {
 				t.Errorf("List() wrong error: %v, want %v: %v\n", (err != nil), tc.wantErr, err)
 			}
