@@ -378,7 +378,11 @@ func TestWriteSharedLayers(t *testing.T) {
 }
 
 func TestComputeManifest(t *testing.T) {
-	var randomTag, mutatedTag = "gcr.io/foo/bar:latest", "gcr.io/baz/bat:latest"
+	var randomTag, mutatedTag = "ubuntu", "gcr.io/baz/bat:latest"
+
+	// https://github.com/google/go-containerregistry/issues/890
+	randomTagWritten := "ubuntu:latest"
+
 	// Make a random image
 	randImage, err := random.Image(256, 1)
 	if err != nil {
@@ -388,7 +392,7 @@ func TestComputeManifest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error getting random image config: %v", err)
 	}
-	tag1, err := name.NewTag(randomTag, name.StrictValidation)
+	tag1, err := name.NewTag(randomTag)
 	if err != nil {
 		t.Fatalf("Error creating test tag1.")
 	}
@@ -441,7 +445,7 @@ func TestComputeManifest(t *testing.T) {
 		},
 		{
 			Config:   randConfig.String(),
-			RepoTags: []string{randomTag},
+			RepoTags: []string{randomTagWritten},
 			Layers:   randomLayersFilenames,
 		},
 	}
