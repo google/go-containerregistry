@@ -34,7 +34,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-// TODO(jonjohnsonjr): Test crane.Delete behavior.
 // TODO(jonjohnsonjr): Test crane.ListTags behavior.
 // TODO(jonjohnsonjr): Test crane.Catalog behavior.
 // TODO(jonjohnsonjr): Test crane.Copy failures.
@@ -146,6 +145,30 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	if err := compare.Layers(pulledLayer, layer); err != nil {
+		t.Fatal(err)
+	}
+
+	// Delete the non existing image
+	if err := crane.Delete("honk-image"); err == nil {
+		t.Fatal("wanted err, got nil")
+	}
+
+	// Delete the image
+	if err := crane.Delete(src); err != nil {
+		t.Fatal(err)
+	}
+
+	// check if the image was really deleted
+	if _, err := crane.Pull(src); err == nil {
+		t.Fatal("wanted err, got nil")
+	}
+
+	// check if the copied image still exist
+	dstPulled, err := crane.Pull(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := compare.Images(dstPulled, copied); err != nil {
 		t.Fatal(err)
 	}
 }

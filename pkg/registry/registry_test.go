@@ -302,6 +302,33 @@ func TestCalls(t *testing.T) {
 				"Location": "/v2/foo/blobs/uploads/1",
 			},
 		},
+		{
+			Description: "DELETE Unknown name",
+			Method:      "DELETE",
+			URL:         "/v2/test/honk/manifests/latest",
+			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "DELETE Unknown manifest",
+			Manifests:   map[string]string{"honk/manifests/latest": "honk"},
+			Method:      "DELETE",
+			URL:         "/v2/honk/manifests/tag-honk",
+			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "DELETE existing manifest",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
+			Method:      "DELETE",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusAccepted,
+		},
+		{
+			Description: "DELETE existing manifest by digest",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo"},
+			Method:      "DELETE",
+			URL:         "/v2/foo/manifests/sha256:" + sha256String("foo"),
+			Code:        http.StatusAccepted,
+		},
 	}
 
 	for _, tc := range tcs {
