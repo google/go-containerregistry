@@ -1,8 +1,6 @@
 # cloud.google.com/go v0.57.0
 ## explicit
 cloud.google.com/go/compute/metadata
-# github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
-## explicit
 # github.com/Microsoft/go-winio v0.4.14
 ## explicit
 github.com/Microsoft/go-winio
@@ -10,6 +8,8 @@ github.com/Microsoft/go-winio/pkg/guid
 # github.com/containerd/containerd v1.3.0
 ## explicit
 github.com/containerd/containerd/errdefs
+github.com/containerd/containerd/log
+github.com/containerd/containerd/platforms
 # github.com/containerd/stargz-snapshotter/estargz v0.0.0-20201223015020-a9a0c2d64694
 ## explicit
 github.com/containerd/stargz-snapshotter/estargz
@@ -28,7 +28,7 @@ github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
 github.com/docker/distribution/registry/api/errcode
 github.com/docker/distribution/registry/client/auth/challenge
-# github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7
+# github.com/docker/docker v20.10.2+incompatible
 ## explicit
 github.com/docker/docker/api
 github.com/docker/docker/api/types
@@ -93,6 +93,8 @@ github.com/maxbrunsfeld/counterfeiter/v6
 github.com/maxbrunsfeld/counterfeiter/v6/arguments
 github.com/maxbrunsfeld/counterfeiter/v6/command
 github.com/maxbrunsfeld/counterfeiter/v6/generator
+# github.com/moby/term v0.0.0-20201216013528-df9cb8a40635
+## explicit
 # github.com/morikuni/aec v1.0.0
 ## explicit
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
@@ -223,6 +225,8 @@ google.golang.org/protobuf/types/known/timestamppb
 ## explicit
 gopkg.in/yaml.v2
 # gotest.tools v2.2.0+incompatible
+## explicit
+# gotest.tools/v3 v3.0.3
 ## explicit
 # k8s.io/code-generator v0.20.1
 ## explicit

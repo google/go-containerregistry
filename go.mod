@@ -4,13 +4,12 @@ go 1.14
 
 require (
 	cloud.google.com/go v0.57.0 // indirect
-	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/containerd/containerd v1.3.0 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.0.0-20201223015020-a9a0c2d64694
 	github.com/docker/cli v0.0.0-20191017083524-a8ff7f821017
 	github.com/docker/distribution v2.7.1+incompatible
-	github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7
+	github.com/docker/docker v20.10.2+incompatible
 	github.com/docker/docker-credential-helpers v0.6.3 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
@@ -18,6 +17,7 @@ require (
 	github.com/gorilla/mux v1.7.3 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.2.2
+	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/onsi/ginkgo v1.12.0 // indirect
@@ -33,5 +33,6 @@ require (
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
+	gotest.tools/v3 v3.0.3 // indirect
 	k8s.io/code-generator v0.20.1
 )
