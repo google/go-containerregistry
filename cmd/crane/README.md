@@ -15,6 +15,14 @@ Install manually:
 GO111MODULE=on go get -u github.com/google/go-containerregistry/cmd/crane
 ```
 
+### Install via brew
+
+If you're macOS user and using [Homebrew](https://brew.sh/), you can install via brew command:
+
+```sh
+$ brew install crane
+```
+
 ## Images
 
 You can also use crane as docker image
