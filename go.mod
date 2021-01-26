@@ -25,13 +25,17 @@ require (
 	github.com/opencontainers/image-spec v1.0.1
 	github.com/sirupsen/logrus v1.6.0 // indirect
 	github.com/spf13/cobra v1.0.0
+	github.com/stretchr/testify v1.6.1 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
+	golang.org/x/text v0.3.4 // indirect
 	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 	golang.org/x/tools v0.0.0-20200916195026-c9a70fc28ce3 // indirect
 	google.golang.org/genproto v0.0.0-20200527145253-8367513e4ece // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gotest.tools v2.2.0+incompatible // indirect
-	k8s.io/code-generator v0.20.1
+	k8s.io/code-generator v0.19.7
+	k8s.io/gengo v0.0.0-20201113003025-83324d819ded // indirect
+	k8s.io/klog/v2 v2.4.0 // indirect
 )
