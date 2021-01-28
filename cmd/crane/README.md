@@ -51,7 +51,7 @@ docker-tag-latest:
   stage: latest
   only:
     refs:
-      - master
+      - main
   image:
     name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
