@@ -17,5 +17,5 @@ package k8schain
 
 import (
 	// gcp credential provider
-	_ "github.com/vdemeester/k8s-pkg-credentialprovider/gcp"
+	_ "github.com/google/go-containerregistry/pkg/authn/k8schain/internal/credentialprovider/gcp"
 )

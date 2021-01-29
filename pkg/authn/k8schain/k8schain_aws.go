@@ -17,5 +17,5 @@ package k8schain
 
 import (
 	// aws credential provider
-	_ "github.com/vdemeester/k8s-pkg-credentialprovider/aws"
+	_ "github.com/google/go-containerregistry/pkg/authn/k8schain/internal/credentialprovider/aws"
 )

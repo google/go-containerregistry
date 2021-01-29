@@ -20,9 +20,9 @@ import (
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	credentialprovider "github.com/google/go-containerregistry/pkg/authn/k8schain/internal/credentialprovider"
+	credentialprovidersecrets "github.com/google/go-containerregistry/pkg/authn/k8schain/internal/credentialprovider/secrets"
 	"github.com/google/go-containerregistry/pkg/name"
-	credentialprovider "github.com/vdemeester/k8s-pkg-credentialprovider"
-	credentialprovidersecrets "github.com/vdemeester/k8s-pkg-credentialprovider/secrets"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"

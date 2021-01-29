@@ -85,7 +85,7 @@ jobs:
           boilerplate-check check \
             --boilerplate ./hack/boilerplate/boilerplate.${{ matrix.extension }}.txt \
             --file-extension ${{ matrix.extension }} \
-            --exclude "(vendor|third_party)/" |
+            --exclude "(vendor|third_party|pkg/authn/k8schain/internal)/" |
           reviewdog -efm="%A%f:%l: %m" \
                 -efm="%C%.%#" \
                 -name="${{ matrix.language }} headers" \
