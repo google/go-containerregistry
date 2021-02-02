@@ -10,6 +10,8 @@ github.com/Microsoft/go-winio/pkg/guid
 # github.com/containerd/containerd v1.3.0
 ## explicit
 github.com/containerd/containerd/errdefs
+github.com/containerd/containerd/log
+github.com/containerd/containerd/platforms
 # github.com/containerd/stargz-snapshotter/estargz v0.0.0-20201223015020-a9a0c2d64694
 ## explicit
 github.com/containerd/stargz-snapshotter/estargz
@@ -28,7 +30,7 @@ github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
 github.com/docker/distribution/registry/api/errcode
 github.com/docker/distribution/registry/client/auth/challenge
-# github.com/docker/docker v1.4.2-0.20190924003213-a8608b5b67c7
+# github.com/docker/docker v20.10.0-beta1.0.20201110211921-af34b94a78a1+incompatible
 ## explicit
 github.com/docker/docker/api
 github.com/docker/docker/api/types
