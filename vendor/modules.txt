@@ -1,8 +1,6 @@
 # cloud.google.com/go v0.57.0
 ## explicit
 cloud.google.com/go/compute/metadata
-# github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
-## explicit
 # github.com/Microsoft/go-winio v0.4.14
 ## explicit
 github.com/Microsoft/go-winio
@@ -95,6 +93,8 @@ github.com/maxbrunsfeld/counterfeiter/v6
 github.com/maxbrunsfeld/counterfeiter/v6/arguments
 github.com/maxbrunsfeld/counterfeiter/v6/command
 github.com/maxbrunsfeld/counterfeiter/v6/generator
+# github.com/moby/term v0.0.0-20201216013528-df9cb8a40635
+## explicit
 # github.com/morikuni/aec v1.0.0
 ## explicit
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
@@ -229,6 +229,8 @@ google.golang.org/protobuf/types/known/timestamppb
 ## explicit
 gopkg.in/yaml.v2
 # gotest.tools v2.2.0+incompatible
+## explicit
+# gotest.tools/v3 v3.0.3
 ## explicit
 # k8s.io/code-generator v0.19.7
 ## explicit
