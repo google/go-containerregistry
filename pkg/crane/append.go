@@ -40,6 +40,10 @@ func Append(base v1.Image, paths ...string) (v1.Image, error) {
 }
 
 func getLayer(path string) (v1.Layer, error) {
+	if path == "-" {
+		return stream.NewLayer(os.Stdin), nil
+	}
+
 	fi, err := os.Stat(path)
 	if err != nil {
 		return nil, err
