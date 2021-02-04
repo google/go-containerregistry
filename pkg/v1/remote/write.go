@@ -77,8 +77,7 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		if err != nil {
 			return err
 		}
-		if !mt.IsDistributable() {
-			// TODO(jonjohnsonjr): Add "allow-nondistributable-artifacts" option.
+		if !mt.IsDistributable() && !o.allowNondistributableArtifacts {
 			continue
 		}
 

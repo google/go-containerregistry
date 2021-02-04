@@ -29,13 +29,14 @@ import (
 type Option func(*options) error
 
 type options struct {
-	auth      authn.Authenticator
-	keychain  authn.Keychain
-	transport http.RoundTripper
-	platform  v1.Platform
-	context   context.Context
-	jobs      int
-	userAgent string
+	auth                           authn.Authenticator
+	keychain                       authn.Keychain
+	transport                      http.RoundTripper
+	platform                       v1.Platform
+	context                        context.Context
+	jobs                           int
+	userAgent                      string
+	allowNondistributableArtifacts bool
 }
 
 var defaultPlatform = v1.Platform{
@@ -170,6 +171,17 @@ func WithJobs(jobs int) Option {
 func WithUserAgent(ua string) Option {
 	return func(o *options) error {
 		o.userAgent = ua
+		return nil
+	}
+}
+
+// WithIncludeNondistributable is a functional option for allowing
+// non-distributable (foreign) layers
+//
+// The default behaviour is not to include them.
+func WithIncludeNondistributable() Option {
+	return func(opt *options) error {
+		opt.allowNondistributableArtifacts = true
 		return nil
 	}
 }
