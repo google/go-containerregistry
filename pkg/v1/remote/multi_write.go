@@ -214,11 +214,6 @@ func addIndexBlobs(idx v1.ImageIndex, blobs map[v1.Hash]v1.Layer, repo name.Repo
 }
 
 func addLayerBlob(l v1.Layer, blobs map[v1.Hash]v1.Layer, allowNondistributableArtifacts bool) error {
-	d, err := l.Digest()
-	if err != nil {
-		return err
-	}
-
 	// Ignore foreign layers.
 	mt, err := l.MediaType()
 	if err != nil {
@@ -226,6 +221,11 @@ func addLayerBlob(l v1.Layer, blobs map[v1.Hash]v1.Layer, allowNondistributableA
 	}
 
 	if mt.IsDistributable() || allowNondistributableArtifacts {
+		d, err := l.Digest()
+		if err != nil {
+			return err
+		}
+
 		blobs[d] = l
 	}
 

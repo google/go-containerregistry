@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -98,7 +97,7 @@ func TestAppendDescriptorInitializesIndex(t *testing.T) {
 	}
 }
 
-func TestAppendArtifacts(t *testing.T) {
+func TestRoundtrip(t *testing.T) {
 	tmp, err := ioutil.TempDir("", "write-index-test")
 	if err != nil {
 		t.Fatal(err)
@@ -116,36 +115,10 @@ func TestAppendArtifacts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Let's reconstruct the original.
-	temp, err := Write(tmp, empty.Index)
-	if err != nil {
+	// Write it back.
+	if _, err := Write(tmp, original); err != nil {
 		t.Fatal(err)
 	}
-	for i, desc := range originalManifest.Manifests {
-		// Each descriptor is annotated with its position.
-		annotations := map[string]string{
-			"org.opencontainers.image.ref.name": strconv.Itoa(i + 1),
-		}
-		switch desc.MediaType {
-		case types.OCIImageIndex, types.DockerManifestList:
-			ii, err := original.ImageIndex(desc.Digest)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := temp.AppendIndex(ii, WithAnnotations(annotations)); err != nil {
-				t.Fatal(err)
-			}
-		case types.OCIManifestSchema1, types.DockerManifestSchema2:
-			img, err := original.Image(desc.Digest)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := temp.AppendImage(img, WithAnnotations(annotations)); err != nil {
-				t.Fatal(err)
-			}
-		}
-	}
-
 	reconstructed, err := ImageIndexFromPath(tmp)
 	if err != nil {
 		t.Fatalf("ImageIndexFromPath() = %v", err)

@@ -65,6 +65,7 @@ func TestMultiWrite(t *testing.T) {
 		mutate.IndexAddendum{Add: img1},
 		mutate.IndexAddendum{Add: img2},
 		mutate.IndexAddendum{Add: subidx},
+		mutate.IndexAddendum{Add: rl},
 	)
 
 	// Set up a fake registry.
