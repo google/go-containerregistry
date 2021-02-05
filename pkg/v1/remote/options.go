@@ -175,11 +175,12 @@ func WithUserAgent(ua string) Option {
 	}
 }
 
-// WithIncludeNondistributable is a functional option for allowing
-// non-distributable (foreign) layers
+// WithNondistributable includes non-distributable (foreign) layers
+// when writing images, see:
+// https://github.com/opencontainers/image-spec/blob/master/layer.md#non-distributable-layers
 //
-// The default behaviour is not to include them.
-func WithIncludeNondistributable() Option {
+// The default behaviour is to skip these layers
+func WithNondistributable() Option {
 	return func(opt *options) error {
 		opt.allowNondistributableArtifacts = true
 		return nil

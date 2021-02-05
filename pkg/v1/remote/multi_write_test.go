@@ -134,7 +134,7 @@ func TestMultiWriteWithNondistributableLayer(t *testing.T) {
 
 	// Write the image.
 	tag1 := mustNewTag(t, u.Host+"/repo:tag1")
-	if err := MultiWrite(map[name.Reference]Taggable{tag1: img}, WithIncludeNondistributable()); err != nil {
+	if err := MultiWrite(map[name.Reference]Taggable{tag1: img}, WithNondistributable()); err != nil {
 		t.Error("Write:", err)
 	}
 
