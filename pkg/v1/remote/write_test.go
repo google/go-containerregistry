@@ -1276,7 +1276,7 @@ func (l *fakeForeignLayer) Uncompressed() (io.ReadCloser, error) {
 	return nil, nil
 }
 
-func TestSkipForeignLayers(t *testing.T) {
+func TestSkipForeignLayersByDefault(t *testing.T) {
 	// Set up an image with a foreign layer.
 	base := setupImage(t)
 	img, err := mutate.AppendLayers(base, &fakeForeignLayer{t: t})
@@ -1299,6 +1299,78 @@ func TestSkipForeignLayers(t *testing.T) {
 
 	if err := Write(ref, img); err != nil {
 		t.Errorf("failed to Write: %v", err)
+	}
+}
+
+func TestWriteForeignLayerIfOptionSet(t *testing.T) {
+	// Set up an image with a foreign layer.
+	base := setupImage(t)
+	foreignLayer, err := random.Layer(1024, types.DockerForeignLayer)
+	if err != nil {
+		t.Fatal("random.Layer:", err)
+	}
+	img, err := mutate.AppendLayers(base, foreignLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedRepo := "write/time"
+	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
+	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	uploadPath := "/upload"
+	commitPath := "/commit"
+	var numUploads int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
+			http.Error(w, "NotFound", http.StatusNotFound)
+			return
+		}
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case initiatePath:
+			if r.Method != http.MethodPost {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+			}
+			w.Header().Set("Location", uploadPath)
+			http.Error(w, "Accepted", http.StatusAccepted)
+		case uploadPath:
+			if r.Method != http.MethodPatch {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
+			}
+			atomic.AddInt32(&numUploads, 1)
+			w.Header().Set("Location", commitPath)
+			http.Error(w, "Created", http.StatusCreated)
+		case commitPath:
+			http.Error(w, "Created", http.StatusCreated)
+		case manifestPath:
+			if r.Method != http.MethodPut {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
+			}
+			http.Error(w, "Created", http.StatusCreated)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+	tag, err := name.NewTag(fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo), name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewTag() = %v", err)
+	}
+
+	if err := Write(tag, img, WithNondistributable); err != nil {
+		t.Errorf("Write: %v", err)
+	}
+
+	// 1 random layer, 1 foreign layer, 1 image config blob
+	wantUploads := int32(1 + 1 + 1)
+	if numUploads != wantUploads {
+		t.Fatalf("Write uploaded %d blobs, want %d", numUploads, wantUploads)
 	}
 }
 

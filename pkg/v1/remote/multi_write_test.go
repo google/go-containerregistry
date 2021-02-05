@@ -107,6 +107,47 @@ func TestMultiWrite(t *testing.T) {
 	}
 }
 
+func TestMultiWriteWithNondistributableLayer(t *testing.T) {
+	// Create a random image.
+	img1, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal("random.Image:", err)
+	}
+
+	// Create another image that's based on the first.
+	rl, err := random.Layer(1024, types.OCIRestrictedLayer)
+	if err != nil {
+		t.Fatal("random.Layer:", err)
+	}
+	img, err := mutate.AppendLayers(img1, rl)
+	if err != nil {
+		t.Fatal("mutate.AppendLayers:", err)
+	}
+
+	// Set up a fake registry.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write the image.
+	tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+	if err := MultiWrite(map[name.Reference]Taggable{tag1: img}, WithNondistributable); err != nil {
+		t.Error("Write:", err)
+	}
+
+	// Check that tagged image is present.
+	got, err := Image(tag1)
+	if err != nil {
+		t.Error(err)
+	}
+	if err := validate.Image(got); err != nil {
+		t.Error("Validate() =", err)
+	}
+}
+
 // TestMultiWrite_Deep tests that a deeply nested tree of manifest lists gets
 // pushed in the correct order (i.e., each level in sequence).
 func TestMultiWrite_Deep(t *testing.T) {
