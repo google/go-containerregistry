@@ -180,9 +180,7 @@ func WithUserAgent(ua string) Option {
 // https://github.com/opencontainers/image-spec/blob/master/layer.md#non-distributable-layers
 //
 // The default behaviour is to skip these layers
-func WithNondistributable() Option {
-	return func(opt *options) error {
-		opt.allowNondistributableArtifacts = true
-		return nil
-	}
+func WithNondistributable(o *options) error {
+	o.allowNondistributableArtifacts = true
+	return nil
 }

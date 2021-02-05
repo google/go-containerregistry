@@ -1363,7 +1363,7 @@ func TestWriteForeignLayerIfOptionSet(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Write(tag, img, WithNondistributable()); err != nil {
+	if err := Write(tag, img, WithNondistributable); err != nil {
 		t.Errorf("Write: %v", err)
 	}
 
