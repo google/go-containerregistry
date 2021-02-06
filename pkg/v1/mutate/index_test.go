@@ -58,8 +58,13 @@ func TestAppendIndex(t *testing.T) {
 	}, mutate.IndexAddendum{
 		Add: img,
 		Descriptor: v1.Descriptor{
+			URLs: []string{"image.example.com"},
+		},
+	}, mutate.IndexAddendum{
+		Add: l,
+		Descriptor: v1.Descriptor{
 			MediaType: types.MediaType("application/xml"),
-			URLs:      []string{"image.example.com"},
+			URLs:      []string{"blob.example.com"},
 		},
 	}, mutate.IndexAddendum{
 		Add: l,
@@ -100,18 +105,19 @@ func TestAppendIndex(t *testing.T) {
 	for i, want := range map[int]string{
 		3: "index.example.com",
 		4: "image.example.com",
-		5: "layer.example.com",
+		5: "blob.example.com",
+		6: "layer.example.com",
 	} {
 		if got := m.Manifests[i].URLs[0]; got != want {
 			t.Errorf("wrong URLs[0] for Manifests[%d]: %s != %s", i, got, want)
 		}
 	}
 
-	if got, want := m.Manifests[4].MediaType, types.MediaType("application/xml"); got != want {
+	if got, want := m.Manifests[5].MediaType, types.MediaType("application/xml"); got != want {
 		t.Errorf("wrong MediaType for layer: %s != %s", got, want)
 	}
 
-	if got, want := m.Manifests[5].MediaType, types.OCIUncompressedRestrictedLayer; got != want {
+	if got, want := m.Manifests[6].MediaType, types.OCIUncompressedRestrictedLayer; got != want {
 		t.Errorf("wrong MediaType for layer: %s != %s", got, want)
 	}
 

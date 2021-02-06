@@ -10,7 +10,7 @@
       }
     },
     {
-      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "mediaType": "application/vnd.oci.descriptor.v1+json",
       "size": 423,
       "digest": "sha256:32589985702551b6c56033bb3334432a0a513bf9d6aceda0f67c42b003850720",
       "annotations": {

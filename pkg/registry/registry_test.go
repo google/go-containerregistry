@@ -29,6 +29,23 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 )
 
+const (
+	weirdIndex = `{
+  "manifests": [
+	  {
+			"digest":"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			"mediaType":"application/vnd.oci.image.layer.nondistributable.v1.tar+gzip"
+		},{
+			"digest":"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			"mediaType":"application/xml"
+		},{
+			"digest":"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			"mediaType":"application/vnd.oci.image.manifest.v1+json"
+		}
+	]
+}`
+)
+
 func sha256String(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])
@@ -253,6 +270,37 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/manifests/latest",
 			Code:        http.StatusCreated,
 			Body:        "foo",
+		},
+		{
+			Description: "create index",
+			Method:      "PUT",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusCreated,
+			Body:        weirdIndex,
+			RequestHeader: map[string]string{
+				"Content-Type": "application/vnd.oci.image.index.v1+json",
+			},
+			Manifests: map[string]string{"foo/manifests/image": "foo"},
+		},
+		{
+			Description: "create index missing child",
+			Method:      "PUT",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusNotFound,
+			Body:        weirdIndex,
+			RequestHeader: map[string]string{
+				"Content-Type": "application/vnd.oci.image.index.v1+json",
+			},
+		},
+		{
+			Description: "bad index body",
+			Method:      "PUT",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
+			RequestHeader: map[string]string{
+				"Content-Type": "application/vnd.oci.image.index.v1+json",
+			},
 		},
 		{
 			Description: "bad manifest method",

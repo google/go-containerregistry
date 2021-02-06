@@ -131,24 +131,29 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 		// list's constituent manifests are already uploaded.
 		// This isn't strictly required by the registry API, but some
 		// registries require this.
-		if mf.contentType == string(types.OCIImageIndex) ||
-			mf.contentType == string(types.DockerManifestList) {
-
+		if types.MediaType(mf.contentType).IsIndex() {
 			im, err := v1.ParseIndexManifest(b)
 			if err != nil {
 				return &regError{
-					Status:  http.StatusNotFound,
-					Code:    "MANIFEST_UNKNOWN",
+					Status:  http.StatusBadRequest,
+					Code:    "MANIFEST_INVALID",
 					Message: err.Error(),
 				}
 			}
 			for _, desc := range im.Manifests {
-				if _, found := m.manifests[repo][desc.Digest.String()]; !found {
-					return &regError{
-						Status:  http.StatusNotFound,
-						Code:    "MANIFEST_UNKNOWN",
-						Message: fmt.Sprintf("Sub-manifest %q not found", desc.Digest),
+				if !desc.MediaType.IsDistributable() {
+					continue
+				}
+				if desc.MediaType.IsIndex() || desc.MediaType.IsImage() {
+					if _, found := m.manifests[repo][desc.Digest.String()]; !found {
+						return &regError{
+							Status:  http.StatusNotFound,
+							Code:    "MANIFEST_UNKNOWN",
+							Message: fmt.Sprintf("Sub-manifest %q not found", desc.Digest),
+						}
 					}
+				} else {
+					// TODO: Probably want to do an existence check for blobs.
 				}
 			}
 		}

@@ -314,6 +314,14 @@ func (l Path) WriteImage(img v1.Image) error {
 	return l.WriteBlob(d, ioutil.NopCloser(bytes.NewReader(manifest)))
 }
 
+type withLayer interface {
+	Layer(v1.Hash) (v1.Layer, error)
+}
+
+type withBlob interface {
+	Blob(v1.Hash) (io.ReadCloser, error)
+}
+
 func (l Path) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 	index, err := ii.IndexManifest()
 	if err != nil {
@@ -343,6 +351,24 @@ func (l Path) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 		default:
 			// TODO: The layout could reference arbitrary things, which we should
 			// probably just pass through.
+
+			var blob io.ReadCloser
+			// Workaround for #819.
+			if wl, ok := ii.(withLayer); ok {
+				layer, err := wl.Layer(desc.Digest)
+				if err != nil {
+					return err
+				}
+				blob, err = layer.Compressed()
+			} else if wb, ok := ii.(withBlob); ok {
+				blob, err = wb.Blob(desc.Digest)
+			}
+			if err != nil {
+				return err
+			}
+			if err := l.WriteBlob(desc.Digest, blob); err != nil {
+				return err
+			}
 		}
 	}
 

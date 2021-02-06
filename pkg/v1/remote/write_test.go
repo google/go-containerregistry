@@ -1473,6 +1473,15 @@ func TestNestedIndex(t *testing.T) {
 		},
 	})
 
+	l, err := random.Layer(100, types.DockerLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parent = mutate.AppendManifests(parent, mutate.IndexAddendum{
+		Add: l,
+	})
+
 	if err := WriteIndex(srcRef, parent); err != nil {
 		t.Fatal(err)
 	}
