@@ -283,6 +283,26 @@ func TestCalls(t *testing.T) {
 			Manifests: map[string]string{"foo/manifests/image": "foo"},
 		},
 		{
+			Description: "create index missing child",
+			Method:      "PUT",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusNotFound,
+			Body:        weirdIndex,
+			RequestHeader: map[string]string{
+				"Content-Type": "application/vnd.oci.image.index.v1+json",
+			},
+		},
+		{
+			Description: "bad index body",
+			Method:      "PUT",
+			URL:         "/v2/foo/manifests/latest",
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
+			RequestHeader: map[string]string{
+				"Content-Type": "application/vnd.oci.image.index.v1+json",
+			},
+		},
+		{
 			Description: "bad manifest method",
 			Method:      "BAR",
 			URL:         "/v2/foo/manifests/latest",

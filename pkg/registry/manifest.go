@@ -135,8 +135,8 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 			im, err := v1.ParseIndexManifest(b)
 			if err != nil {
 				return &regError{
-					Status:  http.StatusNotFound,
-					Code:    "MANIFEST_UNKNOWN",
+					Status:  http.StatusBadRequest,
+					Code:    "MANIFEST_INVALID",
 					Message: err.Error(),
 				}
 			}
