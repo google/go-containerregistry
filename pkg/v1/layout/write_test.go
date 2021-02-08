@@ -420,3 +420,45 @@ func TestReplaceImage(t *testing.T) {
 		t.Fatal("could not find digest3", digest3)
 	}
 }
+
+func TestRemoveBlob(t *testing.T) {
+	// need to set up a basic path
+	tmp, err := ioutil.TempDir("", "remove-blob-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.RemoveAll(tmp)
+
+	var ii v1.ImageIndex
+	ii = empty.Index
+	l, err := Write(tmp, ii)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a random blob
+	b := []byte("abcdefghijklmnop")
+	hash, _, err := v1.SHA256(bytes.NewReader(b))
+
+	if err := l.WriteBlob(hash, ioutil.NopCloser(bytes.NewReader(b))); err != nil {
+		t.Fatal(err)
+	}
+	// make sure it exists
+	b2, err := l.Bytes(hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(b, b2) {
+		t.Fatal("mismatched bytes")
+	}
+	// now the real test, delete it
+	if err := l.RemoveBlob(hash); err != nil {
+		t.Fatal(err)
+	}
+	// now it should not exist
+	b2, err = l.Bytes(hash)
+	if err == nil {
+		t.Fatal("still existed after deletion")
+	}
+}

@@ -264,6 +264,19 @@ func (l Path) writeLayer(layer v1.Layer) error {
 	return l.WriteBlob(d, r)
 }
 
+// RemoveBlob removes a file from the blobs directory in the Path
+// at blobs/{hash.Algorithm}/{hash.Hex}
+// It does *not* remove any reference to it from other manifests or indexes, or
+// from the root index.json.
+func (l Path) RemoveBlob(hash v1.Hash) error {
+	dir := l.path("blobs", hash.Algorithm)
+	err := os.Remove(filepath.Join(dir, hash.Hex))
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
 // WriteImage writes an image, including its manifest, config and all of its
 // layers, to the blobs directory. If any blob already exists, as determined by
 // the hash filename, does not write it.
