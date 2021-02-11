@@ -377,6 +377,19 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/manifests/sha256:" + sha256String("foo"),
 			Code:        http.StatusAccepted,
 		},
+		{
+			Description: "list tags",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo", "foo/manifests/tag1": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/tags/list?n=1000",
+			Code:        http.StatusOK,
+		},
+		{
+			Description: "list non existing tags",
+			Method:      "GET",
+			URL:         "/v2/foo/tags/list?n=1000",
+			Code:        http.StatusNotFound,
+		},
 	}
 
 	for _, tc := range tcs {

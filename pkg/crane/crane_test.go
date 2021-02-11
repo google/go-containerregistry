@@ -34,7 +34,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-// TODO(jonjohnsonjr): Test crane.ListTags behavior.
 // TODO(jonjohnsonjr): Test crane.Catalog behavior.
 // TODO(jonjohnsonjr): Test crane.Copy failures.
 func TestCraneRegistry(t *testing.T) {
@@ -146,6 +145,31 @@ func TestCraneRegistry(t *testing.T) {
 
 	if err := compare.Layers(pulledLayer, layer); err != nil {
 		t.Fatal(err)
+	}
+
+	// List Tags
+	// dst variable have: latest and crane-tag
+	tags, err := crane.ListTags(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tags) != 2 {
+		t.Fatalf("wanted 2 tags, got %d", len(tags))
+	}
+
+	// create 4 tags for dst
+	for i := 1; i < 5; i++ {
+		if err := crane.Tag(dst, fmt.Sprintf("honk-tag-%d", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tags, err = crane.ListTags(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tags) != 6 {
+		t.Fatalf("wanted 6 tags, got %d", len(tags))
 	}
 
 	// Delete the non existing image
