@@ -16,7 +16,7 @@ Download [latest release](https://github.com/google/go-containerregistry/release
 Install manually:
 
 ```
-GO111MODULE=on go get -u github.com/google/go-containerregistry/cmd/gcrane
+go install github.com/google/go-containerregistry/cmd/gcrane
 ```
 
 ## Commands
