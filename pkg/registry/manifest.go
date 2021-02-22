@@ -31,6 +31,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+type catalog struct {
+	Repos []string `json:"repositories"`
+}
+
 type listTags struct {
 	Name string   `json:"name"`
 	Tags []string `json:"tags"`
@@ -63,6 +67,16 @@ func isTags(req *http.Request) bool {
 		return false
 	}
 	return elems[len(elems)-2] == "tags"
+}
+
+func isCatalog(req *http.Request) bool {
+	elems := strings.Split(req.URL.Path, "/")
+	elems = elems[1:]
+	if len(elems) < 2 {
+		return false
+	}
+
+	return elems[len(elems)-1] == "_catalog"
 }
 
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pulling-an-image-manifest
@@ -261,6 +275,48 @@ func (m *manifests) handleTags(resp http.ResponseWriter, req *http.Request) *reg
 		}
 
 		msg, _ := json.Marshal(tagsToList)
+		resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
+		resp.WriteHeader(http.StatusOK)
+		io.Copy(resp, bytes.NewReader([]byte(msg)))
+		return nil
+	}
+
+	return &regError{
+		Status:  http.StatusBadRequest,
+		Code:    "METHOD_UNKNOWN",
+		Message: "We don't understand your method + url",
+	}
+}
+
+func (m *manifests) handleCatalog(resp http.ResponseWriter, req *http.Request) *regError {
+	query := req.URL.Query()
+	nStr := query.Get("n")
+	n := 10000
+	if nStr != "" {
+		n, _ = strconv.Atoi(nStr)
+	}
+
+	if req.Method == "GET" {
+		m.lock.Lock()
+		defer m.lock.Unlock()
+
+		var repos []string
+		countRepos := 0
+		// TODO: implement pagination
+		for key := range m.manifests {
+			if countRepos >= n {
+				break
+			}
+			countRepos++
+
+			repos = append(repos, key)
+		}
+
+		repositoriesToList := catalog{
+			Repos: repos,
+		}
+
+		msg, _ := json.Marshal(repositoriesToList)
 		resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
 		resp.WriteHeader(http.StatusOK)
 		io.Copy(resp, bytes.NewReader([]byte(msg)))

@@ -390,6 +390,13 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/tags/list?n=1000",
 			Code:        http.StatusNotFound,
 		},
+		{
+			Description: "list repos",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo", "bar/manifests/latest": "bar"},
+			Method:      "GET",
+			URL:         "/v2/_catalog?n=1000",
+			Code:        http.StatusOK,
+		},
 	}
 
 	for _, tc := range tcs {
