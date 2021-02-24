@@ -173,7 +173,7 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Delete the non existing image
-	if err := crane.Delete("honk-image"); err == nil {
+	if err := crane.Delete(dst + ":honk-image"); err == nil {
 		t.Fatal("wanted err, got nil")
 	}
 
