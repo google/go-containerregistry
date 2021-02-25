@@ -2,36 +2,14 @@ package cache
 
 import (
 	"errors"
+	"io"
+	"io/ioutil"
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
-
-// TestCache tests that the cache is populated when LayerByDigest is called.
-func TestCache(t *testing.T) {
-	numLayers := 5
-	img, err := random.Image(10, int64(numLayers))
-	if err != nil {
-		t.Fatalf("random.Image: %v", err)
-	}
-	m := &memcache{map[v1.Hash]v1.Layer{}}
-	img = Image(img, m)
-
-	// Cache is empty.
-	if len(m.m) != 0 {
-		t.Errorf("Before consuming, cache is non-empty: %+v", m.m)
-	}
-
-	// Consume each layer, cache gets populated.
-	if _, err := img.Layers(); err != nil {
-		t.Fatalf("Layers: %v", err)
-	}
-	if got, want := len(m.m), numLayers; got != want {
-		t.Errorf("Cache has %d entries, want %d", got, want)
-	}
-}
 
 func TestImage(t *testing.T) {
 	img, err := random.Image(1024, 5)
@@ -47,6 +25,35 @@ func TestImage(t *testing.T) {
 	}
 	if err := validate.Image(img); err != nil {
 		t.Errorf("Validate: %v", err)
+	}
+}
+
+func TestLayersLazy(t *testing.T) {
+	img, err := random.Image(1024, 5)
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+	m := &memcache{map[v1.Hash]v1.Layer{}}
+	img = Image(img, m)
+
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("img.Layers: %v", err)
+	}
+
+	// After calling Layers, nothing is cached.
+	if got, want := len(m.m), 0; got != want {
+		t.Errorf("Cache has %d entries, want %d", got, want)
+	}
+
+	rc, err := layers[0].Uncompressed()
+	if err != nil {
+		t.Fatalf("layer.Uncompressed: %v", err)
+	}
+	io.Copy(ioutil.Discard, rc)
+
+	if got, expected := len(m.m), 1; got != expected {
+		t.Errorf("expected %v layers in cache after reading, got %v", expected, got)
 	}
 }
 
