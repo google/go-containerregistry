@@ -62,10 +62,9 @@ func (l Path) AppendImage(img v1.Image, options ...Option) error {
 		Digest:    d,
 	}
 
-	for _, opt := range options {
-		if err := opt(&desc); err != nil {
-			return err
-		}
+	o := makeOptions(options...)
+	for _, opt := range o.descOpts {
+		opt(&desc)
 	}
 
 	return l.AppendDescriptor(desc)
@@ -99,10 +98,9 @@ func (l Path) AppendIndex(ii v1.ImageIndex, options ...Option) error {
 		Digest:    d,
 	}
 
-	for _, opt := range options {
-		if err := opt(&desc); err != nil {
-			return err
-		}
+	o := makeOptions(options...)
+	for _, opt := range o.descOpts {
+		opt(&desc)
 	}
 
 	return l.AppendDescriptor(desc)
