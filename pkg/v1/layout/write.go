@@ -161,10 +161,9 @@ func (l Path) replaceDescriptor(append mutate.Appendable, matcher match.Matcher,
 		return err
 	}
 
-	for _, opt := range options {
-		if err := opt(desc); err != nil {
-			return err
-		}
+	o := makeOptions(options...)
+	for _, opt := range o.descOpts {
+		opt(desc)
 	}
 
 	add := mutate.IndexAddendum{
