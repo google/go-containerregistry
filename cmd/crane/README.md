@@ -5,6 +5,8 @@ and registries.
 
 <img src="../../images/crane.png" width="40%">
 
+A collection of useful things you can do with `crane` is [here](cmd/crane/recipes.md).
+
 ## Installation
 
 Download [latest release](https://github.com/google/go-containerregistry/releases/latest).
