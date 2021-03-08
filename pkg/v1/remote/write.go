@@ -43,17 +43,16 @@ type Taggable interface {
 
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, options ...Option) error {
-	ls, err := img.Layers()
-	if err != nil {
-		return err
-	}
-
 	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
 
-	scopes := scopesForUploadingImage(ref.Context(), ls)
+	ls, err := img.Layers()
+	if err != nil {
+		return err
+	}
+	scopes := scopesForUploadingImage(ref.Context(), ls).slice(ref.Context().Scope(transport.PushScope))
 	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
@@ -64,24 +63,19 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		context: o.context,
 	}
 
-	// Upload individual blobs and collect any errors.
-	blobChan := make(chan v1.Layer, 2*o.jobs)
-	g, ctx := errgroup.WithContext(o.context)
-	for i := 0; i < o.jobs; i++ {
-		// Start N workers consuming blobs to upload.
-		g.Go(func() error {
-			for b := range blobChan {
-				if err := w.uploadOne(b); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-	}
+	return w.writeImage(ref, img, o.allowNondistributableArtifacts, o.jobs)
+}
 
+func (w *writer) writeImage(ref name.Reference, img v1.Image, allowNondistributableArtifacts bool, jobs int) error {
 	// Upload individual layers in goroutines and collect any errors.
 	// If we can dedupe by the layer digest, try to do so. If we can't determine
 	// the digest for whatever reason, we can't dedupe and might re-upload.
+	ls, err := img.Layers()
+	if err != nil {
+		return err
+	}
+	blobChan := make(chan v1.Layer, 2*jobs)
+	g, ctx := errgroup.WithContext(w.context)
 	g.Go(func() error {
 		defer close(blobChan)
 		uploaded := map[v1.Hash]bool{}
@@ -93,7 +87,7 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 			if err != nil {
 				return err
 			}
-			if !mt.IsDistributable() && !o.allowNondistributableArtifacts {
+			if !mt.IsDistributable() && !allowNondistributableArtifacts {
 				continue
 			}
 
@@ -116,6 +110,17 @@ func Write(ref name.Reference, img v1.Image, options ...Option) error {
 		}
 		return nil
 	})
+	for i := 0; i < jobs; i++ {
+		// Start N workers consuming blobs to upload.
+		g.Go(func() error {
+			for b := range blobChan {
+				if err := w.uploadOne(b); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	}
 	if err := g.Wait(); err != nil {
 		return err
 	}
@@ -415,7 +420,7 @@ type withLayer interface {
 	Layer(v1.Hash) (v1.Layer, error)
 }
 
-func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
+func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, allowNondistributableArtifacts bool, jobs int) error {
 	index, err := ii.IndexManifest()
 	if err != nil {
 		return err
@@ -440,7 +445,7 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 				return err
 			}
 
-			if err := w.writeIndex(ref, ii); err != nil {
+			if err := w.writeIndex(ref, ii, allowNondistributableArtifacts, jobs); err != nil {
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
@@ -451,7 +456,7 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 			// TODO: Ideally we could reuse this writer, but we need to know
 			// scopes before we do the token exchange. To be lazy here, just
 			// re-do the token exchange. MultiWrite fixes this.
-			if err := Write(ref, img, options...); err != nil {
+			if err := w.writeImage(ref, img, allowNondistributableArtifacts, jobs); err != nil {
 				return err
 			}
 		default:
@@ -546,28 +551,62 @@ func (w *writer) commitManifest(t Taggable, ref name.Reference) error {
 	return nil
 }
 
-func scopesForUploadingImage(repo name.Repository, layers []v1.Layer) []string {
-	// use a map as set to remove duplicates scope strings
-	scopeSet := map[string]struct{}{}
+type stringset map[string]struct{}
 
+func (s stringset) add(n string) { s[n] = struct{}{} }
+func (s stringset) union(n stringset) {
+	for k := range n {
+		s.add(k)
+	}
+}
+func (s stringset) slice(first string) []string {
+	sl := []string{first}
+	for k := range s {
+		sl = append(sl, k)
+	}
+	return sl
+}
+
+func scopesForUploadingImage(repo name.Repository, layers []v1.Layer) stringset {
+	scopes := stringset{}
 	for _, l := range layers {
 		if ml, ok := l.(*MountableLayer); ok {
 			// we will add push scope for ref.Context() after the loop.
 			// for now we ask pull scope for references of the same registry
 			if ml.Reference.Context().String() != repo.String() && ml.Reference.Context().Registry.String() == repo.Registry.String() {
-				scopeSet[ml.Reference.Scope(transport.PullScope)] = struct{}{}
+				scopes.add(ml.Reference.Scope(transport.PullScope))
 			}
 		}
 	}
+	return scopes
+}
 
-	scopes := make([]string, 0)
-	// Push scope should be the first element because a few registries just look at the first scope to determine access.
-	scopes = append(scopes, repo.Scope(transport.PushScope))
-
-	for scope := range scopeSet {
-		scopes = append(scopes, scope)
+func scopesForUploadingIndex(repo name.Repository, idx v1.ImageIndex) stringset {
+	scopes := stringset{}
+	mf, err := idx.IndexManifest()
+	if err != nil {
+		return nil
 	}
-
+	for _, desc := range mf.Manifests {
+		switch desc.MediaType {
+		case types.OCIImageIndex, types.DockerManifestList:
+			ii, err := idx.ImageIndex(desc.Digest)
+			if err != nil {
+				return nil
+			}
+			scopes.union(scopesForUploadingIndex(repo, ii))
+		case types.OCIManifestSchema1, types.DockerManifestSchema2:
+			img, err := idx.Image(desc.Digest)
+			if err != nil {
+				return nil
+			}
+			ls, err := img.Layers()
+			if err != nil {
+				return nil
+			}
+			scopes.union(scopesForUploadingImage(repo, ls))
+		}
+	}
 	return scopes
 }
 
@@ -579,7 +618,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 	if err != nil {
 		return err
 	}
-	scopes := []string{ref.Scope(transport.PushScope)}
+	scopes := scopesForUploadingIndex(ref.Context(), ii).slice(ref.Context().Scope(transport.PushScope))
 	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
@@ -589,7 +628,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 		client:  &http.Client{Transport: tr},
 		context: o.context,
 	}
-	return w.writeIndex(ref, ii, options...)
+	return w.writeIndex(ref, ii, o.allowNondistributableArtifacts, o.jobs)
 }
 
 // WriteLayer uploads the provided Layer to the specified repo.
@@ -598,7 +637,7 @@ func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) error {
 	if err != nil {
 		return err
 	}
-	scopes := scopesForUploadingImage(repo, []v1.Layer{layer})
+	scopes := scopesForUploadingImage(repo, []v1.Layer{layer}).slice(repo.Scope(transport.PushScope))
 	tr, err := transport.NewWithContext(o.context, repo.Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
@@ -608,7 +647,6 @@ func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) error {
 		client:  &http.Client{Transport: tr},
 		context: o.context,
 	}
-
 	return w.uploadOne(layer)
 }
 

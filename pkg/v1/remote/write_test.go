@@ -942,8 +942,7 @@ func TestDockerhubScopes(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		scopes := scopesForUploadingImage(dst.Context(), []v1.Layer{ml})
-
+		scopes := scopesForUploadingImage(dst.Context(), []v1.Layer{ml}).slice(src.Scope(transport.PushScope))
 		if len(scopes) != 2 {
 			t.Errorf("Should have two scopes (src and dst), got %d", len(scopes))
 		} else if diff := cmp.Diff(want, scopes[1]); diff != "" {
@@ -1106,7 +1105,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		actual := scopesForUploadingImage(tc.reference.Context(), tc.layers)
+		actual := scopesForUploadingImage(tc.reference.Context(), tc.layers).slice(tc.expected[0])
 
 		if want, got := tc.expected[0], actual[0]; want != got {
 			t.Errorf("TestScopesForUploadingImage() %s: Wrong first scope; want %v, got %v", tc.name, want, got)
