@@ -46,6 +46,7 @@ func Rebase(orig, oldBase, newBase v1.Image) (v1.Image, error) {
 			return nil, fmt.Errorf("failed to get digest of layer %d of %q: %v", i, orig, err)
 		}
 		if oldLayerDigest != origLayerDigest {
+			// TODO: this is a bad error message...
 			return nil, fmt.Errorf("image %q is not based on %q (layer %d mismatch)", orig, oldBase, i)
 		}
 	}
