@@ -116,3 +116,38 @@ func TestParseReference(t *testing.T) {
 		}
 	}
 }
+
+func TestMustParseReference(t *testing.T) {
+	goodWeakValidationNames := append(goodWeakValidationTagNames, goodWeakValidationDigestNames...)
+	for _, name := range goodWeakValidationNames {
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					t.Errorf("MustParseReference(%q, WeakValidation); panic: %v", name, err)
+				}
+			}()
+			MustParseReference(name, WeakValidation)
+		}()
+	}
+
+	goodStrictValidationNames := append(goodStrictValidationTagNames, goodStrictValidationDigestNames...)
+	for _, name := range goodStrictValidationNames {
+		func() {
+			defer func() {
+				if err := recover(); err != nil {
+					t.Errorf("MustParseReference(%q, StrictValidation); panic: %v", name, err)
+				}
+			}()
+			MustParseReference(name, StrictValidation)
+		}()
+	}
+
+	badNames := append(badTagNames, badDigestNames...)
+	for _, name := range badNames {
+		func() {
+			defer func() { recover() }()
+			ref := MustParseReference(name, WeakValidation)
+			t.Errorf("MustParseReference(%q, WeakValidation) should panic, got: %#v", name, ref)
+		}()
+	}
+}
