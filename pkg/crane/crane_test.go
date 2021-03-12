@@ -34,7 +34,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-// TODO(jonjohnsonjr): Test crane.Catalog behavior.
 // TODO(jonjohnsonjr): Test crane.Copy failures.
 func TestCraneRegistry(t *testing.T) {
 	// Set up a fake registry.
@@ -194,6 +193,15 @@ func TestCraneRegistry(t *testing.T) {
 	}
 	if err := compare.Images(dstPulled, copied); err != nil {
 		t.Fatal(err)
+	}
+
+	// List Catalog
+	repos, err := crane.Catalog(u.Host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repos) != 2 {
+		t.Fatalf("wanted 2 repos, got %d", len(repos))
 	}
 }
 
