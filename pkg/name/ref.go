@@ -47,3 +47,12 @@ func ParseReference(s string, opts ...Option) (Reference, error) {
 	return nil, NewErrBadName("could not parse reference: " + s)
 
 }
+
+// MustParseReference behaves like ParseReference, but panics instead of returning an error.
+func MustParseReference(s string, opts ...Option) Reference {
+	ref, err := ParseReference(s, opts...)
+	if err != nil {
+		panic(err)
+	}
+	return ref
+}
