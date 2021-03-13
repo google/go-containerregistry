@@ -28,12 +28,12 @@ func TestCheckPushPermission_Real(t *testing.T) {
 	// Tests should not run in an environment where these registries can
 	// be pushed to.
 	for _, r := range []name.Reference{
-		mustNewTag(t, "ubuntu"),
-		mustNewTag(t, "google/cloud-sdk"),
-		mustNewTag(t, "microsoft/dotnet:sdk"),
-		mustNewTag(t, "gcr.io/non-existent-project/made-up"),
-		mustNewTag(t, "gcr.io/google-containers/foo"),
-		mustNewTag(t, "quay.io/username/reponame"),
+		name.MustParseReference("ubuntu"),
+		name.MustParseReference("google/cloud-sdk"),
+		name.MustParseReference("microsoft/dotnet:sdk"),
+		name.MustParseReference("gcr.io/non-existent-project/made-up"),
+		name.MustParseReference("gcr.io/google-containers/foo"),
+		name.MustParseReference("quay.io/username/reponame"),
 	} {
 		t.Run(r.String(), func(t *testing.T) {
 			t.Parallel()
