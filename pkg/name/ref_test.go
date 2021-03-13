@@ -126,7 +126,7 @@ func TestMustParseReference(t *testing.T) {
 					t.Errorf("MustParseReference(%q, WeakValidation); panic: %v", name, err)
 				}
 			}()
-			MustParseReference(name, WeakValidation)
+			MustParseReference(stringConst(name), WeakValidation)
 		}()
 	}
 
@@ -138,7 +138,7 @@ func TestMustParseReference(t *testing.T) {
 					t.Errorf("MustParseReference(%q, StrictValidation); panic: %v", name, err)
 				}
 			}()
-			MustParseReference(name, StrictValidation)
+			MustParseReference(stringConst(name), StrictValidation)
 		}()
 	}
 
@@ -146,8 +146,15 @@ func TestMustParseReference(t *testing.T) {
 	for _, name := range badNames {
 		func() {
 			defer func() { recover() }()
-			ref := MustParseReference(name, WeakValidation)
+			ref := MustParseReference(stringConst(name), WeakValidation)
 			t.Errorf("MustParseReference(%q, WeakValidation) should panic, got: %#v", name, ref)
 		}()
 	}
 }
+
+// Test that MustParseReference can accept a const string or string value.
+const str = "valid/string"
+
+var _ = MustParseReference(str)
+var _ = MustParseReference("valid/string")
+var _ = MustParseReference("valid/prefix/" + str)
