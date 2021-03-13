@@ -42,14 +42,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-func mustRepo(s string) name.Repository {
-	repo, err := name.NewRepository(s)
-	if err != nil {
-		panic(err)
-	}
-	return repo
-}
-
 type fakeXCR struct {
 	h     http.Handler
 	repos map[string]google.Tags
@@ -206,15 +198,15 @@ func TestCopy(t *testing.T) {
 
 func TestRename(t *testing.T) {
 	c := copier{
-		srcRepo: mustRepo("xcr.io/foo"),
-		dstRepo: mustRepo("xcr.io/bar"),
+		srcRepo: name.MustParseReference("xcr.io/foo").Context(),
+		dstRepo: name.MustParseReference("xcr.io/bar").Context(),
 	}
 
-	got, err := c.rename(mustRepo("xcr.io/foo/sub/repo"))
+	got, err := c.rename(name.MustParseReference("xcr.io/foo/sub/repo").Context())
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	want := mustRepo("xcr.io/bar/sub/repo")
+	want := name.MustParseReference("xcr.io/bar/sub/repo").Context()
 
 	if want.String() != got.String() {
 		t.Errorf("%s != %s", want, got)
