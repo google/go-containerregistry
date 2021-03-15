@@ -93,7 +93,7 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
 
 	// Upload individual blobs and collect any errors.
 	blobChan := make(chan v1.Layer, 2*o.jobs)
-	var g errgroup.Group
+	g, ctx := errgroup.WithContext(o.context)
 	for i := 0; i < o.jobs; i++ {
 		// Start N workers consuming blobs to upload.
 		g.Go(func() error {
@@ -105,12 +105,17 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
 			return nil
 		})
 	}
-	go func() {
+	g.Go(func() error {
+		defer close(blobChan)
 		for _, b := range blobs {
-			blobChan <- b
+			select {
+			case blobChan <- b:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
-		close(blobChan)
-	}()
+		return nil
+	})
 	if err := g.Wait(); err != nil {
 		return err
 	}
