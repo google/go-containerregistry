@@ -24,12 +24,18 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path"
+	"strings"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
@@ -115,7 +121,8 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure what we copied is equivalent.
-	copied, err := crane.Pull(dst, crane.Insecure, crane.WithTransport(http.DefaultTransport))
+	// Also, get options coverage in a dumb way.
+	copied, err := crane.Pull(dst, crane.Insecure, crane.WithTransport(http.DefaultTransport), crane.WithAuth(authn.Anonymous), crane.WithAuthFromKeychain(authn.DefaultKeychain), crane.WithUserAgent("crane/tests"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,6 +252,83 @@ func TestCraneCopyIndex(t *testing.T) {
 	}
 	if d != cp {
 		t.Errorf("Copied Digest(): %v != %v", d, cp)
+	}
+}
+
+func TestWithPlatform(t *testing.T) {
+	// Set up a fake registry with a platform-specific image.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	imgs := []mutate.IndexAddendum{}
+	for _, plat := range []string{
+		"linux/amd64",
+		"linux/arm",
+	} {
+		img, err := crane.Image(map[string][]byte{
+			"platform.txt": []byte(plat),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		parts := strings.Split(plat, "/")
+		imgs = append(imgs, mutate.IndexAddendum{
+			Add: img,
+			Descriptor: v1.Descriptor{
+				Platform: &v1.Platform{
+					OS:           parts[0],
+					Architecture: parts[1],
+				},
+			},
+		})
+	}
+
+	idx := mutate.AppendManifests(empty.Index, imgs...)
+
+	src := path.Join(u.Host, "src")
+	dst := path.Join(u.Host, "dst")
+
+	ref, err := name.ParseReference(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Populate registry so we can copy from it.
+	if err := remote.WriteIndex(ref, idx); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := crane.Copy(src, dst, crane.WithPlatform(imgs[1].Platform)); err != nil {
+		t.Fatal(err)
+	}
+
+	want, err := crane.Manifest(src, crane.WithPlatform(imgs[1].Platform))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := crane.Manifest(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(got) != string(want) {
+		t.Errorf("Manifest(%q) != Manifest(%q): (\n\n%s\n\n!=\n\n%s\n\n)", dst, src, string(got), string(want))
+	}
+
+	arch := "real fake doors"
+
+	// Now do a fake platform, should fail
+	if _, err := crane.Manifest(src, crane.WithPlatform(&v1.Platform{
+		OS:           "does-not-exist",
+		Architecture: arch,
+	})); err == nil {
+		t.Error("crane.Manifest(fake platform): got nil want err")
+	} else if !strings.Contains(err.Error(), arch) {
+		t.Errorf("crane.Manifest(fake platform): expected %q in error, got: %v", arch, err)
 	}
 }
 
@@ -381,6 +465,49 @@ func TestCraneFilesystem(t *testing.T) {
 	}
 }
 
+func TestStreamingAppend(t *testing.T) {
+	// Stdin will be an uncompressed layer.
+	layer, err := crane.Layer(map[string][]byte{
+		"hello": []byte(`world`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rc, err := layer.Uncompressed()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmp, err := ioutil.TempFile("", "crane-append")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmp.Name())
+
+	if _, err := io.Copy(tmp, rc); err != nil {
+		t.Fatal(err)
+	}
+
+	stdin := os.Stdin
+	defer func() {
+		os.Stdin = stdin
+	}()
+
+	os.Stdin = tmp
+
+	img, err := crane.Append(empty.Image, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ll, err := img.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want, got := 1, len(ll); want != got {
+		t.Errorf("crane.Append(stdin) - len(layers): want %d != got %d", want, got)
+	}
+}
+
 func TestBadInputs(t *testing.T) {
 	t.Parallel()
 	invalid := "/dev/null/@@@@@@"
@@ -416,6 +543,9 @@ func TestBadInputs(t *testing.T) {
 		{"Tag(invalid, invalid)", crane.Tag(invalid, invalid)},
 		{"Tag(404, invalid)", crane.Tag(valid404, invalid)},
 		{"Tag(404, 404)", crane.Tag(valid404, valid404)},
+		{"Optimize(invalid, invalid)", crane.Optimize(invalid, invalid, []string{})},
+		{"Optimize(404, invalid)", crane.Optimize(valid404, invalid, []string{})},
+		{"Optimize(404, 404)", crane.Optimize(valid404, valid404, []string{})},
 		// These return multiple values, which are hard to use as expressions.
 		{"Pull(invalid)", e(crane.Pull(invalid))},
 		{"Digest(invalid)", e(crane.Digest(invalid))},
