@@ -28,6 +28,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -120,7 +121,8 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure what we copied is equivalent.
-	copied, err := crane.Pull(dst, crane.Insecure, crane.WithTransport(http.DefaultTransport))
+	// Also, get options coverage in a dumb way.
+	copied, err := crane.Pull(dst, crane.Insecure, crane.WithTransport(http.DefaultTransport), crane.WithAuth(authn.Anonymous), crane.WithAuthFromKeychain(authn.DefaultKeychain), crane.WithUserAgent("crane/tests"))
 	if err != nil {
 		t.Fatal(err)
 	}
