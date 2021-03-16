@@ -25,6 +25,16 @@ If you're macOS user and using [Homebrew](https://brew.sh/), you can install via
 $ brew install crane
 ```
 
+### Install on arch
+
+If you're arch linux user and use [some AUR
+helper](https://wiki.archlinux.org/index.php/AUR_helpers) you can install it with one of
+your favourite command:
+
+```sh
+$ yay -S go-crane-bin
+```
+
 ## Images
 
 You can also use crane as docker image
