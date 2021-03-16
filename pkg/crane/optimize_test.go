@@ -158,8 +158,8 @@ func TestOptimize(t *testing.T) {
 
 	for i, ref := range []string{slow, slow, slowImgRef} {
 		opts := []Option{}
-		// Silly, but use WithPlatform for the first one to get coverage.
-		if i == 0 {
+		// Silly, but use WithPlatform to get some more coverage.
+		if i != 0 {
 			opts = []Option{WithPlatform(imgs[1].Platform)}
 		}
 		dig, err := Digest(ref, opts...)

@@ -24,12 +24,17 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
@@ -245,6 +250,83 @@ func TestCraneCopyIndex(t *testing.T) {
 	}
 	if d != cp {
 		t.Errorf("Copied Digest(): %v != %v", d, cp)
+	}
+}
+
+func TestWithPlatform(t *testing.T) {
+	// Set up a fake registry with a platform-specific image.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	imgs := []mutate.IndexAddendum{}
+	for _, plat := range []string{
+		"linux/amd64",
+		"linux/arm",
+	} {
+		img, err := crane.Image(map[string][]byte{
+			"platform.txt": []byte(plat),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		parts := strings.Split(plat, "/")
+		imgs = append(imgs, mutate.IndexAddendum{
+			Add: img,
+			Descriptor: v1.Descriptor{
+				Platform: &v1.Platform{
+					OS:           parts[0],
+					Architecture: parts[1],
+				},
+			},
+		})
+	}
+
+	idx := mutate.AppendManifests(empty.Index, imgs...)
+
+	src := path.Join(u.Host, "src")
+	dst := path.Join(u.Host, "dst")
+
+	ref, err := name.ParseReference(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Populate registry so we can copy from it.
+	if err := remote.WriteIndex(ref, idx); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := crane.Copy(src, dst, crane.WithPlatform(imgs[1].Platform)); err != nil {
+		t.Fatal(err)
+	}
+
+	want, err := crane.Manifest(src, crane.WithPlatform(imgs[1].Platform))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := crane.Manifest(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(got) != string(want) {
+		t.Errorf("Manifest(%q) != Manifest(%q): (\n\n%s\n\n!=\n\n%s\n\n)", dst, src, string(got), string(want))
+	}
+
+	arch := "real fake doors"
+
+	// Now do a fake platform, should fail
+	if _, err := crane.Manifest(src, crane.WithPlatform(&v1.Platform{
+		OS:           "does-not-exist",
+		Architecture: arch,
+	})); err == nil {
+		t.Error("crane.Manifest(fake platform): got nil want err")
+	} else if !strings.Contains(err.Error(), arch) {
+		t.Errorf("crane.Manifest(fake platform): expected %q in error, got: %v", arch, err)
 	}
 }
 
