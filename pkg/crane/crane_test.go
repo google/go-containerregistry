@@ -463,6 +463,49 @@ func TestCraneFilesystem(t *testing.T) {
 	}
 }
 
+func TestStreamingAppend(t *testing.T) {
+	// Stdin will be an uncompressed layer.
+	layer, err := crane.Layer(map[string][]byte{
+		"hello": []byte(`world`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rc, err := layer.Uncompressed()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmp, err := ioutil.TempFile("", "crane-append")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmp.Name())
+
+	if _, err := io.Copy(tmp, rc); err != nil {
+		t.Fatal(err)
+	}
+
+	stdin := os.Stdin
+	defer func() {
+		os.Stdin = stdin
+	}()
+
+	os.Stdin = tmp
+
+	img, err := crane.Append(empty.Image, "-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ll, err := img.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want, got := 1, len(ll); want != got {
+		t.Errorf("crane.Append(stdin) - len(layers): want %d != got %d", want, got)
+	}
+}
+
 func TestBadInputs(t *testing.T) {
 	t.Parallel()
 	invalid := "/dev/null/@@@@@@"
