@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/internal/redact"
@@ -32,6 +33,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
 )
@@ -42,26 +44,41 @@ type Taggable interface {
 }
 
 // Write pushes the provided img to the specified image reference.
-func Write(ref name.Reference, img v1.Image, options ...Option) error {
-	ls, err := img.Layers()
-	if err != nil {
-		return err
-	}
-
+func Write(ref name.Reference, img v1.Image, options ...Option) (rerr error) {
 	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
 
+	var lastUpdate *v1.Update
+	if o.updates != nil {
+		lastUpdate = &v1.Update{}
+		lastUpdate.Total, err = countImage(img, o.allowNondistributableArtifacts)
+		if err != nil {
+			return err
+		}
+		defer close(o.updates)
+		defer func() { sendError(o.updates, rerr) }()
+	}
+	return writeImage(ref, img, o, lastUpdate)
+}
+
+func writeImage(ref name.Reference, img v1.Image, o *options, lastUpdate *v1.Update) error {
+	ls, err := img.Layers()
+	if err != nil {
+		return err
+	}
 	scopes := scopesForUploadingImage(ref.Context(), ls)
 	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}
 	w := writer{
-		repo:    ref.Context(),
-		client:  &http.Client{Transport: tr},
-		context: o.context,
+		repo:       ref.Context(),
+		client:     &http.Client{Transport: tr},
+		context:    o.context,
+		updates:    o.updates,
+		lastUpdate: lastUpdate,
 	}
 
 	// Upload individual blobs and collect any errors.
@@ -158,6 +175,16 @@ type writer struct {
 	repo    name.Repository
 	client  *http.Client
 	context context.Context
+
+	updates    chan<- v1.Update
+	lastUpdate *v1.Update
+}
+
+func sendError(ch chan<- v1.Update, err error) error {
+	if err != nil && ch != nil {
+		ch <- v1.Update{Error: err}
+	}
+	return err
 }
 
 // url returns a url.Url for the specified path in the context of this remote image reference.
@@ -280,10 +307,49 @@ func (w *writer) initiateUpload(from, mount string) (location string, mounted bo
 	}
 }
 
+type progressReader struct {
+	rc io.ReadCloser
+
+	count      *int64 // number of bytes this reader has read, to support resetting on retry.
+	updates    chan<- v1.Update
+	lastUpdate *v1.Update
+}
+
+func (r *progressReader) Read(b []byte) (int, error) {
+	n, err := r.rc.Read(b)
+	if err != nil {
+		return n, err
+	}
+	atomic.AddInt64(r.count, int64(n))
+	// TODO: warn/debug log if sending takes too long, or if sending is blocked while context is cancelled.
+	r.updates <- v1.Update{
+		Total:    r.lastUpdate.Total,
+		Complete: atomic.AddInt64(&r.lastUpdate.Complete, int64(n)),
+	}
+	return n, nil
+}
+
+func (r *progressReader) Close() error { return r.rc.Close() }
+
 // streamBlob streams the contents of the blob to the specified location.
 // On failure, this will return an error.  On success, this will return the location
 // header indicating how to commit the streamed blob.
-func (w *writer) streamBlob(ctx context.Context, blob io.ReadCloser, streamLocation string) (commitLocation string, err error) {
+func (w *writer) streamBlob(ctx context.Context, blob io.ReadCloser, streamLocation string) (commitLocation string, rerr error) {
+	reset := func() {}
+	defer func() {
+		if rerr != nil {
+			reset()
+		}
+	}()
+	if w.updates != nil {
+		var count int64
+		blob = &progressReader{rc: blob, updates: w.updates, lastUpdate: w.lastUpdate, count: &count}
+		reset = func() {
+			atomic.AddInt64(&w.lastUpdate.Complete, -count)
+			w.updates <- *w.lastUpdate
+		}
+	}
+
 	req, err := http.NewRequest(http.MethodPatch, streamLocation, blob)
 	if err != nil {
 		return "", err
@@ -329,6 +395,17 @@ func (w *writer) commitBlob(location, digest string) error {
 	return transport.CheckError(resp, http.StatusCreated)
 }
 
+// incrProgress increments and sends a progress update, if WithProgress is used.
+func (w *writer) incrProgress(written int64) {
+	if w.updates == nil {
+		return
+	}
+	w.updates <- v1.Update{
+		Total:    w.lastUpdate.Total,
+		Complete: atomic.AddInt64(&w.lastUpdate.Complete, int64(written)),
+	}
+}
+
 // uploadOne performs a complete upload of a single layer.
 func (w *writer) uploadOne(l v1.Layer) error {
 	var from, mount string
@@ -340,6 +417,11 @@ func (w *writer) uploadOne(l v1.Layer) error {
 			return err
 		}
 		if existing {
+			size, err := l.Size()
+			if err != nil {
+				return err
+			}
+			w.incrProgress(size)
 			logs.Progress.Printf("existing blob: %v", h)
 			return nil
 		}
@@ -359,6 +441,11 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		if err != nil {
 			return err
 		} else if mounted {
+			size, err := l.Size()
+			if err != nil {
+				return err
+			}
+			w.incrProgress(size)
 			h, err := l.Digest()
 			if err != nil {
 				return err
@@ -421,6 +508,11 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 		return err
 	}
 
+	o, err := makeOptions(ref.Context(), options...)
+	if err != nil {
+		return err
+	}
+
 	// TODO(#803): Pipe through remote.WithJobs and upload these in parallel.
 	for _, desc := range index.Manifests {
 		ref := ref.Context().Digest(desc.Digest.String())
@@ -439,7 +531,6 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 			if err != nil {
 				return err
 			}
-
 			if err := w.writeIndex(ref, ii); err != nil {
 				return err
 			}
@@ -448,10 +539,7 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 			if err != nil {
 				return err
 			}
-			// TODO: Ideally we could reuse this writer, but we need to know
-			// scopes before we do the token exchange. To be lazy here, just
-			// re-do the token exchange. MultiWrite fixes this.
-			if err := Write(ref, img, options...); err != nil {
+			if err := writeImage(ref, img, o, w.lastUpdate); err != nil {
 				return err
 			}
 		default:
@@ -543,6 +631,7 @@ func (w *writer) commitManifest(t Taggable, ref name.Reference) error {
 
 	// The image was successfully pushed!
 	logs.Progress.Printf("%v: digest: %v size: %d", ref, desc.Digest, desc.Size)
+	w.incrProgress(int64(len(raw)))
 	return nil
 }
 
@@ -574,11 +663,12 @@ func scopesForUploadingImage(repo name.Repository, layers []v1.Layer) []string {
 // WriteIndex pushes the provided ImageIndex to the specified image reference.
 // WriteIndex will attempt to push all of the referenced manifests before
 // attempting to push the ImageIndex, to retain referential integrity.
-func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
+func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) (rerr error) {
 	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
+
 	scopes := []string{ref.Scope(transport.PushScope)}
 	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
@@ -588,12 +678,132 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 		repo:    ref.Context(),
 		client:  &http.Client{Transport: tr},
 		context: o.context,
+		updates: o.updates,
 	}
+
+	if o.updates != nil {
+		w.lastUpdate = &v1.Update{}
+		w.lastUpdate.Total, err = countIndex(ii, o.allowNondistributableArtifacts)
+		if err != nil {
+			return err
+		}
+		defer close(o.updates)
+		defer func() { sendError(o.updates, rerr) }()
+	}
+
 	return w.writeIndex(ref, ii, options...)
 }
 
+// countImage counts the total size of all layers + config blob + manifest for
+// an image. It de-dupes duplicate layers.
+func countImage(img v1.Image, allowNondistributableArtifacts bool) (int64, error) {
+	var total int64
+	ls, err := img.Layers()
+	if err != nil {
+		return 0, err
+	}
+	seen := map[v1.Hash]bool{}
+	for _, l := range ls {
+		// Handle foreign layers.
+		mt, err := l.MediaType()
+		if err != nil {
+			return 0, err
+		}
+		if !mt.IsDistributable() && !allowNondistributableArtifacts {
+			continue
+		}
+
+		// TODO: support streaming layers which update the total count as they write.
+		if _, ok := l.(*stream.Layer); ok {
+			return 0, errors.New("cannot use stream.Layer and WithProgress")
+		}
+
+		// Dedupe layers.
+		d, err := l.Digest()
+		if err != nil {
+			return 0, err
+		}
+		if seen[d] {
+			continue
+		}
+		seen[d] = true
+
+		size, err := l.Size()
+		if err != nil {
+			return 0, err
+		}
+		total += size
+	}
+	b, err := img.RawConfigFile()
+	if err != nil {
+		return 0, err
+	}
+	total += int64(len(b))
+	size, err := img.Size()
+	if err != nil {
+		return 0, err
+	}
+	total += size
+	return total, nil
+}
+
+// countIndex counts the total size of all images + sub-indexes for an index.
+// It does not attempt to de-dupe duplicate images, etc.
+func countIndex(idx v1.ImageIndex, allowNondistributableArtifacts bool) (int64, error) {
+	var total int64
+	mf, err := idx.IndexManifest()
+	if err != nil {
+		return 0, err
+	}
+
+	for _, desc := range mf.Manifests {
+		switch desc.MediaType {
+		case types.OCIImageIndex, types.DockerManifestList:
+			sidx, err := idx.ImageIndex(desc.Digest)
+			if err != nil {
+				return 0, err
+			}
+			size, err := countIndex(sidx, allowNondistributableArtifacts)
+			if err != nil {
+				return 0, err
+			}
+			total += size
+		case types.OCIManifestSchema1, types.DockerManifestSchema2:
+			simg, err := idx.Image(desc.Digest)
+			if err != nil {
+				return 0, err
+			}
+			size, err := countImage(simg, allowNondistributableArtifacts)
+			if err != nil {
+				return 0, err
+			}
+			total += size
+		default:
+			// Workaround for #819.
+			if wl, ok := idx.(withLayer); ok {
+				layer, err := wl.Layer(desc.Digest)
+				if err != nil {
+					return 0, err
+				}
+				size, err := layer.Size()
+				if err != nil {
+					return 0, err
+				}
+				total += size
+			}
+		}
+	}
+
+	size, err := idx.Size()
+	if err != nil {
+		return 0, err
+	}
+	total += size
+	return total, nil
+}
+
 // WriteLayer uploads the provided Layer to the specified repo.
-func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) error {
+func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) (rerr error) {
 	o, err := makeOptions(repo, options...)
 	if err != nil {
 		return err
@@ -607,8 +817,23 @@ func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) error {
 		repo:    repo,
 		client:  &http.Client{Transport: tr},
 		context: o.context,
+		updates: o.updates,
 	}
 
+	if o.updates != nil {
+		defer close(o.updates)
+		defer func() { sendError(o.updates, rerr) }()
+
+		// TODO: support streaming layers which update the total count as they write.
+		if _, ok := layer.(*stream.Layer); ok {
+			return errors.New("cannot use stream.Layer and WithProgress")
+		}
+		size, err := layer.Size()
+		if err != nil {
+			return err
+		}
+		w.lastUpdate = &v1.Update{Total: size}
+	}
 	return w.uploadOne(layer)
 }
 

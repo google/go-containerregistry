@@ -37,6 +37,7 @@ type options struct {
 	jobs                           int
 	userAgent                      string
 	allowNondistributableArtifacts bool
+	updates                        chan<- v1.Update
 }
 
 var defaultPlatform = v1.Platform{
@@ -183,4 +184,15 @@ func WithUserAgent(ua string) Option {
 func WithNondistributable(o *options) error {
 	o.allowNondistributableArtifacts = true
 	return nil
+}
+
+// WithProgress takes a channel that will receive progress updates as bytes are written.
+//
+// Sending updates to an unbuffered channel will block writes, so callers
+// should provide a buffered channel to avoid potential deadlocks.
+func WithProgress(updates chan<- v1.Update) Option {
+	return func(o *options) error {
+		o.updates = updates
+		return nil
+	}
 }

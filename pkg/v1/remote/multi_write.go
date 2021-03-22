@@ -33,7 +33,7 @@ import (
 // Current limitations:
 // - All refs must share the same repository.
 // - Images cannot consist of stream.Layers.
-func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
+func MultiWrite(m map[name.Reference]Taggable, options ...Option) (rerr error) {
 	// Determine the repository being pushed to; if asked to push to
 	// multiple repositories, give up.
 	var repo, zero name.Repository
@@ -86,9 +86,49 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
 		return err
 	}
 	w := writer{
-		repo:    repo,
-		client:  &http.Client{Transport: tr},
-		context: o.context,
+		repo:       repo,
+		client:     &http.Client{Transport: tr},
+		context:    o.context,
+		updates:    o.updates,
+		lastUpdate: &v1.Update{},
+	}
+
+	// Collect the total size of blobs and manifests we're about to write.
+	if o.updates != nil {
+		defer close(o.updates)
+		defer func() { sendError(o.updates, rerr) }()
+		for _, b := range blobs {
+			size, err := b.Size()
+			if err != nil {
+				return err
+			}
+			w.lastUpdate.Total += size
+		}
+		countManifest := func(t Taggable) error {
+			b, err := t.RawManifest()
+			if err != nil {
+				return err
+			}
+			w.lastUpdate.Total += int64(len(b))
+			return nil
+		}
+		for _, i := range images {
+			if err := countManifest(i); err != nil {
+				return err
+			}
+		}
+		for _, nm := range newManifests {
+			for _, i := range nm {
+				if err := countManifest(i); err != nil {
+					return err
+				}
+			}
+		}
+		for _, i := range indexes {
+			if err := countManifest(i); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Upload individual blobs and collect any errors.
@@ -160,8 +200,8 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) error {
 	}
 	// Push originally requested index manifests, which might depend on
 	// newly discovered manifests.
-	return commitMany(indexes)
 
+	return commitMany(indexes)
 }
 
 // addIndexBlobs adds blobs to the set of blobs we intend to upload, and

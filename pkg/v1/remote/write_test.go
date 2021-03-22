@@ -908,12 +908,22 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Fatalf("NewTag() = %v", err)
 	}
 
-	if err := Write(tag, img); err == nil {
+	c := make(chan v1.Update, 100)
+
+	if err := Write(tag, img, WithProgress(c)); err == nil {
 		t.Error("Write() = nil; wanted error")
 	} else if se, ok := err.(*transport.Error); !ok {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)
 	} else if diff := cmp.Diff(expectedError, se, cmpopts.IgnoreUnexported(transport.Error{})); diff != "" {
 		t.Errorf("Write(); (-want +got) = %s", diff)
+	}
+
+	var last v1.Update
+	for update := range c {
+		last = update
+	}
+	if last.Error == nil {
+		t.Error("Progress chan didn't report error")
 	}
 }
 

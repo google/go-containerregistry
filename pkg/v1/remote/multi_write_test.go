@@ -156,7 +156,7 @@ func TestMultiWrite_Deep(t *testing.T) {
 	if err != nil {
 		t.Fatal("random.Image:", err)
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 4; i++ {
 		idx = mutate.AppendManifests(idx, mutate.IndexAddendum{Add: idx})
 	}
 
