@@ -20,6 +20,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -172,5 +173,44 @@ func TestHeadSchema1(t *testing.T) {
 
 	if desc.Size != int64(len(response)) {
 		t.Errorf("Descriptor.Size = %q, expected %q", desc.Size, len(response))
+	}
+}
+
+// TestHead_MissingHeaders tests that HEAD responses missing necessary headers
+// result in errors.
+func TestHead_MissingHeaders(t *testing.T) {
+	missingType := "missing-type"
+	missingLength := "missing-length"
+	missingDigest := "missing-digest"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Method != http.MethodHead {
+			t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
+		}
+		if !strings.Contains(r.URL.Path, missingType) {
+			w.Header().Set("Content-Type", "My-Media-Type")
+		}
+		if !strings.Contains(r.URL.Path, missingLength) {
+			w.Header().Set("Content-Length", "10")
+		}
+		if !strings.Contains(r.URL.Path, missingDigest) {
+			w.Header().Set("Docker-Content-Digest", "sha256:0000000000000000000000000000000000000000000000000000000000000000")
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	for _, repo := range []string{missingType, missingLength, missingDigest} {
+		tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, repo))
+		if _, err := Head(tag); err == nil {
+			t.Errorf("Head(%q): expected error, got nil", tag)
+		}
 	}
 }
