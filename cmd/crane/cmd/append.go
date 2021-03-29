@@ -54,7 +54,7 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 			}
 
 			if outFile != "" {
-				if err := crane.Save(map[string]v1.Image{newTag: img}, outFile); err != nil {
+				if err := crane.Save(img, newTag, outFile); err != nil {
 					log.Fatalf("writing output %q: %v", outFile, err)
 				}
 			} else {

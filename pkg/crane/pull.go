@@ -44,7 +44,12 @@ func Pull(src string, opt ...Option) (v1.Image, error) {
 }
 
 // Save writes the v1.Image img as a tarball at path with tag src.
-func Save(imgMap map[string]v1.Image, path string) error {
+func Save(img v1.Image, src, path string) error {
+	imgMap := map[string]v1.Image{src: img}
+	return MultiSave(imgMap, path)
+}
+
+func MultiSave(imgMap map[string]v1.Image, path string) error {
 	tagToImage := map[name.Tag]v1.Image{}
 
 	for src, img := range imgMap {
@@ -83,7 +88,12 @@ func PullLayer(ref string, opt ...Option) (v1.Layer, error) {
 }
 
 // SaveLegacy writes the v1.Image img as a legacy tarball at path with tag src.
-func SaveLegacy(imgMap map[string]v1.Image, path string) error {
+func SaveLegacy(img v1.Image, src, path string) error {
+	imgMap := map[string]v1.Image{src: img}
+	return MultiSave(imgMap, path)
+}
+
+func MultiSaveLegacy(imgMap map[string]v1.Image, path string) error {
 	refToImage := map[name.Reference]v1.Image{}
 
 	for src, img := range imgMap {
@@ -105,7 +115,12 @@ func SaveLegacy(imgMap map[string]v1.Image, path string) error {
 
 // SaveOCI writes the v1.Image img as an OCI Image Layout at path. If a layout
 // already exists at that path, it will add the image to the index.
-func SaveOCI(imgMap map[string]v1.Image, path string) error {
+func SaveOCI(img v1.Image, path string) error {
+	imgMap := map[string]v1.Image{"": img}
+	return MultiSaveOCI(imgMap, path)
+}
+
+func MultiSaveOCI(imgMap map[string]v1.Image, path string) error {
 	var err error
 	var p layout.Path
 	for _, img := range imgMap {

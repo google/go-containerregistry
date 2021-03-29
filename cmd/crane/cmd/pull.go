@@ -30,7 +30,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "pull IMAGE TARBALL",
-		Short: "Pull remote images by reference and store its contents in a tarball",
+		Short: "Pull remote images by reference and store their contents in a tarball",
 		Args:  cobra.MinimumNArgs(2),
 		Run: func(_ *cobra.Command, args []string) {
 			imageMap := map[string]v1.Image{}
@@ -49,15 +49,15 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 
 			switch format {
 			case "tarball":
-				if err := crane.Save(imageMap, path); err != nil {
+				if err := crane.MultiSave(imageMap, path); err != nil {
 					log.Fatalf("saving tarball %s: %v", path, err)
 				}
 			case "legacy":
-				if err := crane.SaveLegacy(imageMap, path); err != nil {
+				if err := crane.MultiSaveLegacy(imageMap, path); err != nil {
 					log.Fatalf("saving legacy tarball %s: %v", path, err)
 				}
 			case "oci":
-				if err := crane.SaveOCI(imageMap, path); err != nil {
+				if err := crane.MultiSaveOCI(imageMap, path); err != nil {
 					log.Fatalf("saving oci image layout %s: %v", path, err)
 				}
 			default:

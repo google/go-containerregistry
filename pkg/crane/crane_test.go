@@ -351,7 +351,7 @@ func TestCraneTarball(t *testing.T) {
 	}
 	src := fmt.Sprintf("test/crane@%s", digest)
 
-	if err := crane.Save(map[string]v1.Image{src: img}, tmp.Name()); err != nil {
+	if err := crane.Save(img, src, tmp.Name()); err != nil {
 		t.Errorf("Save: %v", err)
 	}
 
@@ -384,7 +384,7 @@ func TestCraneSaveLegacy(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := crane.SaveLegacy(map[string]v1.Image{"test/crane": img}, tmp.Name()); err != nil {
+	if err := crane.SaveLegacy(img, "test/crane", tmp.Name()); err != nil {
 		t.Errorf("SaveOCI: %v", err)
 	}
 }
@@ -402,7 +402,7 @@ func TestCraneSaveOCI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := crane.SaveOCI(map[string]v1.Image{"": img}, tmp); err != nil {
+	if err := crane.SaveOCI(img, tmp); err != nil {
 		t.Errorf("SaveLegacy: %v", err)
 	}
 }
@@ -533,10 +533,10 @@ func TestBadInputs(t *testing.T) {
 		{"Push(_, invalid)", crane.Push(nil, invalid)},
 		{"Delete(invalid)", crane.Delete(invalid)},
 		{"Delete: 404", crane.Delete(valid404)},
-		{"Save(_, invalid)", crane.Save(map[string]v1.Image{invalid: nil}, "")},
-		{"SaveLegacy(_, invalid)", crane.SaveLegacy(map[string]v1.Image{invalid: nil}, "")},
-		{"SaveLegacy(_, invalid)", crane.SaveLegacy(map[string]v1.Image{valid404: nil}, invalid)},
-		{"SaveOCI(_, invalid)", crane.SaveOCI(map[string]v1.Image{invalid: nil}, "")},
+		{"Save(_, invalid)", crane.Save(nil, invalid, "")},
+		{"SaveLegacy(_, invalid)", crane.SaveLegacy(nil, invalid, "")},
+		{"SaveLegacy(_, invalid)", crane.SaveLegacy(nil, valid404, invalid)},
+		{"SaveOCI(_, invalid)", crane.SaveOCI(nil, "")},
 		{"Copy(invalid, invalid)", crane.Copy(invalid, invalid)},
 		{"Copy(404, invalid)", crane.Copy(valid404, invalid)},
 		{"Copy(404, 404)", crane.Copy(valid404, valid404)},
