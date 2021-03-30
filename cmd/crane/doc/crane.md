@@ -32,7 +32,7 @@ crane [flags]
 * [crane export](crane_export.md)	 - Export contents of a remote image as a tarball
 * [crane ls](crane_ls.md)	 - List the tags in a repo
 * [crane manifest](crane_manifest.md)	 - Get the manifest of an image
-* [crane pull](crane_pull.md)	 - Pull a remote image by reference and store its contents in a tarball
+* [crane pull](crane_pull.md)	 - Pull remote images by reference and store their contents in a tarball
 * [crane push](crane_push.md)	 - Push image contents as a tarball to a remote registry
 * [crane rebase](crane_rebase.md)	 - Rebase an image onto a new base image
 * [crane tag](crane_tag.md)	 - Efficiently tag a remote image
