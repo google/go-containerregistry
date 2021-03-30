@@ -49,6 +49,7 @@ func Save(img v1.Image, src, path string) error {
 	return MultiSave(imgMap, path)
 }
 
+// MultiSave writes collection of v1.Image img with tag as a tarball.
 func MultiSave(imgMap map[string]v1.Image, path string) error {
 	tagToImage := map[name.Tag]v1.Image{}
 
@@ -93,6 +94,7 @@ func SaveLegacy(img v1.Image, src, path string) error {
 	return MultiSave(imgMap, path)
 }
 
+// MultiSaveLegacy writes collection of v1.Image img with tag as a legacy tarball.
 func MultiSaveLegacy(imgMap map[string]v1.Image, path string) error {
 	refToImage := map[name.Reference]v1.Image{}
 
@@ -120,21 +122,20 @@ func SaveOCI(img v1.Image, path string) error {
 	return MultiSaveOCI(imgMap, path)
 }
 
+// MultiSaveOCI writes collection of v1.Image img as an OCI Image Layout at path. If a layout
+// already exists at that path, it will add the image to the index.
 func MultiSaveOCI(imgMap map[string]v1.Image, path string) error {
-	var err error
-	var p layout.Path
-	for _, img := range imgMap {
-		p, err = layout.FromPath(path)
-		if err != nil {
-			p, err = layout.Write(path, empty.Index)
-			if err != nil {
-				return err
-			}
-		}
-		err = p.AppendImage(img)
+	p, err := layout.FromPath(path)
+	if err != nil {
+		p, err = layout.Write(path, empty.Index)
 		if err != nil {
 			return err
 		}
 	}
-	return err
+	for _, img := range imgMap {
+		if err = p.AppendImage(img); err != nil {
+			return err
+		}
+	}
+	return nil
 }
