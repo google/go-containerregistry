@@ -453,6 +453,11 @@ func TestCanonical(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, h := range cf.History {
+		if h.CreatedBy != "bazel build ..." {
+			t.Errorf("Invalid CreatedBy %q != %q", h.CreatedBy, "bazel build ...")
+		}
+	}
 	var want, got string
 	want = cf.Architecture
 	got = sourceCf.Architecture
