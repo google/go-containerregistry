@@ -454,8 +454,10 @@ func TestCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, h := range cf.History {
-		if h.CreatedBy != "bazel build ..." {
-			t.Errorf("%q != %q", h.CreatedBy, "bazel build ...")
+		want = "bazel build ..."
+		got := h.CreatedBy
+		if want != got {
+			t.Errorf("%q != %q", want, got)
 		}
 	}
 	var want, got string
