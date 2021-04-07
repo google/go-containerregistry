@@ -298,8 +298,13 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 	// Strip away timestamps from the config file
 	cfg.Created = v1.Time{Time: t}
 
-	for _, h := range cfg.History {
+	for i, h := range cfg.History {
 		h.Created = v1.Time{Time: t}
+		h.CreatedBy = ocf.History[i].CreatedBy
+		h.Comment = ocf.History[i].Comment
+		h.EmptyLayer = ocf.History[i].EmptyLayer
+		// Explicitly ignore Author field; which hinders reproducibility
+		cfg.History[i] = h
 	}
 
 	return ConfigFile(newImage, cfg)
