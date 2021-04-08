@@ -106,6 +106,7 @@ func checkRegistry(name string) error {
 // NewRegistry returns a Registry based on the given name.
 // Strict validation requires explicit, valid RFC 3986 URI authorities to be given.
 func NewRegistry(name string, opts ...Option) (Registry, error) {
+	// Name is like "", "docker.io", or "localhost:5000"
 	opt := makeOptions(opts...)
 	if opt.strict && len(name) == 0 {
 		return Registry{}, NewErrBadName("strict validation requires the registry to be explicitly defined")
