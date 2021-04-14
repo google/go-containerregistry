@@ -163,6 +163,7 @@ var temporaryErrorCodes = map[ErrorCode]struct{}{
 }
 
 var temporaryStatusCodes = map[int]struct{}{
+	http.StatusRequestTimeout:      {},
 	http.StatusInternalServerError: {},
 	http.StatusBadGateway:          {},
 	http.StatusServiceUnavailable:  {},
