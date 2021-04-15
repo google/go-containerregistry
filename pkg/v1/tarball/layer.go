@@ -21,43 +21,35 @@ import (
 	"io/ioutil"
 	"os"
 	"sync"
+	"sync/atomic"
 
 	"github.com/containerd/stargz-snapshotter/estargz"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/internal/and"
 	gestargz "github.com/google/go-containerregistry/pkg/v1/internal/estargz"
 	ggzip "github.com/google/go-containerregistry/pkg/v1/internal/gzip"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 type layer struct {
-	digest             v1.Hash
-	diffID             v1.Hash
-	size               int64
+	diffID v1.Hash
+	desc   *v1.Descriptor
+
 	compressedopener   Opener
 	uncompressedopener Opener
 	compression        int
-	annotations        map[string]string
 	estgzopts          []estargz.Option
 }
 
 // Descriptor implements partial.withDescriptor.
 func (l *layer) Descriptor() (*v1.Descriptor, error) {
-	digest, err := l.Digest()
-	if err != nil {
-		return nil, err
-	}
-	return &v1.Descriptor{
-		Size:        l.size,
-		Digest:      digest,
-		Annotations: l.annotations,
-		MediaType:   types.DockerLayer,
-	}, nil
+	return l.desc, nil
 }
 
 // Digest implements v1.Layer
 func (l *layer) Digest() (v1.Hash, error) {
-	return l.digest, nil
+	return l.desc.Digest, nil
 }
 
 // DiffID implements v1.Layer
@@ -77,12 +69,12 @@ func (l *layer) Uncompressed() (io.ReadCloser, error) {
 
 // Size implements v1.Layer
 func (l *layer) Size() (int64, error) {
-	return l.size, nil
+	return l.desc.Size, nil
 }
 
 // MediaType implements v1.Layer
 func (l *layer) MediaType() (types.MediaType, error) {
-	return types.DockerLayer, nil
+	return l.desc.MediaType, nil
 }
 
 // LayerOption applies options to layer
@@ -145,7 +137,10 @@ func WithEstargz(l *layer) {
 		if err != nil {
 			return nil, err
 		}
-		l.annotations[estargz.TOCJSONDigestAnnotation] = h.String()
+		if l.desc.Annotations == nil {
+			l.desc.Annotations = make(map[string]string, 1)
+		}
+		l.desc.Annotations[estargz.TOCJSONDigestAnnotation] = h.String()
 		return &and.ReadCloser{
 			Reader: rc,
 			CloseFunc: func() error {
@@ -194,16 +189,20 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rc.Close()
 
-	compressed, err := ggzip.Is(rc)
+	compressed, r, err := ggzip.Is(rc)
 	if err != nil {
+		rc.Close()
 		return nil, err
 	}
 
+	reopen := reopener(&and.ReadCloser{
+		Reader:    r,
+		CloseFunc: rc.Close,
+	}, opener)
+
 	layer := &layer{
 		compression: gzip.BestSpeed,
-		annotations: make(map[string]string, 1),
 	}
 
 	if estgz := os.Getenv("GGCR_EXPERIMENT_ESTARGZ"); estgz == "1" {
@@ -211,18 +210,18 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	}
 
 	if compressed {
-		layer.compressedopener = opener
+		layer.compressedopener = reopen
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
-			urc, err := opener()
+			urc, err := reopen()
 			if err != nil {
 				return nil, err
 			}
 			return ggzip.UnzipReadCloser(urc)
 		}
 	} else {
-		layer.uncompressedopener = opener
+		layer.uncompressedopener = reopen
 		layer.compressedopener = func() (io.ReadCloser, error) {
-			crc, err := opener()
+			crc, err := reopen()
 			if err != nil {
 				return nil, err
 			}
@@ -230,15 +229,46 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 		}
 	}
 
+	// Check out what the io.ReadCloser exposes to us so we can avoid computing
+	// the digest, diffid, etc. if we already know them.
+	if d, ok := rc.(partial.Describable); ok {
+		layer.desc, err = partial.Descriptor(d)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		layer.desc = &v1.Descriptor{
+			MediaType: types.DockerLayer,
+		}
+
+		if d, ok := rc.(partial.WithSize); ok {
+			size, err := d.Size()
+			if err != nil {
+				return nil, err
+			}
+			layer.desc.Size = size
+		}
+	}
+
+	if d, ok := rc.(partial.WithDiffID); ok {
+		diffid, err := d.DiffID()
+		if err != nil {
+			return nil, err
+		}
+		layer.diffID = diffid
+	}
+
 	for _, opt := range opts {
 		opt(layer)
 	}
 
-	if layer.digest, layer.size, err = computeDigest(layer.compressedopener); err != nil {
-		return nil, err
+	empty := v1.Hash{}
+	if layer.desc.Digest == empty || layer.desc.Size == 0 {
+		if layer.desc.Digest, layer.desc.Size, err = computeDigest(layer.compressedopener); err != nil {
+			return nil, err
+		}
 	}
 
-	empty := v1.Hash{}
 	if layer.diffID == empty {
 		if layer.diffID, err = computeDiffID(layer.uncompressedopener); err != nil {
 			return nil, err
@@ -279,4 +309,17 @@ func computeDiffID(opener Opener) (v1.Hash, error) {
 
 	digest, _, err := v1.SHA256(rc)
 	return digest, err
+}
+
+// reopener returns an Opener that returns rc on the first call and opener()
+// on subsequent calls. This is used in conjunction with gzip.Is to avoid
+// calling an opener just to read two bytes.
+func reopener(rc io.ReadCloser, opener Opener) Opener {
+	consumed := int32(0)
+	return func() (io.ReadCloser, error) {
+		if atomic.CompareAndSwapInt32(&consumed, 0, 1) {
+			return rc, nil
+		}
+		return opener()
+	}
 }

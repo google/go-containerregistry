@@ -102,15 +102,31 @@ func UnzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	}, nil
 }
 
-// Is detects whether the input stream is compressed.
-func Is(r io.Reader) (bool, error) {
-	magicHeader := make([]byte, 2)
-	n, err := r.Read(magicHeader)
-	if n == 0 && err == io.EOF {
-		return false, nil
+// PeekReader is an io.Reader that also implements Peek a la bufio.Reader.
+type PeekReader interface {
+	io.Reader
+	Peek(n int) ([]byte, error)
+}
+
+// Is detects whether the input stream is gzip compressed.
+//
+// If r implements Peek, we will use that directly, otherwise a small number
+// of bytes are buffered to Peek at the gzip header, and the returned
+// PeekReader can be used as a replacement for the consumed input io.Reader.
+func Is(r io.Reader) (bool, PeekReader, error) {
+	var pr PeekReader
+	if p, ok := r.(PeekReader); ok {
+		pr = p
+	} else {
+		pr = bufio.NewReader(r)
 	}
+	header, err := pr.Peek(2)
 	if err != nil {
-		return false, err
+		// https://github.com/google/go-containerregistry/issues/367
+		if err == io.EOF {
+			return false, pr, nil
+		}
+		return false, pr, err
 	}
-	return bytes.Equal(magicHeader, gzipMagicHeader), nil
+	return bytes.Equal(header, gzipMagicHeader), pr, nil
 }

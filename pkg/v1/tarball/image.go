@@ -27,6 +27,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/internal/and"
 	"github.com/google/go-containerregistry/pkg/v1/internal/gzip"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -34,25 +35,20 @@ import (
 
 type image struct {
 	opener        Opener
-	manifest      *Manifest
+	tarmanifest   *Manifest
 	config        []byte
+	configName    v1.Hash
 	imgDescriptor *Descriptor
 
 	tag *name.Tag
-}
 
-type uncompressedImage struct {
-	*image
-}
+	layerByDiffID map[v1.Hash]v1.Layer
 
-type compressedImage struct {
-	*image
 	manifestLock sync.Mutex // Protects manifest
 	manifest     *v1.Manifest
 }
 
-var _ partial.UncompressedImageCore = (*uncompressedImage)(nil)
-var _ partial.CompressedImageCore = (*compressedImage)(nil)
+var _ v1.Image = (*image)(nil)
 
 // Opener is a thunk for opening a tar file.
 type Opener func() (io.ReadCloser, error)
@@ -71,31 +67,16 @@ func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
 // Image exposes an image from the tarball at the provided path.
 func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 	img := &image{
-		opener: opener,
-		tag:    tag,
+		opener:        opener,
+		tag:           tag,
+		layerByDiffID: map[v1.Hash]v1.Layer{},
 	}
+
 	if err := img.loadTarDescriptorAndConfig(); err != nil {
 		return nil, err
 	}
 
-	// Peek at the first layer and see if it's compressed.
-	if len(img.imgDescriptor.Layers) > 0 {
-		compressed, err := img.areLayersCompressed()
-		if err != nil {
-			return nil, err
-		}
-		if compressed {
-			c := compressedImage{
-				image: img,
-			}
-			return partial.CompressedToImage(&c)
-		}
-	}
-
-	uc := uncompressedImage{
-		image: img,
-	}
-	return partial.UncompressedToImage(&uc)
+	return img, nil
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
@@ -138,40 +119,27 @@ func (m Manifest) findDescriptor(tag *name.Tag) (*Descriptor, error) {
 	return nil, fmt.Errorf("tag %s not found in tarball", tag)
 }
 
-func (i *image) areLayersCompressed() (bool, error) {
-	if len(i.imgDescriptor.Layers) == 0 {
-		return false, errors.New("0 layers found in image")
-	}
-	layer := i.imgDescriptor.Layers[0]
-	blob, err := extractFileFromTar(i.opener, layer)
-	if err != nil {
-		return false, err
-	}
-	defer blob.Close()
-	return gzip.Is(blob)
-}
-
 func (i *image) loadTarDescriptorAndConfig() error {
-	m, err := extractFileFromTar(i.opener, "manifest.json")
+	m, _, err := extractFileFromTar(i.opener, "manifest.json")
 	if err != nil {
 		return err
 	}
 	defer m.Close()
 
-	if err := json.NewDecoder(m).Decode(&i.manifest); err != nil {
+	if err := json.NewDecoder(m).Decode(&i.tarmanifest); err != nil {
 		return err
 	}
 
-	if i.manifest == nil {
+	if i.tarmanifest == nil {
 		return errors.New("no valid manifest.json in tarball")
 	}
 
-	i.imgDescriptor, err = i.manifest.findDescriptor(i.tag)
+	i.imgDescriptor, err = i.tarmanifest.findDescriptor(i.tag)
 	if err != nil {
 		return err
 	}
 
-	cfg, err := extractFileFromTar(i.opener, i.imgDescriptor.Config)
+	cfg, _, err := extractFileFromTar(i.opener, i.imgDescriptor.Config)
 	if err != nil {
 		return err
 	}
@@ -188,16 +156,29 @@ func (i *image) RawConfigFile() ([]byte, error) {
 	return i.config, nil
 }
 
-// tarFile represents a single file inside a tar. Closing it closes the tar itself.
-type tarFile struct {
-	io.Reader
-	io.Closer
+type errNotfound struct {
+	filePath string
 }
 
-func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, error) {
+func (e errNotfound) Error() string {
+	return fmt.Sprintf("file %s not found in tar", e.filePath)
+}
+
+// TODO(#874): We could make this streamable with very careful sequencing during writes.
+// The order that we'd need to read things:
+// 1. manifest.json
+// 2. i.imgDescriptor.Config
+// 3. Layers(), which is the hard part...
+//
+// We need to encounter each layer in the tarball in the same order as we return
+// them from Layers(). We also need to stop Peeking at the first 2 bytes eagerly.
+// If we control what we're writing, we can populate as much info as we need in
+// LayerSources, so it's _possible_, but every Write implementation would need
+// to know to only write one layer at a time (or we could block).
+func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, *tar.Header, error) {
 	f, err := opener()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	close := true
 	defer func() {
@@ -213,95 +194,72 @@ func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if hdr.Name == filePath {
 			close = false
-			return tarFile{
-				Reader: tf,
-				Closer: f,
-			}, nil
+			return &and.ReadCloser{
+				Reader:    tf,
+				CloseFunc: f.Close,
+			}, hdr, nil
 		}
 	}
-	return nil, fmt.Errorf("file %s not found in tar", filePath)
+	return nil, nil, errNotfound{filePath}
 }
 
-// uncompressedLayerFromTarball implements partial.UncompressedLayer
-type uncompressedLayerFromTarball struct {
-	diffID    v1.Hash
-	mediaType types.MediaType
-	opener    Opener
-	filePath  string
+func (i *image) ConfigFile() (*v1.ConfigFile, error) {
+	return partial.ConfigFile(i)
 }
 
-// foreignUncompressedLayer implements partial.UncompressedLayer but returns
-// a custom descriptor. This allows the foreign layer URLs to be included in
-// the generated image manifest for uncompressed layers.
-type foreignUncompressedLayer struct {
-	uncompressedLayerFromTarball
-	desc v1.Descriptor
+func (i *image) ConfigName() (v1.Hash, error) {
+	return i.configName, nil
 }
 
-func (fl *foreignUncompressedLayer) Descriptor() (*v1.Descriptor, error) {
-	return &fl.desc, nil
-}
-
-// DiffID implements partial.UncompressedLayer
-func (ulft *uncompressedLayerFromTarball) DiffID() (v1.Hash, error) {
-	return ulft.diffID, nil
-}
-
-// Uncompressed implements partial.UncompressedLayer
-func (ulft *uncompressedLayerFromTarball) Uncompressed() (io.ReadCloser, error) {
-	return extractFileFromTar(ulft.opener, ulft.filePath)
-}
-
-func (ulft *uncompressedLayerFromTarball) MediaType() (types.MediaType, error) {
-	return ulft.mediaType, nil
-}
-
-func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer, error) {
-	cfg, err := partial.ConfigFile(i)
+func (i *image) Layers() ([]v1.Layer, error) {
+	cf, err := i.ConfigFile()
 	if err != nil {
 		return nil, err
 	}
-	for idx, diffID := range cfg.RootFS.DiffIDs {
-		if diffID == h {
-			// Technically the media type should be 'application/tar' but given that our
-			// v1.Layer doesn't force consumers to care about whether the layer is compressed
-			// we should be fine returning the DockerLayer media type
-			mt := types.DockerLayer
-			if bd, ok := i.imgDescriptor.LayerSources[h]; ok {
-				// Overwrite the mediaType for foreign layers.
-				return &foreignUncompressedLayer{
-					uncompressedLayerFromTarball: uncompressedLayerFromTarball{
-						diffID:    diffID,
-						mediaType: bd.MediaType,
-						opener:    i.opener,
-						filePath:  i.imgDescriptor.Layers[idx],
-					},
-					desc: bd,
-				}, nil
-			}
-			return &uncompressedLayerFromTarball{
-				diffID:    diffID,
-				mediaType: mt,
-				opener:    i.opener,
-				filePath:  i.imgDescriptor.Layers[idx],
-			}, nil
+
+	layers := []v1.Layer{}
+	for idx, fp := range i.imgDescriptor.Layers {
+		fp := fp
+		diffid := cf.RootFS.DiffIDs[idx]
+
+		l, err := i.makeLayer(fp, diffid)
+		if err != nil {
+			return nil, err
 		}
+
+		layers = append(layers, l)
+		i.layerByDiffID[diffid] = l
+
 	}
-	return nil, fmt.Errorf("diff id %q not found", h)
+	return layers, nil
 }
 
-func (c *compressedImage) Manifest() (*v1.Manifest, error) {
-	c.manifestLock.Lock()
-	defer c.manifestLock.Unlock()
-	if c.manifest != nil {
-		return c.manifest, nil
+func (i *image) Digest() (v1.Hash, error) {
+	return partial.Digest(i)
+}
+
+func (i *image) RawManifest() ([]byte, error) {
+	return partial.RawManifest(i)
+}
+
+func (i *image) Size() (int64, error) {
+	return partial.Size(i)
+}
+
+func (i *image) Manifest() (*v1.Manifest, error) {
+	// This feels a lot like mutate, but we can't use mutate because mutate
+	// stupidly depends on tarball (for now?).
+	i.manifestLock.Lock()
+	defer i.manifestLock.Unlock()
+	if i.manifest != nil {
+		return i.manifest, nil
 	}
 
-	b, err := c.RawConfigFile()
+	b, err := i.RawConfigFile()
 	if err != nil {
 		return nil, err
 	}
@@ -310,8 +268,9 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 	if err != nil {
 		return nil, err
 	}
+	i.configName = cfgHash
 
-	c.manifest = &v1.Manifest{
+	i.manifest = &v1.Manifest{
 		SchemaVersion: 2,
 		MediaType:     types.DockerManifestSchema2,
 		Config: v1.Descriptor{
@@ -321,81 +280,199 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		},
 	}
 
-	for i, p := range c.imgDescriptor.Layers {
-		cfg, err := partial.ConfigFile(c)
-		if err != nil {
-			return nil, err
-		}
-		diffid := cfg.RootFS.DiffIDs[i]
-		if d, ok := c.imgDescriptor.LayerSources[diffid]; ok {
-			// If it's a foreign layer, just append the descriptor so we can avoid
-			// reading the entire file.
-			c.manifest.Layers = append(c.manifest.Layers, d)
-		} else {
-			l, err := extractFileFromTar(c.opener, p)
-			if err != nil {
-				return nil, err
-			}
-			defer l.Close()
-			sha, size, err := v1.SHA256(l)
-			if err != nil {
-				return nil, err
-			}
-			c.manifest.Layers = append(c.manifest.Layers, v1.Descriptor{
-				MediaType: types.DockerLayer,
-				Size:      size,
-				Digest:    sha,
-			})
-		}
-	}
-	return c.manifest, nil
-}
-
-func (c *compressedImage) RawManifest() ([]byte, error) {
-	return partial.RawManifest(c)
-}
-
-// compressedLayerFromTarball implements partial.CompressedLayer
-type compressedLayerFromTarball struct {
-	desc     v1.Descriptor
-	opener   Opener
-	filePath string
-}
-
-// Digest implements partial.CompressedLayer
-func (clft *compressedLayerFromTarball) Digest() (v1.Hash, error) {
-	return clft.desc.Digest, nil
-}
-
-// Compressed implements partial.CompressedLayer
-func (clft *compressedLayerFromTarball) Compressed() (io.ReadCloser, error) {
-	return extractFileFromTar(clft.opener, clft.filePath)
-}
-
-// MediaType implements partial.CompressedLayer
-func (clft *compressedLayerFromTarball) MediaType() (types.MediaType, error) {
-	return clft.desc.MediaType, nil
-}
-
-// Size implements partial.CompressedLayer
-func (clft *compressedLayerFromTarball) Size() (int64, error) {
-	return clft.desc.Size, nil
-}
-
-func (c *compressedImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
-	m, err := c.Manifest()
+	layers, err := i.Layers()
 	if err != nil {
 		return nil, err
 	}
-	for i, l := range m.Layers {
-		if l.Digest == h {
-			fp := c.imgDescriptor.Layers[i]
-			return &compressedLayerFromTarball{
-				desc:     l,
-				opener:   c.opener,
-				filePath: fp,
+
+	for _, l := range layers {
+		desc, err := partial.Descriptor(l)
+		if err != nil {
+			return nil, err
+		}
+		i.manifest.Layers = append(i.manifest.Layers, *desc)
+	}
+	return i.manifest, nil
+}
+
+func (i *image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
+	if l, ok := i.layerByDiffID[h]; ok {
+		return l, nil
+	}
+	return nil, fmt.Errorf("diff id %q not found", h)
+}
+
+func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
+	if h == i.configName {
+		return partial.ConfigLayer(i)
+	}
+	diffid, err := partial.BlobToDiffID(i, h)
+	if err != nil {
+		return nil, err
+	}
+	return i.LayerByDiffID(diffid)
+}
+
+func (i *image) makeLayer(filename string, diffid v1.Hash) (v1.Layer, error) {
+	layerOpener, err := i.makeLayerOpener(filename, diffid)
+	if err != nil {
+		if _, ok := err.(errNotfound); !ok {
+			return nil, err
+		}
+		// If the layer isn't in the tarball, that's okay, we might be dealing
+		// with a foreign layer. Just stub it out for now -- we have all the
+		// metadata required to reconstruct the manifest in LayerSources.
+		if desc, ok := i.imgDescriptor.LayerSources[diffid]; ok {
+			return &sparseLayer{
+				diffid: diffid,
+				desc:   desc,
+				err:    err,
 			}, nil
 		}
 	}
-	return nil, fmt.Errorf("blob %v not found", h)
+
+	return LayerFromOpener(layerOpener)
+
+}
+
+// We're going to do a few cheeky things here:
+// 1. Implement a cheap DiffID method so that we can avoid recomputing it.
+// 2. Peek at the first few bytes of this layer to see if it's compressed or not.
+//   2a. If compressed, implement cheap Size method.
+//   2b. If uncompressed, implement cheap UncompressedSize method.
+// 3. If we have LayerSources info, use that to implement Descriptor.
+func (i *image) makeLayerOpener(filename string, diffid v1.Hash) (Opener, error) {
+	rc, hdr, err := extractFileFromTar(i.opener, filename)
+	if err != nil {
+		return nil, err
+	}
+
+	compressed, buf, err := gzip.Is(rc)
+	if err != nil {
+		return nil, err
+	}
+
+	brc := &and.ReadCloser{
+		Reader:    buf,
+		CloseFunc: rc.Close,
+	}
+
+	// The first time this gets called, we reuse the buffer from gzip.Is.
+	// Every subsequent call re-extracts the layer from the tarball.
+	reopen := reopener(brc, i.makeFileOpener(filename))
+
+	return func() (io.ReadCloser, error) {
+		rc, err := reopen()
+		if err != nil {
+			return nil, err
+		}
+
+		if desc, foreign := i.imgDescriptor.LayerSources[diffid]; foreign {
+			return &foreignOpener{
+				ReadCloser: rc,
+				sparseLayer: sparseLayer{
+					desc:   desc,
+					diffid: diffid,
+				},
+			}, nil
+		}
+
+		if compressed {
+			return &compressedOpener{
+				ReadCloser: rc,
+				hdr:        hdr,
+				diffid:     diffid,
+			}, nil
+		}
+
+		return &uncompressedOpener{
+			ReadCloser: rc,
+			hdr:        hdr,
+			diffid:     diffid,
+		}, nil
+	}, nil
+}
+
+func (i *image) makeFileOpener(filename string) Opener {
+	return func() (io.ReadCloser, error) {
+		rc, _, err := extractFileFromTar(i.opener, filename)
+		return rc, err
+	}
+}
+
+// compressedOpener returns gzipped bytes and cheaply knows its Size and DiffID.
+type compressedOpener struct {
+	io.ReadCloser
+	hdr    *tar.Header
+	diffid v1.Hash
+}
+
+func (cl *compressedOpener) DiffID() (v1.Hash, error) {
+	return cl.diffid, nil
+}
+
+func (cl *compressedOpener) Size() (int64, error) {
+	return cl.hdr.Size, nil
+}
+
+// uncompressedOpener returns uncompressed bytes and cheaply knows its UncompressedSize and DiffID.
+type uncompressedOpener struct {
+	io.ReadCloser
+	hdr    *tar.Header
+	diffid v1.Hash
+}
+
+func (ul *uncompressedOpener) DiffID() (v1.Hash, error) {
+	return ul.diffid, nil
+}
+
+func (ul *uncompressedOpener) UncompressedSize() (int64, error) {
+	return ul.hdr.Size, nil
+}
+
+// sparseLayer represents a layer which is not actually present in this tarball
+// but for which we have enough metadata to implement most of v1.Layer. Anything
+// that attempts to actually read the contents directly will get an error.
+type sparseLayer struct {
+	desc   v1.Descriptor
+	diffid v1.Hash
+	err    error
+}
+
+func (sl *sparseLayer) DiffID() (v1.Hash, error) {
+	return sl.diffid, nil
+}
+
+func (sl *sparseLayer) Descriptor() (*v1.Descriptor, error) {
+	return &sl.desc, nil
+}
+
+func (sl *sparseLayer) Compressed() (io.ReadCloser, error) {
+	// TODO: We _could_ fetch things from URLs.
+	return nil, sl.err
+}
+
+func (sl *sparseLayer) Uncompressed() (io.ReadCloser, error) {
+	// TODO: We _could_ fetch things from URLs.
+	return nil, sl.err
+}
+
+func (sl *sparseLayer) Digest() (v1.Hash, error) {
+	return sl.desc.Digest, nil
+}
+
+func (sl *sparseLayer) MediaType() (types.MediaType, error) {
+	return sl.desc.MediaType, nil
+}
+
+func (sl *sparseLayer) Size() (int64, error) {
+	return sl.desc.Size, nil
+}
+
+// foreignOpener is like sparseLayer, but we actually have the bytes available.
+// TODO: We could Peek at the bytes to determine if they're gzipped and expose
+// UncompressedSize if not.
+type foreignOpener struct {
+	io.ReadCloser
+	sparseLayer
 }
