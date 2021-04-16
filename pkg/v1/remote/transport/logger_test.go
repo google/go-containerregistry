@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-containerregistry/pkg/internal/redact"
+	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 
