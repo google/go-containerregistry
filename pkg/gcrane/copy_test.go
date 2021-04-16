@@ -29,8 +29,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	ggcrtest "github.com/google/go-containerregistry/pkg/internal/httptest"
-	"github.com/google/go-containerregistry/pkg/internal/retry"
+	ggcrtest "github.com/google/go-containerregistry/internal/httptest"
+	"github.com/google/go-containerregistry/internal/retry"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"

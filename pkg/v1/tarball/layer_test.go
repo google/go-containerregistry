@@ -23,7 +23,7 @@ import (
 	"testing"
 
 	"github.com/containerd/stargz-snapshotter/estargz"
-	"github.com/google/go-containerregistry/pkg/internal/compare"
+	"github.com/google/go-containerregistry/internal/compare"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 

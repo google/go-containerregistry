@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
+	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/internal/redact"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
