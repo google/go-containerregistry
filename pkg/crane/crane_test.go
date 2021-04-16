@@ -558,6 +558,8 @@ func TestBadInputs(t *testing.T) {
 		{"Catalog(invalid)", e(crane.Catalog(invalid))},
 		{"Catalog(404)", e(crane.Catalog(u.Host))},
 		{"PullLayer(invalid)", e(crane.PullLayer(invalid))},
+		{"LoadTag(_, invalid)", e(crane.LoadTag("", invalid))},
+		{"LoadTag(invalid, 404)", e(crane.LoadTag(invalid, valid404))},
 	} {
 		if tc.err == nil {
 			t.Errorf("%s: expected err, got nil", tc.desc)
