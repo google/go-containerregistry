@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
@@ -15,10 +14,8 @@ var root = &cobra.Command{
 	Use:   "gendoc",
 	Short: "Generate crane's help docs",
 	Args:  cobra.NoArgs,
-	Run: func(*cobra.Command, []string) {
-		if err := doc.GenMarkdownTree(cmd.Root, dir); err != nil {
-			log.Fatalln(err)
-		}
+	RunE: func(*cobra.Command, []string) error {
+		return doc.GenMarkdownTree(cmd.Root, dir)
 	},
 }
 
