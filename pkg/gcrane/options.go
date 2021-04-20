@@ -16,18 +16,34 @@ package gcrane
 
 import (
 	"runtime"
+
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/v1/google"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
 // Option is a functional option for gcrane operations.
 type Option func(*options)
 
 type options struct {
-	jobs int
+	jobs   int
+	remote []remote.Option
+	google []google.Option
+	crane  []crane.Option
 }
 
 func makeOptions(opts ...Option) *options {
 	o := &options{
 		jobs: runtime.GOMAXPROCS(0),
+		remote: []remote.Option{
+			remote.WithAuthFromKeychain(Keychain),
+		},
+		google: []google.Option{
+			google.WithAuthFromKeychain(Keychain),
+		},
+		crane: []crane.Option{
+			crane.WithAuthFromKeychain(Keychain),
+		},
 	}
 
 	for _, option := range opts {
@@ -43,5 +59,15 @@ func makeOptions(opts ...Option) *options {
 func WithJobs(jobs int) Option {
 	return func(o *options) {
 		o.jobs = jobs
+	}
+}
+
+// WithUserAgent adds the given string to the User-Agent header for any HTTP
+// requests.
+func WithUserAgent(ua string) Option {
+	return func(o *options) {
+		o.remote = append(o.remote, remote.WithUserAgent(ua))
+		o.google = append(o.google, google.WithUserAgent(ua))
+		o.crane = append(o.crane, crane.WithUserAgent(ua))
 	}
 }

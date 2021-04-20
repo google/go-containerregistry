@@ -18,12 +18,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"path"
 
+	"github.com/google/go-containerregistry/cmd/crane/cmd"
 	"github.com/google/go-containerregistry/pkg/gcrane"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/spf13/cobra"
 )
+
+func userAgent() string {
+	if cmd.Version != "" {
+		return path.Join("gcrane", cmd.Version)
+	}
+
+	return "gcrane"
+}
 
 // NewCmdList creates a new cobra.Command for the ls subcommand.
 func NewCmdList() *cobra.Command {
@@ -51,13 +61,13 @@ func ls(root string, recursive, j bool) {
 	}
 
 	if recursive {
-		if err := google.Walk(repo, printImages(j), google.WithAuthFromKeychain(gcrane.Keychain)); err != nil {
+		if err := google.Walk(repo, printImages(j), google.WithAuthFromKeychain(gcrane.Keychain), google.WithUserAgent(userAgent())); err != nil {
 			log.Fatalln(err)
 		}
 		return
 	}
 
-	tags, err := google.List(repo, google.WithAuthFromKeychain(gcrane.Keychain))
+	tags, err := google.List(repo, google.WithAuthFromKeychain(gcrane.Keychain), google.WithUserAgent(userAgent()))
 	if err != nil {
 		log.Fatalln(err)
 	}

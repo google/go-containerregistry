@@ -29,9 +29,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
-// ListerOption is a functional option for List and Walk.
+// Option is a functional option for List and Walk.
 // TODO: Can we somehow reuse the remote options here?
-type ListerOption func(*lister) error
+type Option func(*lister) error
 
 type lister struct {
 	auth      authn.Authenticator
@@ -42,7 +42,7 @@ type lister struct {
 	userAgent string
 }
 
-func newLister(repo name.Repository, options ...ListerOption) (*lister, error) {
+func newLister(repo name.Repository, options ...Option) (*lister, error) {
 	l := &lister{
 		auth:      authn.Anonymous,
 		transport: http.DefaultTransport,
@@ -195,7 +195,7 @@ type Tags struct {
 }
 
 // List calls /tags/list for the given repository.
-func List(repo name.Repository, options ...ListerOption) (*Tags, error) {
+func List(repo name.Repository, options ...Option) (*Tags, error) {
 	l, err := newLister(repo, options...)
 	if err != nil {
 		return nil, err
@@ -215,7 +215,7 @@ func List(repo name.Repository, options ...ListerOption) (*Tags, error) {
 // TODO: Do we want a SkipDir error, as in filepath.WalkFunc?
 type WalkFunc func(repo name.Repository, tags *Tags, err error) error
 
-func walk(repo name.Repository, tags *Tags, walkFn WalkFunc, options ...ListerOption) error {
+func walk(repo name.Repository, tags *Tags, walkFn WalkFunc, options ...Option) error {
 	if tags == nil {
 		// This shouldn't happen.
 		return fmt.Errorf("tags nil for %q", repo)
@@ -249,7 +249,7 @@ func walk(repo name.Repository, tags *Tags, walkFn WalkFunc, options ...ListerOp
 }
 
 // Walk recursively descends repositories, calling walkFn.
-func Walk(root name.Repository, walkFn WalkFunc, options ...ListerOption) error {
+func Walk(root name.Repository, walkFn WalkFunc, options ...Option) error {
 	tags, err := List(root, options...)
 	if err != nil {
 		return walkFn(root, nil, err)

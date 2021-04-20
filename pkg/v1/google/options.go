@@ -24,7 +24,7 @@ import (
 
 // WithTransport is a functional option for overriding the default transport
 // on a remote image
-func WithTransport(t http.RoundTripper) ListerOption {
+func WithTransport(t http.RoundTripper) Option {
 	return func(l *lister) error {
 		l.transport = t
 		return nil
@@ -33,7 +33,7 @@ func WithTransport(t http.RoundTripper) ListerOption {
 
 // WithAuth is a functional option for overriding the default authenticator
 // on a remote image
-func WithAuth(auth authn.Authenticator) ListerOption {
+func WithAuth(auth authn.Authenticator) Option {
 	return func(l *lister) error {
 		l.auth = auth
 		return nil
@@ -42,7 +42,7 @@ func WithAuth(auth authn.Authenticator) ListerOption {
 
 // WithAuthFromKeychain is a functional option for overriding the default
 // authenticator on a remote image using an authn.Keychain
-func WithAuthFromKeychain(keys authn.Keychain) ListerOption {
+func WithAuthFromKeychain(keys authn.Keychain) Option {
 	return func(l *lister) error {
 		auth, err := keys.Resolve(l.repo.Registry)
 		if err != nil {
@@ -58,7 +58,7 @@ func WithAuthFromKeychain(keys authn.Keychain) ListerOption {
 
 // WithContext is a functional option for overriding the default
 // context.Context for HTTP request to list remote images
-func WithContext(ctx context.Context) ListerOption {
+func WithContext(ctx context.Context) Option {
 	return func(l *lister) error {
 		l.ctx = ctx
 		return nil
@@ -69,7 +69,7 @@ func WithContext(ctx context.Context) ListerOption {
 // requests. This header will also include "go-containerregistry/${version}".
 //
 // If you want to completely overwrite the User-Agent header, use WithTransport.
-func WithUserAgent(ua string) ListerOption {
+func WithUserAgent(ua string) Option {
 	return func(l *lister) error {
 		l.userAgent = ua
 		return nil

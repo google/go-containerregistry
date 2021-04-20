@@ -38,11 +38,11 @@ func NewCmdCopy() *cobra.Command {
 				// We should wire this up to signal handlers and make sure we
 				// respect the cancellation downstream.
 				ctx := context.TODO()
-				if err := gcrane.CopyRepository(ctx, src, dst, gcrane.WithJobs(jobs)); err != nil {
+				if err := gcrane.CopyRepository(ctx, src, dst, gcrane.WithJobs(jobs), gcrane.WithUserAgent(userAgent())); err != nil {
 					log.Fatal(err)
 				}
 			} else {
-				if err := gcrane.Copy(src, dst); err != nil {
+				if err := gcrane.Copy(src, dst, gcrane.WithUserAgent(userAgent())); err != nil {
 					log.Fatal(err)
 				}
 			}

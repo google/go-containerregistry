@@ -50,13 +50,13 @@ func gc(root string, recursive bool) {
 	auth := google.WithAuthFromKeychain(gcrane.Keychain)
 
 	if recursive {
-		if err := google.Walk(repo, printUntaggedImages, auth); err != nil {
+		if err := google.Walk(repo, printUntaggedImages, auth, google.WithUserAgent(userAgent())); err != nil {
 			log.Fatalln(err)
 		}
 		return
 	}
 
-	tags, err := google.List(repo, auth)
+	tags, err := google.List(repo, auth, google.WithUserAgent(userAgent()))
 	if err := printUntaggedImages(repo, tags, err); err != nil {
 		log.Fatalln(err)
 	}
