@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -83,32 +84,99 @@ func newLister(repo name.Repository, options ...Option) (*lister, error) {
 }
 
 func (l *lister) list(repo name.Repository) (*Tags, error) {
-	uri := url.URL{
+	uri := &url.URL{
 		Scheme: repo.Registry.Scheme(),
 		Host:   repo.Registry.RegistryStr(),
 		Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
-	}
-
-	req, err := http.NewRequestWithContext(l.ctx, http.MethodGet, uri.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := l.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if err := transport.CheckError(resp, http.StatusOK); err != nil {
-		return nil, err
+		// ECR returns an error if n > 1000:
+		// https://github.com/google/go-containerregistry/issues/681
+		RawQuery: "n=1000",
 	}
 
 	tags := Tags{}
-	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
-		return nil, err
+
+	// get responses until there is no next page
+	for {
+		select {
+		case <-l.ctx.Done():
+			return nil, l.ctx.Err()
+		default:
+		}
+
+		req, err := http.NewRequest("GET", uri.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+		req = req.WithContext(l.ctx)
+
+		resp, err := l.client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := transport.CheckError(resp, http.StatusOK); err != nil {
+			return nil, err
+		}
+
+		parsed := Tags{}
+		if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+			return nil, err
+		}
+
+		if err := resp.Body.Close(); err != nil {
+			return nil, err
+		}
+
+		if len(parsed.Manifests) != 0 {
+			// We're dealing with GCR, just return directly.
+			return &parsed, nil
+		}
+
+		// This isn't GCR, just append the tags and keep paginating.
+		logs.Warn.Printf("saw non-google tag listing response, falling back to pagination")
+		tags.Tags = append(tags.Tags, parsed.Tags...)
+
+		uri, err = getNextPageURL(resp)
+		if err != nil {
+			return nil, err
+		}
+		// no next page
+		if uri == nil {
+			break
+		}
 	}
 
 	return &tags, nil
+}
+
+// getNextPageURL checks if there is a Link header in a http.Response which
+// contains a link to the next page. If yes it returns the url.URL of the next
+// page otherwise it returns nil.
+func getNextPageURL(resp *http.Response) (*url.URL, error) {
+	link := resp.Header.Get("Link")
+	if link == "" {
+		return nil, nil
+	}
+
+	if link[0] != '<' {
+		return nil, fmt.Errorf("failed to parse link header: missing '<' in: %s", link)
+	}
+
+	end := strings.Index(link, ">")
+	if end == -1 {
+		return nil, fmt.Errorf("failed to parse link header: missing '>' in: %s", link)
+	}
+	link = link[1:end]
+
+	linkURL, err := url.Parse(link)
+	if err != nil {
+		return nil, err
+	}
+	if resp.Request == nil || resp.Request.URL == nil {
+		return nil, nil
+	}
+	linkURL = resp.Request.URL.ResolveReference(linkURL)
+	return linkURL, nil
 }
 
 type rawManifestInfo struct {
