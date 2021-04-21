@@ -15,9 +15,11 @@
 package tarball
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
@@ -93,5 +95,35 @@ func TestBundleMultiple(t *testing.T) {
 				t.Errorf("Validate() = %v", err)
 			}
 		})
+	}
+}
+
+func TestLayerLink(t *testing.T) {
+	tag, err := name.NewTag("bazel/v1/tarball:test_image_3", name.WeakValidation)
+	if err != nil {
+		t.Fatalf("Error creating tag: %v", err)
+	}
+	img, err := ImageFromPath("testdata/test_link.tar", &tag)
+	if err != nil {
+		t.Fatalf("Error loading image: %v", img)
+	}
+	hash := v1.Hash{
+		Algorithm: "sha256",
+		Hex:       "8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
+	}
+	layer, err := img.LayerByDiffID(hash)
+	if err != nil {
+		t.Fatalf("Error getting layer by diff ID: %v, %v", hash, err)
+	}
+	rc, err := layer.Uncompressed()
+	if err != nil {
+		t.Fatal(err)
+	}
+	bs, err := ioutil.ReadAll(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bs) == 0 {
+		t.Errorf("layer.Uncompressed() returned a link file")
 	}
 }
