@@ -107,12 +107,13 @@ func TestLayerLink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error loading image: %v", img)
 	}
-	layer, err := img.LayerByDiffID(v1.Hash{
+	hash := v1.Hash{
 		Algorithm: "sha256",
-		Hex: "8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
-	})
+		Hex:       "8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
+	}
+	layer, err := img.LayerByDiffID(hash)
 	if err != nil {
-		t.Fatalf("Error getting layer by diff ID: %v, %v", layer, err)
+		t.Fatalf("Error getting layer by diff ID: %v, %v", hash, err)
 	}
 	rc, err := layer.Uncompressed()
 	if err != nil {
