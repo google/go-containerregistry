@@ -16,6 +16,8 @@ package daemon
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -24,49 +26,137 @@ import (
 	"github.com/docker/docker/api/types"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-type MockImageLoader struct{}
-
-func (m *MockImageLoader) ImageLoad(context.Context, io.Reader, bool) (types.ImageLoadResponse, error) {
-	return types.ImageLoadResponse{
-		Body: ioutil.NopCloser(strings.NewReader("Loaded")),
-	}, nil
+type errReader struct {
+	err error
 }
 
-func (m *MockImageLoader) ImageTag(ctx context.Context, source, target string) error {
+func (r *errReader) Read(p []byte) (int, error) {
+	return 0, r.err
+}
+
+func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ bool) (types.ImageLoadResponse, error) {
+	if !m.negotiated {
+		return types.ImageLoadResponse{}, errors.New("you forgot to call NegotiateAPIVersion before calling ImageLoad")
+	}
+	if m.wantCtx != nil && m.wantCtx != ctx {
+		return types.ImageLoadResponse{}, fmt.Errorf("ImageLoad: wrong context")
+	}
+
+	_, _ = io.Copy(ioutil.Discard, r)
+	return types.ImageLoadResponse{
+		Body: m.loadBody,
+	}, m.loadErr
+}
+
+func (m *MockClient) ImageTag(ctx context.Context, source, target string) error {
+	if !m.negotiated {
+		return errors.New("you forgot to call NegotiateAPIVersion before calling ImageTag")
+	}
+	if m.wantCtx != nil && m.wantCtx != ctx {
+		return fmt.Errorf("ImageTag: wrong context")
+	}
 	return nil
 }
 
-func init() {
-	GetImageLoader = func() (ImageLoader, error) {
-		return &MockImageLoader{}, nil
+func TestWriteImage(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		client       *MockClient
+		wantResponse string
+		wantErr      string
+	}{{
+		name: "success",
+		client: &MockClient{
+			loadBody: ioutil.NopCloser(strings.NewReader("Loaded")),
+		},
+		wantResponse: "Loaded",
+	}, {
+		name: "load err",
+		client: &MockClient{
+			loadBody: ioutil.NopCloser(strings.NewReader("Loaded")),
+			loadErr:  fmt.Errorf("locked and loaded"),
+		},
+		wantErr: "locked and loaded",
+	}, {
+		name: "read err",
+		client: &MockClient{
+			loadBody: ioutil.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
+		},
+		wantErr: "goodbye, world",
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			image, err := tarball.ImageFromPath("../tarball/testdata/test_image_1.tar", nil)
+			if err != nil {
+				t.Errorf("Error loading image: %v", err.Error())
+			}
+			tag, err := name.NewTag("test_image_2:latest")
+			if err != nil {
+				t.Fatal(err)
+			}
+			response, err := Write(tag, image, WithClient(tc.client))
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Errorf("Error writing image tar: %s", err.Error())
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected err")
+				} else if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Errorf("Error writing image tar: wanted %s to contain %s", err.Error(), tc.wantErr)
+				}
+			}
+			if !strings.Contains(response, tc.wantResponse) {
+				t.Errorf("Error loading image. Response: %s", response)
+			}
+
+			dst, err := name.NewTag("hello:world")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := Tag(tag, dst, WithClient(tc.client)); err != nil {
+				t.Errorf("Error tagging image: %v", err)
+			}
+		})
 	}
 }
 
-func TestWriteImage(t *testing.T) {
-	image, err := tarball.ImageFromPath("../tarball/testdata/test_image_1.tar", nil)
-	if err != nil {
-		t.Errorf("Error loading image: %v", err.Error())
+func TestWriteDefaultClient(t *testing.T) {
+	wantErr := fmt.Errorf("bad client")
+	defaultClient = func() (Client, error) {
+		return nil, wantErr
 	}
+
 	tag, err := name.NewTag("test_image_2:latest")
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := Write(tag, image)
-	if err != nil {
-		t.Errorf("Error writing image tar: %s", err.Error())
-	}
-	if !strings.Contains(response, "Loaded") {
-		t.Errorf("Error loading image. Response: %s", response)
+
+	_, err = Write(tag, empty.Image)
+	if err != wantErr {
+		t.Errorf("Write(): want %v; got %v", wantErr, err)
 	}
 
-	dst, err := name.NewTag("hello:world")
-	if err != nil {
+	err = Tag(tag, tag)
+	if err != wantErr {
+		t.Errorf("Tag(): want %v; got %v", wantErr, err)
+	}
+
+	// Cover default client init and ctx use as well.
+	ctx := context.WithValue(context.Background(), "hello", "world")
+	defaultClient = func() (Client, error) {
+		return &MockClient{
+			loadBody: ioutil.NopCloser(strings.NewReader("Loaded")),
+			wantCtx:  ctx,
+		}, nil
+	}
+	if err := Tag(tag, tag, WithContext(ctx)); err != nil {
 		t.Fatal(err)
 	}
-	if err := Tag(tag, dst); err != nil {
-		t.Errorf("Error tagging image: %v", err)
+	if _, err := Write(tag, empty.Image, WithContext(ctx)); err != nil {
+		t.Fatal(err)
 	}
 }
