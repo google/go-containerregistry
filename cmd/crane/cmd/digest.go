@@ -15,8 +15,8 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
@@ -29,17 +29,18 @@ func NewCmdDigest(options *[]crane.Option) *cobra.Command {
 		Use:   "digest IMAGE",
 		Short: "Get the digest of an image",
 		Args:  cobra.MaximumNArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if tarball == "" && len(args) == 0 {
 				cmd.Help()
-				log.Fatalf("image reference required without --tarball")
+				return errors.New("image reference required without --tarball")
 			}
 
 			digest, err := getDigest(tarball, args, options)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 			fmt.Println(digest)
+			return nil
 		},
 	}
 

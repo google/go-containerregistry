@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/google/go-containerregistry/pkg/gcrane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -31,8 +30,8 @@ func NewCmdGc() *cobra.Command {
 		Use:   "gc",
 		Short: "List images that are not tagged",
 		Args:  cobra.ExactArgs(1),
-		Run: func(_ *cobra.Command, args []string) {
-			gc(args[0], recursive)
+		RunE: func(_ *cobra.Command, args []string) error {
+			return gc(args[0], recursive)
 		},
 	}
 
@@ -41,25 +40,20 @@ func NewCmdGc() *cobra.Command {
 	return cmd
 }
 
-func gc(root string, recursive bool) {
+func gc(root string, recursive bool) error {
 	repo, err := name.NewRepository(root)
 	if err != nil {
-		log.Fatalln(err)
+		return err
 	}
 
 	auth := google.WithAuthFromKeychain(gcrane.Keychain)
 
 	if recursive {
-		if err := google.Walk(repo, printUntaggedImages, auth, google.WithUserAgent(userAgent())); err != nil {
-			log.Fatalln(err)
-		}
-		return
+		return google.Walk(repo, printUntaggedImages, auth, google.WithUserAgent(userAgent()))
 	}
 
 	tags, err := google.List(repo, auth, google.WithUserAgent(userAgent()))
-	if err := printUntaggedImages(repo, tags, err); err != nil {
-		log.Fatalln(err)
-	}
+	return printUntaggedImages(repo, tags, err)
 }
 
 func printUntaggedImages(repo name.Repository, tags *google.Tags, err error) error {

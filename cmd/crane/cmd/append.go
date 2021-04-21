@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -33,35 +33,35 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 		Use:   "append",
 		Short: "Append contents of a tarball to a remote image",
 		Args:  cobra.NoArgs,
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(_ *cobra.Command, args []string) error {
 			var base v1.Image
 			var err error
 
 			if baseRef == "" {
 				logs.Warn.Printf("base unspecified, using empty image")
 				base = empty.Image
-
 			} else {
 				base, err = crane.Pull(baseRef, *options...)
 				if err != nil {
-					log.Fatalf("pulling %s: %v", baseRef, err)
+					return fmt.Errorf("pulling %s: %v", baseRef, err)
 				}
 			}
 
 			img, err := crane.Append(base, newLayers...)
 			if err != nil {
-				log.Fatalf("appending %v: %v", newLayers, err)
+				return fmt.Errorf("appending %v: %v", newLayers, err)
 			}
 
 			if outFile != "" {
 				if err := crane.Save(img, newTag, outFile); err != nil {
-					log.Fatalf("writing output %q: %v", outFile, err)
+					return fmt.Errorf("writing output %q: %v", outFile, err)
 				}
 			} else {
 				if err := crane.Push(img, newTag, *options...); err != nil {
-					log.Fatalf("pushing image %s: %v", newTag, err)
+					return fmt.Errorf("pushing image %s: %v", newTag, err)
 				}
 			}
+			return nil
 		},
 	}
 	appendCmd.Flags().StringVarP(&baseRef, "base", "b", "", "Name of base image to append to")
