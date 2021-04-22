@@ -47,8 +47,6 @@ You can also use gcrane as docker image
 
 ```sh
 $ docker run --rm gcr.io/go-containerregistry/gcrane ls gcr.io/google-containers/busybox
-2020/02/24 20:52:27 gcloud binary not found
-2020/02/24 20:52:27 No matching credentials were found, falling back on anonymous
 gcr.io/google-containers/busybox@sha256:4bdd623e848417d96127e16037743f0cd8b528c026e9175e22a84f639eca58ff
 gcr.io/google-containers/busybox:1.24
 gcr.io/google-containers/busybox@sha256:545e6a6310a27636260920bc07b994a299b6708a1b26910cfefd335fdfb60d2b

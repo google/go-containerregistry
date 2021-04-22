@@ -67,9 +67,6 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 		if err != nil {
 			return nil, err
 		}
-		if auth == authn.Anonymous {
-			logs.Warn.Printf("No matching credentials were found for %q, falling back on anonymous", target)
-		}
 		o.auth = auth
 	}
 
