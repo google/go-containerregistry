@@ -49,11 +49,13 @@ $ docker run --rm gcr.io/go-containerregistry/crane ls ubuntu
 12.10
 ```
 
-And it's also available with a shell, which uses the `debug` tag
+And it's also available with a shell, at the `:debug` tag:
 
 ```sh
 docker run --rm -it --entrypoint "/busybox/sh" gcr.io/go-containerregistry/crane:debug
 ```
+
+Tagged debug images are available at `gcr.io/go-containerregistry/crane/debug:[tag]`.
 
 ### Using with GitLab
 

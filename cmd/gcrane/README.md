@@ -58,8 +58,10 @@ gcr.io/google-containers/busybox@sha256:d8d3bc2c183ed2f9f10e7258f84971202325ee60
 gcr.io/google-containers/busybox:latest
 ```
 
-And it's also available with a shell, which uses the `debug` tag
+And it's also available with a shell, at the `:debug` tag:
 
 ```sh
 docker run --rm -it --entrypoint "/busybox/sh" gcr.io/go-containerregistry/gcrane:debug
 ```
+
+Tagged debug images are available at `gcr.io/go-containerregistry/gcrane/debug:[tag]`.
