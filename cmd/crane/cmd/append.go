@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
+	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/spf13/cobra"
@@ -60,6 +61,15 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 				if err := crane.Push(img, newTag, *options...); err != nil {
 					return fmt.Errorf("pushing image %s: %v", newTag, err)
 				}
+				ref, err := name.ParseReference(newTag)
+				if err != nil {
+					return fmt.Errorf("parsing reference %s: %v", newTag, err)
+				}
+				d, err := img.Digest()
+				if err != nil {
+					return fmt.Errorf("digest: %v", err)
+				}
+				fmt.Println(ref.Context().Digest(d.String()))
 			}
 			return nil
 		},

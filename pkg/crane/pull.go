@@ -37,7 +37,7 @@ func Pull(src string, opt ...Option) (v1.Image, error) {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(src, o.name...)
 	if err != nil {
-		return nil, fmt.Errorf("parsing tag %q: %v", src, err)
+		return nil, fmt.Errorf("parsing reference %q: %v", src, err)
 	}
 
 	return remote.Image(ref, o.remote...)

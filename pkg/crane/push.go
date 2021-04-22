@@ -46,9 +46,9 @@ func LoadTag(path, tag string, opt ...Option) (v1.Image, error) {
 // Push pushes the v1.Image img to a registry as dst.
 func Push(img v1.Image, dst string, opt ...Option) error {
 	o := makeOptions(opt...)
-	tag, err := name.NewTag(dst, o.name...)
+	tag, err := name.ParseReference(dst, o.name...)
 	if err != nil {
-		return fmt.Errorf("parsing tag %q: %v", dst, err)
+		return fmt.Errorf("parsing reference %q: %v", dst, err)
 	}
 	return remote.Write(tag, img, o.remote...)
 }
