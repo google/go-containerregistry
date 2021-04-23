@@ -430,8 +430,7 @@ func TestRemoveBlob(t *testing.T) {
 
 	defer os.RemoveAll(tmp)
 
-	var ii v1.ImageIndex
-	ii = empty.Index
+	var ii v1.ImageIndex = empty.Index
 	l, err := Write(tmp, ii)
 	if err != nil {
 		t.Fatal(err)
@@ -440,6 +439,9 @@ func TestRemoveBlob(t *testing.T) {
 	// create a random blob
 	b := []byte("abcdefghijklmnop")
 	hash, _, err := v1.SHA256(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if err := l.WriteBlob(hash, ioutil.NopCloser(bytes.NewReader(b))); err != nil {
 		t.Fatal(err)
@@ -457,8 +459,7 @@ func TestRemoveBlob(t *testing.T) {
 		t.Fatal(err)
 	}
 	// now it should not exist
-	b2, err = l.Bytes(hash)
-	if err == nil {
+	if _, err = l.Bytes(hash); err == nil {
 		t.Fatal("still existed after deletion")
 	}
 }

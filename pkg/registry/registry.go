@@ -82,6 +82,7 @@ func New(opts ...Option) http.Handler {
 		},
 		manifests: manifests{
 			manifests: map[string]map[string]manifest{},
+			log:       log.New(os.Stderr, "", log.LstdFlags),
 		},
 	}
 	for _, o := range opts {
@@ -98,5 +99,6 @@ type Option func(r *registry)
 func Logger(l *log.Logger) Option {
 	return func(r *registry) {
 		r.log = l
+		r.manifests.log = l
 	}
 }

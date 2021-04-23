@@ -42,10 +42,9 @@ find . -name "*.go" | grep -v vendor/ | xargs gofmt -d -e -l
 mkdir -p /tmp/gendoc && go run cmd/crane/help/main.go --dir /tmp/gendoc && diff -Naur /tmp/gendoc/ cmd/crane/doc/
 
 go test ./...
+./pkg/name/internal/must_test.sh
 
 pushd ${PROJECT_ROOT}/pkg/authn/k8schain
 trap popd EXIT
 
 go test ./...
-
-./pkg/name/internal/must_test.sh

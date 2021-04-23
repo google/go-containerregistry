@@ -21,7 +21,7 @@ set -o pipefail
 go test ./pkg/name/internal
 
 # Actually trying to compile should fail.
-go test -tags=compile ./pkg/name/internal
+go test -tags=compile ./pkg/name/internal 2>&1 > /dev/null
 if [[ $? -eq 0 ]]; then
   echo "pkg/name/internal test compiled successfully, expected failure"
   exit 1

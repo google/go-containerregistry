@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -49,6 +50,7 @@ type manifests struct {
 	// maps repo -> manifest tag/digest -> manifest
 	manifests map[string]map[string]manifest
 	lock      sync.Mutex
+	log       *log.Logger
 }
 
 func isManifest(req *http.Request) bool {
@@ -186,6 +188,7 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 					}
 				} else {
 					// TODO: Probably want to do an existence check for blobs.
+					m.log.Printf("TODO: Check blobs for %q", desc.Digest)
 				}
 			}
 		}
