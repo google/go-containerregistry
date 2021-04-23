@@ -365,9 +365,9 @@ func (l Path) writeIndexToFile(indexFile string, ii v1.ImageIndex) error {
 			var blob io.ReadCloser
 			// Workaround for #819.
 			if wl, ok := ii.(withLayer); ok {
-				layer, err := wl.Layer(desc.Digest)
-				if err != nil {
-					return err
+				layer, lerr := wl.Layer(desc.Digest)
+				if lerr != nil {
+					return lerr
 				}
 				blob, err = layer.Compressed()
 			} else if wb, ok := ii.(withBlob); ok {
