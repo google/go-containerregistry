@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/gcrane"
@@ -30,8 +31,8 @@ func NewCmdGc() *cobra.Command {
 		Use:   "gc",
 		Short: "List images that are not tagged",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return gc(args[0], recursive)
+		RunE: func(cc *cobra.Command, args []string) error {
+			return gc(cc.Context(), args[0], recursive)
 		},
 	}
 
@@ -40,7 +41,7 @@ func NewCmdGc() *cobra.Command {
 	return cmd
 }
 
-func gc(root string, recursive bool) error {
+func gc(ctx context.Context, root string, recursive bool) error {
 	repo, err := name.NewRepository(root)
 	if err != nil {
 		return err
@@ -49,7 +50,7 @@ func gc(root string, recursive bool) error {
 	auth := google.WithAuthFromKeychain(gcrane.Keychain)
 
 	if recursive {
-		return google.Walk(repo, printUntaggedImages, auth, google.WithUserAgent(userAgent()))
+		return google.Walk(repo, printUntaggedImages, auth, google.WithUserAgent(userAgent()), google.WithContext(ctx))
 	}
 
 	tags, err := google.List(repo, auth, google.WithUserAgent(userAgent()))

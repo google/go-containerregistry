@@ -45,6 +45,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 		DisableAutoGenTag: true,
 		SilenceUsage:      true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			options = append(options, crane.WithContext(cmd.Context()))
 			// TODO(jonjohnsonjr): crane.Verbose option?
 			if verbose {
 				logs.Debug.SetOutput(os.Stderr)

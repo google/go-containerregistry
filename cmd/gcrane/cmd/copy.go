@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"context"
 	"runtime"
 
 	"github.com/google/go-containerregistry/pkg/gcrane"
@@ -33,13 +32,11 @@ func NewCmdCopy() *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		RunE: func(cc *cobra.Command, args []string) error {
 			src, dst := args[0], args[1]
+			ctx := cc.Context()
 			if recursive {
-				// We should wire this up to signal handlers and make sure we
-				// respect the cancellation downstream.
-				ctx := context.TODO()
-				return gcrane.CopyRepository(ctx, src, dst, gcrane.WithJobs(jobs), gcrane.WithUserAgent(userAgent()))
+				return gcrane.CopyRepository(ctx, src, dst, gcrane.WithJobs(jobs), gcrane.WithUserAgent(userAgent()), gcrane.WithContext(ctx))
 			} else {
-				return gcrane.Copy(src, dst, gcrane.WithUserAgent(userAgent()))
+				return gcrane.Copy(src, dst, gcrane.WithUserAgent(userAgent()), gcrane.WithContext(ctx))
 			}
 		},
 	}

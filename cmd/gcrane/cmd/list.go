@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -42,8 +43,8 @@ func NewCmdList() *cobra.Command {
 		Use:   "ls REPO",
 		Short: "List the contents of a repo",
 		Args:  cobra.ExactArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
-			return ls(args[0], recursive, json)
+		RunE: func(cc *cobra.Command, args []string) error {
+			return ls(cc.Context(), args[0], recursive, json)
 		},
 	}
 
@@ -53,17 +54,17 @@ func NewCmdList() *cobra.Command {
 	return cmd
 }
 
-func ls(root string, recursive, j bool) error {
+func ls(ctx context.Context, root string, recursive, j bool) error {
 	repo, err := name.NewRepository(root)
 	if err != nil {
 		return err
 	}
 
 	if recursive {
-		return google.Walk(repo, printImages(j), google.WithAuthFromKeychain(gcrane.Keychain), google.WithUserAgent(userAgent()))
+		return google.Walk(repo, printImages(j), google.WithAuthFromKeychain(gcrane.Keychain), google.WithUserAgent(userAgent()), google.WithContext(ctx))
 	}
 
-	tags, err := google.List(repo, google.WithAuthFromKeychain(gcrane.Keychain), google.WithUserAgent(userAgent()))
+	tags, err := google.List(repo, google.WithAuthFromKeychain(gcrane.Keychain), google.WithUserAgent(userAgent()), google.WithContext(ctx))
 	if err != nil {
 		return err
 	}

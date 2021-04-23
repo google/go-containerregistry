@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC All Rights Reserved.
+// Copyright 2021 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+// +build go1.16
+
+package signal
 
 import (
 	"context"
-
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"os"
+	"os/signal"
 )
 
-// Catalog returns the repositories in a registry's catalog.
-func Catalog(src string, opt ...Option) (res []string, err error) {
-	o := makeOptions(opt...)
-	reg, err := name.NewRegistry(src, o.name...)
-	if err != nil {
-		return nil, err
-	}
-
-	// This context gets overridden by remote.WithContext, which is set by
-	// crane.WithContext.
-	return remote.Catalog(context.Background(), reg, o.remote...)
+// NotifyContext just calls go 1.16's signal.NotifyContext.
+// We can remove this once we bump the minimum go version to 1.16.
+func NotifyContext(parent context.Context, signals ...os.Signal) (ctx context.Context, stop context.CancelFunc) {
+	return signal.NotifyContext(parent, signals...)
 }
