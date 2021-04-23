@@ -146,7 +146,7 @@ func TestWriteDefaultClient(t *testing.T) {
 	}
 
 	// Cover default client init and ctx use as well.
-	ctx := context.WithValue(context.Background(), "hello", "world")
+	ctx := context.TODO()
 	defaultClient = func() (Client, error) {
 		return &MockClient{
 			loadBody: ioutil.NopCloser(strings.NewReader("Loaded")),
