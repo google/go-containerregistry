@@ -4,8 +4,9 @@ steps:
   args:
   - -c
   - |
-    set -ex
+    set -eux
 
+    export GOROOT=/usr/local/go
     export GO111MODULE=off
     export KO_DOCKER_REPO="gcr.io/$PROJECT_ID"
     export GOFLAGS="-ldflags=-X=github.com/google/go-containerregistry/cmd/crane/cmd.Version=$COMMIT_SHA"
@@ -17,19 +18,23 @@ steps:
     ln -s $$PWD $$shadow || stat $$shadow
 
     # Install ko from release.
-    curl -L -o ko.tar.gz https://github.com/google/ko/releases/download/v0.6.0/ko_0.6.0_Linux_i386.tar.gz
+    curl -L -o ko.tar.gz https://github.com/google/ko/releases/download/v0.8.2/ko_0.8.2_Linux_i386.tar.gz
     tar xvfz ko.tar.gz
     chmod +x ko
     alias ko=./ko
 
     # Use the ko binary to build the crane and gcrane builder images.
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane -t latest -t "$COMMIT_SHA"
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA"
+    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
 
     # Use the ko binary to build the crane and gcrane builder *debug* images.
-    export KO_CONFIG_PATH=/workspace/.ko/debug/
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane -t debug
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t debug
+    export KO_CONFIG_PATH=./.ko/debug/
+    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t "debug"
+    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t "debug"
+
+    # Tag-specific debug images are pushed to gcr.io/go-containerregistry/{g}crane/debug:...
+    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/crane/debug  ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/gcrane/debug ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
 
 # Use the crane builder to get the digest for crane and gcrane.
 - name: gcr.io/$PROJECT_ID/crane
@@ -37,3 +42,4 @@ steps:
 
 - name: gcr.io/$PROJECT_ID/crane
   args: ['digest', 'gcr.io/$PROJECT_ID/gcrane']
+
