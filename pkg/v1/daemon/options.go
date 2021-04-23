@@ -22,6 +22,11 @@ import (
 	"github.com/docker/docker/client"
 )
 
+// ImageOption is an alias for Option.
+// Deprecated: Use Option instead.
+type ImageOption Option
+
+// Option is a functional option for daemon operations.
 type Option func(*options)
 
 type options struct {
