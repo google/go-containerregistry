@@ -21,7 +21,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -87,11 +86,11 @@ func TestCopySchema1(t *testing.T) {
 			},
 		},
 	}
-	if err := putManifest(desc, dstRef, authn.Anonymous); err != nil {
+	if err := remote.Put(dstRef, desc); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := CopySchema1(desc, srcRef, dstRef, authn.Anonymous, authn.Anonymous); err != nil {
+	if err := CopySchema1(desc, srcRef, dstRef); err != nil {
 		t.Errorf("failed to copy schema 1: %v", err)
 	}
 }
