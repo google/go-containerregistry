@@ -127,7 +127,7 @@ func (l *lister) list(repo name.Repository) (*Tags, error) {
 			return nil, err
 		}
 
-		if len(parsed.Manifests) != 0 {
+		if len(parsed.Manifests) != 0 || len(parsed.Children) != 0 {
 			// We're dealing with GCR, just return directly.
 			return &parsed, nil
 		}
