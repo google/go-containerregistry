@@ -133,7 +133,6 @@ func (l *lister) list(repo name.Repository) (*Tags, error) {
 		}
 
 		// This isn't GCR, just append the tags and keep paginating.
-		logs.Warn.Printf("saw non-google tag listing response, falling back to pagination")
 		tags.Tags = append(tags.Tags, parsed.Tags...)
 
 		uri, err = getNextPageURL(resp)
@@ -144,6 +143,7 @@ func (l *lister) list(repo name.Repository) (*Tags, error) {
 		if uri == nil {
 			break
 		}
+		logs.Warn.Printf("saw non-google tag listing response, falling back to pagination")
 	}
 
 	return &tags, nil
