@@ -105,6 +105,13 @@ func TestList(t *testing.T) {
 			Tags: []string{"foo", "bar", "baz"},
 		},
 	}, {
+		name:         "just children",
+		responseBody: []byte(`{"child":["hello", "world"]}`),
+		wantErr:      false,
+		wantTags: &Tags{
+			Children: []string{"hello", "world"},
+		},
+	}, {
 		name:         "not json",
 		responseBody: []byte("notjson"),
 		wantErr:      true,
