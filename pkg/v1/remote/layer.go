@@ -43,6 +43,7 @@ func (rl *remoteLayer) Size() (int64, error) {
 	if err != nil {
 		return -1, err
 	}
+	defer resp.Body.Close()
 	return resp.ContentLength, nil
 }
 
@@ -54,6 +55,14 @@ func (rl *remoteLayer) Digest() (v1.Hash, error) {
 // MediaType implements v1.Layer
 func (rl *remoteLayer) MediaType() (types.MediaType, error) {
 	return types.DockerLayer, nil
+}
+
+// See partial.Exists.
+func (rl *remoteLayer) Exists() (bool, error) {
+	if _, err := rl.Size(); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // Layer reads the given blob reference from a registry as a Layer. A blob

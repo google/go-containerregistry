@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
@@ -98,6 +99,12 @@ func TestImage(t *testing.T) {
 	// Fixture is a DockerLayer
 	if got, want := mediaType, types.DockerLayer; got != want {
 		t.Fatalf("MediaType(); want: %q got: %q", want, got)
+	}
+
+	if ok, err := partial.Exists(layers[0]); err != nil {
+		t.Fatal(err)
+	} else if got, want := ok, true; got != want {
+		t.Errorf("Exists() = %t != %t", got, want)
 	}
 }
 

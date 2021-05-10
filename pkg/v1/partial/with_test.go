@@ -203,6 +203,10 @@ func (l *fastpathLayer) UncompressedSize() (int64, error) {
 	return 100, nil
 }
 
+func (l *fastpathLayer) Exists() (bool, error) {
+	return true, nil
+}
+
 func TestUncompressedSize(t *testing.T) {
 	randLayer, err := random.Layer(1024, types.DockerLayer)
 	if err != nil {
@@ -215,5 +219,28 @@ func TestUncompressedSize(t *testing.T) {
 	}
 	if got, want := us, int64(100); got != want {
 		t.Errorf("UncompressedSize() = %d != %d", got, want)
+	}
+}
+
+func TestExists(t *testing.T) {
+	randLayer, err := random.Layer(1024, types.DockerLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fpl := &fastpathLayer{randLayer}
+	ok, err := partial.Exists(fpl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := ok, true; got != want {
+		t.Errorf("Exists() = %t != %t", got, want)
+	}
+
+	ok, err = partial.Exists(randLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := ok, true; got != want {
+		t.Errorf("Exists() = %t != %t", got, want)
 	}
 }

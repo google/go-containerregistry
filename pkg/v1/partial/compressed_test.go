@@ -79,6 +79,14 @@ func TestRemote(t *testing.T) {
 	if diff := cmp.Diff(d, m.Layers[0].Digest); diff != "" {
 		t.Errorf("mismatched digest: %v", diff)
 	}
+
+	ok, err := partial.Exists(layer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := ok, true; got != want {
+		t.Errorf("Exists() = %t != %t", got, want)
+	}
 }
 
 type noDiffID struct {
