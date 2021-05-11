@@ -297,11 +297,6 @@ type Describable interface {
 // UncompressedToImage.
 func Descriptor(d Describable) (*v1.Descriptor, error) {
 	// If Describable implements Descriptor itself, return that.
-	if wd, ok := d.(withDescriptor); ok {
-		return wd.Descriptor()
-	}
-
-	// Otherwise, attempt to unwrap the original implementation.
 	if wd, ok := unwrap(d).(withDescriptor); ok {
 		return wd.Descriptor()
 	}
@@ -336,13 +331,6 @@ type withUncompressedSize interface {
 // for streaming layers.
 func UncompressedSize(l v1.Layer) (int64, error) {
 	// If the layer implements UncompressedSize itself, return that.
-	if wus, ok := l.(withUncompressedSize); ok {
-		return wus.UncompressedSize()
-	}
-
-	// Otherwise, attempt to unwrap the original implementation.
-	// Otherwise, try to unwrap any partial implementations to see
-	// if the wrapped struct implements UncompressedSize.
 	if wus, ok := unwrap(l).(withUncompressedSize); ok {
 		return wus.UncompressedSize()
 	}
@@ -365,11 +353,6 @@ type withExists interface {
 // mistakes of the partial package. Don't use this.
 func Exists(l v1.Layer) (bool, error) {
 	// If the layer implements Exists itself, return that.
-	if we, ok := l.(withExists); ok {
-		return we.Exists()
-	}
-
-	// Otherwise, attempt to unwrap the original implementation.
 	if we, ok := unwrap(l).(withExists); ok {
 		return we.Exists()
 	}
