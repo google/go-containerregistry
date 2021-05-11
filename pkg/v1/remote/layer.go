@@ -59,10 +59,7 @@ func (rl *remoteLayer) MediaType() (types.MediaType, error) {
 
 // See partial.Exists.
 func (rl *remoteLayer) Exists() (bool, error) {
-	if _, err := rl.Size(); err != nil {
-		return false, err
-	}
-	return true, nil
+	return rl.blobExists(rl.digest)
 }
 
 // Layer reads the given blob reference from a registry as a Layer. A blob

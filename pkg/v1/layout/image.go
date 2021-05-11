@@ -134,5 +134,8 @@ func (b *compressedBlob) MediaType() (types.MediaType, error) {
 // See partial.Exists.
 func (b *compressedBlob) Exists() (bool, error) {
 	_, err := os.Stat(b.path.blobPath(b.desc.Digest))
+	if os.IsNotExist(err) {
+		return false, nil
+	}
 	return err == nil, err
 }

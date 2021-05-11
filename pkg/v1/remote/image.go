@@ -223,12 +223,7 @@ func (rl *remoteImageLayer) Descriptor() (*v1.Descriptor, error) {
 
 // See partial.Exists.
 func (rl *remoteImageLayer) Exists() (bool, error) {
-	resp, err := rl.ri.headBlob(rl.digest)
-	if err != nil {
-		return false, err
-	}
-	defer resp.Body.Close()
-	return true, nil
+	return rl.ri.blobExists(rl.digest)
 }
 
 // LayerByDigest implements partial.CompressedLayer
