@@ -214,4 +214,21 @@ func TestUncompressed(t *testing.T) {
 	if _, err := partial.Descriptor(img); err != nil {
 		t.Fatalf("partial.Descriptor: %v", err)
 	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	layer, err := partial.UncompressedToLayer(&fastpathLayer{layers[0]})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ok, err := partial.Exists(layer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := ok, true; got != want {
+		t.Errorf("Exists() = %t != %t", got, want)
+	}
 }

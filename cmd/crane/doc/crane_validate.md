@@ -13,6 +13,7 @@ crane validate [flags]
 ### Options
 
 ```
+      --fast             Skip downloading/digesting layers
   -h, --help             help for validate
       --remote string    Name of remote image to validate
       --tarball string   Path to tarball to validate
