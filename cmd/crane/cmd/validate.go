@@ -47,6 +47,7 @@ func NewCmdValidate(options *[]crane.Option) *cobra.Command {
 
 				if err := validate.Image(img); err != nil {
 					fmt.Printf("FAIL: %s: %v\n", flag, err)
+					return err
 				} else {
 					fmt.Printf("PASS: %s\n", flag)
 				}
