@@ -15,7 +15,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
@@ -29,7 +28,6 @@ func init() {
 
 func main() {
 	if err := cmd.Root.Execute(); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }
