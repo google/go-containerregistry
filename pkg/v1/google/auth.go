@@ -70,7 +70,7 @@ func NewGcloudAuthenticator() (authn.Authenticator, error) {
 		return authn.Anonymous, nil
 	}
 
-	ts := gcloudSource{GetGcloudCmd()}
+	ts := gcloudSource{GetGcloudCmd}
 
 	// Attempt to fetch a token to ensure gcloud is installed and we can run it.
 	token, err := ts.Token()
@@ -145,12 +145,12 @@ type gcloudOutput struct {
 
 type gcloudSource struct {
 	// This is passed in so that we mock out gcloud and test Token.
-	cmd *exec.Cmd
+	exec func() *exec.Cmd
 }
 
 // Token implements oauath2.TokenSource.
 func (gs gcloudSource) Token() (*oauth2.Token, error) {
-	cmd := gs.cmd
+	cmd := gs.exec()
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
