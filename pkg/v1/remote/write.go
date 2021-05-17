@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/google/go-containerregistry/internal/redact"
@@ -436,6 +437,16 @@ func (w *writer) uploadOne(l v1.Layer) error {
 
 	ctx := w.context
 
+	shouldRetry := func(err error) bool {
+		// Various failure modes here, as we're often reading from and writing to
+		// the network.
+		if retry.IsTemporary(err) || errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, syscall.EPIPE) {
+			logs.Warn.Printf("retrying %v", err)
+			return true
+		}
+		return false
+	}
+
 	tryUpload := func() error {
 		location, mounted, err := w.initiateUpload(from, mount)
 		if err != nil {
@@ -495,7 +506,7 @@ func (w *writer) uploadOne(l v1.Layer) error {
 		Steps:    3,
 	}
 
-	return retry.Retry(tryUpload, retry.IsTemporary, backoff)
+	return retry.Retry(tryUpload, shouldRetry, backoff)
 }
 
 type withLayer interface {
