@@ -18,6 +18,7 @@ import (
 	"context"
 	"runtime"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -79,5 +80,32 @@ func WithContext(ctx context.Context) Option {
 		o.remote = append(o.remote, remote.WithContext(ctx))
 		o.google = append(o.google, google.WithContext(ctx))
 		o.crane = append(o.crane, crane.WithContext(ctx))
+	}
+}
+
+// WithKeychain is a functional option for overriding the default
+// authenticator for remote operations, using an authn.Keychain to find
+// credentials.
+//
+// By default, gcrane will use gcrane.Keychain.
+func WithKeychain(keys authn.Keychain) Option {
+	return func(o *options) {
+		// Replace the default keychain at position 0.
+		o.remote[0] = remote.WithAuthFromKeychain(keys)
+		o.google[0] = google.WithAuthFromKeychain(keys)
+		o.crane[0] = crane.WithAuthFromKeychain(keys)
+	}
+}
+
+// WithAuth is a functional option for overriding the default authenticator
+// for remote operations.
+//
+// By default, gcrane will use gcrane.Keychain.
+func WithAuth(auth authn.Authenticator) Option {
+	return func(o *options) {
+		// Replace the default keychain at position 0.
+		o.remote[0] = remote.WithAuth(auth)
+		o.google[0] = google.WithAuth(auth)
+		o.crane[0] = crane.WithAuth(auth)
 	}
 }
