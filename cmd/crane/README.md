@@ -14,7 +14,7 @@ Download [latest release](https://github.com/google/go-containerregistry/release
 Install manually:
 
 ```
-go install github.com/google/go-containerregistry/cmd/crane
+go install github.com/google/go-containerregistry/cmd/crane@latest
 ```
 
 ### Install via brew
