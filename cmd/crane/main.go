@@ -15,9 +15,11 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
+	"github.com/google/go-containerregistry/internal/signal"
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 
@@ -27,7 +29,10 @@ func init() {
 }
 
 func main() {
-	if err := cmd.Root.Execute(); err != nil {
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+	if err := cmd.Root.ExecuteContext(ctx); err != nil {
+		cancel()
 		os.Exit(1)
 	}
 }

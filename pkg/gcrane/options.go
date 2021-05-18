@@ -15,6 +15,7 @@
 package gcrane
 
 import (
+	"context"
 	"runtime"
 
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -69,5 +70,14 @@ func WithUserAgent(ua string) Option {
 		o.remote = append(o.remote, remote.WithUserAgent(ua))
 		o.google = append(o.google, google.WithUserAgent(ua))
 		o.crane = append(o.crane, crane.WithUserAgent(ua))
+	}
+}
+
+// WithContext is a functional option for setting the context.
+func WithContext(ctx context.Context) Option {
+	return func(o *options) {
+		o.remote = append(o.remote, remote.WithContext(ctx))
+		o.google = append(o.google, google.WithContext(ctx))
+		o.crane = append(o.crane, crane.WithContext(ctx))
 	}
 }
