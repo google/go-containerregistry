@@ -60,11 +60,17 @@ func ls(ctx context.Context, root string, recursive, j bool) error {
 		return err
 	}
 
-	if recursive {
-		return google.Walk(repo, printImages(j), google.WithAuthFromKeychain(gcrane.Keychain), google.WithUserAgent(userAgent()), google.WithContext(ctx))
+	opts := []google.Option{
+		google.WithAuthFromKeychain(gcrane.Keychain),
+		google.WithUserAgent(userAgent()),
+		google.WithContext(ctx),
 	}
 
-	tags, err := google.List(repo, google.WithAuthFromKeychain(gcrane.Keychain), google.WithUserAgent(userAgent()), google.WithContext(ctx))
+	if recursive {
+		return google.Walk(repo, printImages(j), opts...)
+	}
+
+	tags, err := google.List(repo, opts...)
 	if err != nil {
 		return err
 	}

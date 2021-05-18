@@ -47,13 +47,17 @@ func gc(ctx context.Context, root string, recursive bool) error {
 		return err
 	}
 
-	auth := google.WithAuthFromKeychain(gcrane.Keychain)
-
-	if recursive {
-		return google.Walk(repo, printUntaggedImages, auth, google.WithUserAgent(userAgent()), google.WithContext(ctx))
+	opts := []google.Option{
+		google.WithAuthFromKeychain(gcrane.Keychain),
+		google.WithUserAgent(userAgent()),
+		google.WithContext(ctx),
 	}
 
-	tags, err := google.List(repo, auth, google.WithUserAgent(userAgent()))
+	if recursive {
+		return google.Walk(repo, printUntaggedImages, opts...)
+	}
+
+	tags, err := google.List(repo, opts...)
 	return printUntaggedImages(repo, tags, err)
 }
 
