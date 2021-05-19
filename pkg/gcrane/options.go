@@ -16,6 +16,7 @@ package gcrane
 
 import (
 	"context"
+	"net/http"
 	"runtime"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -61,6 +62,16 @@ func makeOptions(opts ...Option) *options {
 func WithJobs(jobs int) Option {
 	return func(o *options) {
 		o.jobs = jobs
+	}
+}
+
+// WithTransport is a functional option for overriding the default transport
+// for remote operations.
+func WithTransport(t http.RoundTripper) Option {
+	return func(o *options) {
+		o.remote = append(o.remote, remote.WithTransport(t))
+		o.google = append(o.google, google.WithTransport(t))
+		o.crane = append(o.crane, crane.WithTransport(t))
 	}
 }
 
