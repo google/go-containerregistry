@@ -173,21 +173,25 @@ func TestPingHttpFallback(t *testing.T) {
 		err         string
 		contains    []string
 		notContains []string
-	}{{
+	}{{ // try "https" only
 		reg:       mustRegistry("gcr.io"),
 		wantCount: 1,
 		err:       `Get "https://gcr.io/v2/": http: server gave HTTP response to HTTPS client`,
-	}, {
+	}, { // try "https" at first, then fall back to "http"
 		reg:       mustRegistry("ko.local"),
 		wantCount: 2,
-	}, {
+	}, { // try "http" at first, then fall back to "https"
 		reg:       mustInsecureRegistry("ko.local"),
 		wantCount: 1,
-	}, {
+	}, { // try "https" only
 		reg:         mustRegistry("us.gcr.io"),
 		wantCount:   0,
 		contains:    []string{"https://us.gcr.io/v2/"},
 		notContains: []string{"http://us.gcr.io/v2/"},
+	}, { // try "http" at first, then fall back to "https"
+		reg:       mustInsecureRegistry("us.gcr.io"),
+		wantCount: 0,
+		contains:  []string{"https://us.gcr.io/v2/", "http://us.gcr.io/v2/"},
 	}}
 
 	gotCount := 0
