@@ -104,15 +104,16 @@ func (fake *FakeImageIndex) Digest() (v1.Hash, error) {
 	ret, specificReturn := fake.digestReturnsOnCall[len(fake.digestArgsForCall)]
 	fake.digestArgsForCall = append(fake.digestArgsForCall, struct {
 	}{})
+	stub := fake.DigestStub
+	fakeReturns := fake.digestReturns
 	fake.recordInvocation("Digest", []interface{}{})
 	fake.digestMutex.Unlock()
-	if fake.DigestStub != nil {
-		return fake.DigestStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.digestReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -160,15 +161,16 @@ func (fake *FakeImageIndex) Image(arg1 v1.Hash) (v1.Image, error) {
 	fake.imageArgsForCall = append(fake.imageArgsForCall, struct {
 		arg1 v1.Hash
 	}{arg1})
+	stub := fake.ImageStub
+	fakeReturns := fake.imageReturns
 	fake.recordInvocation("Image", []interface{}{arg1})
 	fake.imageMutex.Unlock()
-	if fake.ImageStub != nil {
-		return fake.ImageStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.imageReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -223,15 +225,16 @@ func (fake *FakeImageIndex) ImageIndex(arg1 v1.Hash) (v1.ImageIndex, error) {
 	fake.imageIndexArgsForCall = append(fake.imageIndexArgsForCall, struct {
 		arg1 v1.Hash
 	}{arg1})
+	stub := fake.ImageIndexStub
+	fakeReturns := fake.imageIndexReturns
 	fake.recordInvocation("ImageIndex", []interface{}{arg1})
 	fake.imageIndexMutex.Unlock()
-	if fake.ImageIndexStub != nil {
-		return fake.ImageIndexStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.imageIndexReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -285,15 +288,16 @@ func (fake *FakeImageIndex) IndexManifest() (*v1.IndexManifest, error) {
 	ret, specificReturn := fake.indexManifestReturnsOnCall[len(fake.indexManifestArgsForCall)]
 	fake.indexManifestArgsForCall = append(fake.indexManifestArgsForCall, struct {
 	}{})
+	stub := fake.IndexManifestStub
+	fakeReturns := fake.indexManifestReturns
 	fake.recordInvocation("IndexManifest", []interface{}{})
 	fake.indexManifestMutex.Unlock()
-	if fake.IndexManifestStub != nil {
-		return fake.IndexManifestStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.indexManifestReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -340,15 +344,16 @@ func (fake *FakeImageIndex) MediaType() (types.MediaType, error) {
 	ret, specificReturn := fake.mediaTypeReturnsOnCall[len(fake.mediaTypeArgsForCall)]
 	fake.mediaTypeArgsForCall = append(fake.mediaTypeArgsForCall, struct {
 	}{})
+	stub := fake.MediaTypeStub
+	fakeReturns := fake.mediaTypeReturns
 	fake.recordInvocation("MediaType", []interface{}{})
 	fake.mediaTypeMutex.Unlock()
-	if fake.MediaTypeStub != nil {
-		return fake.MediaTypeStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.mediaTypeReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -395,15 +400,16 @@ func (fake *FakeImageIndex) RawManifest() ([]byte, error) {
 	ret, specificReturn := fake.rawManifestReturnsOnCall[len(fake.rawManifestArgsForCall)]
 	fake.rawManifestArgsForCall = append(fake.rawManifestArgsForCall, struct {
 	}{})
+	stub := fake.RawManifestStub
+	fakeReturns := fake.rawManifestReturns
 	fake.recordInvocation("RawManifest", []interface{}{})
 	fake.rawManifestMutex.Unlock()
-	if fake.RawManifestStub != nil {
-		return fake.RawManifestStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.rawManifestReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -450,15 +456,16 @@ func (fake *FakeImageIndex) Size() (int64, error) {
 	ret, specificReturn := fake.sizeReturnsOnCall[len(fake.sizeArgsForCall)]
 	fake.sizeArgsForCall = append(fake.sizeArgsForCall, struct {
 	}{})
+	stub := fake.SizeStub
+	fakeReturns := fake.sizeReturns
 	fake.recordInvocation("Size", []interface{}{})
 	fake.sizeMutex.Unlock()
-	if fake.SizeStub != nil {
-		return fake.SizeStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.sizeReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
