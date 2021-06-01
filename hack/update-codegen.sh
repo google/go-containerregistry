@@ -19,7 +19,8 @@ set -o nounset
 set -o pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export BOILER_PLATE_FILE="${PROJECT_ROOT}/hack/boilerplate/boilerplate.go.txt"
+BOILER_PLATE_FILE="${PROJECT_ROOT}/hack/boilerplate/boilerplate.go.txt"
+MODULE_NAME=github.com/google/go-containerregistry
 
 pushd ${PROJECT_ROOT}
 trap popd EXIT
@@ -29,8 +30,23 @@ export PATH="${GOPATH}/bin:${PATH}"
 
 go mod tidy
 go mod vendor
-go run $PROJECT_ROOT/cmd/crane/help/main.go --dir=$PROJECT_ROOT/cmd/crane/doc/
 
-go run ./vendor/github.com/maxbrunsfeld/counterfeiter/v6/ -o pkg/v1/fake/index.go ${PROJECT_ROOT}/pkg/v1 ImageIndex
-go run ./vendor/github.com/maxbrunsfeld/counterfeiter/v6/ -o pkg/v1/fake/image.go ${PROJECT_ROOT}/pkg/v1 Image
-go run ./vendor/k8s.io/code-generator/cmd/deepcopy-gen -O zz_deepcopy_generated --go-header-file $BOILER_PLATE_FILE -i github.com/google/go-containerregistry/pkg/v1
+export GOBIN=$(mktemp -d)
+export PATH="$GOBIN:$PATH"
+
+go install github.com/maxbrunsfeld/counterfeiter/v6@latest
+go install k8s.io/code-generator/cmd/deepcopy-gen@v0.20.7
+
+counterfeiter -o pkg/v1/fake/index.go ${PROJECT_ROOT}/pkg/v1 ImageIndex
+counterfeiter -o pkg/v1/fake/image.go ${PROJECT_ROOT}/pkg/v1 Image
+
+DEEPCOPY_OUTPUT=$(mktemp -d)
+
+deepcopy-gen -O zz_deepcopy_generated --go-header-file $BOILER_PLATE_FILE \
+  --input-dirs "$MODULE_NAME/pkg/v1" \
+  --output-base "$DEEPCOPY_OUTPUT"
+
+# TODO - Generalize this for all directories when we need it
+cp $DEEPCOPY_OUTPUT/$MODULE_NAME/pkg/v1/*.go $PROJECT_ROOT/pkg/v1
+
+go run $PROJECT_ROOT/cmd/crane/help/main.go --dir=$PROJECT_ROOT/cmd/crane/doc/

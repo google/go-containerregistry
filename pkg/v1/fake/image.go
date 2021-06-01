@@ -152,15 +152,16 @@ func (fake *FakeImage) ConfigFile() (*v1.ConfigFile, error) {
 	ret, specificReturn := fake.configFileReturnsOnCall[len(fake.configFileArgsForCall)]
 	fake.configFileArgsForCall = append(fake.configFileArgsForCall, struct {
 	}{})
+	stub := fake.ConfigFileStub
+	fakeReturns := fake.configFileReturns
 	fake.recordInvocation("ConfigFile", []interface{}{})
 	fake.configFileMutex.Unlock()
-	if fake.ConfigFileStub != nil {
-		return fake.ConfigFileStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.configFileReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -207,15 +208,16 @@ func (fake *FakeImage) ConfigName() (v1.Hash, error) {
 	ret, specificReturn := fake.configNameReturnsOnCall[len(fake.configNameArgsForCall)]
 	fake.configNameArgsForCall = append(fake.configNameArgsForCall, struct {
 	}{})
+	stub := fake.ConfigNameStub
+	fakeReturns := fake.configNameReturns
 	fake.recordInvocation("ConfigName", []interface{}{})
 	fake.configNameMutex.Unlock()
-	if fake.ConfigNameStub != nil {
-		return fake.ConfigNameStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.configNameReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -262,15 +264,16 @@ func (fake *FakeImage) Digest() (v1.Hash, error) {
 	ret, specificReturn := fake.digestReturnsOnCall[len(fake.digestArgsForCall)]
 	fake.digestArgsForCall = append(fake.digestArgsForCall, struct {
 	}{})
+	stub := fake.DigestStub
+	fakeReturns := fake.digestReturns
 	fake.recordInvocation("Digest", []interface{}{})
 	fake.digestMutex.Unlock()
-	if fake.DigestStub != nil {
-		return fake.DigestStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.digestReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -318,15 +321,16 @@ func (fake *FakeImage) LayerByDiffID(arg1 v1.Hash) (v1.Layer, error) {
 	fake.layerByDiffIDArgsForCall = append(fake.layerByDiffIDArgsForCall, struct {
 		arg1 v1.Hash
 	}{arg1})
+	stub := fake.LayerByDiffIDStub
+	fakeReturns := fake.layerByDiffIDReturns
 	fake.recordInvocation("LayerByDiffID", []interface{}{arg1})
 	fake.layerByDiffIDMutex.Unlock()
-	if fake.LayerByDiffIDStub != nil {
-		return fake.LayerByDiffIDStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.layerByDiffIDReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -381,15 +385,16 @@ func (fake *FakeImage) LayerByDigest(arg1 v1.Hash) (v1.Layer, error) {
 	fake.layerByDigestArgsForCall = append(fake.layerByDigestArgsForCall, struct {
 		arg1 v1.Hash
 	}{arg1})
+	stub := fake.LayerByDigestStub
+	fakeReturns := fake.layerByDigestReturns
 	fake.recordInvocation("LayerByDigest", []interface{}{arg1})
 	fake.layerByDigestMutex.Unlock()
-	if fake.LayerByDigestStub != nil {
-		return fake.LayerByDigestStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.layerByDigestReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -443,15 +448,16 @@ func (fake *FakeImage) Layers() ([]v1.Layer, error) {
 	ret, specificReturn := fake.layersReturnsOnCall[len(fake.layersArgsForCall)]
 	fake.layersArgsForCall = append(fake.layersArgsForCall, struct {
 	}{})
+	stub := fake.LayersStub
+	fakeReturns := fake.layersReturns
 	fake.recordInvocation("Layers", []interface{}{})
 	fake.layersMutex.Unlock()
-	if fake.LayersStub != nil {
-		return fake.LayersStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.layersReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -498,15 +504,16 @@ func (fake *FakeImage) Manifest() (*v1.Manifest, error) {
 	ret, specificReturn := fake.manifestReturnsOnCall[len(fake.manifestArgsForCall)]
 	fake.manifestArgsForCall = append(fake.manifestArgsForCall, struct {
 	}{})
+	stub := fake.ManifestStub
+	fakeReturns := fake.manifestReturns
 	fake.recordInvocation("Manifest", []interface{}{})
 	fake.manifestMutex.Unlock()
-	if fake.ManifestStub != nil {
-		return fake.ManifestStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.manifestReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -553,15 +560,16 @@ func (fake *FakeImage) MediaType() (types.MediaType, error) {
 	ret, specificReturn := fake.mediaTypeReturnsOnCall[len(fake.mediaTypeArgsForCall)]
 	fake.mediaTypeArgsForCall = append(fake.mediaTypeArgsForCall, struct {
 	}{})
+	stub := fake.MediaTypeStub
+	fakeReturns := fake.mediaTypeReturns
 	fake.recordInvocation("MediaType", []interface{}{})
 	fake.mediaTypeMutex.Unlock()
-	if fake.MediaTypeStub != nil {
-		return fake.MediaTypeStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.mediaTypeReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -608,15 +616,16 @@ func (fake *FakeImage) RawConfigFile() ([]byte, error) {
 	ret, specificReturn := fake.rawConfigFileReturnsOnCall[len(fake.rawConfigFileArgsForCall)]
 	fake.rawConfigFileArgsForCall = append(fake.rawConfigFileArgsForCall, struct {
 	}{})
+	stub := fake.RawConfigFileStub
+	fakeReturns := fake.rawConfigFileReturns
 	fake.recordInvocation("RawConfigFile", []interface{}{})
 	fake.rawConfigFileMutex.Unlock()
-	if fake.RawConfigFileStub != nil {
-		return fake.RawConfigFileStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.rawConfigFileReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -663,15 +672,16 @@ func (fake *FakeImage) RawManifest() ([]byte, error) {
 	ret, specificReturn := fake.rawManifestReturnsOnCall[len(fake.rawManifestArgsForCall)]
 	fake.rawManifestArgsForCall = append(fake.rawManifestArgsForCall, struct {
 	}{})
+	stub := fake.RawManifestStub
+	fakeReturns := fake.rawManifestReturns
 	fake.recordInvocation("RawManifest", []interface{}{})
 	fake.rawManifestMutex.Unlock()
-	if fake.RawManifestStub != nil {
-		return fake.RawManifestStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.rawManifestReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -718,15 +728,16 @@ func (fake *FakeImage) Size() (int64, error) {
 	ret, specificReturn := fake.sizeReturnsOnCall[len(fake.sizeArgsForCall)]
 	fake.sizeArgsForCall = append(fake.sizeArgsForCall, struct {
 	}{})
+	stub := fake.SizeStub
+	fakeReturns := fake.sizeReturns
 	fake.recordInvocation("Size", []interface{}{})
 	fake.sizeMutex.Unlock()
-	if fake.SizeStub != nil {
-		return fake.SizeStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.sizeReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
