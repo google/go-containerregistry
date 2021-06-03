@@ -2,10 +2,6 @@
 
 Crane is a tool for managing container images
 
-### Synopsis
-
-Crane is a tool for managing container images
-
 ```
 crane [flags]
 ```

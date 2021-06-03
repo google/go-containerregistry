@@ -2,10 +2,6 @@
 
 Rebase an image onto a new base image
 
-### Synopsis
-
-Rebase an image onto a new base image
-
 ```
 crane rebase [flags]
 ```

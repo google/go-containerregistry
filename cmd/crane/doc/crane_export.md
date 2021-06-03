@@ -2,10 +2,6 @@
 
 Export contents of a remote image as a tarball
 
-### Synopsis
-
-Export contents of a remote image as a tarball
-
 ```
 crane export IMAGE TARBALL [flags]
 ```

@@ -1,8 +1,6 @@
 # cloud.google.com/go v0.83.0
 ## explicit
 cloud.google.com/go/compute/metadata
-# github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
-## explicit
 # github.com/Microsoft/go-winio v0.5.0
 ## explicit
 github.com/Microsoft/go-winio
@@ -61,10 +59,8 @@ github.com/docker/go-connections/nat
 github.com/docker/go-connections/sockets
 github.com/docker/go-connections/tlsconfig
 # github.com/docker/go-units v0.4.0
-## explicit
 github.com/docker/go-units
 # github.com/gogo/protobuf v1.3.2
-## explicit
 github.com/gogo/protobuf/proto
 # github.com/golang/protobuf v1.5.2
 github.com/golang/protobuf/proto
@@ -117,10 +113,7 @@ github.com/sirupsen/logrus
 github.com/spf13/cobra
 github.com/spf13/cobra/doc
 # github.com/spf13/pflag v1.0.5
-## explicit
 github.com/spf13/pflag
-# github.com/stretchr/testify v1.6.1
-## explicit
 # golang.org/x/net v0.0.0-20210525063256-abc453219eb5
 ## explicit
 golang.org/x/net/context
@@ -200,5 +193,3 @@ google.golang.org/protobuf/types/known/timestamppb
 ## explicit
 # gopkg.in/yaml.v2 v2.4.0
 gopkg.in/yaml.v2
-# gotest.tools v2.2.0+incompatible
-## explicit

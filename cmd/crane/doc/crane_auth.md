@@ -2,10 +2,6 @@
 
 Log in or access credentials
 
-### Synopsis
-
-Log in or access credentials
-
 ```
 crane auth [flags]
 ```

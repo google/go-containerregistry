@@ -2,10 +2,6 @@
 
 Implements a credential helper
 
-### Synopsis
-
-Implements a credential helper
-
 ```
 crane auth get [flags]
 ```

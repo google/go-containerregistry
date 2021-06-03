@@ -2,10 +2,6 @@
 
 Efficiently copy a remote image from src to dst
 
-### Synopsis
-
-Efficiently copy a remote image from src to dst
-
 ```
 crane copy SRC DST [flags]
 ```

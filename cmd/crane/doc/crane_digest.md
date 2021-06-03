@@ -2,10 +2,6 @@
 
 Get the digest of an image
 
-### Synopsis
-
-Get the digest of an image
-
 ```
 crane digest IMAGE [flags]
 ```

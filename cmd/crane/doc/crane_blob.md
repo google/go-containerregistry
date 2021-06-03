@@ -2,10 +2,6 @@
 
 Read a blob from the registry
 
-### Synopsis
-
-Read a blob from the registry
-
 ```
 crane blob BLOB [flags]
 ```

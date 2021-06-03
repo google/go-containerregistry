@@ -2,10 +2,6 @@
 
 Append contents of a tarball to a remote image
 
-### Synopsis
-
-Append contents of a tarball to a remote image
-
 ```
 crane append [flags]
 ```

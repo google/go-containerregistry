@@ -2,10 +2,6 @@
 
 Validate that an image is well-formed
 
-### Synopsis
-
-Validate that an image is well-formed
-
 ```
 crane validate [flags]
 ```

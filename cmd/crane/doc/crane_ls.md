@@ -2,10 +2,6 @@
 
 List the tags in a repo
 
-### Synopsis
-
-List the tags in a repo
-
 ```
 crane ls REPO [flags]
 ```

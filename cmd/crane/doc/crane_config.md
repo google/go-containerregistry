@@ -2,10 +2,6 @@
 
 Get the config of an image
 
-### Synopsis
-
-Get the config of an image
-
 ```
 crane config IMAGE [flags]
 ```
