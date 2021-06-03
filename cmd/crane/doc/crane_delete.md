@@ -2,10 +2,6 @@
 
 Delete an image reference from its registry
 
-### Synopsis
-
-Delete an image reference from its registry
-
 ```
 crane delete IMAGE [flags]
 ```

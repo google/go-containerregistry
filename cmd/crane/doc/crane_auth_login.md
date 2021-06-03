@@ -2,10 +2,6 @@
 
 Log in to a registry
 
-### Synopsis
-
-Log in to a registry
-
 ```
 crane auth login [OPTIONS] [SERVER] [flags]
 ```

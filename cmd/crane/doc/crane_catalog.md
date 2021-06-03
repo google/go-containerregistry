@@ -2,10 +2,6 @@
 
 List the repos in a registry
 
-### Synopsis
-
-List the repos in a registry
-
 ```
 crane catalog [flags]
 ```

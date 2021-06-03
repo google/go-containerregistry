@@ -2,10 +2,6 @@
 
 Push image contents as a tarball to a remote registry
 
-### Synopsis
-
-Push image contents as a tarball to a remote registry
-
 ```
 crane push TARBALL IMAGE [flags]
 ```

@@ -2,10 +2,6 @@
 
 Get the manifest of an image
 
-### Synopsis
-
-Get the manifest of an image
-
 ```
 crane manifest IMAGE [flags]
 ```

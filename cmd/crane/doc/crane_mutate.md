@@ -2,10 +2,6 @@
 
 Modify image labels and annotations
 
-### Synopsis
-
-Modify image labels and annotations
-
 ```
 crane mutate [flags]
 ```
