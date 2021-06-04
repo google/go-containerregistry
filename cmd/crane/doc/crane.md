@@ -22,7 +22,7 @@ crane [flags]
 * [crane blob](crane_blob.md)	 - Read a blob from the registry
 * [crane catalog](crane_catalog.md)	 - List the repos in a registry
 * [crane config](crane_config.md)	 - Get the config of an image
-* [crane copy](crane_copy.md)	 - Efficiently copy a remote image from src to dst
+* [crane copy](crane_copy.md)	 - Efficiently copy a remote image from src to dst while retaining the digest value
 * [crane delete](crane_delete.md)	 - Delete an image reference from its registry
 * [crane digest](crane_digest.md)	 - Get the digest of an image
 * [crane export](crane_export.md)	 - Export contents of a remote image as a tarball

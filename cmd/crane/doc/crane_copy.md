@@ -1,6 +1,6 @@
 ## crane copy
 
-Efficiently copy a remote image from src to dst
+Efficiently copy a remote image from src to dst while retaining the digest value
 
 ```
 crane copy SRC DST [flags]
