@@ -228,6 +228,53 @@ func TestMultiWrite_Progress(t *testing.T) {
 	}
 }
 
+func TestMultiWrite_Progress_Retry(t *testing.T) {
+	idx, err := random.Index(100000, 10, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := make(chan v1.Update, 1000)
+
+	// Set up a fake registry.
+	handler := registry.New()
+	numOfInternalServerErrors := 0
+	registryThatFailsOnFirstUpload := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		if strings.Contains(request.URL.Path, "/manifests/") && numOfInternalServerErrors < 1 {
+			numOfInternalServerErrors++
+			responseWriter.WriteHeader(500)
+			return
+		}
+		handler.ServeHTTP(responseWriter, request)
+	})
+
+	s := httptest.NewServer(registryThatFailsOnFirstUpload)
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ref, err := name.ParseReference(fmt.Sprintf("%s/test/progress/upload", u.Host))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref2, err := name.ParseReference(fmt.Sprintf("%s/test/progress/upload:again", u.Host))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := MultiWrite(map[name.Reference]Taggable{
+		ref:  idx,
+		ref2: idx,
+	}, WithProgress(c)); err != nil {
+		t.Fatalf("MultiWrite: %v", err)
+	}
+
+	if err := checkUpdates(c); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestWriteLayer_Progress_Retry(t *testing.T) {
 	l, err := random.Layer(100000, types.OCIUncompressedLayer)
 	if err != nil {
