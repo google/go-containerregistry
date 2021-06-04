@@ -55,7 +55,7 @@ type googleKeychain struct {
 func (gk *googleKeychain) Resolve(target authn.Resource) (authn.Authenticator, error) {
 	// Only authenticate GCR and AR so it works with authn.NewMultiKeychain to fallback.
 	host := target.RegistryStr()
-	if host != "gcr.io" && !strings.HasSuffix(host, ".gcr.io") && !strings.HasSuffix(host, ".pkg.dev") {
+	if host != "gcr.io" && !strings.HasSuffix(host, ".gcr.io") && !strings.HasSuffix(host, ".pkg.dev") && !strings.HasSuffix(host, ".google.com") {
 		return authn.Anonymous, nil
 	}
 
