@@ -17,8 +17,10 @@ package remote
 import (
 	"io/ioutil"
 	"log"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -147,6 +149,77 @@ func TestMultiWriteWithNondistributableLayer(t *testing.T) {
 	if err := validate.Image(got); err != nil {
 		t.Error("Validate() =", err)
 	}
+}
+
+func TestMultiWrite_Retry(t *testing.T) {
+	// Create a random image.
+	img1, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal("random.Image:", err)
+	}
+
+	t.Run("retry http error 500", func(t *testing.T) {
+		// Set up a fake registry.
+		handler := registry.New()
+
+		numOfInternalServerErrors := 0
+		registryThatFailsOnFirstUpload := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+			if strings.Contains(request.URL.Path, "/manifests/") && numOfInternalServerErrors < 1 {
+				numOfInternalServerErrors++
+				responseWriter.WriteHeader(500)
+				return
+			}
+			handler.ServeHTTP(responseWriter, request)
+		})
+
+		s := httptest.NewServer(registryThatFailsOnFirstUpload)
+		defer s.Close()
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+		if err := MultiWrite(map[name.Reference]Taggable{
+			tag1: img1,
+		}); err != nil {
+			t.Error("Write:", err)
+		}
+	})
+
+	t.Run("do not retry http error 401", func(t *testing.T) {
+		// Set up a fake registry.
+		handler := registry.New()
+
+		numOf401HttpErrors := 0
+		registryThatFailsOnFirstUpload := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+			if strings.Contains(request.URL.Path, "/manifests/") {
+				numOf401HttpErrors++
+				responseWriter.WriteHeader(401)
+				return
+			}
+			handler.ServeHTTP(responseWriter, request)
+		})
+
+		s := httptest.NewServer(registryThatFailsOnFirstUpload)
+		defer s.Close()
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+		if err := MultiWrite(map[name.Reference]Taggable{
+			tag1: img1,
+		}); err == nil {
+			t.Fatal("Expected error:")
+		}
+
+		if numOf401HttpErrors > 1 {
+			t.Fatal("Should not retry on 401 errors:")
+		}
+
+	})
 }
 
 // TestMultiWrite_Deep tests that a deeply nested tree of manifest lists gets
