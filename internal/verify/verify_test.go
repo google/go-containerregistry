@@ -16,6 +16,7 @@ package verify
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
@@ -35,7 +36,7 @@ func TestVerificationFailure(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
 
-	verified, err := ReadCloser(ioutil.NopCloser(buf), mustHash("not the same", t))
+	verified, err := ReadCloser(ioutil.NopCloser(buf), int64(len(want)), mustHash("not the same", t))
 	if err != nil {
 		t.Fatal("ReadCloser() =", err)
 	}
@@ -48,7 +49,7 @@ func TestVerification(t *testing.T) {
 	want := "This is the input string."
 	buf := bytes.NewBufferString(want)
 
-	verified, err := ReadCloser(ioutil.NopCloser(buf), mustHash(want, t))
+	verified, err := ReadCloser(ioutil.NopCloser(buf), int64(len(want)), mustHash(want, t))
 	if err != nil {
 		t.Fatal("ReadCloser() =", err)
 	}
@@ -62,8 +63,26 @@ func TestBadHash(t *testing.T) {
 		Algorithm: "fake256",
 		Hex:       "whatever",
 	}
-	_, err := ReadCloser(ioutil.NopCloser(strings.NewReader("hi")), h)
+	_, err := ReadCloser(ioutil.NopCloser(strings.NewReader("hi")), 0, h)
 	if err == nil {
 		t.Errorf("ReadCloser() = %v, wanted err", err)
+	}
+}
+
+func TestBadSize(t *testing.T) {
+	want := "This is the input string."
+
+	// having too much content or expecting too much content returns an error.
+	for _, size := range []int64{3, 100} {
+		t.Run(fmt.Sprintf("expecting size %d", size), func(t *testing.T) {
+			buf := bytes.NewBufferString(want)
+			rc, err := ReadCloser(ioutil.NopCloser(buf), size, mustHash(want, t))
+			if err != nil {
+				t.Fatal("ReadCloser() =", err)
+			}
+			if b, err := ioutil.ReadAll(rc); err == nil {
+				t.Errorf("ReadAll() = %q; want verification error", string(b))
+			}
+		})
 	}
 }

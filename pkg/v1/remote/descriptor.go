@@ -380,7 +380,17 @@ func (f *fetcher) fetchBlob(ctx context.Context, h v1.Hash) (io.ReadCloser, erro
 		return nil, err
 	}
 
-	return verify.ReadCloser(resp.Body, h)
+	// Verify up to the content-length header value.
+	lh := resp.Header.Get("Content-Length")
+	if lh == "" {
+		return nil, fmt.Errorf("GET %s: response did not include Content-Length header", u.String())
+	}
+	size, err := strconv.ParseInt(lh, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	return verify.ReadCloser(resp.Body, size, h)
 }
 
 func (f *fetcher) headBlob(h v1.Hash) (*http.Response, error) {
