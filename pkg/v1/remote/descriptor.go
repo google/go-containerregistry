@@ -334,10 +334,7 @@ func (f *fetcher) headManifest(ref name.Reference, acceptable []types.MediaType)
 	if lh == "" {
 		return nil, fmt.Errorf("HEAD %s: response did not include Content-Length header", u.String())
 	}
-	size, err := strconv.ParseInt(lh, 10, 64)
-	if err != nil {
-		return nil, err
-	}
+	size := resp.ContentLength
 
 	dh := resp.Header.Get("Docker-Content-Digest")
 	if dh == "" {
