@@ -127,3 +127,14 @@ func TestLayerLink(t *testing.T) {
 		t.Errorf("layer.Uncompressed() returned a link file")
 	}
 }
+
+func TestLoadManifest(t *testing.T) {
+
+	manifest, err := LoadManifest(pathOpener("testdata/test_load_manifest.tar"))
+	if err != nil {
+		t.Fatalf("Error load manifest: %v", err)
+	}
+	if len(manifest) == 0 {
+		t.Fatalf("get nothing")
+	}
+}
