@@ -71,21 +71,12 @@ func parseChallenge(suffix string) map[string]string {
 func ping(ctx context.Context, reg name.Registry, t http.RoundTripper) (*pingResp, error) {
 	client := http.Client{Transport: t}
 
-	// If it is intentionally set to insecure via name.NewInsecureRegistry, try to use
-	// "http" for the request at first, falling back to "https" if "http" is failed.
-	// Otherwise, this first attempts to use "https" for every request, falling back to http
-	// if the registry matches our localhost heuristic.
-	// e.g. if insecure is true, `schemes` is ["http", "https"]
-	//      if registry is "localhost:8080" or "192.168.0.1:8080", `schemes` is ["https", "http"]
-	//      if insecure is not true and registry does not "match our localhost heuristic", `schemes` is ["https"]
-	var schemes []string
-	if reg.IsInsecure() {
-		schemes = []string{"http", "https"}
-	} else {
-		schemes = []string{"https"}
-		if reg.Scheme() == "http" {
-			schemes = append(schemes, "http")
-		}
+	// This first attempts to use "https" for every request, falling back to http
+	// if the registry matches our localhost heuristic or if it is intentionally
+	// set to insecure via name.NewInsecureRegistry.
+	schemes := []string{"https"}
+	if reg.Scheme() == "http" {
+		schemes = append(schemes, "http")
 	}
 
 	var errs []string
