@@ -94,11 +94,6 @@ func (r Registry) Scheme() string {
 	return "https"
 }
 
-// IsInsecure returns if the registry is insecure.
-func (r Registry) IsInsecure() bool {
-	return r.insecure
-}
-
 func checkRegistry(name string) error {
 	// Per RFC 3986, registries (authorities) are required to be prefixed with "//"
 	// url.Host == hostname[:port] == authority
