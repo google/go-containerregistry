@@ -178,3 +178,68 @@ func TestImagePullSecrets(t *testing.T) {
 		})
 	}
 }
+
+func TestFromPullSecrets(t *testing.T) {
+	username, password := "foo", "bar"
+	specificUser, specificPass := "very", "specific"
+
+	pullSecrets := []corev1.Secret{
+		corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "secret",
+				Namespace: "ns",
+			},
+			Type: corev1.SecretTypeDockercfg,
+			Data: map[string][]byte{
+				corev1.DockerConfigKey: []byte(
+					fmt.Sprintf(`{"fake.registry.io": {"auth": %q}, "fake.registry.io/more/specific": {"auth": %q}}`,
+						base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
+						base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass))),
+				),
+			},
+		},
+	}
+
+	kc, err := NewFromPullSecrets(context.Background(), pullSecrets)
+	if err != nil {
+		t.Fatalf("NewFromPullSecrets() = %v", err)
+	}
+
+	repo, err := name.NewRepository("fake.registry.io/more/specific", name.WeakValidation)
+	if err != nil {
+		t.Errorf("NewRegistry() = %v", err)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		auth   authn.Authenticator
+		target authn.Resource
+	}{{
+		name:   "registry",
+		auth:   &authn.Basic{Username: username, Password: password},
+		target: repo.Registry,
+	}, {
+		name:   "repo",
+		auth:   &authn.Basic{Username: specificUser, Password: specificPass},
+		target: repo,
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc := tc
+			auth, err := kc.Resolve(tc.target)
+			if err != nil {
+				t.Errorf("Resolve(%v) = %v", tc.target, err)
+			}
+			got, err := auth.Authorization()
+			if err != nil {
+				t.Errorf("Authorization() = %v", err)
+			}
+			want, err := tc.auth.Authorization()
+			if err != nil {
+				t.Errorf("Authorization() = %v", err)
+			}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("Resolve() = %v, want %v", got, want)
+			}
+		})
+	}
+}
