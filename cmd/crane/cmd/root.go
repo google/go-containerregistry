@@ -45,7 +45,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 		Run:               func(cmd *cobra.Command, _ []string) { cmd.Usage() },
 		DisableAutoGenTag: true,
 		SilenceUsage:      true,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			options = append(options, crane.WithContext(cmd.Context()))
 			// TODO(jonjohnsonjr): crane.Verbose option?
 			if verbose {
@@ -64,30 +64,21 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 
 			options = append(options, crane.WithPlatform(platform.platform))
 
+			transport := http.DefaultTransport.(*http.Transport).Clone()
+			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: insecure}
+
 			// Add any http headers if they are set in the config file.
 			cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
 			if err != nil {
 				logs.Debug.Printf("failed to read config file: %v", err)
-				return err
 			} else if len(cf.HTTPHeaders) != 0 {
 				options = append(options, crane.WithTransport(&headerTransport{
-					inner: &http.Transport{
-						TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
-					},
+					inner:       transport,
 					httpHeaders: cf.HTTPHeaders,
 				}))
-				return nil
 			}
 
-			if insecure {
-				options = append(options, crane.WithTransport(&headerTransport{
-					inner: &http.Transport{
-						TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
-					},
-				}))
-			}
-
-			return nil
+			options = append(options, crane.WithTransport(transport))
 		},
 	}
 
