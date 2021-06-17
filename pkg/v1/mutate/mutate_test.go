@@ -266,6 +266,27 @@ func TestMutateConfig(t *testing.T) {
 	}
 }
 
+func TestAnnotations(t *testing.T) {
+	source := sourceImage(t)
+
+	newAnnotations := map[string]string{
+		"im.the.first.annotation": "hello world",
+	}
+
+	result, err := mutate.Annotations(source, newAnnotations)
+	if err != nil {
+		t.Fatalf("failed to mutate annotations: %v", err)
+	}
+
+	if configDigestsAreEqual(t, source, result) {
+		t.Errorf("mutating the manifest annotations MUST mutate the config digest")
+	}
+
+	if err := validate.Image(result); err != nil {
+		t.Errorf("validate.Image() = %v", err)
+	}
+}
+
 func TestMutateCreatedAt(t *testing.T) {
 	source := sourceImage(t)
 	want := time.Now().Add(-2 * time.Minute)
