@@ -13,6 +13,7 @@
 package cmd
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -63,16 +64,21 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 
 			options = append(options, crane.WithPlatform(platform.platform))
 
+			transport := http.DefaultTransport.(*http.Transport).Clone()
+			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: insecure}
+
 			// Add any http headers if they are set in the config file.
 			cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
 			if err != nil {
 				logs.Debug.Printf("failed to read config file: %v", err)
 			} else if len(cf.HTTPHeaders) != 0 {
 				options = append(options, crane.WithTransport(&headerTransport{
-					inner:       http.DefaultTransport,
+					inner:       transport,
 					httpHeaders: cf.HTTPHeaders,
 				}))
 			}
+
+			options = append(options, crane.WithTransport(transport))
 		},
 	}
 
