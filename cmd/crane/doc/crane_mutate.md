@@ -9,10 +9,11 @@ crane mutate [flags]
 ### Options
 
 ```
-      --entrypoint string   New entrypoing to set
-  -h, --help                help for mutate
-  -l, --label strings       New labels to add
-  -t, --tag string          New tag to apply to mutated image. If not provided, push by digest to the original image repository.
+  -a, --annotation strings   New annotations to add
+      --entrypoint string    New entrypoing to set
+  -h, --help                 help for mutate
+  -l, --label strings        New labels to add
+  -t, --tag string           New tag to apply to mutated image. If not provided, push by digest to the original image repository.
 ```
 
 ### Options inherited from parent commands
