@@ -184,7 +184,7 @@ func TestFromPullSecrets(t *testing.T) {
 	specificUser, specificPass := "very", "specific"
 
 	pullSecrets := []corev1.Secret{
-		corev1.Secret{
+		{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "secret",
 				Namespace: "ns",
