@@ -121,6 +121,14 @@ func Annotations(base v1.Image, annotations map[string]string) v1.Image {
 	}
 }
 
+// UnAnnotations removes annotations the provided v1.Image
+func UnAnnotations(base v1.Image, unAnnotations []string) v1.Image {
+	return &image{
+		base:          base,
+		unAnnotations: unAnnotations,
+	}
+}
+
 // ConfigFile mutates the provided v1.Image to have the provided v1.ConfigFile
 func ConfigFile(base v1.Image, cfg *v1.ConfigFile) (v1.Image, error) {
 	m, err := base.Manifest()

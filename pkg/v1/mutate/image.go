@@ -30,13 +30,14 @@ type image struct {
 	base v1.Image
 	adds []Addendum
 
-	computed    bool
-	configFile  *v1.ConfigFile
-	manifest    *v1.Manifest
-	annotations map[string]string
-	mediaType   *types.MediaType
-	diffIDMap   map[v1.Hash]v1.Layer
-	digestMap   map[v1.Hash]v1.Layer
+	computed      bool
+	configFile    *v1.ConfigFile
+	manifest      *v1.Manifest
+	annotations   map[string]string
+	unAnnotations []string
+	mediaType     *types.MediaType
+	diffIDMap     map[v1.Hash]v1.Layer
+	digestMap     map[v1.Hash]v1.Layer
 }
 
 var _ v1.Image = (*image)(nil)
@@ -147,6 +148,12 @@ func (i *image) compute() error {
 
 		for k, v := range i.annotations {
 			manifest.Annotations[k] = v
+		}
+	}
+
+	if i.unAnnotations != nil {
+		for _, a := range i.unAnnotations {
+			delete(manifest.Annotations, a)
 		}
 	}
 

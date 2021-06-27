@@ -31,6 +31,8 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var entrypoint string
 	var newRef string
 	var anntns []string
+	var unLbls []string
+	var unAnntns []string
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
@@ -74,6 +76,12 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.Labels[k] = v
 			}
 
+			if len(unLbls) > 0 {
+				for _, l := range unLbls {
+					delete(cfg.Config.Labels, l)
+				}
+			}
+
 			annotations, err := splitKeyVals(anntns)
 			if err != nil {
 				log.Fatal(err)
@@ -92,6 +100,10 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			}
 
 			img = mutate.Annotations(img, annotations)
+
+			if len(unAnntns) > 0 {
+				img = mutate.UnAnnotations(img, unAnntns)
+			}
 
 			// If the new ref isn't provided, write over the original image.
 			// If that ref was provided by digest (e.g., output from
@@ -119,7 +131,9 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	}
 	mutateCmd.Flags().StringSliceVarP(&anntns, "annotation", "a", nil, "New annotations to add")
 	mutateCmd.Flags().StringSliceVarP(&lbls, "label", "l", nil, "New labels to add")
-	mutateCmd.Flags().StringVar(&entrypoint, "entrypoint", "", "New entrypoing to set")
+	mutateCmd.Flags().StringVar(&entrypoint, "entrypoint", "", "New entrypoint to set")
+	mutateCmd.Flags().StringSliceVar(&unLbls, "unlabel", nil, "Labels to remove")
+	mutateCmd.Flags().StringSliceVar(&unAnntns, "unannotate", nil, "Annotations to remove")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
 	return mutateCmd
 }
