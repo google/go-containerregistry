@@ -71,3 +71,15 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
+release:
+  footer: |
+    ### Container Images
+
+    https://gcr.io/go-containerregistry/crane:{{.Tag}}
+    https://gcr.io/go-containerregistry/gcrane:{{.Tag}}
+
+    For example:
+    ```
+    docker pull gcr.io/go-containerregistry/crane:{{.Tag}}
+    docker pull gcr.io/go-containerregistry/gcrane:{{.Tag}}
+    ```
