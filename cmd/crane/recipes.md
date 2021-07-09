@@ -2,13 +2,19 @@
 
 Useful tips and things you can do with `crane` and other standard tools.
 
+### List files in an image
+
+```
+crane export ubuntu - | tar -tvf - | less
+```
+
 ### Extract a single file from an image
 
 ```
 crane export ubuntu - | tar -Oxf - etc/passwd
 ```
 
-Note: Be sure to remove the leading `/` from the path (not `/etc/passwd`)
+Note: Be sure to remove the leading `/` from the path (not `/etc/passwd`). This behavior will not follow symlinks.
 
 ### Bundle directory contents into an image
 
