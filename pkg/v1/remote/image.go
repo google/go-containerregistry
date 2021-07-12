@@ -101,7 +101,10 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 		return nil, err
 	}
 
-	if m.Config.Data != nil && int64(len(m.Config.Data)) == m.Config.Size {
+	if m.Config.Data != nil {
+		if err := verify.Descriptor(m.Config); err != nil {
+			return nil, err
+		}
 		r.config = m.Config.Data
 		return r.config, nil
 	}
@@ -149,8 +152,8 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	if d.Data != nil && int64(len(d.Data)) == d.Size {
-		return ioutil.NopCloser(bytes.NewReader(d.Data)), nil
+	if d.Data != nil {
+		return verify.ReadCloser(ioutil.NopCloser(bytes.NewReader(d.Data)), d.Size, d.Digest)
 	}
 
 	// We don't want to log binary layers -- this can break terminals.

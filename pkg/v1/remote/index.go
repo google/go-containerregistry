@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/google/go-containerregistry/internal/verify"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -202,7 +203,10 @@ func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform)
 		manifest []byte
 		err      error
 	)
-	if child.Data != nil && int64(len(child.Data)) == child.Size {
+	if child.Data != nil {
+		if err := verify.Descriptor(child); err != nil {
+			return nil, err
+		}
 		manifest = child.Data
 	} else {
 		manifest, _, err = r.fetchManifest(ref, []types.MediaType{child.MediaType})
