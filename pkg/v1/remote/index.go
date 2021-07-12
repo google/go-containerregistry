@@ -198,9 +198,17 @@ func (r *remoteIndex) childByHash(h v1.Hash) (*Descriptor, error) {
 // Convert one of this index's child's v1.Descriptor into a remote.Descriptor, with the given platform option.
 func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform) (*Descriptor, error) {
 	ref := r.Ref.Context().Digest(child.Digest.String())
-	manifest, _, err := r.fetchManifest(ref, []types.MediaType{child.MediaType})
-	if err != nil {
-		return nil, err
+	var (
+		manifest []byte
+		err      error
+	)
+	if child.Data != nil && int64(len(child.Data)) == child.Size {
+		manifest = child.Data
+	} else {
+		manifest, _, err = r.fetchManifest(ref, []types.MediaType{child.MediaType})
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &Descriptor{
 		fetcher: fetcher{

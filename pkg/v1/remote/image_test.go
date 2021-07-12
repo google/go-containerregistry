@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -403,6 +404,8 @@ func TestPullingManifestList(t *testing.T) {
 	manifest.Manifests[0].Platform = &fakePlatform
 	// Make sure the second manifest does.
 	manifest.Manifests[1].Platform = &defaultPlatform
+	// Do short-circuiting via Data.
+	manifest.Manifests[1].Data = mustRawManifest(t, child)
 	rawManifest, err := json.Marshal(manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -672,5 +675,67 @@ func TestPullingForeignLayer(t *testing.T) {
 
 	if err := Write(ref, rmt); err != nil {
 		t.Errorf("failed to Write: %v", err)
+	}
+}
+
+func TestData(t *testing.T) {
+	img := randomImage(t)
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cb, err := img.RawConfigFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manifest.Config.Data = cb
+	rc, err := layers[0].Compressed()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lb, err := ioutil.ReadAll(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest.Layers[0].Data = lb
+	rawManifest, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case "/v2/test/manifests/latest":
+			if r.Method != http.MethodGet {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			w.Write(rawManifest)
+		default:
+			// explode if we try to read blob or config
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+	ref, err := newReference(u.Host, "test", "latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rmt, err := Image(ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validate.Image(rmt); err != nil {
+		t.Fatal(err)
 	}
 }
