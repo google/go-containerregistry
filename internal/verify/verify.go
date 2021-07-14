@@ -26,6 +26,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
+// SizeUnknown is a sentinel value to indicate that the expected size is not known.
 const SizeUnknown = -1
 
 type verifyReader struct {
