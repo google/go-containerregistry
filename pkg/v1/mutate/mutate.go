@@ -114,14 +114,14 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 	return ConfigFile(base, cf)
 }
 
-// Annotateable represents a manifest that can carry annotations.
-type Annotateable interface {
+// Annotatable represents a manifest that can carry annotations.
+type Annotatable interface {
 	partial.WithRawManifest
 }
 
-// Annotations mutates the annotations on an annotateable image or index manifest.
+// Annotations mutates the annotations on an annotatable image or index manifest.
 //
-// The annotateable input is expected to be a v1.Image or v1.ImageIndex, and
+// The annotatable input is expected to be a v1.Image or v1.ImageIndex, and
 // returns the same type. You can type-assert the result like so:
 //
 //     img := Annotations(empty.Image, map[string]string{
@@ -134,9 +134,9 @@ type Annotateable interface {
 //         "foo": "bar",
 //     }).(v1.ImageIndex)
 //
-// If the input Annotateable is not an Image or ImageIndex, it is simply
+// If the input Annotatable is not an Image or ImageIndex, it is simply
 // returned without modification.
-func Annotations(f Annotateable, anns map[string]string) Annotateable {
+func Annotations(f Annotatable, anns map[string]string) Annotatable {
 	if img, ok := f.(v1.Image); ok {
 		return &image{
 			base:        img,
