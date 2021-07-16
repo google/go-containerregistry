@@ -273,7 +273,7 @@ func TestAnnotations(t *testing.T) {
 		"im.the.first.annotation": "hello world",
 	}
 
-	result := mutate.Annotations(source, newAnnotations)
+	result := mutate.Annotations(source, newAnnotations).(v1.Image)
 
 	if configDigestsAreEqual(t, source, result) {
 		t.Errorf("mutating the manifest annotations MUST mutate the config digest")

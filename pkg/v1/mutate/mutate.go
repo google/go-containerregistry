@@ -28,6 +28,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -113,12 +114,42 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 	return ConfigFile(base, cf)
 }
 
-// Annotations mutates the provided v1.Image to have the provided annotations
-func Annotations(base v1.Image, annotations map[string]string) v1.Image {
-	return &image{
-		base:        base,
-		annotations: annotations,
+// Annotateable represents a manifest that can carry annotations.
+type Annotateable interface {
+	partial.WithRawManifest
+}
+
+// Annotations mutates the annotations on an annotateable image or index manifest.
+//
+// The annotateable input is expected to be a v1.Image or v1.ImageIndex, and
+// returns the same type. You can type-assert the result like so:
+//
+//     img := Annotations(empty.Image, map[string]string{
+//         "foo": "bar",
+//     }).(v1.Image)
+//
+// Or for an index:
+//
+//     idx := Annotations(empty.Index, map[string]string{
+//         "foo": "bar",
+//     }).(v1.ImageIndex)
+//
+// If the input Annotateable is not an Image or ImageIndex, it is simply
+// returned without modification.
+func Annotations(f Annotateable, anns map[string]string) Annotateable {
+	if img, ok := f.(v1.Image); ok {
+		return &image{
+			base:        img,
+			annotations: anns,
+		}
 	}
+	if idx, ok := f.(v1.ImageIndex); ok {
+		return &index{
+			base:        idx,
+			annotations: anns,
+		}
+	}
+	return f
 }
 
 // ConfigFile mutates the provided v1.Image to have the provided v1.ConfigFile
