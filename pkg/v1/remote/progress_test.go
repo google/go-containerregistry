@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -238,7 +239,10 @@ func TestMultiWrite_Progress_Retry(t *testing.T) {
 	// Set up a fake registry.
 	handler := registry.New()
 	numOfInternalServerErrors := 0
+	var mu sync.Mutex
 	registryThatFailsOnFirstUpload := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
 		if strings.Contains(request.URL.Path, "/manifests/") && numOfInternalServerErrors < 1 {
 			numOfInternalServerErrors++
 			responseWriter.WriteHeader(500)
