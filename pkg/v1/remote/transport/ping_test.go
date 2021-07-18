@@ -147,6 +147,32 @@ func TestPingBearerChallengeWithParams(t *testing.T) {
 	}
 }
 
+func TestPingMultipleChallenges(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Add("WWW-Authenticate", "Negotiate")
+			w.Header().Add("WWW-Authenticate", `Basic realm="http://auth.example.com/token"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		}))
+	defer server.Close()
+	tprt := &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			return url.Parse(server.URL)
+		},
+	}
+
+	pr, err := ping(context.Background(), testRegistry, tprt)
+	if err != nil {
+		t.Errorf("ping() = %v", err)
+	}
+	if pr.challenge != basic {
+		t.Errorf("ping(); got %v, want %v", pr.challenge, basic)
+	}
+	if got, want := len(pr.parameters), 1; got != want {
+		t.Errorf("ping(); got %v, want %v", got, want)
+	}
+}
+
 func TestUnsupportedStatus(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
