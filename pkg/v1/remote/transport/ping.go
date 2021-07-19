@@ -134,7 +134,6 @@ func pickFromMultipleChallenges(challenges []authchallenge.Challenge) authchalle
  	// Picking simply the first one could result eventually in `unrecognized challenge` error,
 	// that's why we're looping through the challenges in search for one that can be handled.
  	allowedSchemes := []string{"basic", "bearer"}
- 	var wac authchallenge.Challenge
 
  	for _, wac := range challenges {
  		currentScheme := strings.ToLower(wac.Scheme)
@@ -145,5 +144,5 @@ func pickFromMultipleChallenges(challenges []authchallenge.Challenge) authchalle
  		}
  	}
 
- 	return wac
+ 	return challenges[0]
  }
