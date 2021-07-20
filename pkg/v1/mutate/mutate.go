@@ -17,6 +17,7 @@ package mutate
 import (
 	"archive/tar"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -134,8 +135,8 @@ type Annotatable interface {
 //         "foo": "bar",
 //     }).(v1.ImageIndex)
 //
-// If the input Annotatable is not an Image or ImageIndex, it is simply
-// returned without modification.
+// If the input Annotatable is not an Image or ImageIndex, the result will
+// attempt to lazily annotate the raw manifest.
 func Annotations(f Annotatable, anns map[string]string) Annotatable {
 	if img, ok := f.(v1.Image); ok {
 		return &image{
@@ -149,7 +150,35 @@ func Annotations(f Annotatable, anns map[string]string) Annotatable {
 			annotations: anns,
 		}
 	}
-	return f
+	return arbitraryRawManifest{f, anns}
+}
+
+type arbitraryRawManifest struct {
+	a    Annotatable
+	anns map[string]string
+}
+
+func (a arbitraryRawManifest) RawManifest() ([]byte, error) {
+	b, err := a.a.RawManifest()
+	if err != nil {
+		return nil, err
+	}
+	var m map[string]interface{}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return nil, err
+	}
+	if ann, ok := m["annotations"]; ok {
+		if annm, ok := ann.(map[string]string); ok {
+			for k, v := range a.anns {
+				annm[k] = v
+			}
+		} else {
+			return nil, fmt.Errorf(".annotations is not a map: %T", ann)
+		}
+	} else {
+		m["annotations"] = a.anns
+	}
+	return json.Marshal(m)
 }
 
 // ConfigFile mutates the provided v1.Image to have the provided v1.ConfigFile

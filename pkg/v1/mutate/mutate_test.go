@@ -266,21 +266,43 @@ func TestMutateConfig(t *testing.T) {
 	}
 }
 
+type arbitrary struct {
+}
+
+func (arbitrary) RawManifest() ([]byte, error) {
+	return []byte(`{"hello":"world"}`), nil
+}
 func TestAnnotations(t *testing.T) {
-	source := sourceImage(t)
-
-	newAnnotations := map[string]string{
-		"im.the.first.annotation": "hello world",
+	anns := map[string]string{
+		"foo": "bar",
 	}
 
-	result := mutate.Annotations(source, newAnnotations).(v1.Image)
-
-	if configDigestsAreEqual(t, source, result) {
-		t.Errorf("mutating the manifest annotations MUST mutate the config digest")
-	}
-
-	if err := validate.Image(result); err != nil {
-		t.Errorf("validate.Image() = %v", err)
+	for _, c := range []struct {
+		desc string
+		in   mutate.Annotatable
+		want string
+	}{{
+		desc: "image",
+		in:   empty.Image,
+		want: `{"schemaVersion":2,"mediaType":"application/vnd.docker.distribution.manifest.v2+json","config":{"mediaType":"application/vnd.docker.container.image.v1+json","size":115,"digest":"sha256:5b943e2b943f6c81dbbd4e2eca5121f4fcc39139e3d1219d6d89bd925b77d9fe"},"layers":[],"annotations":{"foo":"bar"}}`,
+	}, {
+		desc: "index",
+		in:   empty.Index,
+		want: `{"schemaVersion":2,"manifests":null,"annotations":{"foo":"bar"}}`,
+	}, {
+		desc: "arbitrary",
+		in:   arbitrary{},
+		want: `{"annotations":{"foo":"bar"},"hello":"world"}`,
+	}} {
+		t.Run(c.desc, func(t *testing.T) {
+			got, err := mutate.Annotations(c.in, anns).RawManifest()
+			if err != nil {
+				t.Fatalf("Annotations: %v", err)
+			}
+			if d := cmp.Diff(c.want, string(got)); d != "" {
+				t.Errorf("Diff(-want,+got): %s", d)
+			}
+		})
 	}
 }
 
