@@ -15,6 +15,7 @@
 package mutate
 
 import (
+	"errors"
 	"fmt"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -141,4 +142,56 @@ func createAddendums(startHistory, startLayer int, history []v1.History, layers 
 	}
 
 	return adds
+}
+
+// RebaseIndex returns a new v1.ImageIndex where each image in the index is
+// rebased on its counterpart in the new base image.
+//
+// If an image can't be found matching the platform for each image in the
+// original image, in both the old and new bases, an error will be returned.
+func RebaseIndex(orig, oldBase, newBase v1.ImageIndex) (v1.ImageIndex, error) {
+	origmf, err := orig.IndexManifest()
+	if err != nil {
+		return nil, err
+	}
+	var adds []IndexAddendum
+	for _, d := range origmf.Manifests {
+		origImg, err := orig.Image(d.Digest)
+		if err != nil {
+			return nil, err
+		}
+
+		oldBaseImg, err := imageByPlatform(oldBase, d.Platform)
+		if err != nil {
+			return nil, err
+		}
+		newBaseImg, err := imageByPlatform(newBase, d.Platform)
+		if err != nil {
+			return nil, err
+		}
+
+		rebasedImg, err := Rebase(origImg, oldBaseImg, newBaseImg)
+		if err != nil {
+			return nil, err
+		}
+
+		adds = append(adds, IndexAddendum{
+			Add:        rebasedImg,
+			Descriptor: d,
+		})
+	}
+	return AppendManifests(empty.Index, adds...), nil
+}
+
+func imageByPlatform(idx v1.ImageIndex, plat *v1.Platform) (v1.Image, error) {
+	mf, err := idx.IndexManifest()
+	if err != nil {
+		return nil, err
+	}
+	for _, desc := range mf.Manifests {
+		if desc.Platform.Equals(*plat) {
+			return idx.Image(desc.Digest)
+		}
+	}
+	return nil, errors.New("no image found matching platform")
 }
