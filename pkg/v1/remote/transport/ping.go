@@ -130,19 +130,19 @@ func ping(ctx context.Context, reg name.Registry, t http.RoundTripper) (*pingRes
 
 func pickFromMultipleChallenges(challenges []authchallenge.Challenge) authchallenge.Challenge {
 
- 	// It might happen there are multiple www-authenticate headers, e.g. `Negotiate` and `Basic`.
- 	// Picking simply the first one could result eventually in `unrecognized challenge` error,
+	// It might happen there are multiple www-authenticate headers, e.g. `Negotiate` and `Basic`.
+	// Picking simply the first one could result eventually in `unrecognized challenge` error,
 	// that's why we're looping through the challenges in search for one that can be handled.
- 	allowedSchemes := []string{"basic", "bearer"}
+	allowedSchemes := []string{"basic", "bearer"}
 
- 	for _, wac := range challenges {
- 		currentScheme := strings.ToLower(wac.Scheme)
- 		for _, allowed := range allowedSchemes {
- 			if allowed == currentScheme {
- 				return wac
- 			}
- 		}
- 	}
+	for _, wac := range challenges {
+		currentScheme := strings.ToLower(wac.Scheme)
+		for _, allowed := range allowedSchemes {
+			if allowed == currentScheme {
+				return wac
+			}
+		}
+	}
 
- 	return challenges[0]
- }
+	return challenges[0]
+}
