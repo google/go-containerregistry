@@ -65,3 +65,5 @@ This will produce a number of bytes, which you can make human-readable by passin
 ```
 crane manifest gcr.io/buildpacks/builder:v1 | jq '.config.size + ([.layers[].size] | add)' | numfmt --to=iec
 ```
+
+For image indexes, you can pass the `--platform` flag to `crane` to get a platform-specific image.
