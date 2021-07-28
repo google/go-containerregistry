@@ -16,6 +16,7 @@ package verify
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -84,5 +85,49 @@ func TestBadSize(t *testing.T) {
 				t.Errorf("ReadAll() = %q; want verification error", string(b))
 			}
 		})
+	}
+}
+
+func TestDescriptor(t *testing.T) {
+	for _, tc := range []struct {
+		err  error
+		desc v1.Descriptor
+	}{{
+		err: errors.New("error verifying descriptor; Data == nil"),
+	}, {
+		err: errors.New(`error verifying Digest; got "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", want ":"`),
+		desc: v1.Descriptor{
+			Data: []byte("abc"),
+		},
+	}, {
+		err: errors.New("error verifying Size; got 3, want 0"),
+		desc: v1.Descriptor{
+			Data: []byte("abc"),
+			Digest: v1.Hash{
+				Algorithm: "sha256",
+				Hex:       "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+			},
+		},
+	}, {
+		desc: v1.Descriptor{
+			Data: []byte("abc"),
+			Size: 3,
+			Digest: v1.Hash{
+				Algorithm: "sha256",
+				Hex:       "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+			},
+		},
+	}} {
+		got, want := Descriptor(tc.desc), tc.err
+
+		if got == nil {
+			if want != nil {
+				t.Errorf("Descriptor(): got nil, want %v", want)
+			}
+		} else if want == nil {
+			t.Errorf("Descriptor(): got %v, want nil", got)
+		} else if got, want := got.Error(), want.Error(); got != want {
+			t.Errorf("Descriptor(): got %q, want %q", got, want)
+		}
 	}
 }
