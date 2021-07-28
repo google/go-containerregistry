@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -110,8 +111,8 @@ func TestCancelledList(t *testing.T) {
 	}
 
 	_, err = ListWithContext(ctx, repo)
-	if want, got := context.Canceled, err; got != want {
-		t.Errorf("wanted %v got %v", want, got)
+	if err == nil || !strings.Contains(err.Error(), "context canceled") {
+		t.Errorf(`unexpected error; want "context canceled", got %v`, err)
 	}
 }
 
