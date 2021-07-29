@@ -45,7 +45,6 @@ func TestNewLayer(t *testing.T) {
 	if h != h2 {
 		t.Errorf("Digest != DiffID; digest is %v, diffid is %v", h, h2)
 	}
-	// sha256("..........")
 	wantDigest, err := v1.NewHash("sha256:537f3fb69ba01fc388a3a5c920c485b2873d5f327305c3dd2004d6a04451659b")
 	if err != nil {
 		t.Fatal(err)
