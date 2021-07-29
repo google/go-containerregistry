@@ -25,6 +25,8 @@ import (
 )
 
 // NewLayer returns a layer containing the given bytes, with the given mediaType.
+//
+// Contents will not be compressed.
 func NewLayer(b []byte, mt types.MediaType) v1.Layer {
 	return &staticLayer{b: b, mt: mt}
 }
