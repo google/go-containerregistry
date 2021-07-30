@@ -51,3 +51,19 @@ diff <(crane config busybox:1.32 | jq) <(crane config busybox:1.33 | jq)
 ```
 diff <(crane manifest busybox:1.32 | jq) <(crane manifest busybox:1.33 | jq)
 ```
+
+### Get total image size
+
+Given an image manifest, you can calculate the total size of all layer blobs and the image's config blob using `jq`:
+
+```
+crane manifest gcr.io/buildpacks/builder:v1 | jq '.config.size + ([.layers[].size] | add)'
+```
+
+This will produce a number of bytes, which you can make human-readable by passing to [`numfmt`](https://www.gnu.org/software/coreutils/manual/html_node/numfmt-invocation.html)
+
+```
+crane manifest gcr.io/buildpacks/builder:v1 | jq '.config.size + ([.layers[].size] | add)' | numfmt --to=iec
+```
+
+For image indexes, you can pass the `--platform` flag to `crane` to get a platform-specific image.
