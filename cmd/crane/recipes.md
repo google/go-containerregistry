@@ -67,3 +67,11 @@ crane manifest gcr.io/buildpacks/builder:v1 | jq '.config.size + ([.layers[].siz
 ```
 
 For image indexes, you can pass the `--platform` flag to `crane` to get a platform-specific image.
+
+### Add Annotations
+
+Image manifest based on [OCI Image manifest specification](https://github.com/opencontainers/image-spec/blob/main/manifest.md#oci-image-manifest-specification) has a property called `annotations`. You can add annotations to the Image manifest using `mutate` command:
+
+```
+crane mutate -a hello=world ${IMAGE}
+```
