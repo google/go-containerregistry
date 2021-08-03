@@ -9,6 +9,7 @@ crane append [flags]
 ### Options
 
 ```
+      --annotate            If true, annotate the resulting image as being based on the base image
   -b, --base string         Name of base image to append to
   -h, --help                help for append
   -f, --new_layer strings   Path to tarball to append to image
