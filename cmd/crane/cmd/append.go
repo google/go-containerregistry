@@ -63,7 +63,7 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 				}
 				var baseName string
 				if _, ok := ref.(name.Tag); ok {
-					baseName = ref.String()
+					baseName = ref.Name()
 				}
 
 				baseDigest, err := base.Digest()
