@@ -61,19 +61,18 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("parsing ref %q: %v", baseRef, err)
 				}
-				var baseName string
-				if _, ok := ref.(name.Tag); ok {
-					baseName = ref.Name()
-				}
 
 				baseDigest, err := base.Digest()
 				if err != nil {
 					return err
 				}
-				img = mutate.Annotations(img, map[string]string{
-					specsv1.AnnotationBaseImageName:   baseName,
+				anns := map[string]string{
 					specsv1.AnnotationBaseImageDigest: baseDigest.String(),
-				}).(v1.Image)
+				}
+				if _, ok := ref.(name.Tag); ok {
+					anns[specsv1.AnnotationBaseImageName] = ref.Name()
+				}
+				img = mutate.Annotations(img, anns).(v1.Image)
 			}
 
 			if outFile != "" {
