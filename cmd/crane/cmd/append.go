@@ -61,13 +61,17 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("parsing ref %q: %v", baseRef, err)
 				}
+				var baseName string
+				if _, ok := ref.(name.Tag); ok {
+					baseName = ref.String()
+				}
 
 				baseDigest, err := base.Digest()
 				if err != nil {
 					return err
 				}
 				img = mutate.Annotations(img, map[string]string{
-					specsv1.AnnotationBaseImageName:   ref.String(),
+					specsv1.AnnotationBaseImageName:   baseName,
 					specsv1.AnnotationBaseImageDigest: baseDigest.String(),
 				}).(v1.Image)
 			}
@@ -97,7 +101,7 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 	appendCmd.Flags().StringVarP(&newTag, "new_tag", "t", "", "Tag to apply to resulting image")
 	appendCmd.Flags().StringSliceVarP(&newLayers, "new_layer", "f", []string{}, "Path to tarball to append to image")
 	appendCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
-	appendCmd.Flags().BoolVar(&annotate, "annotate", false, "If true, annotate the resulting image as being based on the base image")
+	appendCmd.Flags().BoolVar(&annotate, "set-base-image-annotations", false, "If true, annotate the resulting image as being based on the base image")
 
 	appendCmd.MarkFlagRequired("new_tag")
 	appendCmd.MarkFlagRequired("new_layer")
