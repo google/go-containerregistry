@@ -38,6 +38,7 @@ type options struct {
 	userAgent                      string
 	allowNondistributableArtifacts bool
 	updates                        chan<- v1.Update
+	pageSize                       int
 }
 
 var defaultPlatform = v1.Platform{
@@ -45,7 +46,13 @@ var defaultPlatform = v1.Platform{
 	OS:           "linux",
 }
 
-const defaultJobs = 4
+const (
+	defaultJobs = 4
+
+	// ECR returns an error if n > 1000:
+	// https://github.com/google/go-containerregistry/issues/1091
+	defaultPageSize = 1000
+)
 
 func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 	o := &options{
@@ -54,6 +61,7 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 		platform:  defaultPlatform,
 		context:   context.Background(),
 		jobs:      defaultJobs,
+		pageSize:  defaultPageSize,
 	}
 
 	for _, option := range opts {
@@ -190,6 +198,17 @@ func WithNondistributable(o *options) error {
 func WithProgress(updates chan<- v1.Update) Option {
 	return func(o *options) error {
 		o.updates = updates
+		return nil
+	}
+}
+
+// WithPageSize sets the given size as the value of parameter 'n' in the request.
+//
+// To omit the `n` parameter entirely, use WithPageSize(0).
+// The default value is 1000.
+func WithPageSize(size int) Option {
+	return func(o *options) error {
+		o.pageSize = size
 		return nil
 	}
 }
