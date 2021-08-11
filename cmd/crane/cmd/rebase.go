@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -114,13 +113,6 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 			}
 			if rebasedDigest == origDigest {
 				logs.Warn.Println("rebasing was no-op")
-			} else {
-				logs.Debug.Println("rebased digest: ", rebasedDigest)
-				logs.Debug.Println("original digest:", origDigest)
-
-				origManifest, _ := origImg.Manifest()
-				rebasedManifest, _ := rebasedImg.Manifest()
-				logs.Debug.Println("DIFF:", cmp.Diff(origManifest, rebasedManifest))
 			}
 
 			r, err := name.ParseReference(rebased)
