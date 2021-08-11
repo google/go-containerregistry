@@ -210,6 +210,15 @@ func TestCraneRegistry(t *testing.T) {
 	if len(repos) != 2 {
 		t.Fatalf("wanted 2 repos, got %d", len(repos))
 	}
+
+	// Test pushing layer
+	layer, err = img.LayerByDigest(manifest.Layers[1].Digest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := crane.Upload(layer, dst); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestCraneCopyIndex(t *testing.T) {
@@ -531,6 +540,7 @@ func TestBadInputs(t *testing.T) {
 		err  error
 	}{
 		{"Push(_, invalid)", crane.Push(nil, invalid)},
+		{"Upload(_, invalid)", crane.Upload(nil, invalid)},
 		{"Delete(invalid)", crane.Delete(invalid)},
 		{"Delete: 404", crane.Delete(valid404)},
 		{"Save(_, invalid)", crane.Save(nil, invalid, "")},
