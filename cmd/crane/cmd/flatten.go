@@ -105,7 +105,7 @@ func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 			img, err = mutate.Append(img, mutate.Addendum{
 				Layer: layer,
 				History: v1.History{
-					CreatedBy: fmt.Sprintf("crane flatten %s", ref),
+					CreatedBy: fmt.Sprintf("%s flatten %s", cmd.Parent().Use, desc.Digest),
 					Comment:   string(oldHistory),
 				},
 			})
