@@ -134,6 +134,7 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 	rebaseCmd.Flags().StringVar(&orig, "original", "", "Original image to rebase; use positional arg instead")
 	rebaseCmd.Flags().StringVar(&oldBase, "old_base", "", "Old base image to remove")
 	rebaseCmd.Flags().StringVar(&newBase, "new_base", "", "New base image to insert")
+	rebaseCmd.Flags().StringVar(&rebased, "rebased", "", "Tag to apply to rebased image (DEPRECATED: use --tag)")
 	rebaseCmd.Flags().StringVarP(&rebased, "tag", "t", "", "Tag to apply to rebased image")
 	return rebaseCmd
 }

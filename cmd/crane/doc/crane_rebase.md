@@ -13,6 +13,7 @@ crane rebase [flags]
       --new_base string   New base image to insert
       --old_base string   Old base image to remove
       --original string   Original image to rebase; use positional arg instead
+      --rebased string    Tag to apply to rebased image (DEPRECATED: use --tag)
   -t, --tag string        Tag to apply to rebased image
 ```
 
