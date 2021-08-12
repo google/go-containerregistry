@@ -26,6 +26,7 @@ crane [flags]
 * [crane delete](crane_delete.md)	 - Delete an image reference from its registry
 * [crane digest](crane_digest.md)	 - Get the digest of an image
 * [crane export](crane_export.md)	 - Export contents of a remote image as a tarball
+* [crane flatten](crane_flatten.md)	 - Flatten an image's layers into a single layer
 * [crane ls](crane_ls.md)	 - List the tags in a repo
 * [crane manifest](crane_manifest.md)	 - Get the manifest of an image
 * [crane mutate](crane_mutate.md)	 - Modify image labels and annotations
