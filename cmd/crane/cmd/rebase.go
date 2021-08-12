@@ -17,6 +17,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -35,25 +36,42 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 		Use:   "rebase",
 		Short: "Rebase an image onto a new base image",
 		Args:  cobra.MaximumNArgs(1),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if orig == "" {
 				orig = args[0]
 			} else if len(args) != 0 || args[0] != "" {
 				return fmt.Errorf("cannot use --original with positional argument")
 			}
 
-			// Fetch original image or index.
-			origDesc, err := crane.Head(orig)
-			if err != nil {
-				return err
-			}
-			// TODO: Support rebasing indexes, and support the
-			// --platform flag here to rebase one image in the index.
-			if origDesc.MediaType.IsIndex() {
-				return errors.New("rebasing indexes is not currently supported")
+			// If the new ref isn't provided, write over the original image.
+			// If that ref was provided by digest (e.g., output from
+			// another crane command), then strip that and push the
+			// mutated image by digest instead.
+			if rebased == "" {
+				rebased = orig
 			}
 
-			origImg, err := crane.Pull(orig)
+			// Stupid hack to support insecure flag.
+			nameOpt := []name.Option{}
+			if ok, err := cmd.Parent().PersistentFlags().GetBool("insecure"); err != nil {
+				log.Fatalf("flag problems: %v", err)
+			} else if ok {
+				nameOpt = append(nameOpt, name.Insecure)
+			}
+			r, err := name.ParseReference(rebased, nameOpt...)
+			if err != nil {
+				log.Fatalf("parsing %s: %v", rebased, err)
+			}
+
+			desc, err := crane.Head(orig, *options...)
+			if err != nil {
+				log.Fatalf("checking %s: %v", orig, err)
+			}
+			if !cmd.Parent().PersistentFlags().Changed("platform") && desc.MediaType.IsIndex() {
+				log.Fatalf("flattening an index is not yet supported")
+			}
+
+			origImg, err := crane.Pull(orig, *options...)
 			if err != nil {
 				return err
 			}
@@ -85,23 +103,6 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 				return fmt.Errorf("rebasing image: %v", err)
 			}
 
-			// If the new ref isn't provided, write over the original image.
-			// If that ref was provided by digest (e.g., output from
-			// another crane command), then strip that and push to
-			// a ":rebased" tag instead.
-			if rebased == "" {
-				// TODO: this doesn't honor the --insecure flag.
-				origRef, err := name.ParseReference(orig)
-				if err != nil {
-					return err
-				}
-				if _, ok := origRef.(name.Digest); ok {
-					rebased = origRef.Context().Tag("rebased").String()
-				} else {
-					rebased = orig
-				}
-			}
-			logs.Progress.Println("pushing rebased image as", rebased)
 			rebasedDigest, err := rebasedImg.Digest()
 			if err != nil {
 				return fmt.Errorf("digesting new image: %v", err)
@@ -114,27 +115,19 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 				logs.Warn.Println("rebasing was no-op")
 			}
 
-			r, err := name.ParseReference(rebased)
-			if err != nil {
-				return fmt.Errorf("rebasing: %v", err)
-			}
-
-			if err := crane.Push(rebasedImg, rebased, *options...); err != nil {
-				return fmt.Errorf("pushing %s: %v", rebased, err)
-			}
+			logs.Progress.Println("pushing rebased image as", rebased)
 			if _, ok := r.(name.Digest); ok {
-				rebased = r.Context().Digest(rebasedDigest.String()).String()
-				if err := crane.Push(rebasedImg, rebased, *options...); err != nil {
-					return fmt.Errorf("pushing %s: %v", rebased, err)
+				digest, err := rebasedImg.Digest()
+				if err != nil {
+					log.Fatalf("digesting new image: %v", err)
 				}
+				rebased = r.Context().Digest(digest.String()).String()
+			}
+			if err := crane.Push(rebasedImg, rebased, *options...); err != nil {
+				log.Fatalf("pushing %s: %v", rebased, err)
 			}
 
-			rebasedRef, err := name.ParseReference(rebased)
-			if err != nil {
-				return fmt.Errorf("parsing %q: %v", rebased, err)
-			}
-
-			fmt.Println(rebasedRef.Context().Digest(rebasedDigest.String()))
+			fmt.Println(r.Context().Digest(rebasedDigest.String()))
 			return nil
 		},
 	}
