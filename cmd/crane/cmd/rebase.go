@@ -68,7 +68,7 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 				log.Fatalf("checking %s: %v", orig, err)
 			}
 			if !cmd.Parent().PersistentFlags().Changed("platform") && desc.MediaType.IsIndex() {
-				log.Fatalf("flattening an index is not yet supported")
+				log.Fatalf("rebasing an index is not yet supported")
 			}
 
 			origImg, err := crane.Pull(orig, *options...)
@@ -115,14 +115,10 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 				logs.Warn.Println("rebasing was no-op")
 			}
 
-			logs.Progress.Println("pushing rebased image as", rebased)
 			if _, ok := r.(name.Digest); ok {
-				digest, err := rebasedImg.Digest()
-				if err != nil {
-					log.Fatalf("digesting new image: %v", err)
-				}
-				rebased = r.Context().Digest(digest.String()).String()
+				rebased = r.Context().Digest(rebasedDigest.String()).String()
 			}
+			logs.Progress.Println("pushing rebased image as", rebased)
 			if err := crane.Push(rebasedImg, rebased, *options...); err != nil {
 				log.Fatalf("pushing %s: %v", rebased, err)
 			}
@@ -131,7 +127,7 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 			return nil
 		},
 	}
-	rebaseCmd.Flags().StringVar(&orig, "original", "", "Original image to rebase; use positional arg instead")
+	rebaseCmd.Flags().StringVar(&orig, "original", "", "Original image to rebase (DEPRECATED: use positional arg instead)")
 	rebaseCmd.Flags().StringVar(&oldBase, "old_base", "", "Old base image to remove")
 	rebaseCmd.Flags().StringVar(&newBase, "new_base", "", "New base image to insert")
 	rebaseCmd.Flags().StringVar(&rebased, "rebased", "", "Tag to apply to rebased image (DEPRECATED: use --tag)")
@@ -191,10 +187,13 @@ func rebaseImage(orig v1.Image, oldBase, newBase string, opt ...crane.Option) (v
 	// NB: if newBase is an index, we need to grab the index's digest to
 	// annotate the resulting image, even though we pull the
 	// platform-specific image to rebase.
-	newBaseDigest, err := crane.Digest(newBase, opt...)
+	// crane.Digest will pull a platform-specific image, so use crane.Head
+	// here instead.
+	newBaseDesc, err := crane.Head(newBase, opt...)
 	if err != nil {
 		return nil, err
 	}
+	newBaseDigest := newBaseDesc.Digest.String()
 
 	rebased, err := mutate.Rebase(orig, oldBaseImg, newBaseImg)
 	if err != nil {
