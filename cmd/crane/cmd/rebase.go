@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/cobra"
 )
@@ -43,23 +42,18 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 				return fmt.Errorf("cannot use --original with positional argument")
 			}
 
-			// Parse and fetch the original image or index.
-			origRef, err := name.ParseReference(orig)
-			if err != nil {
-				return fmt.Errorf("parsing tag %q: %v", orig, err)
-			}
-			origDesc, err := remote.Get(origRef)
+			// Fetch original image or index.
+			origDesc, err := crane.Head(orig)
 			if err != nil {
 				return err
 			}
-			if origDesc.Descriptor.MediaType.IsIndex() {
+			// TODO: Support rebasing indexes, and support the
+			// --platform flag here to rebase one image in the index.
+			if origDesc.MediaType.IsIndex() {
 				return errors.New("rebasing indexes is not currently supported")
 			}
 
-			// TODO: This will bias toward rebasing the linux/amd64
-			// image, instead of the whole index.  Support rebasing
-			// indexes, and support the --platform flag here.
-			origImg, err := origDesc.Image()
+			origImg, err := crane.Pull(orig)
 			if err != nil {
 				return err
 			}
@@ -96,6 +90,11 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 			// another crane command), then strip that and push to
 			// a ":rebased" tag instead.
 			if rebased == "" {
+				// TODO: this doesn't honor the --insecure flag.
+				origRef, err := name.ParseReference(orig)
+				if err != nil {
+					return err
+				}
 				if _, ok := origRef.(name.Digest); ok {
 					rebased = origRef.Context().Tag("rebased").String()
 				} else {
