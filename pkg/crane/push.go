@@ -52,3 +52,14 @@ func Push(img v1.Image, dst string, opt ...Option) error {
 	}
 	return remote.Write(tag, img, o.remote...)
 }
+
+// Upload pushes the v1.Layer to a given repo.
+func Upload(layer v1.Layer, repo string, opt ...Option) error {
+	o := makeOptions(opt...)
+	ref, err := name.NewRepository(repo, o.name...)
+	if err != nil {
+		return fmt.Errorf("parsing repo %q: %v", repo, err)
+	}
+
+	return remote.WriteLayer(ref, layer, o.remote...)
+}
