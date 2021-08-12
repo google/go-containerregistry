@@ -37,9 +37,29 @@ func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 		Use:   "flatten",
 		Short: "Flatten an image's layers into a single layer",
 		Args:  cobra.ExactArgs(1),
-		Run: func(_ *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, args []string) {
 			// Pull image and get config.
 			ref := args[0]
+
+			// If the new ref isn't provided, write over the original image.
+			// If that ref was provided by digest (e.g., output from
+			// another crane command), then strip that and push the
+			// mutated image by digest instead.
+			if newRef == "" {
+				newRef = ref
+			}
+
+			// Stupid hack to support insecure flag.
+			nameOpt := []name.Option{}
+			if ok, err := cmd.Parent().PersistentFlags().GetBool("insecure"); err != nil {
+				log.Fatalf("flag problems: %v", err)
+			} else if ok {
+				nameOpt = append(nameOpt, name.Insecure)
+			}
+			r, err := name.ParseReference(newRef, nameOpt...)
+			if err != nil {
+				log.Fatalf("parsing %s: %v", newRef, err)
+			}
 
 			desc, err := crane.Head(ref, *options...)
 			if err != nil {
@@ -98,17 +118,6 @@ func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 				img = mutate.Annotations(img, m.Annotations).(v1.Image)
 			}
 
-			// If the new ref isn't provided, write over the original image.
-			// If that ref was provided by digest (e.g., output from
-			// another crane command), then strip that and push the
-			// mutated image by digest instead.
-			if newRef == "" {
-				newRef = ref
-			}
-			r, err := name.ParseReference(newRef)
-			if err != nil {
-				log.Fatalf("parsing %s: %v", newRef, err)
-			}
 			if _, ok := r.(name.Digest); ok {
 				// If we're pushing by digest, we need to upload the layer first.
 				if err := crane.Upload(layer, r.Context().String(), *options...); err != nil {
