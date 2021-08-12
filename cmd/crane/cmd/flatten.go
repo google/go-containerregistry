@@ -65,7 +65,7 @@ func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 			if err != nil {
 				log.Fatalf("checking %s: %v", ref, err)
 			}
-			if desc.MediaType.IsIndex() {
+			if !cmd.Parent().PersistentFlags().Changed("platform") && desc.MediaType.IsIndex() {
 				log.Fatalf("flattening an index is not yet supported")
 			}
 
