@@ -24,11 +24,11 @@ import (
 
 func getImage(r string, opt ...Option) (v1.Image, name.Reference, error) {
 	o := makeOptions(opt...)
-	ref, err := name.ParseReference(r, o.name...)
+	ref, err := name.ParseReference(r, o.Name...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing reference %q: %v", r, err)
 	}
-	img, err := remote.Image(ref, o.remote...)
+	img, err := remote.Image(ref, o.Remote...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
 	}
@@ -37,20 +37,20 @@ func getImage(r string, opt ...Option) (v1.Image, name.Reference, error) {
 
 func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
 	o := makeOptions(opt...)
-	ref, err := name.ParseReference(r, o.name...)
+	ref, err := name.ParseReference(r, o.Name...)
 	if err != nil {
 		return nil, fmt.Errorf("parsing reference %q: %v", r, err)
 	}
-	return remote.Get(ref, o.remote...)
+	return remote.Get(ref, o.Remote...)
 }
 
 // Head performs a HEAD request for a manifest and returns a content descriptor
 // based on the registry's response.
 func Head(r string, opt ...Option) (*v1.Descriptor, error) {
 	o := makeOptions(opt...)
-	ref, err := name.ParseReference(r, o.name...)
+	ref, err := name.ParseReference(r, o.Name...)
 	if err != nil {
 		return nil, err
 	}
-	return remote.Head(ref, o.remote...)
+	return remote.Head(ref, o.Remote...)
 }
