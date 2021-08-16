@@ -12,8 +12,9 @@ crane rebase [flags]
   -h, --help              help for rebase
       --new_base string   New base image to insert
       --old_base string   Old base image to remove
-      --original string   Original image to rebase
-      --rebased string    Tag to apply to rebased image
+      --original string   Original image to rebase (DEPRECATED: use positional arg instead)
+      --rebased string    Tag to apply to rebased image (DEPRECATED: use --tag)
+  -t, --tag string        Tag to apply to rebased image
 ```
 
 ### Options inherited from parent commands
