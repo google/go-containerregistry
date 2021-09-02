@@ -154,12 +154,14 @@ const (
 	DeniedErrorCode              ErrorCode = "DENIED"
 	UnsupportedErrorCode         ErrorCode = "UNSUPPORTED"
 	TooManyRequestsErrorCode     ErrorCode = "TOOMANYREQUESTS"
+	UnknownErrorCode             ErrorCode = "UNKNOWN"
 )
 
 // TODO: Include other error types.
 var temporaryErrorCodes = map[ErrorCode]struct{}{
 	BlobUploadInvalidErrorCode: {},
 	TooManyRequestsErrorCode:   {},
+	UnknownErrorCode:           {},
 }
 
 var temporaryStatusCodes = map[int]struct{}{
@@ -167,6 +169,7 @@ var temporaryStatusCodes = map[int]struct{}{
 	http.StatusInternalServerError: {},
 	http.StatusBadGateway:          {},
 	http.StatusServiceUnavailable:  {},
+	http.StatusGatewayTimeout:      {},
 }
 
 // CheckError returns a structured error if the response status is not in codes.
