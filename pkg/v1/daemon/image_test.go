@@ -24,9 +24,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	"github.com/google/go-containerregistry/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
-
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
@@ -60,6 +60,12 @@ func (m *MockClient) ImageSave(_ context.Context, _ []string) (io.ReadCloser, er
 	}
 
 	return m.saveBody, m.saveErr
+}
+
+func (m *MockClient) ImageInspectWithRaw(context.Context, string) (types.ImageInspect, []byte, error) {
+	return types.ImageInspect{
+		ID: "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
+	}, nil, nil
 }
 
 func TestImage(t *testing.T) {
@@ -114,8 +120,13 @@ func TestImage(t *testing.T) {
 				}
 				return
 			}
-			if err := compare.Images(img, dmn); err != nil {
-				t.Errorf("compare.Images: %v", err)
+			err = compare.Images(img, dmn)
+			if err != nil {
+				if tc.wantErr == "" {
+					t.Errorf("compare.Images: %v", err)
+				} else if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Errorf("wanted %s to contain %s", err.Error(), tc.wantErr)
+				}
 			}
 		}
 
