@@ -78,19 +78,21 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 		o.auth = auth
 	}
 
-	// Wrap the transport in something that logs requests and responses.
-	// It's expensive to generate the dumps, so skip it if we're writing
-	// to nothing.
-	if logs.Enabled(logs.Debug) {
-		o.transport = transport.NewLogger(o.transport)
-	}
+	if _, ok := o.transport.(*transport.Transport); ok {
+		// Wrap the transport in something that logs requests and responses.
+		// It's expensive to generate the dumps, so skip it if we're writing
+		// to nothing.
+		if logs.Enabled(logs.Debug) {
+			o.transport = transport.NewLogger(o.transport)
+		}
 
-	// Wrap the transport in something that can retry network flakes.
-	o.transport = transport.NewRetry(o.transport)
+		// Wrap the transport in something that can retry network flakes.
+		o.transport = transport.NewRetry(o.transport)
 
-	// Wrap this last to prevent transport.New from double-wrapping.
-	if o.userAgent != "" {
-		o.transport = transport.NewUserAgent(o.transport, o.userAgent)
+		// Wrap this last to prevent transport.New from double-wrapping.
+		if o.userAgent != "" {
+			o.transport = transport.NewUserAgent(o.transport, o.userAgent)
+		}
 	}
 
 	return o, nil

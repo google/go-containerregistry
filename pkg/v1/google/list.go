@@ -57,19 +57,21 @@ func newLister(repo name.Repository, options ...Option) (*lister, error) {
 		}
 	}
 
-	// Wrap the transport in something that logs requests and responses.
-	// It's expensive to generate the dumps, so skip it if we're writing
-	// to nothing.
-	if logs.Enabled(logs.Debug) {
-		l.transport = transport.NewLogger(l.transport)
-	}
+	if _, ok := l.transport.(*transport.Transport); ok {
+		// Wrap the transport in something that logs requests and responses.
+		// It's expensive to generate the dumps, so skip it if we're writing
+		// to nothing.
+		if logs.Enabled(logs.Debug) {
+			l.transport = transport.NewLogger(l.transport)
+		}
 
-	// Wrap the transport in something that can retry network flakes.
-	l.transport = transport.NewRetry(l.transport)
+		// Wrap the transport in something that can retry network flakes.
+		l.transport = transport.NewRetry(l.transport)
 
-	// Wrap this last to prevent transport.New from double-wrapping.
-	if l.userAgent != "" {
-		l.transport = transport.NewUserAgent(l.transport, l.userAgent)
+		// Wrap this last to prevent transport.New from double-wrapping.
+		if l.userAgent != "" {
+			l.transport = transport.NewUserAgent(l.transport, l.userAgent)
+		}
 	}
 
 	scopes := []string{repo.Scope(transport.PullScope)}

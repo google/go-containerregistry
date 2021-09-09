@@ -101,3 +101,12 @@ func NewWithContext(ctx context.Context, reg name.Registry, auth authn.Authentic
 		return nil, fmt.Errorf("unrecognized challenge: %s", pr.challenge)
 	}
 }
+
+// Transport results in wrapping supplied transport with additional logic such as retries, useragent and debug logging
+type Transport struct {
+	inner http.RoundTripper
+}
+
+func (t *Transport) RoundTrip(in *http.Request) (*http.Response, error) {
+	return t.inner.RoundTrip(in)
+}

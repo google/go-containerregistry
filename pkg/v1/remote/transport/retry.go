@@ -46,8 +46,17 @@ type options struct {
 	predicate retry.Predicate
 }
 
+// Backoff is an alias of retry.Backoff to expose this configuration option to consumers of this lib
+type Backoff = retry.Backoff
+
+// This is implemented by several errors in the net package as well as our
+// transport.Error
+type Temporary interface {
+	Temporary() bool
+}
+
 // WithRetryBackoff sets the backoff for retry operations.
-func WithRetryBackoff(backoff retry.Backoff) Option {
+func WithRetryBackoff(backoff Backoff) Option {
 	return func(o *options) {
 		o.backoff = backoff
 	}
