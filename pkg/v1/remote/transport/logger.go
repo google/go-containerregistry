@@ -55,7 +55,7 @@ func (t *logTransport) RoundTrip(in *http.Request) (out *http.Response, err erro
 	if err == nil {
 		logs.Debug.Println(string(b))
 	} else {
-		logs.Debug.Printf("Failed to dump Request %s %s: %v", in.Method, in.URL, err)
+		logs.Debug.Printf("Failed to dump request %s %s: %v", in.Method, in.URL, err)
 	}
 
 	// Restore the non-redacted headers.

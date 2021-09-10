@@ -91,6 +91,8 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) (rerr error) {
 		context:    o.context,
 		updates:    o.updates,
 		lastUpdate: &v1.Update{},
+		backoff:    o.retryBackoff,
+		predicate:  o.retryPredicate,
 	}
 
 	// Collect the total size of blobs and manifests we're about to write.

@@ -102,7 +102,8 @@ func NewWithContext(ctx context.Context, reg name.Registry, auth authn.Authentic
 	}
 }
 
-// Transport results in wrapping supplied transport with additional logic such as retries, useragent and debug logging
+// Transport results in *not* wrapping supplied transport with additional logic such as retries, useragent and debug logging
+// Consumers are opt-ing into providing their own transport without any additional wrapping.
 type Transport struct {
 	inner http.RoundTripper
 }

@@ -166,9 +166,11 @@ func setupWriterWithServer(server *httptest.Server, repo string) (*writer, close
 	}
 
 	return &writer{
-		repo:    tag.Context(),
-		client:  http.DefaultClient,
-		context: context.Background(),
+		repo:      tag.Context(),
+		client:    http.DefaultClient,
+		context:   context.Background(),
+		predicate: defaultRetryPredicate,
+		backoff:   defaultRetryBackoff,
 	}, server, nil
 }
 
