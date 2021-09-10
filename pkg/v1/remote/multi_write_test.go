@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -28,6 +29,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
@@ -220,6 +222,62 @@ func TestMultiWrite_Retry(t *testing.T) {
 		}
 
 	})
+
+	t.Run("do not retry transport errors if transport.Wrapper is used", func(t *testing.T) {
+		doesNotRetryTransport := &countTransport{inner: http.DefaultTransport}
+		// using a transport.Wrapper, meaning retry logic should not be wrapped
+		transportWrapper := &transport.Wrapper{doesNotRetryTransport}
+
+		// reference a http server that is not listening (used to pick a port that isn't listening)
+		s := httptest.NewServer(nil)
+		s.Close()
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+		if err := MultiWrite(map[name.Reference]Taggable{
+			tag1: img1,
+		}, WithTransport(transportWrapper)); err == nil {
+			t.Errorf("Expected an error, got nil")
+		}
+
+		// expect count == 2 since one attempt is for https and the other is for http fallback
+		if doesNotRetryTransport.count != 2 {
+			t.Errorf("Incorrect count, got %d, want %d", doesNotRetryTransport.count, 2)
+		}
+	})
+
+	t.Run("do not add UserAgent if transport.Wrapper is used", func(t *testing.T) {
+		expectedNotUsedUserAgent := "TEST_USER_AGENT"
+		transportWrapper := &transport.Wrapper{Inner: http.DefaultTransport}
+
+		handler := registry.New()
+
+		registryThatAssertsUserAgentIsCorrect := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+			if strings.Contains(request.Header.Get("User-Agent"), expectedNotUsedUserAgent) {
+				t.Fatalf("Should not contain User-Agent: %s, Got: %s", expectedNotUsedUserAgent, request.Header.Get("User-Agent"))
+			}
+
+			handler.ServeHTTP(responseWriter, request)
+		})
+
+		s := httptest.NewServer(registryThatAssertsUserAgentIsCorrect)
+
+		defer s.Close()
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+		if err := MultiWrite(map[name.Reference]Taggable{
+			tag1: img1,
+		}, WithTransport(transportWrapper), WithUserAgent(expectedNotUsedUserAgent)); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 // TestMultiWrite_Deep tests that a deeply nested tree of manifest lists gets
@@ -258,4 +316,14 @@ func TestMultiWrite_Deep(t *testing.T) {
 	if err := validate.Index(got); err != nil {
 		t.Error("Validate() =", err)
 	}
+}
+
+type countTransport struct {
+	count int
+	inner http.RoundTripper
+}
+
+func (t *countTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.count++
+	return nil, io.ErrUnexpectedEOF
 }

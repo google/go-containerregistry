@@ -57,7 +57,9 @@ func newLister(repo name.Repository, options ...Option) (*lister, error) {
 		}
 	}
 
-	if _, ok := l.transport.(*transport.Transport); !ok {
+	// transport.Wrapper is a signal that consumers are opt-ing into providing their own transport without any additional wrapping.
+	// This is to allow consumers full control over the transports logic, such as providing retry logic.
+	if _, ok := l.transport.(*transport.Wrapper); !ok {
 		// Wrap the transport in something that logs requests and responses.
 		// It's expensive to generate the dumps, so skip it if we're writing
 		// to nothing.
