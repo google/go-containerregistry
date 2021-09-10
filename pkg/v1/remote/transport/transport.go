@@ -107,6 +107,7 @@ type Transport struct {
 	inner http.RoundTripper
 }
 
+// RoundTrip delegates to the inner RoundTripper
 func (t *Transport) RoundTrip(in *http.Request) (*http.Response, error) {
 	return t.inner.RoundTrip(in)
 }

@@ -57,7 +57,7 @@ func newLister(repo name.Repository, options ...Option) (*lister, error) {
 		}
 	}
 
-	if _, ok := l.transport.(*transport.Transport); ok {
+	if _, ok := l.transport.(*transport.Transport); !ok {
 		// Wrap the transport in something that logs requests and responses.
 		// It's expensive to generate the dumps, so skip it if we're writing
 		// to nothing.
