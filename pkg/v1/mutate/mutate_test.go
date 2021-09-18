@@ -344,7 +344,9 @@ func TestMutateTime(t *testing.T) {
 
 func TestMutateMediaType(t *testing.T) {
 	want := types.OCIManifestSchema1
+	wantCfg := types.OCIConfigJSON
 	img := mutate.MediaType(empty.Image, want)
+	img = mutate.ConfigMediaType(img, wantCfg)
 	got, err := img.MediaType()
 	if err != nil {
 		t.Fatal(err)
@@ -359,9 +361,14 @@ func TestMutateMediaType(t *testing.T) {
 	if manifest.MediaType != "" {
 		t.Errorf("MediaType should not be set for OCI media types: %v", manifest.MediaType)
 	}
+	if gotCfg := manifest.Config.MediaType; gotCfg != wantCfg {
+		t.Errorf("manifest.Config.MediaType = %v, wanted %v", gotCfg, wantCfg)
+	}
 
 	want = types.DockerManifestSchema2
+	wantCfg = types.DockerConfigJSON
 	img = mutate.MediaType(img, want)
+	img = mutate.ConfigMediaType(img, wantCfg)
 	got, err = img.MediaType()
 	if err != nil {
 		t.Fatal(err)
@@ -375,6 +382,9 @@ func TestMutateMediaType(t *testing.T) {
 	}
 	if manifest.MediaType != want {
 		t.Errorf("MediaType should be set for Docker media types: %v", manifest.MediaType)
+	}
+	if gotCfg := manifest.Config.MediaType; gotCfg != wantCfg {
+		t.Errorf("manifest.Config.MediaType = %v, wanted %v", gotCfg, wantCfg)
 	}
 
 	want = types.OCIImageIndex
@@ -557,6 +567,42 @@ func TestRemoveManifests(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestImageImmutability(t *testing.T) {
+	img := mutate.MediaType(empty.Image, types.OCIManifestSchema1)
+
+	t.Run("manifest", func(t *testing.T) {
+		// Check that Manifest is immutable.
+		changed, err := img.Manifest()
+		if err != nil {
+			t.Errorf("Manifest() = %v", err)
+		}
+		want := changed.DeepCopy() // Create a copy of original before mutating it.
+		changed.MediaType = types.DockerManifestList
+
+		if got, err := img.Manifest(); err != nil {
+			t.Errorf("Manifest() = %v", err)
+		} else if !cmp.Equal(got, want) {
+			t.Errorf("manifest changed! %s", cmp.Diff(got, want))
+		}
+	})
+
+	t.Run("config file", func(t *testing.T) {
+		// Check that ConfigFile is immutable.
+		changed, err := img.ConfigFile()
+		if err != nil {
+			t.Errorf("ConfigFile() = %v", err)
+		}
+		want := changed.DeepCopy() // Create a copy of original before mutating it.
+		changed.Author = "Jay Pegg"
+
+		if got, err := img.ConfigFile(); err != nil {
+			t.Errorf("ConfigFile() = %v", err)
+		} else if !cmp.Equal(got, want) {
+			t.Errorf("ConfigFile changed! %s", cmp.Diff(got, want))
+		}
+	})
 }
 
 func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {

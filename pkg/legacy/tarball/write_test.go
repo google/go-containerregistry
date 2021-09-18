@@ -382,9 +382,15 @@ func TestMultiWriteMismatchedHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting image config: %v", err)
 	}
+
 	// Set the history such that number of history entries != layers. This
 	// should trigger an error during the image write.
 	cfg.History = make([]v1.History, 1)
+	img, err = mutate.ConfigFile(img, cfg)
+	if err != nil {
+		t.Fatalf("mutate.ConfigFile() = %v", err)
+	}
+
 	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
 	if err != nil {
 		t.Fatalf("Error creating test tag: %v", err)
