@@ -30,13 +30,14 @@ type image struct {
 	base v1.Image
 	adds []Addendum
 
-	computed    bool
-	configFile  *v1.ConfigFile
-	manifest    *v1.Manifest
-	annotations map[string]string
-	mediaType   *types.MediaType
-	diffIDMap   map[v1.Hash]v1.Layer
-	digestMap   map[v1.Hash]v1.Layer
+	computed        bool
+	configFile      *v1.ConfigFile
+	manifest        *v1.Manifest
+	annotations     map[string]string
+	mediaType       *types.MediaType
+	configMediaType *types.MediaType
+	diffIDMap       map[v1.Hash]v1.Layer
+	digestMap       map[v1.Hash]v1.Layer
 }
 
 var _ v1.Image = (*image)(nil)
@@ -135,6 +136,11 @@ func (i *image) compute() error {
 		manifest.Config.Data = rcfg
 	}
 
+	// If the user wants to mutate the media type of the config
+	if i.configMediaType != nil {
+		manifest.Config.MediaType = *i.configMediaType
+	}
+
 	// With OCI media types, this should not be set, see discussion:
 	// https://github.com/opencontainers/image-spec/pull/795
 	if i.mediaType != nil {
@@ -210,7 +216,7 @@ func (i *image) ConfigFile() (*v1.ConfigFile, error) {
 	if err := i.compute(); err != nil {
 		return nil, err
 	}
-	return i.configFile, nil
+	return i.configFile.DeepCopy(), nil
 }
 
 // RawConfigFile returns the serialized bytes of ConfigFile()
@@ -242,7 +248,7 @@ func (i *image) Manifest() (*v1.Manifest, error) {
 	if err := i.compute(); err != nil {
 		return nil, err
 	}
-	return i.manifest, nil
+	return i.manifest.DeepCopy(), nil
 }
 
 // RawManifest returns the serialized bytes of Manifest()

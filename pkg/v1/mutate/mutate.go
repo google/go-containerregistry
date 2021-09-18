@@ -459,6 +459,14 @@ func MediaType(img v1.Image, mt types.MediaType) v1.Image {
 	}
 }
 
+// ConfigMediaType modifies the MediaType() of the given image's Config.
+func ConfigMediaType(img v1.Image, mt types.MediaType) v1.Image {
+	return &image{
+		base:            img,
+		configMediaType: &mt,
+	}
+}
+
 // IndexMediaType modifies the MediaType() of the given index.
 func IndexMediaType(idx v1.ImageIndex, mt types.MediaType) v1.ImageIndex {
 	return &index{

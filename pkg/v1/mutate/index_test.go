@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -136,4 +137,46 @@ func TestAppendIndex(t *testing.T) {
 	if err := validate.Index(add); err != nil {
 		t.Errorf("Validate() = %v", err)
 	}
+}
+
+func TestIndexImmutability(t *testing.T) {
+	base, err := random.Index(1024, 3, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ii, err := random.Index(2048, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i, err := random.Image(4096, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	idx := mutate.AppendManifests(base, mutate.IndexAddendum{
+		Add: ii,
+		Descriptor: v1.Descriptor{
+			URLs: []string{"index.example.com"},
+		},
+	}, mutate.IndexAddendum{
+		Add: i,
+		Descriptor: v1.Descriptor{
+			URLs: []string{"image.example.com"},
+		},
+	})
+
+	t.Run("index manifest", func(t *testing.T) {
+		// Check that Manifest is immutable.
+		changed, err := idx.IndexManifest()
+		if err != nil {
+			t.Errorf("IndexManifest() = %v", err)
+		}
+		want := changed.DeepCopy() // Create a copy of original before mutating it.
+		changed.MediaType = types.DockerManifestList
+
+		if got, err := idx.IndexManifest(); err != nil {
+			t.Errorf("IndexManifest() = %v", err)
+		} else if !cmp.Equal(got, want) {
+			t.Errorf("IndexManifest changed! %s", cmp.Diff(got, want))
+		}
+	})
 }
