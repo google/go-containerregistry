@@ -185,5 +185,5 @@ func (i image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
 	if err := i.initialize(); err != nil {
 		return nil, err
 	}
-	return i.tarballImage.LayerByDigest(h)
+	return i.tarballImage.LayerByDiffID(h)
 }
