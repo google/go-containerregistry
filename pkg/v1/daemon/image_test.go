@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
 var imagePath = "../tarball/testdata/test_image_1.tar"
@@ -124,6 +125,15 @@ func TestImage(t *testing.T) {
 			if err != nil {
 				if tc.wantErr == "" {
 					t.Errorf("compare.Images: %v", err)
+				} else if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Errorf("wanted %s to contain %s", err.Error(), tc.wantErr)
+				}
+			}
+
+			err = validate.Image(dmn)
+			if err != nil {
+				if tc.wantErr == "" {
+					t.Errorf("validate.Image: %v", err)
 				} else if !strings.Contains(err.Error(), tc.wantErr) {
 					t.Errorf("wanted %s to contain %s", err.Error(), tc.wantErr)
 				}
