@@ -70,7 +70,7 @@ func writeImage(ctx context.Context, ref name.Reference, img v1.Image, o *option
 		return err
 	}
 	scopes := scopesForUploadingImage(ref.Context(), ls)
-	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
+	tr, err := transport.NewWithContext(ctx, ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return err
 	}
@@ -521,52 +521,73 @@ func (w *writer) writeIndex(ctx context.Context, ref name.Reference, ii v1.Image
 		return err
 	}
 
-	// TODO(#803): Pipe through remote.WithJobs and upload these in parallel.
-	for _, desc := range index.Manifests {
-		ref := ref.Context().Digest(desc.Digest.String())
-		exists, err := w.checkExistingManifest(desc.Digest, desc.MediaType)
-		if err != nil {
-			return err
-		}
-		if exists {
-			logs.Progress.Print("existing manifest: ", desc.Digest)
-			continue
-		}
-
-		switch desc.MediaType {
-		case types.OCIImageIndex, types.DockerManifestList:
-			ii, err := ii.ImageIndex(desc.Digest)
-			if err != nil {
-				return err
-			}
-			if err := w.writeIndex(ctx, ref, ii); err != nil {
-				return err
-			}
-		case types.OCIManifestSchema1, types.DockerManifestSchema2:
-			img, err := ii.Image(desc.Digest)
-			if err != nil {
-				return err
-			}
-			if err := writeImage(ctx, ref, img, o, w.lastUpdate); err != nil {
-				return err
-			}
-		default:
-			// Workaround for #819.
-			if wl, ok := ii.(withLayer); ok {
-				layer, err := wl.Layer(desc.Digest)
-				if err != nil {
-					return err
-				}
-				if err := w.uploadOne(ctx, layer); err != nil {
+	g, gctx := errgroup.WithContext(ctx)
+	descChan := make(chan v1.Descriptor, 2*o.jobs)
+	for i := 0; i < o.jobs; i++ {
+		g.Go(func() error {
+			for desc := range descChan {
+				childRef := ref.Context().Digest(desc.Digest.String())
+				if err := w.writeIndexChild(gctx, childRef, ii, desc, o); err != nil {
 					return err
 				}
 			}
+			return nil
+		})
+	}
+	g.Go(func() error {
+		defer close(descChan)
+		for _, desc := range index.Manifests {
+			select {
+			case descChan <- desc:
+			case <-gctx.Done():
+				return gctx.Err()
+			}
 		}
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	// With all of the constituent elements uploaded, upload the manifest
 	// to commit the image.
 	return w.commitManifest(ctx, ii, ref)
+}
+
+func (w *writer) writeIndexChild(ctx context.Context, ref name.Reference, ii v1.ImageIndex, desc v1.Descriptor, o *options) error {
+	if exists, err := w.checkExistingManifest(desc.Digest, desc.MediaType); err != nil {
+		return err
+	} else if exists {
+		logs.Progress.Print("existing manifest: ", desc.Digest)
+		return nil
+	}
+
+	switch desc.MediaType {
+	case types.OCIImageIndex, types.DockerManifestList:
+		ii, err := ii.ImageIndex(desc.Digest)
+		if err != nil {
+			return err
+		}
+		return w.writeIndex(ctx, ref, ii)
+	case types.OCIManifestSchema1, types.DockerManifestSchema2:
+		img, err := ii.Image(desc.Digest)
+		if err != nil {
+			return err
+		}
+		return writeImage(ctx, ref, img, o, w.lastUpdate)
+	default:
+		// Workaround for #819.
+		if wl, ok := ii.(withLayer); ok {
+			layer, err := wl.Layer(desc.Digest)
+			if err != nil {
+				return err
+			}
+			return w.uploadOne(ctx, layer)
+		}
+
+		logs.Warn.Printf("unexpected mediaType in index: %v", desc.MediaType)
+	}
+	return nil
 }
 
 type withMediaType interface {

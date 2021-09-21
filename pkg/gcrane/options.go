@@ -62,6 +62,7 @@ func makeOptions(opts ...Option) *options {
 func WithJobs(jobs int) Option {
 	return func(o *options) {
 		o.jobs = jobs
+		o.crane = append(o.crane, crane.WithJobs(jobs))
 	}
 }
 

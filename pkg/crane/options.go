@@ -114,3 +114,10 @@ func WithContext(ctx context.Context) Option {
 		o.Remote = append(o.Remote, remote.WithContext(ctx))
 	}
 }
+
+// WithJobs sets the number of concurrent jobs to run.
+func WithJobs(jobs int) Option {
+	return func(o *Options) {
+		o.Remote = append(o.Remote, remote.WithJobs(jobs))
+	}
+}
