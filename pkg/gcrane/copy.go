@@ -213,7 +213,7 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 		srcImg := fmt.Sprintf("%s@%s", t.oldRepo, t.digest)
 		dstImg := fmt.Sprintf("%s@%s", t.newRepo, t.digest)
 
-		return Copy(srcImg, dstImg)
+		return crane.Copy(srcImg, dstImg, c.opt.crane...)
 	}
 
 	// We only need to push the whole image once.
@@ -221,7 +221,7 @@ func (c *copier) copyImages(ctx context.Context, t task) error {
 	srcImg := fmt.Sprintf("%s:%s", t.oldRepo, tag)
 	dstImg := fmt.Sprintf("%s:%s", t.newRepo, tag)
 
-	if err := Copy(srcImg, dstImg); err != nil {
+	if err := crane.Copy(srcImg, dstImg, c.opt.crane...); err != nil {
 		return err
 	}
 
