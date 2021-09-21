@@ -28,6 +28,7 @@ import (
 )
 
 type image struct {
+	mu           sync.Mutex
 	ref          name.Reference
 	opener       *imageOpener
 	tarballImage v1.Image
@@ -99,6 +100,9 @@ func Image(ref name.Reference, options ...Option) (v1.Image, error) {
 }
 
 func (i *image) initialize() error {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
 	// Don't re-initialize tarball if already initialized.
 	if i.tarballImage == nil {
 		var err error
