@@ -61,10 +61,10 @@ func Write(ref name.Reference, img v1.Image, options ...Option) (rerr error) {
 		defer close(o.updates)
 		defer func() { sendError(o.updates, rerr) }()
 	}
-	return writeImage(ref, img, o, lastUpdate)
+	return writeImage(o.context, ref, img, o, lastUpdate)
 }
 
-func writeImage(ref name.Reference, img v1.Image, o *options, lastUpdate *v1.Update) error {
+func writeImage(ctx context.Context, ref name.Reference, img v1.Image, o *options, lastUpdate *v1.Update) error {
 	ls, err := img.Layers()
 	if err != nil {
 		return err
@@ -77,19 +77,19 @@ func writeImage(ref name.Reference, img v1.Image, o *options, lastUpdate *v1.Upd
 	w := writer{
 		repo:       ref.Context(),
 		client:     &http.Client{Transport: tr},
-		context:    o.context,
+		context:    ctx,
 		updates:    o.updates,
 		lastUpdate: lastUpdate,
 	}
 
 	// Upload individual blobs and collect any errors.
 	blobChan := make(chan v1.Layer, 2*o.jobs)
-	g, ctx := errgroup.WithContext(o.context)
+	g, gctx := errgroup.WithContext(ctx)
 	for i := 0; i < o.jobs; i++ {
 		// Start N workers consuming blobs to upload.
 		g.Go(func() error {
 			for b := range blobChan {
-				if err := w.uploadOne(b); err != nil {
+				if err := w.uploadOne(gctx, b); err != nil {
 					return err
 				}
 			}
@@ -128,15 +128,12 @@ func writeImage(ref name.Reference, img v1.Image, o *options, lastUpdate *v1.Upd
 			}
 			select {
 			case blobChan <- l:
-			case <-ctx.Done():
-				return ctx.Err()
+			case <-gctx.Done():
+				return gctx.Err()
 			}
 		}
 		return nil
 	})
-	if err := g.Wait(); err != nil {
-		return err
-	}
 
 	if l, err := partial.ConfigLayer(img); err != nil {
 		// We can't read the ConfigLayer, possibly because of streaming layers,
@@ -151,13 +148,13 @@ func writeImage(ref name.Reference, img v1.Image, o *options, lastUpdate *v1.Upd
 		if err != nil {
 			return err
 		}
-		if err := w.uploadOne(l); err != nil {
+		if err := w.uploadOne(ctx, l); err != nil {
 			return err
 		}
 	} else {
 		// We *can* read the ConfigLayer, so upload it concurrently with the layers.
 		g.Go(func() error {
-			return w.uploadOne(l)
+			return w.uploadOne(gctx, l)
 		})
 
 		// Wait for the layers + config.
@@ -168,7 +165,7 @@ func writeImage(ref name.Reference, img v1.Image, o *options, lastUpdate *v1.Upd
 
 	// With all of the constituent elements uploaded, upload the manifest
 	// to commit the image.
-	return w.commitManifest(img, ref)
+	return w.commitManifest(ctx, img, ref)
 }
 
 // writer writes the elements of an image to a remote image reference.
@@ -428,7 +425,7 @@ var backoff = retry.Backoff{
 }
 
 // uploadOne performs a complete upload of a single layer.
-func (w *writer) uploadOne(l v1.Layer) error {
+func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 	var from, mount string
 	if h, err := l.Digest(); err == nil {
 		// If we know the digest, this isn't a streaming layer. Do an existence
@@ -454,8 +451,6 @@ func (w *writer) uploadOne(l v1.Layer) error {
 			from = ml.Reference.Context().RepositoryStr()
 		}
 	}
-
-	ctx := w.context
 
 	tryUpload := func() error {
 		location, mounted, err := w.initiateUpload(from, mount)
@@ -515,7 +510,7 @@ type withLayer interface {
 	Layer(v1.Hash) (v1.Layer, error)
 }
 
-func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) error {
+func (w *writer) writeIndex(ctx context.Context, ref name.Reference, ii v1.ImageIndex, options ...Option) error {
 	index, err := ii.IndexManifest()
 	if err != nil {
 		return err
@@ -544,7 +539,7 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 			if err != nil {
 				return err
 			}
-			if err := w.writeIndex(ref, ii); err != nil {
+			if err := w.writeIndex(ctx, ref, ii); err != nil {
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
@@ -552,7 +547,7 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 			if err != nil {
 				return err
 			}
-			if err := writeImage(ref, img, o, w.lastUpdate); err != nil {
+			if err := writeImage(ctx, ref, img, o, w.lastUpdate); err != nil {
 				return err
 			}
 		default:
@@ -562,7 +557,7 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 				if err != nil {
 					return err
 				}
-				if err := w.uploadOne(layer); err != nil {
+				if err := w.uploadOne(ctx, layer); err != nil {
 					return err
 				}
 			}
@@ -571,7 +566,7 @@ func (w *writer) writeIndex(ref name.Reference, ii v1.ImageIndex, options ...Opt
 
 	// With all of the constituent elements uploaded, upload the manifest
 	// to commit the image.
-	return w.commitManifest(ii, ref)
+	return w.commitManifest(ctx, ii, ref)
 }
 
 type withMediaType interface {
@@ -617,7 +612,7 @@ func unpackTaggable(t Taggable) ([]byte, *v1.Descriptor, error) {
 }
 
 // commitManifest does a PUT of the image's manifest.
-func (w *writer) commitManifest(t Taggable, ref name.Reference) error {
+func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Reference) error {
 	tryUpload := func() error {
 		raw, desc, err := unpackTaggable(t)
 		if err != nil {
@@ -633,7 +628,7 @@ func (w *writer) commitManifest(t Taggable, ref name.Reference) error {
 		}
 		req.Header.Set("Content-Type", string(desc.MediaType))
 
-		resp, err := w.client.Do(req.WithContext(w.context))
+		resp, err := w.client.Do(req.WithContext(ctx))
 		if err != nil {
 			return err
 		}
@@ -708,7 +703,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) (rerr e
 		defer func() { sendError(o.updates, rerr) }()
 	}
 
-	return w.writeIndex(ref, ii, options...)
+	return w.writeIndex(o.context, ref, ii, options...)
 }
 
 // countImage counts the total size of all layers + config blob + manifest for
@@ -851,7 +846,7 @@ func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) (rerr e
 		}
 		w.lastUpdate = &v1.Update{Total: size}
 	}
-	return w.uploadOne(layer)
+	return w.uploadOne(o.context, layer)
 }
 
 // Tag adds a tag to the given Taggable via PUT /v2/.../manifests/<tag>
@@ -903,5 +898,5 @@ func Put(ref name.Reference, t Taggable, options ...Option) error {
 		context: o.context,
 	}
 
-	return w.commitManifest(t, ref)
+	return w.commitManifest(o.context, t, ref)
 }
