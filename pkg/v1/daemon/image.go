@@ -28,10 +28,12 @@ import (
 )
 
 type image struct {
-	mu           sync.Mutex
 	ref          name.Reference
 	opener       *imageOpener
 	tarballImage v1.Image
+
+	once sync.Once
+	err  error
 }
 
 type imageOpener struct {
@@ -100,18 +102,13 @@ func Image(ref name.Reference, options ...Option) (v1.Image, error) {
 }
 
 func (i *image) initialize() error {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
 	// Don't re-initialize tarball if already initialized.
 	if i.tarballImage == nil {
-		var err error
-		i.tarballImage, err = tarball.Image(i.opener.opener(), nil)
-		if err != nil {
-			return err
-		}
+		i.once.Do(func() {
+			i.tarballImage, i.err = tarball.Image(i.opener.opener(), nil)
+		})
 	}
-	return nil
+	return i.err
 }
 
 func (i *image) Layers() ([]v1.Layer, error) {
