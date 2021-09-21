@@ -647,6 +647,7 @@ func TestUploadOne(t *testing.T) {
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	streamPath := "/path/to/upload"
 	commitPath := "/path/to/commit"
+	ctx := context.Background()
 
 	uploaded := false
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -705,11 +706,11 @@ func TestUploadOne(t *testing.T) {
 		Layer:     l,
 		Reference: w.repo.Digest(h.String()),
 	}
-	if err := w.uploadOne(ml); err != nil {
+	if err := w.uploadOne(ctx, ml); err != nil {
 		t.Errorf("uploadOne() = %v", err)
 	}
 	// Hit the existing blob path.
-	if err := w.uploadOne(l); err != nil {
+	if err := w.uploadOne(ctx, l); err != nil {
 		t.Errorf("uploadOne() = %v", err)
 	}
 }
@@ -719,6 +720,7 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	streamPath := "/path/to/upload"
 	commitPath := "/path/to/commit"
+	ctx := context.Background()
 
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -754,7 +756,7 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
 	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
 	l := stream.NewLayer(newBlob())
-	if err := w.uploadOne(l); err != nil {
+	if err := w.uploadOne(ctx, l); err != nil {
 		t.Fatalf("uploadOne: %v", err)
 	}
 
@@ -777,6 +779,7 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 
 func TestCommitImage(t *testing.T) {
 	img := setupImage(t)
+	ctx := context.Background()
 
 	expectedRepo := "foo/bar"
 	expectedPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
@@ -813,7 +816,7 @@ func TestCommitImage(t *testing.T) {
 	}
 	defer closer.Close()
 
-	if err := w.commitManifest(img, w.repo.Tag("latest")); err != nil {
+	if err := w.commitManifest(ctx, img, w.repo.Tag("latest")); err != nil {
 		t.Error("commitManifest() = ", err)
 	}
 }
