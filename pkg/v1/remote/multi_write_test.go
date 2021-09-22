@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
 	"log"
@@ -224,34 +225,44 @@ func TestMultiWrite_Retry(t *testing.T) {
 	})
 
 	t.Run("do not retry transport errors if transport.Wrapper is used", func(t *testing.T) {
-		doesNotRetryTransport := &countTransport{inner: http.DefaultTransport}
-		// using a transport.Wrapper, meaning retry logic should not be wrapped
-		transportWrapper := &transport.Wrapper{doesNotRetryTransport}
-
 		// reference a http server that is not listening (used to pick a port that isn't listening)
-		s := httptest.NewServer(nil)
-		s.Close()
+		onlyHandlesPing := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+			if strings.HasSuffix(request.URL.Path, "/v2/") {
+				responseWriter.WriteHeader(200)
+				return
+			}
+		})
+		s := httptest.NewServer(onlyHandlesPing)
+		defer s.Close()
+
 		u, err := url.Parse(s.URL)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+
+		// using a transport.Wrapper, meaning retry logic should not be wrapped
+		doesNotRetryTransport := &countTransport{inner: http.DefaultTransport}
+		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, nil, doesNotRetryTransport, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		if err := MultiWrite(map[name.Reference]Taggable{
 			tag1: img1,
-		}, WithTransport(transportWrapper)); err == nil {
+		}, WithTransport(transportWrapper), WithJobs(1)); err == nil {
 			t.Errorf("Expected an error, got nil")
 		}
 
-		// expect count == 2 since one attempt is for https and the other is for http fallback
-		if doesNotRetryTransport.count != 2 {
-			t.Errorf("Incorrect count, got %d, want %d", doesNotRetryTransport.count, 2)
+		// expect count == 1 since jobs is set to 1 and we should not retry on transport eof error
+		if doesNotRetryTransport.count != 1 {
+			t.Errorf("Incorrect count, got %d, want %d", doesNotRetryTransport.count, 1)
 		}
 	})
 
 	t.Run("do not add UserAgent if transport.Wrapper is used", func(t *testing.T) {
 		expectedNotUsedUserAgent := "TEST_USER_AGENT"
-		transportWrapper := &transport.Wrapper{Inner: http.DefaultTransport}
 
 		handler := registry.New()
 
@@ -272,6 +283,12 @@ func TestMultiWrite_Retry(t *testing.T) {
 		}
 
 		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+		// using a transport.Wrapper, meaning retry logic should not be wrapped
+		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, nil, http.DefaultTransport, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		if err := MultiWrite(map[name.Reference]Taggable{
 			tag1: img1,
 		}, WithTransport(transportWrapper), WithUserAgent(expectedNotUsedUserAgent)); err != nil {
@@ -324,6 +341,10 @@ type countTransport struct {
 }
 
 func (t *countTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if strings.HasSuffix(req.URL.Path, "/v2/") {
+		return t.inner.RoundTrip(req)
+	}
+
 	t.count++
 	return nil, io.ErrUnexpectedEOF
 }

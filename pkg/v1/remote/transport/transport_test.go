@@ -87,7 +87,7 @@ func TestTransportSelectionBasic(t *testing.T) {
 	}
 	if tpw, ok := tp.(*Wrapper); !ok {
 		t.Errorf("New(); got %T, want *Wrapper", tp)
-	} else if _, ok := tpw.Inner.(*basicTransport); !ok {
+	} else if _, ok := tpw.inner.(*basicTransport); !ok {
 		t.Errorf("New(); got %T, want *basicTransport", tp)
 	}
 }
@@ -157,7 +157,7 @@ func TestTransportSelectionBearer(t *testing.T) {
 	}
 	if tpw, ok := tp.(*Wrapper); !ok {
 		t.Errorf("New(); got %T, want *Wrapper", tp)
-	} else if _, ok := tpw.Inner.(*bearerTransport); !ok {
+	} else if _, ok := tpw.inner.(*bearerTransport); !ok {
 		t.Errorf("New(); got %T, want *bearerTransport", tp)
 	}
 }

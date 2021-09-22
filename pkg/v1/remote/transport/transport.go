@@ -105,10 +105,10 @@ func NewWithContext(ctx context.Context, reg name.Registry, auth authn.Authentic
 // Wrapper results in *not* wrapping supplied transport with additional logic such as retries, useragent and debug logging
 // Consumers are opt-ing into providing their own transport without any additional wrapping.
 type Wrapper struct {
-	Inner http.RoundTripper
+	inner http.RoundTripper
 }
 
 // RoundTrip delegates to the inner RoundTripper
 func (w *Wrapper) RoundTrip(in *http.Request) (*http.Response, error) {
-	return w.Inner.RoundTrip(in)
+	return w.inner.RoundTrip(in)
 }
