@@ -166,9 +166,11 @@ func setupWriterWithServer(server *httptest.Server, repo string) (*writer, close
 	}
 
 	return &writer{
-		repo:    tag.Context(),
-		client:  http.DefaultClient,
-		context: context.Background(),
+		repo:      tag.Context(),
+		client:    http.DefaultClient,
+		context:   context.Background(),
+		predicate: defaultRetryPredicate,
+		backoff:   defaultRetryBackoff,
 	}, server, nil
 }
 
@@ -917,7 +919,7 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Error("Write() = nil; wanted error")
 	} else if se, ok := err.(*transport.Error); !ok {
 		t.Errorf("Write() = %T; wanted *remote.Error", se)
-	} else if diff := cmp.Diff(expectedError, se, cmpopts.IgnoreUnexported(transport.Error{})); diff != "" {
+	} else if diff := cmp.Diff(expectedError, se, cmpopts.IgnoreFields(transport.Error{}, "Request", "rawBody")); diff != "" {
 		t.Errorf("Write(); (-want +got) = %s", diff)
 	}
 

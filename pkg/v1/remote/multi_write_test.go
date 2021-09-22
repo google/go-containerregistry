@@ -15,6 +15,8 @@
 package remote
 
 import (
+	"context"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -28,6 +30,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
@@ -220,6 +223,78 @@ func TestMultiWrite_Retry(t *testing.T) {
 		}
 
 	})
+
+	t.Run("do not retry transport errors if transport.Wrapper is used", func(t *testing.T) {
+		// reference a http server that is not listening (used to pick a port that isn't listening)
+		onlyHandlesPing := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+			if strings.HasSuffix(request.URL.Path, "/v2/") {
+				responseWriter.WriteHeader(200)
+				return
+			}
+		})
+		s := httptest.NewServer(onlyHandlesPing)
+		defer s.Close()
+
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+
+		// using a transport.Wrapper, meaning retry logic should not be wrapped
+		doesNotRetryTransport := &countTransport{inner: http.DefaultTransport}
+		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, nil, doesNotRetryTransport, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := MultiWrite(map[name.Reference]Taggable{
+			tag1: img1,
+		}, WithTransport(transportWrapper), WithJobs(1)); err == nil {
+			t.Errorf("Expected an error, got nil")
+		}
+
+		// expect count == 1 since jobs is set to 1 and we should not retry on transport eof error
+		if doesNotRetryTransport.count != 1 {
+			t.Errorf("Incorrect count, got %d, want %d", doesNotRetryTransport.count, 1)
+		}
+	})
+
+	t.Run("do not add UserAgent if transport.Wrapper is used", func(t *testing.T) {
+		expectedNotUsedUserAgent := "TEST_USER_AGENT"
+
+		handler := registry.New()
+
+		registryThatAssertsUserAgentIsCorrect := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+			if strings.Contains(request.Header.Get("User-Agent"), expectedNotUsedUserAgent) {
+				t.Fatalf("Should not contain User-Agent: %s, Got: %s", expectedNotUsedUserAgent, request.Header.Get("User-Agent"))
+			}
+
+			handler.ServeHTTP(responseWriter, request)
+		})
+
+		s := httptest.NewServer(registryThatAssertsUserAgentIsCorrect)
+
+		defer s.Close()
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
+		// using a transport.Wrapper, meaning retry logic should not be wrapped
+		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, nil, http.DefaultTransport, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := MultiWrite(map[name.Reference]Taggable{
+			tag1: img1,
+		}, WithTransport(transportWrapper), WithUserAgent(expectedNotUsedUserAgent)); err != nil {
+			t.Fatal(err)
+		}
+	})
 }
 
 // TestMultiWrite_Deep tests that a deeply nested tree of manifest lists gets
@@ -258,4 +333,18 @@ func TestMultiWrite_Deep(t *testing.T) {
 	if err := validate.Index(got); err != nil {
 		t.Error("Validate() =", err)
 	}
+}
+
+type countTransport struct {
+	count int
+	inner http.RoundTripper
+}
+
+func (t *countTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if strings.HasSuffix(req.URL.Path, "/v2/") {
+		return t.inner.RoundTrip(req)
+	}
+
+	t.count++
+	return nil, io.ErrUnexpectedEOF
 }
