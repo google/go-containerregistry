@@ -24,6 +24,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types/container"
+	api "github.com/docker/docker/api/types/image"
+
 	"github.com/docker/docker/api/types"
 	"github.com/google/go-containerregistry/internal/compare"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -63,10 +66,40 @@ func (m *MockClient) ImageSave(_ context.Context, _ []string) (io.ReadCloser, er
 	return m.saveBody, m.saveErr
 }
 
-func (m *MockClient) ImageInspectWithRaw(context.Context, string) (types.ImageInspect, []byte, error) {
+func (m *MockClient) ImageInspectWithRaw(_ context.Context, _ string) (types.ImageInspect, []byte, error) {
 	return types.ImageInspect{
 		ID: "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
+		RepoTags: []string{
+			"bazel/v1/tarball:test_image_1",
+		},
+		Created:      "1970-01-01T00:00:00Z",
+		Author:       "Bazel",
+		Architecture: "amd64",
+		Os:           "linux",
+		Size:         8,
+		VirtualSize:  8,
+		Config:       &container.Config{},
+		RootFS: types.RootFS{
+			Type: "layers",
+			Layers: []string{
+				"sha256:8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
+			},
+		},
 	}, nil, nil
+}
+
+func (m *MockClient) ImageHistory(_ context.Context, _ string) ([]api.HistoryResponseItem, error) {
+	return []api.HistoryResponseItem{
+		{
+			CreatedBy: "bazel build ...",
+			ID:        "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
+			Size:      8,
+			Tags: []string{
+				"bazel/v1/tarball:test_image_1",
+			},
+		},
+	}, nil
+
 }
 
 func TestImage(t *testing.T) {
@@ -121,6 +154,7 @@ func TestImage(t *testing.T) {
 				}
 				return
 			}
+
 			err = compare.Images(img, dmn)
 			if err != nil {
 				if tc.wantErr == "" {
