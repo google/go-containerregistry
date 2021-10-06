@@ -13,6 +13,7 @@
 package unix
 
 import (
+	"fmt"
 	"runtime"
 	"syscall"
 	"unsafe"
@@ -398,7 +399,44 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 	return x, err
 }
 
+func SysctlKinfoProcSlice(name string) ([]KinfoProc, error) {
+	mib, err := sysctlmib(name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Find size.
+	n := uintptr(0)
+	if err := sysctl(mib, nil, &n, nil, 0); err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	if n%SizeofKinfoProc != 0 {
+		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+	}
+
+	// Read into buffer of that size.
+	buf := make([]KinfoProc, n/SizeofKinfoProc)
+	if err := sysctl(mib, (*byte)(unsafe.Pointer(&buf[0])), &n, nil, 0); err != nil {
+		return nil, err
+	}
+	if n%SizeofKinfoProc != 0 {
+		return nil, fmt.Errorf("sysctl() returned a size of %d, which is not a multiple of %d", n, SizeofKinfoProc)
+	}
+
+	// The actual call may return less than the original reported required
+	// size so ensure we deal with that.
+	return buf[:n/SizeofKinfoProc], nil
+}
+
 //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
+
+//sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+//sys	shmctl(id int, cmd int, buf *SysvShmDesc) (result int, err error)
+//sys	shmdt(addr uintptr) (err error)
+//sys	shmget(key int, size int, flag int) (id int, err error)
 
 /*
  * Exposed directly
@@ -557,10 +595,6 @@ func GetsockoptXucred(fd, level, opt int) (*Xucred, error) {
 // Msgget
 // Msgsnd
 // Msgrcv
-// Shmat
-// Shmctl
-// Shmdt
-// Shmget
 // Shm_open
 // Shm_unlink
 // Sem_open
