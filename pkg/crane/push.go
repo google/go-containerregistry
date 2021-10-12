@@ -66,16 +66,16 @@ func MultiPush(images map[name.Reference]v1.Image, dst string, concurrent int, o
 	parallelsChan := make(chan bool, concurrent)
 	resChan := make(chan pushResult)
 	total := len(images)
-	fmt.Printf("invoke MultiPush for totally %d images\n", total)
+	logs.Progress.Printf("pushing totally %d images\n", total)
 	current := 1
 	go func() {
 		for res := range resChan {
 			if res.err == nil {
-				fmt.Printf("INFO [%d/%d] push image %s/%s Successfully!\n", current, total, dst, res.image)
+				logs.Progress.Printf("INFO [%d/%d] push image %s/%s Successfully!\n", current, total, dst, res.image)
 				current++
 				continue
 			}
-			fmt.Printf("push image [%s] to registry error: %s\n", res.image, res.err)
+			logs.Progress.Printf("push image [%s] to registry error: %s\n", res.image, res.err)
 		}
 	}()
 	for t, i := range images {

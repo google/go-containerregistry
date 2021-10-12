@@ -35,7 +35,7 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 			if strings.Contains(target, "/") {
 				image, err := crane.Load(path, *options...)
 				if err != nil {
-					return fmt.Errorf("loading %s as tarball: %#v", path, err)
+					return fmt.Errorf("loading %s as tarball: %v", path, err)
 				}
 				return crane.Push(image, target, *options...)
 			}
