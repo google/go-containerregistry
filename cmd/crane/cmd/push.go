@@ -41,7 +41,7 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 			}
 			images, err := crane.LoadMulti(path, *options...)
 			if err != nil {
-				return fmt.Errorf("loading %s as tarball: %#v", path, err)
+				return fmt.Errorf("loading %s as tarball: %v", path, err)
 			}
 			return crane.MultiPush(images, target, concurrent, *options...)
 		},

@@ -138,15 +138,19 @@ func MultiImage(opener Opener, opt ...name.Option) (map[name.Reference]v1.Image,
 		if len(manifest.RepoTags) < 1 {
 			return nil, fmt.Errorf("no any repo tags in manifest config %s", manifest.Config)
 		}
-		tag, err := name.ParseReference(manifest.RepoTags[0], opt...)
+		ref, err := name.ParseReference(manifest.RepoTags[0], opt...)
 		if err != nil {
 			return nil, err
 		}
-		v1Image, err := Image(opener, nil)
+		t, _ := name.NewTag(ref.String())
 		if err != nil {
 			return nil, err
 		}
-		out[tag] = v1Image
+		v1Image, err := Image(opener, &t)
+		if err != nil {
+			return nil, err
+		}
+		out[ref] = v1Image
 	}
 	return out, nil
 }

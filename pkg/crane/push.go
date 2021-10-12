@@ -62,6 +62,7 @@ func Push(img v1.Image, dst string, opt ...Option) error {
 
 // MultiPush pushes the map[name.Reference]v1.Image to a registry as dst.
 func MultiPush(images map[name.Reference]v1.Image, dst string, concurrent int, opt ...Option) error {
+	o := makeOptions(opt...)
 	var wg sync.WaitGroup
 	parallelsChan := make(chan bool, concurrent)
 	resChan := make(chan pushResult)
@@ -78,20 +79,29 @@ func MultiPush(images map[name.Reference]v1.Image, dst string, concurrent int, o
 			logs.Progress.Printf("push image [%s] to registry error: %s\n", res.image, res.err)
 		}
 	}()
+	registry, err := name.NewRegistry(dst, o.name...)
+	if err != nil {
+		return err
+	}
 	for t, i := range images {
 		parallelsChan <- true
 		wg.Add(1)
 		var target string
 		if tag, ok := t.(name.Tag); ok {
-			target = fmt.Sprintf("%s/%s:%s", target, tag.RepositoryStr(), tag.TagStr())
+			tag.Registry = registry
+			go writeHelper(&wg, parallelsChan, resChan, tag, i, opt...)
+			continue
+			//target = fmt.Sprintf("%s/%s:%s", target, tag.RepositoryStr(), tag.TagStr())
 		}
 		if digest, ok := t.(name.Digest); ok {
-			target = fmt.Sprintf("%s/%s:i-was-a-digest@%s", target, digest.RepositoryStr(), digest.DigestStr())
+			digest.Registry = registry
+			go writeHelper(&wg, parallelsChan, resChan, digest, i, opt...)
+			continue
+			//target = fmt.Sprintf("%s/%s:i-was-a-digest@%s", target, digest.RepositoryStr(), digest.DigestStr())
 		}
 		if target == "" {
 			logs.Progress.Fatalf("error type for name.Reference %T", t)
 		}
-		go writeHelper(&wg, parallelsChan, resChan, target, i, opt...)
 	}
 	wg.Wait()
 	return nil
@@ -102,19 +112,19 @@ type pushResult struct {
 	image string
 }
 
-func writeHelper(wg *sync.WaitGroup, concurrency chan bool, resCh chan pushResult, dst string, img v1.Image, options ...Option) {
+func writeHelper(wg *sync.WaitGroup, concurrency chan bool, resCh chan pushResult, ref name.Reference, img v1.Image, options ...Option) {
 	o := makeOptions(options...)
-	tag, err := name.ParseReference(dst, o.name...)
-	if err != nil {
-		panic(err)
-	}
-	res := pushResult{image: dst}
+	//tag, err := name.ParseReference(dst, o.name...)
+	//if err != nil {
+	//	panic(err)
+	//}
+	res := pushResult{image: ref.String()}
 	defer func() {
 		resCh <- res
 		wg.Done()
 		<-concurrency
 	}()
-	res.err = remote.Write(tag, img, o.remote...)
+	res.err = remote.Write(ref, img, o.remote...)
 }
 
 // Upload pushes the v1.Layer to a given repo.
