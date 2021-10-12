@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
@@ -23,18 +24,28 @@ import (
 
 // NewCmdPush creates a new cobra.Command for the push subcommand.
 func NewCmdPush(options *[]crane.Option) *cobra.Command {
-	return &cobra.Command{
+	var concurrent int
+	cmd := &cobra.Command{
 		Use:   "push TARBALL IMAGE",
-		Short: "Push image contents as a tarball to a remote registry",
+		Short: "Push a tarball contains one or more image(s) to a remote registry",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			path, tag := args[0], args[1]
-			img, err := crane.Load(path)
-			if err != nil {
-				return fmt.Errorf("loading %s as tarball: %v", path, err)
+			path, target := args[0], args[1]
+			// target contain "/" is a tag or reference, load it as single image
+			if strings.Contains(target, "/") {
+				image, err := crane.Load(path, *options...)
+				if err != nil {
+					return fmt.Errorf("loading %s as tarball: %#v", path, err)
+				}
+				return crane.Push(image, target, *options...)
 			}
-
-			return crane.Push(img, tag, *options...)
+			images, err := crane.LoadMulti(path, *options...)
+			if err != nil {
+				return fmt.Errorf("loading %s as tarball: %#v", path, err)
+			}
+			return crane.MultiPush(images, target, concurrent, *options...)
 		},
 	}
+	cmd.Flags().IntVarP(&concurrent, "concurrent", "c", 10, "Set the number of threads pushing image at the same time")
+	return cmd
 }

@@ -70,6 +70,11 @@ func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
 	return Image(pathOpener(path), tag)
 }
 
+// MultiImageFromPath returns a map[name.Tag]v1.Image from a tarball located on path.
+func MultiImageFromPath(path string, opt ...name.Option) (map[name.Reference]v1.Image, error) {
+	return MultiImage(pathOpener(path), opt...)
+}
+
 // LoadManifest load manifest
 func LoadManifest(opener Opener) (Manifest, error) {
 	m, err := extractFileFromTar(opener, "manifest.json")
@@ -114,6 +119,36 @@ func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 		image: img,
 	}
 	return partial.UncompressedToImage(&uc)
+}
+
+// MultiImage exposes all images from the tarball at the provided path.
+func MultiImage(opener Opener, opt ...name.Option) (map[name.Reference]v1.Image, error) {
+	m, err := extractFileFromTar(opener, "manifest.json")
+	if err != nil {
+		return nil, err
+	}
+	var iManifest = make(Manifest, 0)
+	defer m.Close()
+	if err = json.NewDecoder(m).Decode(&iManifest); err != nil {
+		return nil, err
+	}
+	var out = make(map[name.Reference]v1.Image, len(iManifest))
+	for i := range iManifest {
+		manifest := iManifest[i]
+		if len(manifest.RepoTags) < 1 {
+			return nil, fmt.Errorf("no any repo tags in manifest config %s", manifest.Config)
+		}
+		tag, err := name.ParseReference(manifest.RepoTags[0], opt...)
+		if err != nil {
+			return nil, err
+		}
+		v1Image, err := Image(opener, nil)
+		if err != nil {
+			return nil, err
+		}
+		out[tag] = v1Image
+	}
+	return out, nil
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
