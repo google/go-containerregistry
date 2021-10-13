@@ -190,9 +190,7 @@ func TestKeychainGCRandAR(t *testing.T) {
 	}
 
 	// Env should fail.
-	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/dev/null"); err != nil {
-		t.Fatalf("unexpected err os.Setenv: %v", err)
-	}
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/dev/null")
 
 	for i, tc := range cases {
 		t.Run(fmt.Sprintf("cases[%d]", i), func(t *testing.T) {
@@ -225,9 +223,7 @@ func TestKeychainGCRandAR(t *testing.T) {
 }
 
 func TestKeychainError(t *testing.T) {
-	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/dev/null"); err != nil {
-		t.Fatalf("unexpected err os.Setenv: %v", err)
-	}
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/dev/null")
 
 	GetGcloudCmd = newGcloudCmdMock("badoutput")
 
@@ -255,9 +251,7 @@ func TestTokenSourceAuthError(t *testing.T) {
 }
 
 func TestNewEnvAuthenticatorFailure(t *testing.T) {
-	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/dev/null"); err != nil {
-		t.Fatalf("unexpected err os.Setenv: %v", err)
-	}
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/dev/null")
 
 	// Expect error.
 	_, err := NewEnvAuthenticator()

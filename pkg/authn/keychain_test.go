@@ -45,7 +45,7 @@ func setupConfigDir(t *testing.T) string {
 
 	fresh = fresh + 1
 	p := fmt.Sprintf("%s/%d", tmpdir, fresh)
-	os.Setenv("DOCKER_CONFIG", p)
+	t.Setenv("DOCKER_CONFIG", p)
 	if err := os.Mkdir(p, 0777); err != nil {
 		t.Fatalf("mkdir %q: %v", p, err)
 	}
