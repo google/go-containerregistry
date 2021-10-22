@@ -52,6 +52,18 @@ diff <(crane config busybox:1.32 | jq) <(crane config busybox:1.33 | jq)
 diff <(crane manifest busybox:1.32 | jq) <(crane manifest busybox:1.33 | jq)
 ```
 
+### Diff filesystem contents
+
+```
+diff \
+    <(crane export gcr.io/kaniko-project/executor:v1.6.0-debug - | tar -tvf - | sort) \
+    <(crane export gcr.io/kaniko-project/executor:v1.7.0-debug - | tar -tvf - | sort)
+```
+
+This will show file size diffs and (unfortunately) modified time diffs.
+
+With some work, you can use `cut` and other built-in Unix tools to ignore these diffs.
+
 ### Get total image size
 
 Given an image manifest, you can calculate the total size of all layer blobs and the image's config blob using `jq`:
