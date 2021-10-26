@@ -24,7 +24,7 @@ import (
 func Example() {
 	s := httptest.NewServer(registry.New())
 	defer s.Close()
-	resp, _ := s.Client().Get(s.URL + "/v2/bar/blobs/sha256:...")
+	resp, _ := s.Client().Get(s.URL + "/v2/bar/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae")
 	fmt.Println(resp.StatusCode)
 	// Output: 404
 }

@@ -27,6 +27,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 type registry struct {
@@ -77,8 +79,10 @@ func New(opts ...Option) http.Handler {
 	r := &registry{
 		log: log.New(os.Stderr, "", log.LstdFlags),
 		blobs: blobs{
-			contents: map[string][]byte{},
-			uploads:  map[string][]byte{},
+			uploads: map[string][]byte{},
+			bh: &defaultBlobStore{
+				contents: map[v1.Hash][]byte{},
+			},
 		},
 		manifests: manifests{
 			manifests: map[string]map[string]manifest{},
@@ -100,5 +104,12 @@ func Logger(l *log.Logger) Option {
 	return func(r *registry) {
 		r.log = l
 		r.manifests.log = l
+	}
+}
+
+// WithBlobHandler overrides the default BlobHandler.
+func WithBlobHandler(bh BlobHandler) Option {
+	return func(r *registry) {
+		r.blobs.bh = bh
 	}
 }

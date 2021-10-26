@@ -20,11 +20,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"path"
 	"strings"
 	"sync"
+
+	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 // Returns whether this url should be handled by the blob handler
@@ -46,11 +50,26 @@ func isBlob(req *http.Request) bool {
 
 // blobs
 type blobs struct {
-	// Blobs are content addresses. we store them globally underneath their sha and make no distinctions per image.
-	contents map[string][]byte
 	// Each upload gets a unique id that writes occur to until finalized.
 	uploads map[string][]byte
 	lock    sync.Mutex
+
+	bh BlobHandler
+}
+
+// BlobHandler is the interface for the storage layer underneath this registry.
+type BlobHandler interface {
+	// Stat returns the size of the blob whose hash is specified, and true,
+	// if it exists. If not, it returns (0, false).
+	Stat(repo name.Repository, h v1.Hash) (int, bool)
+
+	// Get returns true and a reader for consuming the blob specified with the hash,
+	// if it exists.  It now, it returns (nil, false).
+	Get(repo name.Repository, h v1.Hash) (io.ReadCloser, bool)
+
+	// Store stores the stream of content with the given hash, or returns the error
+	// encountered doing so.
+	Store(repo name.Repository, h v1.Hash, content io.ReadCloser) error
 }
 
 func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
@@ -74,9 +93,24 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 
 	switch req.Method {
 	case http.MethodHead:
-		b.lock.Lock()
-		defer b.lock.Unlock()
-		b, ok := b.contents[target]
+		h, err := v1.NewHash(target)
+		if err != nil {
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "NAME_INVALID",
+				Message: err.Error(),
+			}
+		}
+		repo, err := name.NewRepository(req.URL.Host + path.Join(elem[1:len(elem)-2]...))
+		if err != nil {
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "NAME_INVALID",
+				Message: err.Error(),
+			}
+		}
+
+		sz, ok := b.bh.Stat(repo, h)
 		if !ok {
 			return &regError{
 				Status:  http.StatusNotFound,
@@ -85,15 +119,30 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		resp.Header().Set("Content-Length", fmt.Sprint(len(b)))
+		resp.Header().Set("Content-Length", fmt.Sprint(sz))
 		resp.Header().Set("Docker-Content-Digest", target)
 		resp.WriteHeader(http.StatusOK)
 		return nil
 
 	case http.MethodGet:
-		b.lock.Lock()
-		defer b.lock.Unlock()
-		b, ok := b.contents[target]
+		h, err := v1.NewHash(target)
+		if err != nil {
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "NAME_INVALID",
+				Message: err.Error(),
+			}
+		}
+		repo, err := name.NewRepository(req.URL.Host + path.Join(elem[1:len(elem)-2]...))
+		if err != nil {
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "NAME_INVALID",
+				Message: err.Error(),
+			}
+		}
+
+		sz, ok := b.bh.Stat(repo, h)
 		if !ok {
 			return &regError{
 				Status:  http.StatusNotFound,
@@ -102,10 +151,20 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		resp.Header().Set("Content-Length", fmt.Sprint(len(b)))
+		b, ok := b.bh.Get(repo, h)
+		if !ok {
+			return &regError{
+				Status:  http.StatusNotFound,
+				Code:    "BLOB_UNKNOWN",
+				Message: "Unknown blob",
+			}
+		}
+		defer b.Close()
+
+		resp.Header().Set("Content-Length", fmt.Sprint(sz))
 		resp.Header().Set("Docker-Content-Digest", target)
 		resp.WriteHeader(http.StatusOK)
-		io.Copy(resp, bytes.NewReader(b))
+		io.Copy(resp, b)
 		return nil
 
 	case http.MethodPost:
@@ -131,10 +190,31 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 					Message: "digest does not match contents",
 				}
 			}
+			h, err := v1.NewHash(d)
+			if err != nil {
+				// This is not reachable
+				return &regError{
+					Status:  http.StatusBadRequest,
+					Code:    "NAME_INVALID",
+					Message: err.Error(),
+				}
+			}
+			repo, err := name.NewRepository(req.URL.Host + path.Join(elem[1:len(elem)-2]...))
+			if err != nil {
+				return &regError{
+					Status:  http.StatusBadRequest,
+					Code:    "NAME_INVALID",
+					Message: err.Error(),
+				}
+			}
 
-			b.lock.Lock()
-			defer b.lock.Unlock()
-			b.contents[d] = l.Bytes()
+			if err := b.bh.Store(repo, h, ioutil.NopCloser(l)); err != nil {
+				return &regError{
+					Status:  http.StatusInternalServerError,
+					Code:    "BLOB_UPLOAD_INVALID",
+					Message: err.Error(),
+				}
+			}
 			resp.Header().Set("Docker-Content-Digest", d)
 			resp.WriteHeader(http.StatusCreated)
 			return nil
@@ -231,8 +311,32 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				Message: "digest does not match contents",
 			}
 		}
+		repo, err := name.NewRepository(req.URL.Host + path.Join(elem[1:len(elem)-3]...))
+		if err != nil {
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "NAME_INVALID",
+				Message: err.Error(),
+			}
+		}
+		h, err := v1.NewHash(digest)
+		if err != nil {
+			// This is not reachable
+			return &regError{
+				Status:  http.StatusBadRequest,
+				Code:    "NAME_INVALID",
+				Message: err.Error(),
+			}
+		}
 
-		b.contents[d] = l.Bytes()
+		if err := b.bh.Store(repo, h, ioutil.NopCloser(l)); err != nil {
+			return &regError{
+				Status:  http.StatusInternalServerError,
+				Code:    "BLOB_UPLOAD_INVALID",
+				Message: err.Error(),
+			}
+		}
+
 		delete(b.uploads, target)
 		resp.Header().Set("Docker-Content-Digest", d)
 		resp.WriteHeader(http.StatusCreated)
@@ -245,4 +349,43 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			Message: "We don't understand your method + url",
 		}
 	}
+}
+
+type defaultBlobStore struct {
+	m        sync.Mutex
+	contents map[v1.Hash][]byte
+}
+
+var _ BlobHandler = (*defaultBlobStore)(nil)
+
+// Stat implements BlobHandler
+func (dbs *defaultBlobStore) Stat(repo name.Repository, h v1.Hash) (int, bool) {
+	dbs.m.Lock()
+	defer dbs.m.Unlock()
+	b, ok := dbs.contents[h]
+	if !ok {
+		return 0, false
+	}
+	return len(b), true
+}
+
+// Get implements BlobHandler
+func (dbs *defaultBlobStore) Get(repo name.Repository, h v1.Hash) (io.ReadCloser, bool) {
+	dbs.m.Lock()
+	defer dbs.m.Unlock()
+	b, ok := dbs.contents[h]
+	return ioutil.NopCloser(bytes.NewBuffer(b)), ok
+}
+
+// Store implements BlobHandler
+func (dbs *defaultBlobStore) Store(repo name.Repository, h v1.Hash, rc io.ReadCloser) error {
+	dbs.m.Lock()
+	defer dbs.m.Unlock()
+	defer rc.Close()
+	b, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return err
+	}
+	dbs.contents[h] = b
+	return nil
 }

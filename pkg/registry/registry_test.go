@@ -92,19 +92,31 @@ func TestCalls(t *testing.T) {
 		{
 			Description: "GET non existent blob",
 			Method:      "GET",
-			URL:         "/v2/foo/blobs/sha256:asd",
+			URL:         "/v2/foo/blobs/sha256:3c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "HEAD bad hash",
+			Method:      "HEAD",
+			URL:         "/v2/foo/blobs/sha256:asd",
+			Code:        http.StatusBadRequest,
 		},
 		{
 			Description: "HEAD non existent blob",
 			Method:      "HEAD",
-			URL:         "/v2/foo/blobs/sha256:asd",
+			URL:         "/v2/foo/blobs/sha256:3c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "HEAD bad repository",
+			Method:      "HEAD",
+			URL:         "/v2/foo|bar/blobs/sha256:3c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusBadRequest,
 		},
 		{
 			Description: "bad blob verb",
 			Method:      "FOO",
-			URL:         "/v2/foo/blobs/sha256:asd",
+			URL:         "/v2/foo/blobs/sha256:3c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusBadRequest,
 		},
 		{
@@ -116,12 +128,24 @@ func TestCalls(t *testing.T) {
 			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
 		},
 		{
+			Description: "GET bad blob digest",
+			Method:      "GET",
+			URL:         "/v2/foo/blobs/sha256:asd",
+			Code:        http.StatusBadRequest,
+		},
+		{
 			Description: "GET blob",
 			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
 			Method:      "GET",
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusOK,
 			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
+		},
+		{
+			Description: "GET bad blob repo",
+			Method:      "GET",
+			URL:         "/v2/foo|bar/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusBadRequest,
 		},
 		{
 			Description: "HEAD blob",
@@ -150,6 +174,12 @@ func TestCalls(t *testing.T) {
 		{
 			Description: "uploadurl",
 			Method:      "POST",
+			URL:         "/v2/foo/blobs/not-uploads",
+			Code:        http.StatusBadRequest,
+		},
+		{
+			Description: "uploadurl",
+			Method:      "POST",
 			URL:         "/v2/foo/blobs/uploads/",
 			Code:        http.StatusAccepted,
 			Header:      map[string]string{"Range": "0-0"},
@@ -159,6 +189,13 @@ func TestCalls(t *testing.T) {
 			Method:      "PUT",
 			URL:         "/v2/foo/blobs/uploads/1",
 			Code:        http.StatusBadRequest,
+		},
+		{
+			Description: "monolithic upload bad repo",
+			Method:      "POST",
+			URL:         "/v2/foo|bar/blobs/uploads?digest=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
 		},
 		{
 			Description: "monolithic upload good digest",
@@ -184,6 +221,13 @@ func TestCalls(t *testing.T) {
 			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
 		},
 		{
+			Description: "upload bad repository",
+			Method:      "PUT",
+			URL:         "/v2/foo|bar/blobs/uploads/1?digest=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
+		},
+		{
 			Description: "upload bad digest",
 			Method:      "PUT",
 			URL:         "/v2/foo/blobs/uploads/1?digest=sha256:baddigest",
@@ -200,6 +244,13 @@ func TestCalls(t *testing.T) {
 				"Range":    "0-2",
 				"Location": "/v2/foo/blobs/uploads/1",
 			},
+		},
+		{
+			Description: "stream upload bad URL",
+			Method:      "PATCH",
+			URL:         "/v2/foo/blobs/oopsloads",
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
 		},
 		{
 			Description: "stream duplicate upload",
@@ -487,8 +538,10 @@ func TestCalls(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error getting %q: %v", tc.URL, err)
 			}
+			defer resp.Body.Close()
+			content, _ := ioutil.ReadAll(resp.Body)
 			if resp.StatusCode != tc.Code {
-				t.Errorf("Incorrect status code, got %d, want %d", resp.StatusCode, tc.Code)
+				t.Errorf("Incorrect status code, got %d, want %d (%s)", resp.StatusCode, tc.Code, string(content))
 			}
 
 			for k, v := range tc.Header {
