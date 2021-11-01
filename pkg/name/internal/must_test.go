@@ -1,3 +1,4 @@
+//go:build compile
 // +build compile
 
 // Copyright 2021 Google LLC All Rights Reserved.

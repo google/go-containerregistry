@@ -1,5 +1,6 @@
-// +build !arm64
-// +build !darwin
+//go:build !arm64 && !darwin
+// +build !arm64,!darwin
+
 // Copyright 2018 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
