@@ -15,34 +15,19 @@
 name: Presubmit
 
 on:
-
   push:
-    branches: [ 'main', 'master' ]
-
+    branches: ['main']
   pull_request:
-    branches: [ 'main', 'master', 'release-*' ]
+    branches: ['main']
 
 jobs:
-
-  test:
+  presubmit:
     name: Presubmit
-    strategy:
-      matrix:
-        go-version: [1.15.x]
-        platform: [ubuntu-latest]
-
-    runs-on: ${{ matrix.platform }}
+    runs-on: 'ubuntu-latest'
 
     steps:
-
-      - name: Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v2
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.go-version }}
-        id: go
-
-      - name: Check out code
-        uses: actions/checkout@v2
-
-      - name: Run presubmit
-        run: ./hack/presubmit.sh
+          go-version: 1.16.x
+      - run: ./hack/presubmit.sh

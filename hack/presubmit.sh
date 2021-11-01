@@ -25,8 +25,8 @@ TMP_DIR="$(mktemp -d)"
 export PATH="${PATH}:${TMP_DIR}/bin"
 pushd ${TMP_DIR}
 trap popd EXIT
-go get -v -u golang.org/x/lint/golint
-go get honnef.co/go/tools/cmd/staticcheck
+go install golang.org/x/lint/golint@v0.0.0-20210508222113-6edffad5e616
+go install honnef.co/go/tools/cmd/staticcheck@v0.2.1
 popd
 
 pushd ${PROJECT_ROOT}
