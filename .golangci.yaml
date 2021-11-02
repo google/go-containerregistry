@@ -1,0 +1,15 @@
+run:
+  timeout: 5m
+
+  skip-dirs:
+    - internal
+    - pkg/registry
+
+linters:
+  enable:
+    - asciicheck
+    - depguard
+    - stylecheck
+    - unconvert
+  disable:
+    - errcheck

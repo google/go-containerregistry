@@ -404,7 +404,7 @@ func (w *writer) incrProgress(written int64) {
 	}
 	w.updates <- v1.Update{
 		Total:    w.lastUpdate.Total,
-		Complete: atomic.AddInt64(&w.lastUpdate.Complete, int64(written)),
+		Complete: atomic.AddInt64(&w.lastUpdate.Complete, written),
 	}
 }
 

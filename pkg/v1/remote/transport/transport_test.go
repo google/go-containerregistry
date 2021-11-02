@@ -133,7 +133,7 @@ func TestTransportSelectionBearer(t *testing.T) {
 				if !strings.HasPrefix(hdr, "Basic ") {
 					t.Errorf("Header.Get(Authorization); got %v, want Basic prefix", hdr)
 				}
-				if got, want := r.FormValue("scope"), testReference.Scope(string(PullScope)); got != want {
+				if got, want := r.FormValue("scope"), testReference.Scope(PullScope); got != want {
 					t.Errorf("FormValue(scope); got %v, want %v", got, want)
 				}
 				// Check that we get the default value (we didn't specify it above)
