@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -59,13 +60,13 @@ type blobs struct {
 
 // BlobHandler is the interface for the storage layer underneath this registry.
 type BlobHandler interface {
-	// Stat returns the size of the blob whose hash is specified, and true,
-	// if it exists. If not, it returns (0, false).
-	Stat(repo name.Repository, h v1.Hash) (int, bool)
+	// Stat returns the size of the blob whose hash is specified,
+	// if it exists. If not, it returns (0, error).
+	Stat(repo name.Repository, h v1.Hash) (int64, error)
 
 	// Get returns true and a reader for consuming the blob specified with the hash,
-	// if it exists.  It now, it returns (nil, false).
-	Get(repo name.Repository, h v1.Hash) (io.ReadCloser, bool)
+	// if it exists.  It now, it returns (nil, error).
+	Get(repo name.Repository, h v1.Hash) (io.ReadCloser, error)
 
 	// Store stores the stream of content with the given hash, or returns the error
 	// encountered doing so.
@@ -110,12 +111,18 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		sz, ok := b.bh.Stat(repo, h)
-		if !ok {
+		sz, err := b.bh.Stat(repo, h)
+		if errors.Is(err, ErrBlobNotFound) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "BLOB_UNKNOWN",
-				Message: "Unknown blob",
+				Message: err.Error(),
+			}
+		} else if err != nil {
+			return &regError{
+				Status:  http.StatusInternalServerError,
+				Code:    "BLOB_UNKNOWN",
+				Message: err.Error(),
 			}
 		}
 
@@ -142,21 +149,33 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		sz, ok := b.bh.Stat(repo, h)
-		if !ok {
+		sz, err := b.bh.Stat(repo, h)
+		if errors.Is(err, ErrBlobNotFound) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "BLOB_UNKNOWN",
-				Message: "Unknown blob",
+				Message: err.Error(),
+			}
+		} else if err != nil {
+			return &regError{
+				Status:  http.StatusInternalServerError,
+				Code:    "BLOB_UNKNOWN",
+				Message: err.Error(),
 			}
 		}
 
-		b, ok := b.bh.Get(repo, h)
-		if !ok {
+		b, err := b.bh.Get(repo, h)
+		if errors.Is(err, ErrBlobNotFound) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "BLOB_UNKNOWN",
-				Message: "Unknown blob",
+				Message: err.Error(),
+			}
+		} else if err != nil {
+			return &regError{
+				Status:  http.StatusInternalServerError,
+				Code:    "BLOB_UNKNOWN",
+				Message: err.Error(),
 			}
 		}
 		defer b.Close()
@@ -358,23 +377,30 @@ type defaultBlobStore struct {
 
 var _ BlobHandler = (*defaultBlobStore)(nil)
 
+// ErrBlobNotFound is the error returned (possibly wrapped)
+// when a given blob is not found.
+var ErrBlobNotFound = errors.New("blob not found")
+
 // Stat implements BlobHandler
-func (dbs *defaultBlobStore) Stat(repo name.Repository, h v1.Hash) (int, bool) {
+func (dbs *defaultBlobStore) Stat(repo name.Repository, h v1.Hash) (int64, error) {
 	dbs.m.Lock()
 	defer dbs.m.Unlock()
 	b, ok := dbs.contents[h]
 	if !ok {
-		return 0, false
+		return 0, fmt.Errorf("%w: %s", ErrBlobNotFound, h)
 	}
-	return len(b), true
+	return int64(len(b)), nil
 }
 
 // Get implements BlobHandler
-func (dbs *defaultBlobStore) Get(repo name.Repository, h v1.Hash) (io.ReadCloser, bool) {
+func (dbs *defaultBlobStore) Get(repo name.Repository, h v1.Hash) (io.ReadCloser, error) {
 	dbs.m.Lock()
 	defer dbs.m.Unlock()
 	b, ok := dbs.contents[h]
-	return ioutil.NopCloser(bytes.NewBuffer(b)), ok
+	if !ok {
+		return nil, fmt.Errorf("%w: %s", ErrBlobNotFound, h)
+	}
+	return ioutil.NopCloser(bytes.NewBuffer(b)), nil
 }
 
 // Store implements BlobHandler
