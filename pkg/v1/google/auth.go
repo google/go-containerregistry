@@ -95,7 +95,7 @@ func NewJSONKeyAuthenticator(serviceAccountJSON string) authn.Authenticator {
 // tokens by using the Google SDK to produce JWT tokens from a Service Account.
 // More information: https://godoc.org/golang.org/x/oauth2/google#JWTAccessTokenSourceFromJSON
 func NewTokenAuthenticator(serviceAccountJSON string, scope string) (authn.Authenticator, error) {
-	ts, err := googauth.JWTAccessTokenSourceFromJSON([]byte(serviceAccountJSON), string(scope))
+	ts, err := googauth.JWTAccessTokenSourceFromJSON([]byte(serviceAccountJSON), scope)
 	if err != nil {
 		return nil, err
 	}

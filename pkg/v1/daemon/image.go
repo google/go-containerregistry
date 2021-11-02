@@ -118,7 +118,7 @@ func (i *image) Layers() ([]v1.Layer, error) {
 	return i.tarballImage.Layers()
 }
 
-func (i image) MediaType() (types.MediaType, error) {
+func (i *image) MediaType() (types.MediaType, error) {
 	if err := i.initialize(); err != nil {
 		return "", err
 	}
@@ -140,49 +140,49 @@ func (i *image) ConfigName() (v1.Hash, error) {
 	return v1.NewHash(res.ID)
 }
 
-func (i image) ConfigFile() (*v1.ConfigFile, error) {
+func (i *image) ConfigFile() (*v1.ConfigFile, error) {
 	if err := i.initialize(); err != nil {
 		return nil, err
 	}
 	return i.tarballImage.ConfigFile()
 }
 
-func (i image) RawConfigFile() ([]byte, error) {
+func (i *image) RawConfigFile() ([]byte, error) {
 	if err := i.initialize(); err != nil {
 		return nil, err
 	}
 	return i.tarballImage.RawConfigFile()
 }
 
-func (i image) Digest() (v1.Hash, error) {
+func (i *image) Digest() (v1.Hash, error) {
 	if err := i.initialize(); err != nil {
 		return v1.Hash{}, err
 	}
 	return i.tarballImage.Digest()
 }
 
-func (i image) Manifest() (*v1.Manifest, error) {
+func (i *image) Manifest() (*v1.Manifest, error) {
 	if err := i.initialize(); err != nil {
 		return nil, err
 	}
 	return i.tarballImage.Manifest()
 }
 
-func (i image) RawManifest() ([]byte, error) {
+func (i *image) RawManifest() ([]byte, error) {
 	if err := i.initialize(); err != nil {
 		return nil, err
 	}
 	return i.tarballImage.RawManifest()
 }
 
-func (i image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
+func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	if err := i.initialize(); err != nil {
 		return nil, err
 	}
 	return i.tarballImage.LayerByDigest(h)
 }
 
-func (i image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
+func (i *image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
 	if err := i.initialize(); err != nil {
 		return nil, err
 	}

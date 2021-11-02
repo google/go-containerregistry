@@ -229,7 +229,7 @@ func (m *ManifestInfo) UnmarshalJSON(data []byte) error {
 	}
 
 	if raw.Size != "" {
-		size, err := strconv.ParseUint(string(raw.Size), 10, 64)
+		size, err := strconv.ParseUint(raw.Size, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -237,7 +237,7 @@ func (m *ManifestInfo) UnmarshalJSON(data []byte) error {
 	}
 
 	if raw.Created != "" {
-		created, err := strconv.ParseInt(string(raw.Created), 10, 64)
+		created, err := strconv.ParseInt(raw.Created, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -245,7 +245,7 @@ func (m *ManifestInfo) UnmarshalJSON(data []byte) error {
 	}
 
 	if raw.Uploaded != "" {
-		uploaded, err := strconv.ParseInt(string(raw.Uploaded), 10, 64)
+		uploaded, err := strconv.ParseInt(raw.Uploaded, 10, 64)
 		if err != nil {
 			return err
 		}
