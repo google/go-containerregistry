@@ -35,6 +35,17 @@ your favourite command:
 $ yay -S go-crane-bin
 ```
 
+### Setup on GitHub Actions
+
+You can use the [`setup-crane`](https://github.com/imjasonh/setup-crane) action
+to install `crane` and setup auth to [GitHub Container
+Registry](https://github.com/features/packages) in a GitHub Action workflow:
+
+```
+steps:
+- uses: imjasonh/setup-crane@v0.1
+```
+
 ## Images
 
 You can also use crane as docker image
