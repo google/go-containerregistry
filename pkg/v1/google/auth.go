@@ -158,17 +158,17 @@ func (gs gcloudSource) Token() (*oauth2.Token, error) {
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("error executing `gcloud config config-helper`: %v", err)
+		return nil, fmt.Errorf("error executing `gcloud config config-helper`: %w", err)
 	}
 
 	creds := gcloudOutput{}
 	if err := json.Unmarshal(out.Bytes(), &creds); err != nil {
-		return nil, fmt.Errorf("failed to parse `gcloud config config-helper` output: %v", err)
+		return nil, fmt.Errorf("failed to parse `gcloud config config-helper` output: %w", err)
 	}
 
 	expiry, err := time.Parse(time.RFC3339, creds.Credential.TokenExpiry)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse gcloud token expiry: %v", err)
+		return nil, fmt.Errorf("failed to parse gcloud token expiry: %w", err)
 	}
 
 	token := oauth2.Token{

@@ -25,7 +25,6 @@ import (
 )
 
 func TestFindManifests(t *testing.T) {
-
 	ii, err := random.Index(100, 5, 6) // random image of 6 manifests, each having 5 layers of size 100
 	if err != nil {
 		t.Fatal("could not create random index:", err)

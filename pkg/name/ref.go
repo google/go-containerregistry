@@ -45,7 +45,6 @@ func ParseReference(s string, opts ...Option) (Reference, error) {
 		return d, nil
 	}
 	return nil, NewErrBadName("could not parse reference: " + s)
-
 }
 
 type stringConst string

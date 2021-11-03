@@ -77,5 +77,5 @@ func resolve() (authn.Authenticator, error) {
 		return auth, nil
 	}
 
-	return nil, fmt.Errorf("failed to create token source from env: %v or gcloud: %v", envErr, gErr)
+	return nil, fmt.Errorf("failed to create token source from env: %v or gcloud: %v", envErr, gErr) //nolint: errorlint
 }

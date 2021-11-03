@@ -16,6 +16,7 @@ package remote
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -176,7 +177,7 @@ func TestCancelledCatalog(t *testing.T) {
 	}
 
 	_, err = Catalog(ctx, reg)
-	if want, got := context.Canceled, err; got != want {
+	if want, got := context.Canceled, err; !errors.Is(got, want) {
 		t.Errorf("wanted %v got %v", want, got)
 	}
 }

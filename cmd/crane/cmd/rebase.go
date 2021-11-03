@@ -100,12 +100,12 @@ func NewCmdRebase(options *[]crane.Option) *cobra.Command {
 
 			rebasedImg, err := rebaseImage(origImg, oldBase, newBase, *options...)
 			if err != nil {
-				return fmt.Errorf("rebasing image: %v", err)
+				return fmt.Errorf("rebasing image: %w", err)
 			}
 
 			rebasedDigest, err := rebasedImg.Digest()
 			if err != nil {
-				return fmt.Errorf("digesting new image: %v", err)
+				return fmt.Errorf("digesting new image: %w", err)
 			}
 			origDigest, err := origImg.Digest()
 			if err != nil {

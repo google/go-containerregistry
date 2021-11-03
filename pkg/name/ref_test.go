@@ -118,8 +118,7 @@ func TestParseReference(t *testing.T) {
 }
 
 func TestMustParseReference(t *testing.T) {
-	goodWeakValidationNames := append(goodWeakValidationTagNames, goodWeakValidationDigestNames...)
-	for _, name := range goodWeakValidationNames {
+	for _, name := range append(goodWeakValidationTagNames, goodWeakValidationDigestNames...) {
 		func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -130,8 +129,7 @@ func TestMustParseReference(t *testing.T) {
 		}()
 	}
 
-	goodStrictValidationNames := append(goodStrictValidationTagNames, goodStrictValidationDigestNames...)
-	for _, name := range goodStrictValidationNames {
+	for _, name := range append(goodStrictValidationTagNames, goodStrictValidationDigestNames...) {
 		func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -142,8 +140,7 @@ func TestMustParseReference(t *testing.T) {
 		}()
 	}
 
-	badNames := append(badTagNames, badDigestNames...)
-	for _, name := range badNames {
+	for _, name := range append(badTagNames, badDigestNames...) {
 		func() {
 			defer func() { recover() }()
 			ref := MustParseReference(stringConst(name), WeakValidation)

@@ -26,7 +26,7 @@ func ListTags(src string, opt ...Option) ([]string, error) {
 	o := makeOptions(opt...)
 	repo, err := name.NewRepository(src, o.Name...)
 	if err != nil {
-		return nil, fmt.Errorf("parsing repo %q: %v", src, err)
+		return nil, fmt.Errorf("parsing repo %q: %w", src, err)
 	}
 
 	return remote.List(repo, o.Remote...)

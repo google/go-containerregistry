@@ -93,7 +93,7 @@ func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 func flatten(ref name.Reference, repo name.Repository, use string, o crane.Options) (partial.Describable, error) {
 	desc, err := remote.Get(ref, o.Remote...)
 	if err != nil {
-		return nil, fmt.Errorf("pulling %s: %v", ref, err)
+		return nil, fmt.Errorf("pulling %s: %w", ref, err)
 	}
 
 	if desc.MediaType.IsIndex() {
@@ -201,16 +201,16 @@ func flattenChild(old partial.Describable, repo name.Repository, use string, o c
 func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Options) (partial.Describable, error) {
 	digest, err := old.Digest()
 	if err != nil {
-		return nil, fmt.Errorf("getting old digest: %v", err)
+		return nil, fmt.Errorf("getting old digest: %w", err)
 	}
 	m, err := old.Manifest()
 	if err != nil {
-		return nil, fmt.Errorf("reading manifest: %v", err)
+		return nil, fmt.Errorf("reading manifest: %w", err)
 	}
 
 	cf, err := old.ConfigFile()
 	if err != nil {
-		return nil, fmt.Errorf("getting config: %v", err)
+		return nil, fmt.Errorf("getting config: %w", err)
 	}
 	cf = cf.DeepCopy()
 
@@ -225,13 +225,13 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 
 	img, err := mutate.ConfigFile(empty.Image, cf)
 	if err != nil {
-		return nil, fmt.Errorf("mutating config: %v", err)
+		return nil, fmt.Errorf("mutating config: %w", err)
 	}
 
 	// TODO: Make compression configurable?
 	layer := stream.NewLayer(mutate.Extract(old), stream.WithCompressionLevel(gzip.BestCompression))
 	if err := remote.WriteLayer(repo, layer, o.Remote...); err != nil {
-		return nil, fmt.Errorf("uploading layer: %v", err)
+		return nil, fmt.Errorf("uploading layer: %w", err)
 	}
 
 	img, err = mutate.Append(img, mutate.Addendum{
@@ -242,7 +242,7 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("appending layers: %v", err)
+		return nil, fmt.Errorf("appending layers: %w", err)
 	}
 
 	// Retain any annotations from the original image.

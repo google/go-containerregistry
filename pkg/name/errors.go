@@ -14,7 +14,10 @@
 
 package name
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // ErrBadName is an error for when a bad docker name is supplied.
 type ErrBadName struct {
@@ -32,6 +35,6 @@ func NewErrBadName(fmtStr string, args ...interface{}) *ErrBadName {
 
 // IsErrBadName returns true if the given error is an ErrBadName.
 func IsErrBadName(err error) bool {
-	_, ok := err.(*ErrBadName)
-	return ok
+	var berr *ErrBadName
+	return errors.As(err, &berr)
 }

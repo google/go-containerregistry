@@ -148,17 +148,17 @@ func TestCheckErrorNotError(t *testing.T) {
 		if err == nil {
 			t.Fatalf("CheckError(%d, %s) = nil, wanted error", test.code, test.body)
 		}
-		se, ok := err.(*Error)
-		if !ok {
+		var terr *Error
+		if !errors.As(err, &terr) {
 			t.Fatalf("CheckError(%d, %s) = %v, wanted error type", test.code, test.body, err)
 		}
 
-		if se.StatusCode != test.code {
-			t.Errorf("Incorrect status code, got %d, want %d", se.StatusCode, test.code)
+		if terr.StatusCode != test.code {
+			t.Errorf("Incorrect status code, got %d, want %d", terr.StatusCode, test.code)
 		}
 
-		if se.Error() != test.msg {
-			t.Errorf("Incorrect message, got %q, want %q", se.Error(), test.msg)
+		if terr.Error() != test.msg {
+			t.Errorf("Incorrect message, got %q, want %q", terr.Error(), test.msg)
 		}
 	}
 }
@@ -210,11 +210,12 @@ func TestCheckErrorWithError(t *testing.T) {
 			Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
 		}
 
+		var terr *Error
 		if err := CheckError(resp, http.StatusOK); err == nil {
 			t.Errorf("CheckError(%d, %s) = nil, wanted error", test.code, string(b))
-		} else if se, ok := err.(*Error); !ok {
-			t.Errorf("CheckError(%d, %s) = %T, wanted *transport.Error", test.code, string(b), se)
-		} else if diff := cmp.Diff(test.error, se, cmpopts.IgnoreUnexported(Error{})); diff != "" {
+		} else if !errors.As(err, &terr) {
+			t.Errorf("CheckError(%d, %s) = %T, wanted *transport.Error", test.code, string(b), err)
+		} else if diff := cmp.Diff(test.error, terr, cmpopts.IgnoreUnexported(Error{})); diff != "" {
 			t.Errorf("CheckError(%d, %s); (-want +got) %s", test.code, string(b), diff)
 		} else if diff := cmp.Diff(test.msg, test.error.Error()); diff != "" {
 			t.Errorf("CheckError(%d, %s).Error(); (-want +got) %s", test.code, string(b), diff)
@@ -230,7 +231,7 @@ func TestBodyError(t *testing.T) {
 	}
 	if err := CheckError(resp, http.StatusNotFound); err == nil {
 		t.Errorf("CheckError() = nil, wanted error %v", expectedErr)
-	} else if err != expectedErr {
+	} else if !errors.Is(err, expectedErr) {
 		t.Errorf("CheckError() = %v, wanted %v", err, expectedErr)
 	}
 }

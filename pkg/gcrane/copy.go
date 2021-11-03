@@ -16,6 +16,7 @@ package gcrane
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -91,12 +92,12 @@ type copier struct {
 func newCopier(src, dst string, o *options) (*copier, error) {
 	srcRepo, err := name.NewRepository(src)
 	if err != nil {
-		return nil, fmt.Errorf("parsing repo %q: %v", src, err)
+		return nil, fmt.Errorf("parsing repo %q: %w", src, err)
 	}
 
 	dstRepo, err := name.NewRepository(dst)
 	if err != nil {
-		return nil, fmt.Errorf("parsing repo %q: %v", dst, err)
+		return nil, fmt.Errorf("parsing repo %q: %w", dst, err)
 	}
 
 	// A queue of size 2*jobs should keep each goroutine busy.
@@ -121,7 +122,7 @@ func recursiveCopy(ctx context.Context, src, dst string, o *options) error {
 				tags, err = google.List(repo, o.google...)
 				return err
 			}); err != nil {
-				return fmt.Errorf("failed List for repo %s: %v", repo, err)
+				return fmt.Errorf("failed List for repo %s: %w", repo, err)
 			}
 		}
 
@@ -129,7 +130,7 @@ func recursiveCopy(ctx context.Context, src, dst string, o *options) error {
 		if err := backoffErrors(GCRBackoff(), func() error {
 			return c.copyRepo(ctx, repo, tags)
 		}); err != nil {
-			return fmt.Errorf("failed to copy repo %q: %v", repo, err)
+			return fmt.Errorf("failed to copy repo %q: %w", repo, err)
 		}
 
 		return nil
@@ -139,7 +140,7 @@ func recursiveCopy(ctx context.Context, src, dst string, o *options) error {
 	g.Go(func() error {
 		defer close(c.tasks)
 		if err := google.Walk(c.srcRepo, walkFn, o.google...); err != nil {
-			return fmt.Errorf("failed to Walk: %v", err)
+			return fmt.Errorf("failed to Walk: %w", err)
 		}
 		return nil
 	})
@@ -153,7 +154,7 @@ func recursiveCopy(ctx context.Context, src, dst string, o *options) error {
 				if err := backoffErrors(GCRBackoff(), func() error {
 					return c.copyImages(ctx, task)
 				}); err != nil {
-					return fmt.Errorf("failed to copy %q: %v", task.digest, err)
+					return fmt.Errorf("failed to copy %q: %w", task.digest, err)
 				}
 			}
 			return nil
@@ -169,7 +170,7 @@ func recursiveCopy(ctx context.Context, src, dst string, o *options) error {
 func (c *copier) copyRepo(ctx context.Context, oldRepo name.Repository, tags *google.Tags) error {
 	newRepo, err := c.rename(oldRepo)
 	if err != nil {
-		return fmt.Errorf("rename failed: %v", err)
+		return fmt.Errorf("rename failed: %w", err)
 	}
 
 	// Figure out what we actually need to copy.
@@ -207,7 +208,7 @@ func (c *copier) copyRepo(ctx context.Context, oldRepo name.Repository, tags *go
 
 // copyImages starts a goroutine for each tag that points to the image
 // oldRepo@digest, or just copies the image by digest if there are no tags.
-func (c *copier) copyImages(ctx context.Context, t task) error {
+func (c *copier) copyImages(_ context.Context, t task) error {
 	// We only have to explicitly copy by digest if there are no tags pointing to this manifest.
 	if len(t.manifest.Tags) == 0 {
 		srcImg := fmt.Sprintf("%s@%s", t.oldRepo, t.digest)
@@ -267,8 +268,9 @@ func hasStatusCode(err error, code int) bool {
 	if err == nil {
 		return false
 	}
-	if err, ok := err.(*transport.Error); ok {
-		if err.StatusCode == code {
+	var terr *transport.Error
+	if errors.As(err, &terr) {
+		if terr.StatusCode == code {
 			return true
 		}
 	}
@@ -279,8 +281,9 @@ func isServerError(err error) bool {
 	if err == nil {
 		return false
 	}
-	if err, ok := err.(*transport.Error); ok {
-		return err.StatusCode >= 500
+	var terr *transport.Error
+	if errors.As(err, &terr) {
+		return terr.StatusCode >= 500
 	}
 	return false
 }

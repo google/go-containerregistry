@@ -26,11 +26,11 @@ func getImage(r string, opt ...Option) (v1.Image, name.Reference, error) {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(r, o.Name...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parsing reference %q: %v", r, err)
+		return nil, nil, fmt.Errorf("parsing reference %q: %w", r, err)
 	}
 	img, err := remote.Image(ref, o.Remote...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("reading image %q: %v", ref, err)
+		return nil, nil, fmt.Errorf("reading image %q: %w", ref, err)
 	}
 	return img, ref, nil
 }
@@ -39,7 +39,7 @@ func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(r, o.Name...)
 	if err != nil {
-		return nil, fmt.Errorf("parsing reference %q: %v", r, err)
+		return nil, fmt.Errorf("parsing reference %q: %w", r, err)
 	}
 	return remote.Get(ref, o.Remote...)
 }

@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -191,7 +192,7 @@ func TestNotComputed(t *testing.T) {
 
 	// All methods should return ErrNotComputed until the stream has been
 	// consumed and closed.
-	if _, err := l.Size(); err != ErrNotComputed {
+	if _, err := l.Size(); !errors.Is(err, ErrNotComputed) {
 		t.Errorf("Size: got %v, want %v", err, ErrNotComputed)
 	}
 	if _, err := l.Digest(); err == nil {
@@ -217,7 +218,7 @@ func TestConsumed(t *testing.T) {
 		t.Errorf("Close: %v", err)
 	}
 
-	if _, err := l.Compressed(); err != ErrConsumed {
+	if _, err := l.Compressed(); !errors.Is(err, ErrConsumed) {
 		t.Errorf("Compressed() after consuming; got %v, want %v", err, ErrConsumed)
 	}
 }

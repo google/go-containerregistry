@@ -37,7 +37,7 @@ func Pull(src string, opt ...Option) (v1.Image, error) {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(src, o.Name...)
 	if err != nil {
-		return nil, fmt.Errorf("parsing reference %q: %v", src, err)
+		return nil, fmt.Errorf("parsing reference %q: %w", src, err)
 	}
 
 	return remote.Image(ref, o.Remote...)
@@ -57,7 +57,7 @@ func MultiSave(imgMap map[string]v1.Image, path string, opt ...Option) error {
 	for src, img := range imgMap {
 		ref, err := name.ParseReference(src, o.Name...)
 		if err != nil {
-			return fmt.Errorf("parsing ref %q: %v", src, err)
+			return fmt.Errorf("parsing ref %q: %w", src, err)
 		}
 
 		// WriteToFile wants a tag to write to the tarball, but we might have
@@ -102,7 +102,7 @@ func MultiSaveLegacy(imgMap map[string]v1.Image, path string) error {
 	for src, img := range imgMap {
 		ref, err := name.ParseReference(src)
 		if err != nil {
-			return fmt.Errorf("parsing ref %q: %v", src, err)
+			return fmt.Errorf("parsing ref %q: %w", src, err)
 		}
 		refToImage[ref] = img
 	}

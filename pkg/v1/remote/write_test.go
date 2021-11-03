@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -915,11 +916,12 @@ func TestWriteWithErrors(t *testing.T) {
 
 	c := make(chan v1.Update, 100)
 
+	var terr *transport.Error
 	if err := Write(tag, img, WithProgress(c)); err == nil {
 		t.Error("Write() = nil; wanted error")
-	} else if se, ok := err.(*transport.Error); !ok {
-		t.Errorf("Write() = %T; wanted *remote.Error", se)
-	} else if diff := cmp.Diff(expectedError, se, cmpopts.IgnoreFields(transport.Error{}, "Request", "rawBody")); diff != "" {
+	} else if !errors.As(err, &terr) {
+		t.Errorf("Write() = %T; wanted *transport.Error", err)
+	} else if diff := cmp.Diff(expectedError, terr, cmpopts.IgnoreFields(transport.Error{}, "Request", "rawBody")); diff != "" {
 		t.Errorf("Write(); (-want +got) = %s", diff)
 	}
 

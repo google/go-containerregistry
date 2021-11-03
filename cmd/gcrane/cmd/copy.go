@@ -35,9 +35,8 @@ func NewCmdCopy() *cobra.Command {
 			ctx := cc.Context()
 			if recursive {
 				return gcrane.CopyRepository(ctx, src, dst, gcrane.WithJobs(jobs), gcrane.WithUserAgent(userAgent()), gcrane.WithContext(ctx))
-			} else {
-				return gcrane.Copy(src, dst, gcrane.WithUserAgent(userAgent()), gcrane.WithContext(ctx))
 			}
+			return gcrane.Copy(src, dst, gcrane.WithUserAgent(userAgent()), gcrane.WithContext(ctx))
 		},
 	}
 

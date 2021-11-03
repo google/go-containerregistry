@@ -129,7 +129,6 @@ func TestLayerLink(t *testing.T) {
 }
 
 func TestLoadManifest(t *testing.T) {
-
 	manifest, err := LoadManifest(pathOpener("testdata/test_load_manifest.tar"))
 	if err != nil {
 		t.Fatalf("Error load manifest: %v", err)

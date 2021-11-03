@@ -15,6 +15,7 @@
 package remote_test
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,7 +31,6 @@ import (
 )
 
 func TestStatusCodeReturned(t *testing.T) {
-
 	tcs := []struct {
 		Description string
 		Handler     http.Handler
@@ -62,8 +62,8 @@ func TestStatusCodeReturned(t *testing.T) {
 			}
 
 			_, err = remote.Image(ref)
-			terr, ok := err.(*transport.Error)
-			if !ok {
+			var terr *transport.Error
+			if !errors.As(err, &terr) {
 				t.Fatalf("Unable to cast error to transport error: %v", err)
 			}
 			if terr.StatusCode != http.StatusTeapot {
@@ -110,16 +110,15 @@ func TestBlobStatusCodeReturned(t *testing.T) {
 		t.Fatalf("Unable to fetch layers: %v", err)
 	}
 	_, err = l[0].Compressed()
-	terr, ok := err.(*transport.Error)
-	if !ok {
+	var terr *transport.Error
+	if !errors.As(err, &terr) {
 		t.Fatalf("Unable to cast error to transport error: %v", err)
 	}
 	if terr.StatusCode != http.StatusTeapot {
 		t.Errorf("Incorrect status code received, got %v, wanted %v", terr.StatusCode, http.StatusTeapot)
 	}
 	_, err = l[0].Uncompressed()
-	terr, ok = err.(*transport.Error)
-	if !ok {
+	if !errors.As(err, &terr) {
 		t.Fatalf("Unable to cast error to transport error: %v", err)
 	}
 	if terr.StatusCode != http.StatusTeapot {

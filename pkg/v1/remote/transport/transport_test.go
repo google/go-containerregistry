@@ -120,7 +120,7 @@ func TestTransportSelectionBearer(t *testing.T) {
 	request := 0
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			request = request + 1
+			request++
 			switch request {
 			case 1:
 				// This is an https request that fails, causing us to fall back to http.
@@ -186,7 +186,7 @@ func TestTransportSelectionBearerAuthError(t *testing.T) {
 	request := 0
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			request = request + 1
+			request++
 			switch request {
 			case 1:
 				w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
