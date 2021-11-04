@@ -15,7 +15,6 @@
 package name
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -28,13 +27,7 @@ func (e *ErrBadName) Error() string {
 	return e.info
 }
 
-// NewErrBadName returns a ErrBadName which returns the given formatted string from Error().
-func NewErrBadName(fmtStr string, args ...interface{}) *ErrBadName {
+// newErrBadName returns a ErrBadName which returns the given formatted string from Error().
+func newErrBadName(fmtStr string, args ...interface{}) *ErrBadName {
 	return &ErrBadName{fmt.Sprintf(fmtStr, args...)}
-}
-
-// IsErrBadName returns true if the given error is an ErrBadName.
-func IsErrBadName(err error) bool {
-	var berr *ErrBadName
-	return errors.As(err, &berr)
 }

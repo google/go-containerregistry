@@ -69,8 +69,7 @@ func TestGetSchema1(t *testing.T) {
 	want := `unsupported MediaType: "application/vnd.docker.distribution.manifest.v1+prettyjws", see https://github.com/google/go-containerregistry/issues/377`
 	// Should fail based on media type.
 	if _, err := desc.Image(); err != nil {
-		var s1err ErrSchema1
-		if errors.Is(err, &s1err) {
+		if errors.Is(err, &ErrSchema1{}) {
 			t.Errorf("Image() = %v, expected remote.ErrSchema1", err)
 		}
 		if diff := cmp.Diff(want, err.Error()); diff != "" {
