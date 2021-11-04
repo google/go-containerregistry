@@ -15,13 +15,16 @@ package cmd
 import (
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/cli/cli/config"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
@@ -37,6 +40,7 @@ var Root = New(use, short, []crane.Option{})
 func New(use, short string, options []crane.Option) *cobra.Command {
 	verbose := false
 	insecure := false
+	dialTimeout := 5 * time.Second
 	platform := &platformValue{}
 	var osVersion string
 
@@ -69,7 +73,11 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 
 			options = append(options, crane.WithPlatform(platform.platform))
 
-			transport := http.DefaultTransport.(*http.Transport).Clone()
+			transport := remote.DefaultTransport.Clone()
+			transport.DialContext = (&net.Dialer{
+				Timeout:   dialTimeout,
+				KeepAlive: 30 * time.Second,
+			}).DialContext
 			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: insecure}
 
 			var rt http.RoundTripper = transport
@@ -115,6 +123,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 
 	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
 	root.PersistentFlags().BoolVar(&insecure, "insecure", false, "Allow image references to be fetched without TLS")
+	root.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", dialTimeout, "Modify the dial timeout used to contact the registry.")
 	root.PersistentFlags().Var(platform, "platform", "Specifies the platform in the form os/arch[/variant] (e.g. linux/amd64).")
 	root.PersistentFlags().StringVar(&osVersion, "osversion", "", "Specifies the OS version.")
 

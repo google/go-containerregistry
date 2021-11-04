@@ -175,26 +175,27 @@ func TestCopy(t *testing.T) {
 	defer s.Close()
 
 	// Make sure we don't actually talk to XCR.
-	http.DefaultTransport = s.Client().Transport
+	opt := remote.WithTransport(s.Client().Transport)
+	copt := WithTransport(s.Client().Transport)
 
-	if err := remote.Write(latestRef, twoTags); err != nil {
+	if err := remote.Write(latestRef, twoTags, opt); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(fooRef, twoTags); err != nil {
+	if err := remote.Write(fooRef, twoTags, opt); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(oneTagRef, oneTag); err != nil {
+	if err := remote.Write(oneTagRef, oneTag, opt); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(noTagsRef, noTags); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Copy(src, dst); err != nil {
+	if err := remote.Write(noTagsRef, noTags, opt); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := CopyRepository(context.Background(), src, dst); err != nil {
+	if err := Copy(src, dst, copt); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := CopyRepository(context.Background(), src, dst, copt); err != nil {
 		t.Fatal(err)
 	}
 }

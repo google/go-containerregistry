@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"syscall"
 	"time"
@@ -81,10 +82,28 @@ const (
 	defaultPageSize = 1000
 )
 
+// DefaultTransport is based on http.DefaultTransport with modifications
+// documented inline below.
+var DefaultTransport = &http.Transport{
+	Proxy: http.ProxyFromEnvironment,
+	DialContext: (&net.Dialer{
+		// By default we wrap the transport in retries, so reduce the
+		// default dial timeout to 5s to avoid 5x 30s of connection
+		// timeouts when doing the "ping" on certain http registries.
+		Timeout:   5 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext,
+	ForceAttemptHTTP2:     true,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
+}
+
 func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 	o := &options{
 		auth:           authn.Anonymous,
-		transport:      http.DefaultTransport,
+		transport:      DefaultTransport,
 		platform:       defaultPlatform,
 		context:        context.Background(),
 		jobs:           defaultJobs,
@@ -134,7 +153,7 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 // If transport.Wrapper is provided, this signals that the consumer does *not* want any further wrapping to occur.
 // i.e. logging, retry and useragent
 //
-// The default transport its http.DefaultTransport.
+// The default transport is DefaultTransport.
 func WithTransport(t http.RoundTripper) Option {
 	return func(o *options) error {
 		o.transport = t
