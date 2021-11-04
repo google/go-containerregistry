@@ -26,11 +26,11 @@ func Tag(img, tag string, opt ...Option) error {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(img, o.Name...)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", img, err)
+		return fmt.Errorf("parsing reference %q: %w", img, err)
 	}
 	desc, err := remote.Get(ref, o.Remote...)
 	if err != nil {
-		return fmt.Errorf("fetching %q: %v", img, err)
+		return fmt.Errorf("fetching %q: %w", img, err)
 	}
 
 	dst := ref.Context().Tag(tag)

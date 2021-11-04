@@ -15,6 +15,7 @@
 package name
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -116,8 +117,9 @@ func TestRepositoryScopes(t *testing.T) {
 }
 
 func TestRepositoryBadDefaulting(t *testing.T) {
-	if _, err := NewRepository("index.docker.io/foo", StrictValidation); !IsErrBadName(err) {
-		t.Errorf("IsBadErrName == false: %v", err)
+	var berr *ErrBadName
+	if _, err := NewRepository("index.docker.io/foo", StrictValidation); !errors.As(err, &berr) {
+		t.Errorf("Not an ErrBadName: %v", err)
 	}
 }
 

@@ -29,18 +29,18 @@ func Copy(src, dst string, opt ...Option) error {
 	o := makeOptions(opt...)
 	srcRef, err := name.ParseReference(src, o.Name...)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", src, err)
+		return fmt.Errorf("parsing reference %q: %w", src, err)
 	}
 
 	dstRef, err := name.ParseReference(dst, o.Name...)
 	if err != nil {
-		return fmt.Errorf("parsing reference for %q: %v", dst, err)
+		return fmt.Errorf("parsing reference for %q: %w", dst, err)
 	}
 
 	logs.Progress.Printf("Copying from %v to %v", srcRef, dstRef)
 	desc, err := remote.Get(srcRef, o.Remote...)
 	if err != nil {
-		return fmt.Errorf("fetching %q: %v", src, err)
+		return fmt.Errorf("fetching %q: %w", src, err)
 	}
 
 	switch desc.MediaType {
@@ -49,22 +49,22 @@ func Copy(src, dst string, opt ...Option) error {
 		if o.Platform != nil {
 			// If platform is explicitly set, don't copy the whole index, just the appropriate image.
 			if err := copyImage(desc, dstRef, o); err != nil {
-				return fmt.Errorf("failed to copy image: %v", err)
+				return fmt.Errorf("failed to copy image: %w", err)
 			}
 		} else {
 			if err := copyIndex(desc, dstRef, o); err != nil {
-				return fmt.Errorf("failed to copy index: %v", err)
+				return fmt.Errorf("failed to copy index: %w", err)
 			}
 		}
 	case types.DockerManifestSchema1, types.DockerManifestSchema1Signed:
 		// Handle schema 1 images separately.
 		if err := legacy.CopySchema1(desc, srcRef, dstRef, o.Remote...); err != nil {
-			return fmt.Errorf("failed to copy schema 1 image: %v", err)
+			return fmt.Errorf("failed to copy schema 1 image: %w", err)
 		}
 	default:
 		// Assume anything else is an image, since some registries don't set mediaTypes properly.
 		if err := copyImage(desc, dstRef, o); err != nil {
-			return fmt.Errorf("failed to copy image: %v", err)
+			return fmt.Errorf("failed to copy image: %w", err)
 		}
 	}
 

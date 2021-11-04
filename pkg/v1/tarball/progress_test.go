@@ -15,6 +15,7 @@
 package tarball_test
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -74,7 +75,7 @@ func ExampleWithProgress() {
 	}()
 	for update := range c {
 		switch {
-		case update.Error != nil && update.Error == io.EOF:
+		case update.Error != nil && errors.Is(update.Error, io.EOF):
 			fmt.Fprintf(os.Stderr, "receive error message: %v\n", err)
 			fmt.Printf("%d/%d", update.Complete, update.Total)
 			// Output: 2800640/2800640

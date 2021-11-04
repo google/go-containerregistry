@@ -41,7 +41,6 @@ func TestCheckPushPermission(t *testing.T) {
 		http.StatusBadRequest,
 		true,
 	}} {
-
 		expectedRepo := "write/time"
 		initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 		somewhereElse := fmt.Sprintf("/v2/%s/blobs/uploads/somewhere/else", expectedRepo)

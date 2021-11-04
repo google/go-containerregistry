@@ -16,6 +16,7 @@ package tarball
 
 import (
 	"archive/tar"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -567,7 +568,7 @@ func TestWriteSharedLayers(t *testing.T) {
 	for {
 		hdr, err := r.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			t.Fatalf("Get tar header: %v", err)
@@ -591,7 +592,7 @@ func TestWriteSharedLayers(t *testing.T) {
 func v1LayerIDs(img v1.Image) ([]string, error) {
 	layers, err := img.Layers()
 	if err != nil {
-		return nil, fmt.Errorf("get layers: %v", err)
+		return nil, fmt.Errorf("get layers: %w", err)
 	}
 	ids := make([]string, len(layers))
 	parentID := ""
@@ -600,12 +601,12 @@ func v1LayerIDs(img v1.Image) ([]string, error) {
 		if i == len(layers)-1 {
 			rawCfg, err = img.RawConfigFile()
 			if err != nil {
-				return nil, fmt.Errorf("get raw config file: %v", err)
+				return nil, fmt.Errorf("get raw config file: %w", err)
 			}
 		}
 		id, err := v1LayerID(layer, parentID, rawCfg)
 		if err != nil {
-			return nil, fmt.Errorf("get v1 layer ID: %v", err)
+			return nil, fmt.Errorf("get v1 layer ID: %w", err)
 		}
 
 		ids[i] = id

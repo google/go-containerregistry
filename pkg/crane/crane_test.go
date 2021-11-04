@@ -17,6 +17,7 @@ package crane_test
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -456,7 +457,7 @@ func TestCraneFilesystem(t *testing.T) {
 	tr := tar.NewReader(&buf)
 	for {
 		header, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			t.Fatalf("didn't find find")
 		} else if err != nil {
 			t.Fatal(err)

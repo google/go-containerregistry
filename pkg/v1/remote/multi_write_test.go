@@ -221,7 +221,6 @@ func TestMultiWrite_Retry(t *testing.T) {
 		if numOf401HttpErrors > 1 {
 			t.Fatal("Should not retry on 401 errors:")
 		}
-
 	})
 
 	t.Run("do not retry transport errors if transport.Wrapper is used", func(t *testing.T) {

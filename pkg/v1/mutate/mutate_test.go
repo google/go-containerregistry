@@ -49,7 +49,7 @@ func TestExtractWhiteout(t *testing.T) {
 	tr := tar.NewReader(mutate.Extract(img))
 	for {
 		header, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		name := header.Name
@@ -69,7 +69,7 @@ func TestExtractOverwrittenFile(t *testing.T) {
 	tr := tar.NewReader(mutate.Extract(img))
 	for {
 		header, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		name := header.Name
@@ -434,7 +434,7 @@ func TestAppendStreamableLayer(t *testing.T) {
 	}
 
 	// Until the streams are consumed, the image manifest is not yet computed.
-	if _, err := img.Manifest(); err != stream.ErrNotComputed {
+	if _, err := img.Manifest(); !errors.Is(err, stream.ErrNotComputed) {
 		t.Errorf("Manifest: got %v, want %v", err, stream.ErrNotComputed)
 	}
 
@@ -615,7 +615,7 @@ func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {
 	tr := tar.NewReader(l)
 	for {
 		header, err := tr.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -627,7 +627,6 @@ func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {
 			t.Errorf("unexpected mod time for layer. expected %v, got %v.", expectedTime, mtime)
 		}
 	}
-
 }
 
 func sourceImage(t *testing.T) v1.Image {

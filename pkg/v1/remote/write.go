@@ -57,7 +57,7 @@ func Write(ref name.Reference, img v1.Image, options ...Option) (rerr error) {
 			return err
 		}
 		defer close(o.updates)
-		defer func() { sendError(o.updates, rerr) }()
+		defer func() { _ = sendError(o.updates, rerr) }()
 	}
 	return writeImage(o.context, ref, img, o, lastUpdate)
 }

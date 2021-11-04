@@ -1,6 +1,21 @@
+// Copyright 2021 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cache
 
 import (
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -137,10 +152,10 @@ func TestErrNotFound(t *testing.T) {
 
 	c := NewFilesystemCache(dir)
 	h := v1.Hash{Algorithm: "fake", Hex: "not-found"}
-	if _, err := c.Get(h); err != ErrNotFound {
+	if _, err := c.Get(h); !errors.Is(err, ErrNotFound) {
 		t.Errorf("Get(%q): %v", h, err)
 	}
-	if err := c.Delete(h); err != ErrNotFound {
+	if err := c.Delete(h); !errors.Is(err, ErrNotFound) {
 		t.Errorf("Delete(%q): %v", h, err)
 	}
 }
@@ -182,12 +197,12 @@ func TestErrUnexpectedEOF(t *testing.T) {
 	c := NewFilesystemCache(dir)
 
 	// make sure LayerFromFile returns UnexpectedEOF
-	if _, err := tarball.LayerFromFile(p); err != io.ErrUnexpectedEOF {
+	if _, err := tarball.LayerFromFile(p); !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("tarball.LayerFromFile(%s): expected %v, got %v", p, io.ErrUnexpectedEOF, err)
 	}
 
 	// Try to Get the layer
-	if _, err := c.Get(h); err != ErrNotFound {
+	if _, err := c.Get(h); !errors.Is(err, ErrNotFound) {
 		t.Errorf("Get(%q): %v", h, err)
 	}
 

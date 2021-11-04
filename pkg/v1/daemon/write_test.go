@@ -135,13 +135,11 @@ func TestWriteDefaultClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = Write(tag, empty.Image)
-	if err != wantErr {
+	if _, err := Write(tag, empty.Image); !errors.Is(err, wantErr) {
 		t.Errorf("Write(): want %v; got %v", wantErr, err)
 	}
 
-	err = Tag(tag, tag)
-	if err != wantErr {
+	if err := Tag(tag, tag); !errors.Is(err, wantErr) {
 		t.Errorf("Tag(): want %v; got %v", wantErr, err)
 	}
 

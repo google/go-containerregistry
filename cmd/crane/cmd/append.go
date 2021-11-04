@@ -47,19 +47,19 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 			} else {
 				base, err = crane.Pull(baseRef, *options...)
 				if err != nil {
-					return fmt.Errorf("pulling %s: %v", baseRef, err)
+					return fmt.Errorf("pulling %s: %w", baseRef, err)
 				}
 			}
 
 			img, err := crane.Append(base, newLayers...)
 			if err != nil {
-				return fmt.Errorf("appending %v: %v", newLayers, err)
+				return fmt.Errorf("appending %v: %w", newLayers, err)
 			}
 
 			if baseRef != "" && annotate {
 				ref, err := name.ParseReference(baseRef)
 				if err != nil {
-					return fmt.Errorf("parsing ref %q: %v", baseRef, err)
+					return fmt.Errorf("parsing ref %q: %w", baseRef, err)
 				}
 
 				baseDigest, err := base.Digest()
@@ -77,19 +77,19 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 
 			if outFile != "" {
 				if err := crane.Save(img, newTag, outFile); err != nil {
-					return fmt.Errorf("writing output %q: %v", outFile, err)
+					return fmt.Errorf("writing output %q: %w", outFile, err)
 				}
 			} else {
 				if err := crane.Push(img, newTag, *options...); err != nil {
-					return fmt.Errorf("pushing image %s: %v", newTag, err)
+					return fmt.Errorf("pushing image %s: %w", newTag, err)
 				}
 				ref, err := name.ParseReference(newTag)
 				if err != nil {
-					return fmt.Errorf("parsing reference %s: %v", newTag, err)
+					return fmt.Errorf("parsing reference %s: %w", newTag, err)
 				}
 				d, err := img.Digest()
 				if err != nil {
-					return fmt.Errorf("digest: %v", err)
+					return fmt.Errorf("digest: %w", err)
 				}
 				fmt.Println(ref.Context().Digest(d.String()))
 			}

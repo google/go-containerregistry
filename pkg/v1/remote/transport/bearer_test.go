@@ -506,14 +506,16 @@ func TestInsufficientScope(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			query := r.URL.Query()
 
-			if scopes := query["scope"]; len(scopes) == 0 {
+			scopes := query["scope"]
+			switch {
+			case len(scopes) == 0:
 				if !passed {
 					w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer realm=%q,scope=%q", realm, right))
 					w.WriteHeader(http.StatusUnauthorized)
 				}
-			} else if len(scopes) == 1 {
+			case len(scopes) == 1:
 				w.Write([]byte(`{"token": "arbitrary-token"}`))
-			} else if len(scopes) == 2 && scopes[1] == right {
+			default:
 				passed = true
 				w.Write([]byte(`{"token": "arbitrary-token-2"}`))
 			}

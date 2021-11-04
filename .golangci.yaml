@@ -7,9 +7,21 @@ run:
 
 linters:
   enable:
-    - asciicheck
-    - depguard
-    - stylecheck
-    - unconvert
+  - asciicheck
+  - deadcode
+  - depguard
+  - errorlint
+  - gofmt
+  - goimports
+  - importas
+  - prealloc
+  - revive
+  - misspell
+  - stylecheck
+  - tparallel
+  - unconvert
+  - unparam
+  - whitespace
+
   disable:
-    - errcheck
+  - errcheck

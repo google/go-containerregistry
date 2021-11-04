@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -56,7 +57,9 @@ func (xcr *fakeXCR) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
 			xcr.t.Logf("%+v", tags)
-			json.NewEncoder(w).Encode(tags)
+			if err := json.NewEncoder(w).Encode(tags); err != nil {
+				xcr.t.Fatal(err)
+			}
 		}
 	} else {
 		xcr.h.ServeHTTP(w, r)
@@ -381,10 +384,11 @@ func TestRetryErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("backoffErrors should return internal err, got nil")
 	}
-	if te, ok := err.(*transport.Error); !ok {
+	var terr *transport.Error
+	if !errors.As(err, &terr) {
 		t.Fatalf("backoffErrors should return internal err, got different error: %v", err)
-	} else if te.StatusCode != http.StatusTooManyRequests {
-		t.Fatalf("backoffErrors should return internal err, got different status code: %v", te.StatusCode)
+	} else if terr.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("backoffErrors should return internal err, got different status code: %v", terr.StatusCode)
 	}
 
 	if b.Len() == 0 {

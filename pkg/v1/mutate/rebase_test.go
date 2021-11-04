@@ -24,18 +24,18 @@ import (
 )
 
 func layerDigests(t *testing.T, img v1.Image) []string {
-	var layerDigests []string
 	layers, err := img.Layers()
 	if err != nil {
 		t.Fatalf("oldBase.Layers: %v", err)
 	}
+	layerDigests := make([]string, len(layers))
 	for i, l := range layers {
 		dig, err := l.Digest()
 		if err != nil {
 			t.Fatalf("layer.Digest %d: %v", i, err)
 		}
 		t.Log(dig)
-		layerDigests = append(layerDigests, dig.String())
+		layerDigests[i] = dig.String()
 	}
 	return layerDigests
 }
@@ -117,11 +117,11 @@ func TestRebase(t *testing.T) {
 		t.Fatalf("Rebase: %v", err)
 	}
 
-	var rebasedLayerDigests []string
 	rebasedBaseLayers, err := rebased.Layers()
 	if err != nil {
 		t.Fatalf("rebased.Layers: %v", err)
 	}
+	rebasedLayerDigests := make([]string, len(rebasedBaseLayers))
 	t.Log("Rebased image layer digests:")
 	for i, l := range rebasedBaseLayers {
 		dig, err := l.Digest()
@@ -129,7 +129,7 @@ func TestRebase(t *testing.T) {
 			t.Fatalf("layer.Digest (rebased base layer %d): %v", i, err)
 		}
 		t.Log(dig)
-		rebasedLayerDigests = append(rebasedLayerDigests, dig.String())
+		rebasedLayerDigests[i] = dig.String()
 	}
 
 	// Compare rebased layers.

@@ -42,7 +42,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 	root := &cobra.Command{
 		Use:               use,
 		Short:             short,
-		Run:               func(cmd *cobra.Command, _ []string) { cmd.Usage() },
+		RunE:              func(cmd *cobra.Command, _ []string) error { return cmd.Usage() },
 		DisableAutoGenTag: true,
 		SilenceUsage:      true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {

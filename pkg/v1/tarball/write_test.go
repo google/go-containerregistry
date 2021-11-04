@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -356,7 +357,7 @@ func TestWriteSharedLayers(t *testing.T) {
 	for {
 		hdr, err := r.Next()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			t.Fatalf("Get tar header: %v", err)
@@ -481,12 +482,12 @@ func getLayersHashes(img v1.Image) ([]string, error) {
 	hashes := []string{}
 	layers, err := img.Layers()
 	if err != nil {
-		return nil, fmt.Errorf("error getting image layers: %v", err)
+		return nil, fmt.Errorf("error getting image layers: %w", err)
 	}
 	for i, l := range layers {
 		hash, err := l.Digest()
 		if err != nil {
-			return nil, fmt.Errorf("error getting digest for layer %d: %v", i, err)
+			return nil, fmt.Errorf("error getting digest for layer %d: %w", i, err)
 		}
 		hashes = append(hashes, hash.Hex)
 	}

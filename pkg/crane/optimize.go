@@ -36,18 +36,18 @@ func Optimize(src, dst string, prioritize []string, opt ...Option) error {
 	o := makeOptions(opt...)
 	srcRef, err := name.ParseReference(src, o.Name...)
 	if err != nil {
-		return fmt.Errorf("parsing reference %q: %v", src, err)
+		return fmt.Errorf("parsing reference %q: %w", src, err)
 	}
 
 	dstRef, err := name.ParseReference(dst, o.Name...)
 	if err != nil {
-		return fmt.Errorf("parsing reference for %q: %v", dst, err)
+		return fmt.Errorf("parsing reference for %q: %w", dst, err)
 	}
 
 	logs.Progress.Printf("Optimizing from %v to %v", srcRef, dstRef)
 	desc, err := remote.Get(srcRef, o.Remote...)
 	if err != nil {
-		return fmt.Errorf("fetching %q: %v", src, err)
+		return fmt.Errorf("fetching %q: %w", src, err)
 	}
 
 	switch desc.MediaType {
@@ -56,11 +56,11 @@ func Optimize(src, dst string, prioritize []string, opt ...Option) error {
 		if o.Platform != nil {
 			// If platform is explicitly set, don't optimize the whole index, just the appropriate image.
 			if err := optimizeAndPushImage(desc, dstRef, pset, o); err != nil {
-				return fmt.Errorf("failed to optimize image: %v", err)
+				return fmt.Errorf("failed to optimize image: %w", err)
 			}
 		} else {
 			if err := optimizeAndPushIndex(desc, dstRef, pset, o); err != nil {
-				return fmt.Errorf("failed to optimize index: %v", err)
+				return fmt.Errorf("failed to optimize index: %w", err)
 			}
 		}
 
@@ -70,7 +70,7 @@ func Optimize(src, dst string, prioritize []string, opt ...Option) error {
 	default:
 		// Assume anything else is an image, since some registries don't set mediaTypes properly.
 		if err := optimizeAndPushImage(desc, dstRef, pset, o); err != nil {
-			return fmt.Errorf("failed to optimize image: %v", err)
+			return fmt.Errorf("failed to optimize image: %w", err)
 		}
 	}
 

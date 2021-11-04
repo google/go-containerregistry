@@ -99,7 +99,7 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) (rerr error) {
 	// Collect the total size of blobs and manifests we're about to write.
 	if o.updates != nil {
 		defer close(o.updates)
-		defer func() { sendError(o.updates, rerr) }()
+		defer func() { _ = sendError(o.updates, rerr) }()
 		for _, b := range blobs {
 			size, err := b.Size()
 			if err != nil {

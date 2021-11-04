@@ -301,7 +301,7 @@ func walk(repo name.Repository, tags *Tags, walkFn WalkFunc, options ...Option) 
 		child, err := name.NewRepository(fmt.Sprintf("%s/%s", repo, path), name.StrictValidation)
 		if err != nil {
 			// We don't expect this ever, so don't pass it through to walkFn.
-			return fmt.Errorf("unexpected path failure: %v", err)
+			return fmt.Errorf("unexpected path failure: %w", err)
 		}
 
 		childTags, err := List(child, options...)

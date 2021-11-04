@@ -154,8 +154,7 @@ func TestImageDefaultClient(t *testing.T) {
 		return nil, wantErr
 	}
 
-	_, err := Image(name.MustParseReference("unused"))
-	if err != wantErr {
+	if _, err := Image(name.MustParseReference("unused")); !errors.Is(err, wantErr) {
 		t.Errorf("Image(): want %v; got %v", wantErr, err)
 	}
 }

@@ -16,6 +16,7 @@ package transport
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -122,7 +123,7 @@ func TestTimeoutContext(t *testing.T) {
 
 	select {
 	case err := <-result:
-		if err != context.DeadlineExceeded {
+		if !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("got: %v, want: %v", err, context.DeadlineExceeded)
 		}
 	case <-time.After(time.Millisecond * 100):
