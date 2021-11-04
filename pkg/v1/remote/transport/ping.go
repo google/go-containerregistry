@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -86,7 +87,12 @@ func ping(ctx context.Context, reg name.Registry, t http.RoundTripper) (*pingRes
 		if err != nil {
 			return nil, err
 		}
-		resp, err := client.Do(req.WithContext(ctx))
+		// The ping handler should be extremely fast, but for registries that serve
+		// over http, it could take a while to fallback from https (esp. if the
+		// transport has retries).  So give each ping attempt a (generous) 5s timeout.
+		pctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		resp, err := client.Do(req.WithContext(pctx))
 		if err != nil {
 			errs = append(errs, err.Error())
 			// Potentially retry with http.
