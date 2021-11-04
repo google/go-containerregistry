@@ -21,9 +21,12 @@ import (
 
 func TestBadName(t *testing.T) {
 	_, err := ParseReference("@@")
+	if !IsErrBadName(err) {
+		t.Errorf("Not an ErrBadName: %v", err)
+	}
 	var berr *ErrBadName
 	if !errors.As(err, &berr) {
-		t.Errorf("Not an ErrBadName: %v", err)
+		t.Errorf("Not an ErrBadName using errors.As: %v", err)
 	}
 	if err.Error() != "could not parse reference: @@" {
 		t.Errorf("Unexpected string: %v", err)
