@@ -5,6 +5,12 @@ run:
     - internal
     - pkg/registry
 
+issues:
+  exclude-rules:
+    - path: test # Excludes /test, *_test.go etc.
+      linters:
+        - gosec
+
 linters:
   enable:
   - asciicheck
@@ -12,6 +18,7 @@ linters:
   - depguard
   - errorlint
   - gofmt
+  - gosec
   - goimports
   - importas
   - prealloc
