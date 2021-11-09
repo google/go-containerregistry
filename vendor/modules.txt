@@ -17,7 +17,7 @@ github.com/containerd/stargz-snapshotter/estargz/errorutil
 # github.com/cpuguy83/go-md2man/v2 v2.0.1
 ## explicit
 github.com/cpuguy83/go-md2man/v2/md2man
-# github.com/docker/cli v20.10.9+incompatible
+# github.com/docker/cli v20.10.10+incompatible
 ## explicit
 github.com/docker/cli/cli/config
 github.com/docker/cli/cli/config/configfile
