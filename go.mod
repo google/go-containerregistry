@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go v0.97.0 // indirect
 	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/containerd/containerd v1.5.7 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.9.0
+	github.com/containerd/stargz-snapshotter/estargz v0.10.0
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/docker/cli v20.10.9+incompatible
 	github.com/docker/distribution v2.7.1+incompatible
