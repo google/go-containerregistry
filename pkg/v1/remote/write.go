@@ -523,7 +523,7 @@ func (w *writer) writeIndex(ctx context.Context, ref name.Reference, ii v1.Image
 			if err != nil {
 				return err
 			}
-			if err := w.writeIndex(ctx, ref, ii); err != nil {
+			if err := w.writeIndex(ctx, ref, ii, options...); err != nil {
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
