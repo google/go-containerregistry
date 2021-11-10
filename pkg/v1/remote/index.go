@@ -214,7 +214,7 @@ func (r *remoteIndex) childByPlatform(platform v1.Platform) (*Descriptor, error)
 			return r.childDescriptor(childDesc, platform)
 		}
 	}
-	return nil, fmt.Errorf("no child with platform %s/%s in index %s", platform.OS, platform.Architecture, r.Ref)
+	return nil, fmt.Errorf("no child with platform %+v in index %s", platform, r.Ref)
 }
 
 func (r *remoteIndex) childByHash(h v1.Hash) (*Descriptor, error) {
