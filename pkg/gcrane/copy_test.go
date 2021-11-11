@@ -129,8 +129,8 @@ func newFakeXCR(stuff map[name.Reference]partial.Describable, t *testing.T) (*fa
 
 func TestCopy(t *testing.T) {
 	logs.Warn.SetOutput(os.Stderr)
-	src := "xcr.io/test/gcrane"
-	dst := "xcr.io/test/gcrane/copy"
+	src := "registry.example.com/test/gcrane"
+	dst := "registry.example.com/test/gcrane/copy"
 
 	oneTag, err := random.Image(1024, 5)
 	if err != nil {
@@ -168,48 +168,49 @@ func TestCopy(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := ggcrtest.NewTLSServer("xcr.io", h)
+	s, err := ggcrtest.NewTLSServer("registry.example.com", h)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
 
-	// Make sure we don't actually talk to XCR.
-	http.DefaultTransport = s.Client().Transport
+	// Route requests to our test registry.
+	opt := remote.WithTransport(s.Client().Transport)
+	copt := WithTransport(s.Client().Transport)
 
-	if err := remote.Write(latestRef, twoTags); err != nil {
+	if err := remote.Write(latestRef, twoTags, opt); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(fooRef, twoTags); err != nil {
+	if err := remote.Write(fooRef, twoTags, opt); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(oneTagRef, oneTag); err != nil {
+	if err := remote.Write(oneTagRef, oneTag, opt); err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(noTagsRef, noTags); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := Copy(src, dst); err != nil {
+	if err := remote.Write(noTagsRef, noTags, opt); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := CopyRepository(context.Background(), src, dst); err != nil {
+	if err := Copy(src, dst, copt); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := CopyRepository(context.Background(), src, dst, copt); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestRename(t *testing.T) {
 	c := copier{
-		srcRepo: name.MustParseReference("xcr.io/foo").Context(),
-		dstRepo: name.MustParseReference("xcr.io/bar").Context(),
+		srcRepo: name.MustParseReference("registry.example.com/foo").Context(),
+		dstRepo: name.MustParseReference("registry.example.com/bar").Context(),
 	}
 
-	got, err := c.rename(name.MustParseReference("xcr.io/foo/sub/repo").Context())
+	got, err := c.rename(name.MustParseReference("registry.example.com/foo/sub/repo").Context())
 	if err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
-	want := name.MustParseReference("xcr.io/bar/sub/repo").Context()
+	want := name.MustParseReference("registry.example.com/bar/sub/repo").Context()
 
 	if want.String() != got.String() {
 		t.Errorf("%s != %s", want, got)
