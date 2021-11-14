@@ -120,7 +120,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	}
 	mutateCmd.Flags().StringSliceVarP(&anntns, "annotation", "a", nil, "New annotations to add")
 	mutateCmd.Flags().StringSliceVarP(&lbls, "label", "l", nil, "New labels to add")
-	mutateCmd.Flags().StringVar(&entrypoint, "entrypoint", "", "New entrypoing to set")
+	mutateCmd.Flags().StringVar(&entrypoint, "entrypoint", "", "New entrypoint to set")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
 	return mutateCmd
 }
