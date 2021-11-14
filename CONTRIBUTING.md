@@ -28,4 +28,9 @@ Ensure the following passes:
 ```
 ./hack/presubmit.sh
 ```
-and commit any resultant changes to `go.mod` and `go.sum`.
+and commit any resultant changes to `go.mod` and `go.sum`. To update any docs
+after client changes, run:
+
+```
+./hack/update-codegen.sh
+```

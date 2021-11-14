@@ -17,7 +17,6 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -28,20 +27,20 @@ import (
 
 // NewCmdMutate creates a new cobra.Command for the mutate subcommand.
 func NewCmdMutate(options *[]crane.Option) *cobra.Command {
-	var lbls []string
+	var labels map[string]string
 	var entrypoint string
 	var newRef string
-	var anntns []string
+	var annotations map[string]string
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
-		Short: "Modify image labels and annotations",
+		Short: "Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.",
 		Args:  cobra.ExactArgs(1),
 		Run: func(_ *cobra.Command, args []string) {
 			// Pull image and get config.
 			ref := args[0]
 
-			if len(anntns) != 0 {
+			if len(annotations) != 0 {
 				desc, err := crane.Head(ref, *options...)
 				if err != nil {
 					log.Fatalf("checking %s: %v", ref, err)
@@ -66,7 +65,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.Labels = map[string]string{}
 			}
 
-			labels, err := splitKeyVals(lbls)
+			err = validateKeyVals(labels)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -75,7 +74,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.Labels[k] = v
 			}
 
-			annotations, err := splitKeyVals(anntns)
+			err = validateKeyVals(annotations)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -118,22 +117,19 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			fmt.Println(r.Context().Digest(digest.String()))
 		},
 	}
-	mutateCmd.Flags().StringSliceVarP(&anntns, "annotation", "a", nil, "New annotations to add")
-	mutateCmd.Flags().StringSliceVarP(&lbls, "label", "l", nil, "New labels to add")
+	mutateCmd.Flags().StringToStringVarP(&annotations, "annotation", "a", nil, "New annotations to add")
+	mutateCmd.Flags().StringToStringVarP(&labels, "label", "l", nil, "New labels to add")
 	mutateCmd.Flags().StringVar(&entrypoint, "entrypoint", "", "New entrypoint to set")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
 	return mutateCmd
 }
 
-// splitKeyVals splits key value pairs which is in form hello=world
-func splitKeyVals(kvPairs []string) (map[string]string, error) {
-	m := map[string]string{}
-	for _, l := range kvPairs {
-		parts := strings.SplitN(l, "=", 2)
-		if len(parts) == 1 {
-			return nil, fmt.Errorf("parsing label %q, not enough parts", l)
+// validateKeyVals ensures no values are empty, returns error if they are
+func validateKeyVals(kvPairs map[string]string) error {
+	for label, value := range kvPairs {
+		if value == "" {
+			return fmt.Errorf("parsing label %q, value is empty", label)
 		}
-		m[parts[0]] = parts[1]
 	}
-	return m, nil
+	return nil
 }
