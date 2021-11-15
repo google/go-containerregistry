@@ -10,6 +10,7 @@ crane append [flags]
 
 ```
   -b, --base string                  Name of base image to append to
+      --daemon                       If true, write to local Docker daemon instead of pushing
   -h, --help                         help for append
   -f, --new_layer strings            Path to tarball to append to image
   -t, --new_tag string               Tag to apply to resulting image
