@@ -30,7 +30,7 @@ crane [flags]
 * [crane flatten](crane_flatten.md)	 - Flatten an image's layers into a single layer
 * [crane ls](crane_ls.md)	 - List the tags in a repo
 * [crane manifest](crane_manifest.md)	 - Get the manifest of an image
-* [crane mutate](crane_mutate.md)	 - Modify image labels and annotations
+* [crane mutate](crane_mutate.md)	 - Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.
 * [crane pull](crane_pull.md)	 - Pull remote images by reference and store their contents in a tarball
 * [crane push](crane_push.md)	 - Push image contents as a tarball to a remote registry
 * [crane rebase](crane_rebase.md)	 - Rebase an image onto a new base image

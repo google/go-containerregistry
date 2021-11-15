@@ -1,6 +1,6 @@
 ## crane mutate
 
-Modify image labels and annotations
+Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.
 
 ```
 crane mutate [flags]
@@ -9,11 +9,11 @@ crane mutate [flags]
 ### Options
 
 ```
-  -a, --annotation strings   New annotations to add
-      --entrypoint string    New entrypoint to set
-  -h, --help                 help for mutate
-  -l, --label strings        New labels to add
-  -t, --tag string           New tag to apply to mutated image. If not provided, push by digest to the original image repository.
+  -a, --annotation stringToString   New annotations to add (default [])
+      --entrypoint string           New entrypoint to set
+  -h, --help                        help for mutate
+  -l, --label stringToString        New labels to add (default [])
+  -t, --tag string                  New tag to apply to mutated image. If not provided, push by digest to the original image repository.
 ```
 
 ### Options inherited from parent commands
