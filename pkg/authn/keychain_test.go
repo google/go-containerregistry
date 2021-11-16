@@ -45,6 +45,7 @@ func setupConfigDir(t *testing.T) string {
 
 	fresh++
 	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
+	t.Logf("DOCKER_CONFIG=%s", p)
 	os.Setenv("DOCKER_CONFIG", p)
 	if err := os.Mkdir(p, 0777); err != nil {
 		t.Fatalf("mkdir %q: %v", p, err)
@@ -111,6 +112,30 @@ func TestPodmanConfig(t *testing.T) {
 	want := &AuthConfig{
 		Username: "foo",
 		Password: "bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+
+	// Now, configure DOCKER_CONFIG with a valid config file with different
+	// auth configured.
+	// This demonstrates that DOCKER_CONFIG is preferred if both are
+	// present.
+	content = fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("another-foo", "another-bar"))
+	cd := setupConfigFile(t, content)
+	defer os.RemoveAll(filepath.Dir(cd))
+
+	auth, err = DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err = auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = &AuthConfig{
+		Username: "another-foo",
+		Password: "another-bar",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
