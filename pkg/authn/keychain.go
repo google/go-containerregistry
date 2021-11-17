@@ -16,11 +16,9 @@ package authn
 
 import (
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/docker/cli/cli/config"
-	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/cli/cli/config/types"
 	"github.com/google/go-containerregistry/pkg/name"
 )
@@ -64,31 +62,8 @@ const (
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	dk.mu.Lock()
 	defer dk.mu.Unlock()
-
-	// Podman users may have their container registry auth configured in a
-	// different location, that Docker packages aren't aware of.
-	// If the Docker config file isn't found, we'll fallback to look where
-	// Podman configures it, and parse that as a Docker auth config instead.
-	var cf *configfile.ConfigFile
-	var err error
-	if _, err := os.Stat(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json")); err == nil {
-		cf, err = config.Load(os.Getenv("DOCKER_CONFIG"))
-		if err != nil {
-			return nil, err
-		}
-	} else if os.IsNotExist(err) {
-		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
-		if os.IsNotExist(err) {
-			return Anonymous, nil
-		} else if err != nil {
-			return nil, err
-		}
-		defer f.Close()
-		cf, err = config.LoadFromReader(f)
-		if err != nil {
-			return nil, err
-		}
-	} else {
+	cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
+	if err != nil {
 		return nil, err
 	}
 
