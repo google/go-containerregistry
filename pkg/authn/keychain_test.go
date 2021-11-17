@@ -18,6 +18,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -31,6 +32,20 @@ var (
 	testRegistry, _    = name.NewRegistry("test.io", name.WeakValidation)
 	defaultRegistry, _ = name.NewRegistry(name.DefaultRegistry, name.WeakValidation)
 )
+
+func TestMain(m *testing.M) {
+	// Set $HOME to a temp empty dir, to ensure $HOME/.docker/config.json
+	// isn't unexpectedly found.
+	tmp, err := ioutil.TempDir("", "keychain_test_home")
+	if err != nil {
+		log.Fatal(err)
+	}
+	os.Setenv("HOME", tmp)
+	os.Exit(func() int {
+		defer os.RemoveAll(tmp)
+		return m.Run()
+	}())
+}
 
 // setupConfigDir sets up an isolated configDir() for this test.
 func setupConfigDir(t *testing.T) string {
@@ -91,9 +106,8 @@ func TestPodmanConfig(t *testing.T) {
 	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
 	os.Setenv("XDG_RUNTIME_DIR", p)
 	os.Unsetenv("DOCKER_CONFIG")
-	defer func() { os.Unsetenv("XDG_RUNTIME_DIR") }()
 	if err := os.MkdirAll(filepath.Join(p, "containers"), 0777); err != nil {
-		t.Fatalf("mkdir %q: %v", p, err)
+		t.Fatalf("mkdir %s/containers: %v", p, err)
 	}
 	cfg := filepath.Join(p, "containers/auth.json")
 	content := fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("foo", "bar"))
@@ -101,6 +115,9 @@ func TestPodmanConfig(t *testing.T) {
 		t.Fatalf("write %q: %v", cfg, err)
 	}
 
+	// At first, $DOCKER_CONFIG is unset and $HOME/.docker/config.json isn't
+	// found, but Podman auth is configured. This should return Podman's
+	// auth.
 	auth, err := DefaultKeychain.Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
@@ -117,10 +134,36 @@ func TestPodmanConfig(t *testing.T) {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
 
-	// Now, configure DOCKER_CONFIG with a valid config file with different
+	// Now, configure $HOME/.docker/config.json, which should override
+	// Podman auth and be used.
+	if err := os.MkdirAll(filepath.Join(os.Getenv("HOME"), ".docker"), 0777); err != nil {
+		t.Fatalf("mkdir $HOME/.docker: %v", err)
+	}
+	cfg = filepath.Join(os.Getenv("HOME"), ".docker/config.json")
+	content = fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("home-foo", "home-bar"))
+	if err := ioutil.WriteFile(cfg, []byte(content), 0600); err != nil {
+		t.Fatalf("write %q: %v", cfg, err)
+	}
+	auth, err = DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err = auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = &AuthConfig{
+		Username: "home-foo",
+		Password: "home-bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+
+	// Then, configure DOCKER_CONFIG with a valid config file with different
 	// auth configured.
-	// This demonstrates that DOCKER_CONFIG is preferred if both are
-	// present.
+	// This demonstrates that DOCKER_CONFIG is preferred over Podman auth
+	// and $HOME/.docker/config.json.
 	content = fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("another-foo", "another-bar"))
 	cd := setupConfigFile(t, content)
 	defer os.RemoveAll(filepath.Dir(cd))

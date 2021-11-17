@@ -15,6 +15,7 @@
 package authn
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -23,6 +24,7 @@ import (
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/cli/cli/config/types"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/mitchellh/go-homedir"
 )
 
 // Resource represents a registry or repository that can be authenticated against.
@@ -69,14 +71,40 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	// different location, that Docker packages aren't aware of.
 	// If the Docker config file isn't found, we'll fallback to look where
 	// Podman configures it, and parse that as a Docker auth config instead.
+
+	// First, check $HOME/.docker/config.json
+	foundDockerConfig := false
+	home, err := homedir.Dir()
+	if err == nil {
+		log.Println("HOME=", home)
+		if _, err := os.Stat(filepath.Join(home, ".docker/config.json")); err == nil {
+			log.Println("FOUND DOCKER CONFIG at HOME/.docker/config.json") // TODO remove
+			foundDockerConfig = true
+		}
+	}
+	// If $HOME/.docker/config.json isn't found, check $DOCKER_CONFIG (if set)
+	if !foundDockerConfig && os.Getenv("DOCKER_CONFIG") != "" {
+		log.Println("DOCKER_CONFIG=", os.Getenv("DOCKER_CONFIG")) // TODO remove
+		if _, err := os.Stat(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json")); err == nil {
+			log.Println("FOUND DOCKER CONFIG at DOCKER_CONFIG/config.json") // TODO remove
+			foundDockerConfig = true
+		}
+	}
+	// If either of those locations are found, load it using Docker's
+	// config.Load, which may fail if the config can't be parsed.
+	//
+	// If neither was found, look for Podman's auth at
+	// $XDG_RUNTIME_DIR/containers/auth.json and attempt to load it as a
+	// Docker config.
+	//
+	// If neither are found, fallback to Anonymous.
 	var cf *configfile.ConfigFile
-	var err error
-	if _, err := os.Stat(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json")); err == nil {
+	if foundDockerConfig {
 		cf, err = config.Load(os.Getenv("DOCKER_CONFIG"))
 		if err != nil {
 			return nil, err
 		}
-	} else if os.IsNotExist(err) {
+	} else {
 		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
 		if os.IsNotExist(err) {
 			return Anonymous, nil
@@ -88,8 +116,6 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		return nil, err
 	}
 
 	// See:
