@@ -43,8 +43,9 @@ func setupConfigDir(t *testing.T) string {
 		}
 	}
 
-	fresh = fresh + 1
-	p := fmt.Sprintf("%s/%d", tmpdir, fresh)
+	fresh++
+	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
+	t.Logf("DOCKER_CONFIG=%s", p)
 	os.Setenv("DOCKER_CONFIG", p)
 	if err := os.Mkdir(p, 0777); err != nil {
 		t.Fatalf("mkdir %q: %v", p, err)
@@ -77,6 +78,70 @@ func TestNoConfig(t *testing.T) {
 	}
 }
 
+func TestPodmanConfig(t *testing.T) {
+	tmpdir := os.Getenv("TEST_TMPDIR")
+	if tmpdir == "" {
+		var err error
+		tmpdir, err = ioutil.TempDir("", "keychain_test")
+		if err != nil {
+			t.Fatalf("creating temp dir: %v", err)
+		}
+	}
+	fresh++
+	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
+	os.Setenv("XDG_RUNTIME_DIR", p)
+	os.Unsetenv("DOCKER_CONFIG")
+	defer func() { os.Unsetenv("XDG_RUNTIME_DIR") }()
+	if err := os.MkdirAll(filepath.Join(p, "containers"), 0777); err != nil {
+		t.Fatalf("mkdir %q: %v", p, err)
+	}
+	cfg := filepath.Join(p, "containers/auth.json")
+	content := fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("foo", "bar"))
+	if err := ioutil.WriteFile(cfg, []byte(content), 0600); err != nil {
+		t.Fatalf("write %q: %v", cfg, err)
+	}
+
+	auth, err := DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err := auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &AuthConfig{
+		Username: "foo",
+		Password: "bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+
+	// Now, configure DOCKER_CONFIG with a valid config file with different
+	// auth configured.
+	// This demonstrates that DOCKER_CONFIG is preferred if both are
+	// present.
+	content = fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("another-foo", "another-bar"))
+	cd := setupConfigFile(t, content)
+	defer os.RemoveAll(filepath.Dir(cd))
+
+	auth, err = DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err = auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = &AuthConfig{
+		Username: "another-foo",
+		Password: "another-bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
 func encode(user, pass string) string {
 	delimited := fmt.Sprintf("%s:%s", user, pass)
 	return base64.StdEncoding.EncodeToString([]byte(delimited))
@@ -84,19 +149,23 @@ func encode(user, pass string) string {
 
 func TestVariousPaths(t *testing.T) {
 	tests := []struct {
+		desc    string
 		content string
 		wantErr bool
 		target  name.Registry
 		cfg     *AuthConfig
 	}{{
+		desc:    "invalid config file",
 		target:  testRegistry,
 		content: `}{`,
 		wantErr: true,
 	}, {
+		desc:    "creds store does not exist",
 		target:  testRegistry,
 		content: `{"credsStore":"#definitely-does-not-exist"}`,
 		wantErr: true,
 	}, {
+		desc:    "valid config file",
 		target:  testRegistry,
 		content: fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("foo", "bar")),
 		cfg: &AuthConfig{
@@ -104,6 +173,7 @@ func TestVariousPaths(t *testing.T) {
 			Password: "bar",
 		},
 	}, {
+		desc:    "valid config file; default registry",
 		target:  defaultRegistry,
 		content: fmt.Sprintf(`{"auths": {"%s": {"auth": %q}}}`, DefaultAuthKey, encode("foo", "bar")),
 		cfg: &AuthConfig{
@@ -113,29 +183,31 @@ func TestVariousPaths(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		cd := setupConfigFile(t, test.content)
-		// For some reason, these tempdirs don't get cleaned up.
-		defer os.RemoveAll(filepath.Dir(cd))
+		t.Run(test.desc, func(t *testing.T) {
+			cd := setupConfigFile(t, test.content)
+			// For some reason, these tempdirs don't get cleaned up.
+			defer os.RemoveAll(filepath.Dir(cd))
 
-		auth, err := DefaultKeychain.Resolve(test.target)
-		if test.wantErr {
-			if err == nil {
-				t.Fatal("wanted err, got nil")
-			} else if err != nil {
-				// success
-				continue
+			auth, err := DefaultKeychain.Resolve(test.target)
+			if test.wantErr {
+				if err == nil {
+					t.Fatal("wanted err, got nil")
+				} else if err != nil {
+					// success
+					return
+				}
 			}
-		}
-		if err != nil {
-			t.Fatalf("wanted nil, got err: %v", err)
-		}
-		cfg, err := auth.Authorization()
-		if err != nil {
-			t.Fatal(err)
-		}
+			if err != nil {
+				t.Fatalf("wanted nil, got err: %v", err)
+			}
+			cfg, err := auth.Authorization()
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if !reflect.DeepEqual(cfg, test.cfg) {
-			t.Errorf("got %+v, want %+v", cfg, test.cfg)
-		}
+			if !reflect.DeepEqual(cfg, test.cfg) {
+				t.Errorf("got %+v, want %+v", cfg, test.cfg)
+			}
+		})
 	}
 }
