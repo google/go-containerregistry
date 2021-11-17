@@ -15,7 +15,6 @@
 package authn
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -76,17 +75,13 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	foundDockerConfig := false
 	home, err := homedir.Dir()
 	if err == nil {
-		log.Println("HOME=", home)
 		if _, err := os.Stat(filepath.Join(home, ".docker/config.json")); err == nil {
-			log.Println("FOUND DOCKER CONFIG at HOME/.docker/config.json") // TODO remove
 			foundDockerConfig = true
 		}
 	}
 	// If $HOME/.docker/config.json isn't found, check $DOCKER_CONFIG (if set)
 	if !foundDockerConfig && os.Getenv("DOCKER_CONFIG") != "" {
-		log.Println("DOCKER_CONFIG=", os.Getenv("DOCKER_CONFIG")) // TODO remove
 		if _, err := os.Stat(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json")); err == nil {
-			log.Println("FOUND DOCKER CONFIG at DOCKER_CONFIG/config.json") // TODO remove
 			foundDockerConfig = true
 		}
 	}
