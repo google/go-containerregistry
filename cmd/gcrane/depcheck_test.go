@@ -22,7 +22,7 @@ import (
 
 func TestDeps(t *testing.T) {
 	depcheck.AssertNoDependency(t, map[string][]string{
-		"github.com/google/go-containerregistry/cmd/gcrane": []string{
+		"github.com/google/go-containerregistry/cmd/gcrane": {
 			"github.com/google/go-containerregistry/pkg/v1/daemon",
 		},
 	})
