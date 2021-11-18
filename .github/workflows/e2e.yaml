@@ -27,7 +27,7 @@ jobs:
         set -euxo pipefail
 
         # Setup local registry
-        docker run -d --restart=always -p 5000:5000 registry:2
+        go run ./cmd/registry &
 
         base=alpine
         platform=linux/amd64
@@ -39,5 +39,5 @@ jobs:
         docker pull $(go run ./cmd/crane append \
             --platform ${platform} \
             --base ${base} \
-            --new_tag localhost:5000/append-test \
+            --new_tag localhost:1338/append-test \
             --new_layer pkg/v1/tarball/testdata/content.tar)
