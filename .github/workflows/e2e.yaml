@@ -21,10 +21,13 @@ jobs:
       with:
         go-version: 1.17.x
 
-    - name: Use crane to append an image and write it to the local Docker daemon
+    - name: crane append to an image, pull it locally
       shell: bash
       run: |
         set -euxo pipefail
+
+        # Setup local registry
+        docker run -d --restart=always -p 5000:5000 registry:2
 
         base=alpine
         platform=linux/amd64
@@ -33,11 +36,8 @@ jobs:
           platform=windows/amd64
         fi
 
-        go run ./cmd/crane append \
+        docker pull $(go run ./cmd/crane append \
             --platform ${platform} \
             --base ${base} \
-            --new_tag append-test \
-            --new_layer pkg/v1/tarball/testdata/content.tar \
-            --daemon
-
-        docker inspect append-test
+            --new_tag localhost:5000/append-test \
+            --new_layer pkg/v1/tarball/testdata/content.tar)

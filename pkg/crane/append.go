@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/go-containerregistry/internal/windows"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
@@ -50,7 +51,7 @@ func Append(base v1.Image, paths ...string) (v1.Image, error) {
 		}
 
 		if win {
-			layer, err = mutate.Windows(layer)
+			layer, err = windows.Windows(layer)
 			if err != nil {
 				return nil, fmt.Errorf("converting %q for Windows: %w", path, err)
 			}

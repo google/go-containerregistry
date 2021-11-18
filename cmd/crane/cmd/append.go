@@ -15,14 +15,12 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	daemonpkg "github.com/google/go-containerregistry/pkg/v1/daemon"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -34,21 +32,14 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 	var baseRef, newTag, outFile string
 	var newLayers []string
 	var annotate bool
-	var daemon bool
 
 	appendCmd := &cobra.Command{
 		Use:   "append",
 		Short: "Append contents of a tarball to a remote image",
 		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
+		RunE: func(_ *cobra.Command, args []string) error {
 			var base v1.Image
 			var err error
-
-			if daemon && outFile != "" {
-				return errors.New("cannot specify both --output and --daemon")
-			}
 
 			if baseRef == "" {
 				logs.Warn.Printf("base unspecified, using empty image")
@@ -84,17 +75,7 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 				img = mutate.Annotations(img, anns).(v1.Image)
 			}
 
-			if daemon {
-				tag, err := name.NewTag(newTag)
-				if err != nil {
-					return err
-				}
-				str, err := daemonpkg.Write(tag, img, daemonpkg.WithContext(ctx))
-				if err != nil {
-					return fmt.Errorf("writing image: %w", err)
-				}
-				fmt.Println(str)
-			} else if outFile != "" {
+			if outFile != "" {
 				if err := crane.Save(img, newTag, outFile); err != nil {
 					return fmt.Errorf("writing output %q: %w", outFile, err)
 				}
@@ -120,7 +101,6 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 	appendCmd.Flags().StringSliceVarP(&newLayers, "new_layer", "f", []string{}, "Path to tarball to append to image")
 	appendCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
 	appendCmd.Flags().BoolVar(&annotate, "set-base-image-annotations", false, "If true, annotate the resulting image as being based on the base image")
-	appendCmd.Flags().BoolVar(&daemon, "daemon", false, "If true, write to local Docker daemon instead of pushing")
 
 	appendCmd.MarkFlagRequired("new_tag")
 	appendCmd.MarkFlagRequired("new_layer")
