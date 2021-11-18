@@ -28,3 +28,6 @@ require (
 	google.golang.org/grpc v1.42.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 )
+
+// This forces transitive deps to use a version of `image-spec` which addresses https://github.com/advisories/GHSA-77vh-xpmg-72qh
+replace github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5

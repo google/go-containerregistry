@@ -97,7 +97,7 @@ github.com/mitchellh/go-homedir
 ## explicit
 # github.com/opencontainers/go-digest v1.0.0
 github.com/opencontainers/go-digest
-# github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
+# github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5 => github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
 ## explicit
 github.com/opencontainers/image-spec/specs-go
 github.com/opencontainers/image-spec/specs-go/v1
@@ -196,3 +196,4 @@ google.golang.org/protobuf/types/known/timestamppb
 ## explicit
 # gopkg.in/yaml.v2 v2.4.0
 gopkg.in/yaml.v2
+# github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2-0.20211117181255-693428a734f5
