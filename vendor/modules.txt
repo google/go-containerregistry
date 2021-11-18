@@ -5,19 +5,19 @@ cloud.google.com/go/compute/metadata
 ## explicit
 github.com/Microsoft/go-winio
 github.com/Microsoft/go-winio/pkg/guid
-# github.com/containerd/containerd v1.5.7
+# github.com/containerd/containerd v1.5.8
 ## explicit
 github.com/containerd/containerd/errdefs
 github.com/containerd/containerd/log
 github.com/containerd/containerd/platforms
-# github.com/containerd/stargz-snapshotter/estargz v0.10.0
+# github.com/containerd/stargz-snapshotter/estargz v0.10.1
 ## explicit
 github.com/containerd/stargz-snapshotter/estargz
 github.com/containerd/stargz-snapshotter/estargz/errorutil
 # github.com/cpuguy83/go-md2man/v2 v2.0.1
 ## explicit
 github.com/cpuguy83/go-md2man/v2/md2man
-# github.com/docker/cli v20.10.10+incompatible
+# github.com/docker/cli v20.10.11+incompatible
 ## explicit
 github.com/docker/cli/cli/config
 github.com/docker/cli/cli/config/configfile
@@ -29,7 +29,7 @@ github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
 github.com/docker/distribution/registry/api/errcode
 github.com/docker/distribution/registry/client/auth/challenge
-# github.com/docker/docker v20.10.10+incompatible
+# github.com/docker/docker v20.10.11+incompatible
 ## explicit
 github.com/docker/docker/api
 github.com/docker/docker/api/types
@@ -115,7 +115,7 @@ github.com/spf13/cobra/doc
 github.com/spf13/pflag
 # github.com/vbatts/tar-split v0.11.2
 github.com/vbatts/tar-split/archive/tar
-# golang.org/x/net v0.0.0-20211111160137-58aab5ef257a
+# golang.org/x/net v0.0.0-20211118161319-6a13c67c3ce4
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -133,7 +133,7 @@ golang.org/x/oauth2/jwt
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.0.0-20211110154304-99a53858aa08
+# golang.org/x/sys v0.0.0-20211117180635-dee7805ff2e1
 ## explicit
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
@@ -153,7 +153,7 @@ google.golang.org/appengine/internal/modules
 google.golang.org/appengine/internal/remote_api
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20211111162719-482062a4217b
+# google.golang.org/genproto v0.0.0-20211118181313-81c1377c94b1
 ## explicit
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.42.0
