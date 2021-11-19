@@ -37,6 +37,10 @@ func isWindows(img v1.Image) (bool, error) {
 }
 
 // Append reads a layer from path and appends it the the v1.Image base.
+//
+// If the base image is a Windows base image (i.e., its config.OS is
+// "windows"), the contents of the tarballs will be modified to be suitable for
+// a Windows container image.`,
 func Append(base v1.Image, paths ...string) (v1.Image, error) {
 	win, err := isWindows(base)
 	if err != nil {

@@ -9,7 +9,7 @@ base image, with appended layers containing the contents of the
 provided tarballs.
 
 If the base image is a Windows base image (i.e., its config.OS is "windows"),
-the contents of the tarball will be modified to be suitable for a Windows
+the contents of the tarballs will be modified to be suitable for a Windows
 container image.
 
 ```
