@@ -1,0 +1,43 @@
+name: Basic e2e test
+
+on:
+  pull_request: 
+    branches: ['main']
+
+jobs:
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+        - ubuntu-latest
+        - windows-latest
+    name: e2e ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.17.x
+
+    - name: crane append to an image, pull it locally
+      shell: bash
+      run: |
+        set -euxo pipefail
+
+        # Setup local registry
+        go run ./cmd/registry &
+
+        base=alpine
+        platform=linux/amd64
+        if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
+          base=mcr.microsoft.com/windows/nanoserver:1809
+          platform=windows/amd64
+        fi
+
+        docker pull $(go run ./cmd/crane append \
+            --platform ${platform} \
+            --base ${base} \
+            --new_tag localhost:1338/append-test \
+            --new_layer pkg/v1/tarball/testdata/content.tar)
