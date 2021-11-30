@@ -93,6 +93,8 @@ github.com/klauspost/compress/zstd/internal/xxhash
 # github.com/mitchellh/go-homedir v1.1.0
 ## explicit
 github.com/mitchellh/go-homedir
+# github.com/moby/term v0.0.0-20201216013528-df9cb8a40635
+## explicit
 # github.com/morikuni/aec v1.0.0
 ## explicit
 # github.com/opencontainers/go-digest v1.0.0
@@ -115,6 +117,8 @@ github.com/spf13/cobra/doc
 github.com/spf13/pflag
 # github.com/vbatts/tar-split v0.11.2
 github.com/vbatts/tar-split/archive/tar
+# golang.org/x/mod v0.4.2
+golang.org/x/mod/semver
 # golang.org/x/net v0.0.0-20211118161319-6a13c67c3ce4
 ## explicit
 golang.org/x/net/context
@@ -139,6 +143,24 @@ golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
+# golang.org/x/text v0.3.7
+## explicit
+# golang.org/x/time v0.0.0-20210220033141-f8bda1e9f3ba
+## explicit
+# golang.org/x/tools v0.1.7
+## explicit
+golang.org/x/tools/go/gcexportdata
+golang.org/x/tools/go/internal/gcimporter
+golang.org/x/tools/go/internal/packagesdriver
+golang.org/x/tools/go/packages
+golang.org/x/tools/internal/event
+golang.org/x/tools/internal/event/core
+golang.org/x/tools/internal/event/keys
+golang.org/x/tools/internal/event/label
+golang.org/x/tools/internal/gocommand
+golang.org/x/tools/internal/packagesinternal
+golang.org/x/tools/internal/typeparams
+golang.org/x/tools/internal/typesinternal
 # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
