@@ -21,7 +21,7 @@ jobs:
       with:
         go-version: 1.17.x
 
-    - name: crane append to an image, pull it locally
+    - name: crane append to an image, set the entrypoint, run it locally
       shell: bash
       run: |
         set -euxo pipefail
@@ -36,8 +36,29 @@ jobs:
           platform=windows/amd64
         fi
 
-        docker pull $(go run ./cmd/crane append \
-            --platform ${platform} \
-            --base ${base} \
-            --new_tag localhost:1338/append-test \
-            --new_layer pkg/v1/tarball/testdata/content.tar)
+        CGO_ENABLED=0 go build -o app/crane ./cmd/crane
+        tar cvf crane.tar app
+
+        # This prevents Bash for Windows from mangling path names.
+        # It shouldn't be necessary in general unless you're using Bash for
+        # Windows.
+        export MSYS_NO_PATHCONV=1
+
+        img=$(./app/crane mutate \
+            --entrypoint=/app/crane,mutate \
+            $(./app/crane append \
+                --platform ${platform} \
+                --base ${base} \
+                --new_tag localhost:1338/append-test \
+                --new_layer crane.tar))
+
+        # Check the image's config.
+        ./app/crane config $img | jq
+
+        # Pull and inspect the image.
+        docker pull $img
+        docker inspect $img
+
+        # Remove the local image, re-pull and run it.
+        docker rmi $img
+        docker run $img --help

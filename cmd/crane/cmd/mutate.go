@@ -28,7 +28,7 @@ import (
 // NewCmdMutate creates a new cobra.Command for the mutate subcommand.
 func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var labels map[string]string
-	var entrypoint string
+	var entrypoint []string
 	var newRef string
 	var annotations map[string]string
 
@@ -80,10 +80,10 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			}
 
 			// Set entrypoint.
-			if entrypoint != "" {
-				// NB: This doesn't attempt to do anything smart about splitting the string into multiple entrypoint elements.
-				cfg.Config.Entrypoint = []string{entrypoint}
+			if len(entrypoint) > 0 {
+				cfg.Config.Entrypoint = entrypoint
 			}
+			cfg.Config.Cmd = nil // Unset cmd
 
 			// Mutate and write image.
 			img, err = mutate.Config(img, cfg.Config)
@@ -119,7 +119,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	}
 	mutateCmd.Flags().StringToStringVarP(&annotations, "annotation", "a", nil, "New annotations to add")
 	mutateCmd.Flags().StringToStringVarP(&labels, "label", "l", nil, "New labels to add")
-	mutateCmd.Flags().StringVar(&entrypoint, "entrypoint", "", "New entrypoint to set")
+	mutateCmd.Flags().StringSliceVar(&entrypoint, "entrypoint", nil, "New entrypoint to set")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
 	return mutateCmd
 }
