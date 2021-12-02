@@ -83,7 +83,6 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			if len(entrypoint) > 0 {
 				cfg.Config.Entrypoint = entrypoint
 			}
-			cfg.Config.Cmd = nil // Unset cmd
 
 			// Mutate and write image.
 			img, err = mutate.Config(img, cfg.Config)
