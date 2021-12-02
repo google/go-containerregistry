@@ -15,8 +15,8 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"log"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -28,35 +28,37 @@ import (
 // NewCmdMutate creates a new cobra.Command for the mutate subcommand.
 func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var labels map[string]string
-	var entrypoint []string
-	var newRef string
 	var annotations map[string]string
+	var entrypoint, cmd []string
+	var unsetEntrypoint, unsetCmd bool
+
+	var newRef string
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
 		Short: "Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.",
 		Args:  cobra.ExactArgs(1),
-		Run: func(_ *cobra.Command, args []string) {
+		RunE: func(_ *cobra.Command, args []string) error {
 			// Pull image and get config.
 			ref := args[0]
 
 			if len(annotations) != 0 {
 				desc, err := crane.Head(ref, *options...)
 				if err != nil {
-					log.Fatalf("checking %s: %v", ref, err)
+					return err
 				}
 				if desc.MediaType.IsIndex() {
-					log.Fatalf("mutating annotations on an index is not yet supported")
+					return errors.New("mutating annotations on an index is not yet supported")
 				}
 			}
 
 			img, err := crane.Pull(ref, *options...)
 			if err != nil {
-				log.Fatalf("pulling %s: %v", ref, err)
+				return fmt.Errorf("pulling %s: %v", ref, err)
 			}
 			cfg, err := img.ConfigFile()
 			if err != nil {
-				log.Fatalf("getting config: %v", err)
+				return err
 			}
 			cfg = cfg.DeepCopy()
 
@@ -65,30 +67,40 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.Labels = map[string]string{}
 			}
 
-			err = validateKeyVals(labels)
-			if err != nil {
-				log.Fatal(err)
+			if err := validateKeyVals(labels); err != nil {
+				return err
 			}
 
 			for k, v := range labels {
 				cfg.Config.Labels[k] = v
 			}
 
-			err = validateKeyVals(annotations)
-			if err != nil {
-				log.Fatal(err)
+			if err := validateKeyVals(annotations); err != nil {
+				return err
 			}
 
-			// Set entrypoint.
-			if len(entrypoint) > 0 {
+			// Set/unset entrypoint.
+			if len(entrypoint) > 0 && unsetEntrypoint {
+				return errors.New("cannot specify both --entrypoint and --unset-entrypoint")
+			} else if len(entrypoint) > 0 {
 				cfg.Config.Entrypoint = entrypoint
-				cfg.Config.Cmd = nil // unset cmd
+			} else if unsetEntrypoint {
+				cfg.Config.Entrypoint = nil
+			}
+
+			// Set/unset cmd.
+			if len(cmd) > 0 && unsetCmd {
+				return errors.New("cannot specify both --cmd and --unset-cmd")
+			} else if len(cmd) > 0 {
+				cfg.Config.Cmd = cmd
+			} else if unsetCmd {
+				cfg.Config.Cmd = nil
 			}
 
 			// Mutate and write image.
 			img, err = mutate.Config(img, cfg.Config)
 			if err != nil {
-				log.Fatalf("mutating config: %v", err)
+				return fmt.Errorf("mutating config: %v", err)
 			}
 
 			img = mutate.Annotations(img, annotations).(v1.Image)
@@ -102,24 +114,28 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			}
 			digest, err := img.Digest()
 			if err != nil {
-				log.Fatalf("digesting new image: %v", err)
+				return fmt.Errorf("digesting new image: %v", err)
 			}
 			r, err := name.ParseReference(newRef)
 			if err != nil {
-				log.Fatalf("parsing %s: %v", newRef, err)
+				return fmt.Errorf("parsing %s: %v", newRef, err)
 			}
 			if _, ok := r.(name.Digest); ok {
 				newRef = r.Context().Digest(digest.String()).String()
 			}
 			if err := crane.Push(img, newRef, *options...); err != nil {
-				log.Fatalf("pushing %s: %v", newRef, err)
+				return fmt.Errorf("pushing %s: %v", newRef, err)
 			}
 			fmt.Println(r.Context().Digest(digest.String()))
+			return nil
 		},
 	}
 	mutateCmd.Flags().StringToStringVarP(&annotations, "annotation", "a", nil, "New annotations to add")
 	mutateCmd.Flags().StringToStringVarP(&labels, "label", "l", nil, "New labels to add")
 	mutateCmd.Flags().StringSliceVar(&entrypoint, "entrypoint", nil, "New entrypoint to set")
+	mutateCmd.Flags().StringSliceVar(&cmd, "cmd", nil, "New cmd to set")
+	mutateCmd.Flags().BoolVar(&unsetEntrypoint, "unset-entrypoint", false, "If true, unset existing entrypoint")
+	mutateCmd.Flags().BoolVar(&unsetCmd, "unset-cmd", false, "If true, unset existing cmd")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
 	return mutateCmd
 }
