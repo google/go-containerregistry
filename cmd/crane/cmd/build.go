@@ -3,28 +3,29 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+
 	yaml "gopkg.in/yaml.v2"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/spf13/cobra"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 type LayerDefinition struct {
-	Dirs	[]LayerDir `yaml:"dirs"`
+	Dirs []LayerDir `yaml:"dirs"`
 }
 
 type LayerDir struct {
-	Name      string	`yaml:"targetDir"`
-	Files     []string      `yaml:"files"`
+	Name  string   `yaml:"targetDir"`
+	Files []string `yaml:"files"`
 }
 
 type EnvVar struct {
@@ -33,13 +34,13 @@ type EnvVar struct {
 }
 
 type CraneBuildConfig struct {
-	BaseImage   string            `yaml:"baseImage"`
-	Layers      []LayerDefinition `yaml:"layers"`
-	Entrypoint  string	      `yaml:"entrypoint"`
-	EnvVars	    []EnvVar	      `yaml:"env"`
+	BaseImage  string            `yaml:"baseImage"`
+	Layers     []LayerDefinition `yaml:"layers"`
+	Entrypoint string            `yaml:"entrypoint"`
+	EnvVars    []EnvVar          `yaml:"env"`
 }
 
-func buildLayers(config* CraneBuildConfig) ([]string, error) {
+func buildLayers(config *CraneBuildConfig) ([]string, error) {
 	layers := make([]string, 0)
 	for _, layerConfig := range config.Layers {
 		layerPath, err := buildLayer(&layerConfig)
@@ -54,6 +55,7 @@ func buildLayers(config* CraneBuildConfig) ([]string, error) {
 const (
 	tarBaseCommand = "tar cf %s --group=0 --owner=0 --mtime='UTC 2019-01-01' --sort=name -C %s ."
 )
+
 func buildLayer(layerConfig *LayerDefinition) (string, error) {
 	var err error
 	layerTar, err := ioutil.TempFile("", "crane_layer*.tar")
@@ -91,7 +93,7 @@ func collectFiles(layerConfig *LayerDefinition, targetDir string) error {
 		cmd := exec.Command("sh", "-c", cmdString)
 		stdoutStderr, err := cmd.CombinedOutput()
 		if err != nil {
-			fmt.Printf("%s\n",stdoutStderr)
+			fmt.Printf("%s\n", stdoutStderr)
 			return fmt.Errorf("Failed copying files (Command: %s)", cmdString, err)
 		}
 	}
@@ -182,8 +184,8 @@ func NewCmdBuild(options *[]crane.Option) *cobra.Command {
 	buildCmd := &cobra.Command{
 		Use:   "build",
 		Short: "Use crane code and config yaml to build image",
-		Long: "Use crane code and config yaml to build image",
-		Args: cobra.NoArgs,
+		Long:  "Use crane code and config yaml to build image",
+		Args:  cobra.NoArgs,
 		RunE: func(_ *cobra.Command, args []string) error {
 			config, err := loadConfig(configFile)
 			if err != nil {
@@ -208,5 +210,3 @@ func NewCmdBuild(options *[]crane.Option) *cobra.Command {
 	buildCmd.MarkFlagRequired("new_tag")
 	return buildCmd
 }
-
-
