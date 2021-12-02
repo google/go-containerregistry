@@ -94,7 +94,7 @@ func collectFiles(layerConfig *LayerDefinition, targetDir string) error {
 		stdoutStderr, err := cmd.CombinedOutput()
 		if err != nil {
 			fmt.Printf("%s\n", stdoutStderr)
-			return fmt.Errorf("Failed copying files (Command: %s)", cmdString, err)
+			return fmt.Errorf("Failed copying files (Command: %s) %w", cmdString, err)
 		}
 	}
 	return nil
