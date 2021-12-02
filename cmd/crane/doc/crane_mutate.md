@@ -10,10 +10,13 @@ crane mutate [flags]
 
 ```
   -a, --annotation stringToString   New annotations to add (default [])
+      --cmd strings                 New cmd to set
       --entrypoint strings          New entrypoint to set
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
   -t, --tag string                  New tag to apply to mutated image. If not provided, push by digest to the original image repository.
+      --unset-cmd                   If true, unset existing cmd
+      --unset-entrypoint            If true, unset existing entrypoint
 ```
 
 ### Options inherited from parent commands
