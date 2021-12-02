@@ -46,7 +46,6 @@ jobs:
 
         img=$(./app/crane mutate \
             --entrypoint=/app/crane,version \
-            --unset-cmd \
             $(./app/crane append \
                 --platform ${platform} \
                 --base ${base} \

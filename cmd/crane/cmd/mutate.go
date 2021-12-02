@@ -30,7 +30,6 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var labels map[string]string
 	var annotations map[string]string
 	var entrypoint, cmd []string
-	var unsetEntrypoint, unsetCmd bool
 
 	var newRef string
 
@@ -79,22 +78,15 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				return err
 			}
 
-			// Set/unset entrypoint.
-			if len(entrypoint) > 0 && unsetEntrypoint {
-				return errors.New("cannot specify both --entrypoint and --unset-entrypoint")
-			} else if len(entrypoint) > 0 {
+			// Set entrypoint.
+			if len(entrypoint) > 0 {
 				cfg.Config.Entrypoint = entrypoint
-			} else if unsetEntrypoint {
-				cfg.Config.Entrypoint = nil
+				cfg.Config.Cmd = nil // This matches Docker's behavior.
 			}
 
-			// Set/unset cmd.
-			if len(cmd) > 0 && unsetCmd {
-				return errors.New("cannot specify both --cmd and --unset-cmd")
-			} else if len(cmd) > 0 {
+			// Set cmd.
+			if len(cmd) > 0 {
 				cfg.Config.Cmd = cmd
-			} else if unsetCmd {
-				cfg.Config.Cmd = nil
 			}
 
 			// Mutate and write image.
@@ -134,8 +126,6 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringToStringVarP(&labels, "label", "l", nil, "New labels to add")
 	mutateCmd.Flags().StringSliceVar(&entrypoint, "entrypoint", nil, "New entrypoint to set")
 	mutateCmd.Flags().StringSliceVar(&cmd, "cmd", nil, "New cmd to set")
-	mutateCmd.Flags().BoolVar(&unsetEntrypoint, "unset-entrypoint", false, "If true, unset existing entrypoint")
-	mutateCmd.Flags().BoolVar(&unsetCmd, "unset-cmd", false, "If true, unset existing cmd")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
 	return mutateCmd
 }

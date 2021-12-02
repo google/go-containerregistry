@@ -15,8 +15,6 @@ crane mutate [flags]
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
   -t, --tag string                  New tag to apply to mutated image. If not provided, push by digest to the original image repository.
-      --unset-cmd                   If true, unset existing cmd
-      --unset-entrypoint            If true, unset existing entrypoint
 ```
 
 ### Options inherited from parent commands
