@@ -45,20 +45,13 @@ jobs:
         export MSYS_NO_PATHCONV=1
 
         img=$(./app/crane mutate \
-            --entrypoint=/app/crane,mutate \
+            --entrypoint=/app/crane,version \
             $(./app/crane append \
                 --platform ${platform} \
                 --base ${base} \
                 --new_tag localhost:1338/append-test \
                 --new_layer crane.tar))
 
-        # Check the image's config.
-        ./app/crane config $img | jq
-
-        # Pull and inspect the image.
-        docker pull $img
-        docker inspect $img
-
-        # Remove the local image, re-pull and run it.
-        docker rmi $img
+        # Run the image with and without args.
+        docker run $img 
         docker run $img --help
