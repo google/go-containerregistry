@@ -54,7 +54,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 
 			img, err := crane.Pull(ref, *options...)
 			if err != nil {
-				return fmt.Errorf("pulling %s: %v", ref, err)
+				return fmt.Errorf("pulling %s: %w", ref, err)
 			}
 			cfg, err := img.ConfigFile()
 			if err != nil {
@@ -100,7 +100,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			// Mutate and write image.
 			img, err = mutate.Config(img, cfg.Config)
 			if err != nil {
-				return fmt.Errorf("mutating config: %v", err)
+				return fmt.Errorf("mutating config: %w", err)
 			}
 
 			img = mutate.Annotations(img, annotations).(v1.Image)
@@ -114,17 +114,17 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			}
 			digest, err := img.Digest()
 			if err != nil {
-				return fmt.Errorf("digesting new image: %v", err)
+				return fmt.Errorf("digesting new image: %w", err)
 			}
 			r, err := name.ParseReference(newRef)
 			if err != nil {
-				return fmt.Errorf("parsing %s: %v", newRef, err)
+				return fmt.Errorf("parsing %s: %w", newRef, err)
 			}
 			if _, ok := r.(name.Digest); ok {
 				newRef = r.Context().Digest(digest.String()).String()
 			}
 			if err := crane.Push(img, newRef, *options...); err != nil {
-				return fmt.Errorf("pushing %s: %v", newRef, err)
+				return fmt.Errorf("pushing %s: %w", newRef, err)
 			}
 			fmt.Println(r.Context().Digest(digest.String()))
 			return nil
