@@ -50,7 +50,8 @@ type EnvVar struct {
 type CraneBuildConfig struct {
 	BaseImage  string            `yaml:"baseImage"`
 	Layers     []LayerDefinition `yaml:"layers"`
-	Entrypoint string            `yaml:"entrypoint"`
+	Entrypoint []string          `yaml:"entrypoint"`
+	Cmd        []string          `yaml:"cmd"`
 	EnvVars    []EnvVar          `yaml:"env"`
 }
 
@@ -140,7 +141,13 @@ func buildImage(config *CraneBuildConfig, newLayers []string, options *[]crane.O
 	cfg = cfg.DeepCopy()
 
 	cfg.Config.Env = createEnvStrings(config)
-	cfg.Config.Entrypoint = []string{config.Entrypoint}
+	if len(config.Cmd) > 0 {
+		cfg.Config.Cmd = config.Cmd
+
+	} else {
+		cfg.Config.Cmd = nil
+	}
+	cfg.Config.Entrypoint = config.Entrypoint
 
 	// Mutate and write image.
 	img, err = mutate.Config(img, cfg.Config)
