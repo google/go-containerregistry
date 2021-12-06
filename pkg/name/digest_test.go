@@ -38,6 +38,7 @@ var goodStrictValidationTagDigestNames = []string{
 var goodWeakValidationDigestNames = []string{
 	"namespace/pathcomponent/image@" + validDigest,
 	"library/ubuntu@" + validDigest,
+	"gcr.io/CROSSplane/PROVIDER-gcp@" + validDigest,
 }
 
 var goodWeakValidationTagDigestNames = []string{

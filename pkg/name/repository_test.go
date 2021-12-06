@@ -33,6 +33,7 @@ var goodWeakValidationRepositoryNames = []string{
 	"namespace/pathcomponent/image",
 	"library/ubuntu",
 	"ubuntu",
+	"uBuNtU",
 }
 
 var badRepositoryNames = []string{

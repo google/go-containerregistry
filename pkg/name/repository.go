@@ -86,6 +86,13 @@ func NewRepository(name string, opts ...Option) (Repository, error) {
 		repo = parts[1]
 	}
 
+	if !opt.strict {
+		// The Docker client allows uppercase letters in repo names, which it lowercases
+		// to push to registries, so allow the repository to contain uppercase letters when
+		// strict validation is disabled.
+		repo = strings.ToLower(repo)
+	}
+
 	if err := checkRepository(repo); err != nil {
 		return Repository{}, err
 	}
