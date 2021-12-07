@@ -162,7 +162,7 @@ func setEnvVars(cfg *v1.Config, envVars map[string]string) error {
 	for _, kv := range cfg.Env {
 		split := strings.SplitN(kv, "=", 2)
 		if len(split) != 2 {
-			return fmt.Errorf("Invalid key value pair in config: %s", kv)
+			return fmt.Errorf("invalid key value pair in config: %s", kv)
 		}
 		existing[split[0]] = split[1]
 	}
