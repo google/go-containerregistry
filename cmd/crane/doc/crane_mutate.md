@@ -14,7 +14,9 @@ crane mutate [flags]
       --entrypoint strings          New entrypoint to set
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
+  -e, --env stringToString          New environment variables to add (default [])
   -t, --tag string                  New tag to apply to mutated image. If not provided, push by digest to the original image repository.
+  -f, --new_layer strings           Path to tarball to append to image
 ```
 
 ### Options inherited from parent commands
