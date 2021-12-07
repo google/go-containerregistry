@@ -87,11 +87,8 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				return err
 			}
 
-			// set envvars if specified - split to a function as it is more
-			// complex then labels because in the config the key value pairs
-			// are just strings with a = in them
-			err = setEnvVars(&cfg.Config, envVars)
-			if err != nil {
+			// set envvars if specified
+			if err := setEnvVars(&cfg.Config, envVars); err != nil {
 				return err
 			}
 
