@@ -142,7 +142,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringSliceVar(&entrypoint, "entrypoint", nil, "New entrypoint to set")
 	mutateCmd.Flags().StringSliceVar(&cmd, "cmd", nil, "New cmd to set")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
-	mutateCmd.Flags().StringSliceVarP(&newLayers, "new_layer", "f", []string{}, "Path to tarball to append to image")
+	mutateCmd.Flags().StringSliceVar(&newLayers, "append", []string{}, "Path to tarball to append to image")
 	return mutateCmd
 }
 
