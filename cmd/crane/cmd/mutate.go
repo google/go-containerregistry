@@ -88,7 +88,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			}
 
 			// set envvars if specified
-			if err := setEnvVars(&cfg.Config, envVars); err != nil {
+			if err := setEnvVars(cfg, envVars); err != nil {
 				return err
 			}
 
@@ -157,21 +157,30 @@ func validateKeyVals(kvPairs map[string]string) error {
 }
 
 // setEnvVars override envvars in a config
-func setEnvVars(cfg *v1.Config, envVars map[string]string) error {
-	existing := map[string]string{}
-	for _, kv := range cfg.Env {
-		split := strings.SplitN(kv, "=", 2)
+func setEnvVars(cfg *v1.ConfigFile, envVars map[string]string) error {
+	newEnv := make([]string, 0, len(cfg.Config.Env))
+	for _, old := range cfg.Config.Env {
+		split := strings.SplitN(old, "=", 2)
 		if len(split) != 2 {
-			return fmt.Errorf("invalid key value pair in config: %s", kv)
+			return fmt.Errorf("invalid key value pair in config: %s", old)
 		}
-		existing[split[0]] = split[1]
+		oldKey := split[0]
+		// keep order so override if specified again
+		if  v, ok := envVars[oldKey]; ok {
+			newEnv = append(newEnv, fmt.Sprintf("%s=%s", oldKey, v))
+			delete(envVars, oldKey)
+		} else {
+			newEnv = append(newEnv, old)
+		}
+
 	}
+	isWindows := cfg.OS == "windows"
 	for k, v := range envVars {
-		existing[k] = v
+		if isWindows {
+			k = strings.ToUpper(k)
+		}
+		newEnv = append(newEnv, fmt.Sprintf("%s=%s", k, v))
 	}
-	cfg.Env = make([]string, 0, len(existing))
-	for k, v := range existing {
-		cfg.Env = append(cfg.Env, fmt.Sprintf("%s=%s", k, v))
-	}
+	cfg.Config.Env = newEnv
 	return nil
 }
