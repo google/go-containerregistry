@@ -164,9 +164,9 @@ func setEnvVars(cfg *v1.ConfigFile, envVars map[string]string) error {
 		if len(split) != 2 {
 			return fmt.Errorf("invalid key value pair in config: %s", old)
 		}
-		oldKey := split[0]
 		// keep order so override if specified again
-		if  v, ok := envVars[oldKey]; ok {
+		oldKey := split[0]
+		if v, ok := envVars[oldKey]; ok {
 			newEnv = append(newEnv, fmt.Sprintf("%s=%s", oldKey, v))
 			delete(envVars, oldKey)
 		} else {
