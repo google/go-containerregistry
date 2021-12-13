@@ -172,7 +172,6 @@ func setEnvVars(cfg *v1.ConfigFile, envVars map[string]string) error {
 		} else {
 			newEnv = append(newEnv, old)
 		}
-
 	}
 	isWindows := cfg.OS == "windows"
 	for k, v := range envVars {
