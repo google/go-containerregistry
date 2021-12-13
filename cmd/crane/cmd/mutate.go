@@ -17,6 +17,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -30,6 +31,8 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var labels map[string]string
 	var annotations map[string]string
 	var entrypoint, cmd []string
+	var envVars map[string]string
+	var newLayers []string
 
 	var newRef string
 
@@ -55,6 +58,12 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("pulling %s: %w", ref, err)
 			}
+			if len(newLayers) != 0 {
+				img, err = crane.Append(img, newLayers...)
+				if err != nil {
+					return fmt.Errorf("appending %v: %w", newLayers, err)
+				}
+			}
 			cfg, err := img.ConfigFile()
 			if err != nil {
 				return err
@@ -75,6 +84,11 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			}
 
 			if err := validateKeyVals(annotations); err != nil {
+				return err
+			}
+
+			// set envvars if specified
+			if err := setEnvVars(cfg, envVars); err != nil {
 				return err
 			}
 
@@ -124,9 +138,11 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	}
 	mutateCmd.Flags().StringToStringVarP(&annotations, "annotation", "a", nil, "New annotations to add")
 	mutateCmd.Flags().StringToStringVarP(&labels, "label", "l", nil, "New labels to add")
+	mutateCmd.Flags().StringToStringVarP(&envVars, "env", "e", nil, "New envvar to add")
 	mutateCmd.Flags().StringSliceVar(&entrypoint, "entrypoint", nil, "New entrypoint to set")
 	mutateCmd.Flags().StringSliceVar(&cmd, "cmd", nil, "New cmd to set")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
+	mutateCmd.Flags().StringSliceVar(&newLayers, "append", []string{}, "Path to tarball to append to image")
 	return mutateCmd
 }
 
@@ -137,5 +153,33 @@ func validateKeyVals(kvPairs map[string]string) error {
 			return fmt.Errorf("parsing label %q, value is empty", label)
 		}
 	}
+	return nil
+}
+
+// setEnvVars override envvars in a config
+func setEnvVars(cfg *v1.ConfigFile, envVars map[string]string) error {
+	newEnv := make([]string, 0, len(cfg.Config.Env))
+	for _, old := range cfg.Config.Env {
+		split := strings.SplitN(old, "=", 2)
+		if len(split) != 2 {
+			return fmt.Errorf("invalid key value pair in config: %s", old)
+		}
+		// keep order so override if specified again
+		oldKey := split[0]
+		if v, ok := envVars[oldKey]; ok {
+			newEnv = append(newEnv, fmt.Sprintf("%s=%s", oldKey, v))
+			delete(envVars, oldKey)
+		} else {
+			newEnv = append(newEnv, old)
+		}
+	}
+	isWindows := cfg.OS == "windows"
+	for k, v := range envVars {
+		if isWindows {
+			k = strings.ToUpper(k)
+		}
+		newEnv = append(newEnv, fmt.Sprintf("%s=%s", k, v))
+	}
+	cfg.Config.Env = newEnv
 	return nil
 }
