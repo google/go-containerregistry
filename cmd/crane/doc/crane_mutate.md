@@ -17,6 +17,7 @@ crane mutate [flags]
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
   -t, --tag string                  New tag to apply to mutated image. If not provided, push by digest to the original image repository.
+      --working_dir string          New WorkingDir to set
 ```
 
 ### Options inherited from parent commands
