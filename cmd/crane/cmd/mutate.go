@@ -34,6 +34,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var envVars map[string]string
 	var newLayers []string
 
+	var workingdir string
 	var newRef string
 
 	mutateCmd := &cobra.Command{
@@ -103,6 +104,11 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.Cmd = cmd
 			}
 
+			// Set workingdir.
+			if len(workingdir) > 0 {
+				cfg.Config.WorkingDir = workingdir
+			}
+
 			// Mutate and write image.
 			img, err = mutate.Config(img, cfg.Config)
 			if err != nil {
@@ -143,6 +149,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringSliceVar(&cmd, "cmd", nil, "New cmd to set")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
 	mutateCmd.Flags().StringSliceVar(&newLayers, "append", []string{}, "Path to tarball to append to image")
+	mutateCmd.Flags().StringVar(&workingdir, "workingdir", "", "New WorkingDir to set")
 	return mutateCmd
 }
 
@@ -183,3 +190,4 @@ func setEnvVars(cfg *v1.ConfigFile, envVars map[string]string) error {
 	cfg.Config.Env = newEnv
 	return nil
 }
+
