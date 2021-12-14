@@ -33,7 +33,6 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var entrypoint, cmd []string
 	var envVars map[string]string
 	var newLayers []string
-
 	var workingDir string
 	var newRef string
 
@@ -190,3 +189,4 @@ func setEnvVars(cfg *v1.ConfigFile, envVars map[string]string) error {
 	cfg.Config.Env = newEnv
 	return nil
 }
+
