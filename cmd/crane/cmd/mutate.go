@@ -189,4 +189,3 @@ func setEnvVars(cfg *v1.ConfigFile, envVars map[string]string) error {
 	cfg.Config.Env = newEnv
 	return nil
 }
-
