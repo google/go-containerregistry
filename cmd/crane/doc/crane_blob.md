@@ -22,8 +22,7 @@ crane blob ubuntu@sha256:4c1d20cdee96111c8acf1858b62655a37ce81ae48648993542b7ac3
 
 ```
       --insecure            Allow image references to be fetched without TLS
-      --osversion string    Specifies the OS version.
-      --platform platform   Specifies the platform in the form os/arch[/variant] (e.g. linux/amd64). (default all)
+      --platform platform   Specifies the platform in the form os/arch[/variant][:osversion] (e.g. linux/amd64). (default all)
   -v, --verbose             Enable debug logs
 ```
 
