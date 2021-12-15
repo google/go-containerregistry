@@ -25,6 +25,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -243,7 +244,7 @@ func TestMultiWrite_Retry(t *testing.T) {
 
 		// using a transport.Wrapper, meaning retry logic should not be wrapped
 		doesNotRetryTransport := &countTransport{inner: http.DefaultTransport}
-		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, nil, doesNotRetryTransport, nil)
+		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, authn.Anonymous, doesNotRetryTransport, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -283,7 +284,7 @@ func TestMultiWrite_Retry(t *testing.T) {
 
 		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
 		// using a transport.Wrapper, meaning retry logic should not be wrapped
-		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, nil, http.DefaultTransport, nil)
+		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, authn.Anonymous, http.DefaultTransport, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
