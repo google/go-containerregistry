@@ -92,14 +92,26 @@ func TestCalls(t *testing.T) {
 		{
 			Description: "GET non existent blob",
 			Method:      "GET",
-			URL:         "/v2/foo/blobs/sha256:asd",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusNotFound,
 		},
 		{
 			Description: "HEAD non existent blob",
 			Method:      "HEAD",
-			URL:         "/v2/foo/blobs/sha256:asd",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "GET bad digest",
+			Method:      "GET",
+			URL:         "/v2/foo/blobs/sha256:asd",
+			Code:        http.StatusBadRequest,
+		},
+		{
+			Description: "HEAD bad digest",
+			Method:      "HEAD",
+			URL:         "/v2/foo/blobs/sha256:asd",
+			Code:        http.StatusBadRequest,
 		},
 		{
 			Description: "bad blob verb",
@@ -421,12 +433,14 @@ func TestCalls(t *testing.T) {
 					URL:    u,
 					Body:   ioutil.NopCloser(strings.NewReader(contents)),
 				}
+				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
 				if err != nil {
 					t.Fatalf("Error uploading manifest: %v", err)
 				}
 				if resp.StatusCode != http.StatusCreated {
-					t.Fatalf("Error uploading manifest got status: %d", resp.StatusCode)
+					body, _ := ioutil.ReadAll(resp.Body)
+					t.Fatalf("Error uploading manifest got status: %d %s", resp.StatusCode, body)
 				}
 				t.Logf("created manifest with digest %v", resp.Header.Get("Docker-Content-Digest"))
 			}
@@ -441,12 +455,14 @@ func TestCalls(t *testing.T) {
 					URL:    u,
 					Body:   ioutil.NopCloser(strings.NewReader(contents)),
 				}
+				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
 				if err != nil {
 					t.Fatalf("Error uploading digest: %v", err)
 				}
 				if resp.StatusCode != http.StatusCreated {
-					t.Fatalf("Error uploading digest got status: %d", resp.StatusCode)
+					body, _ := ioutil.ReadAll(resp.Body)
+					t.Fatalf("Error uploading digest got status: %d %s", resp.StatusCode, body)
 				}
 			}
 
@@ -460,12 +476,14 @@ func TestCalls(t *testing.T) {
 					URL:    u,
 					Body:   ioutil.NopCloser(strings.NewReader(contents)),
 				}
+				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
 				if err != nil {
 					t.Fatalf("Error streaming blob: %v", err)
 				}
 				if resp.StatusCode != http.StatusNoContent {
-					t.Fatalf("Error streaming blob: %d", resp.StatusCode)
+					body, _ := ioutil.ReadAll(resp.Body)
+					t.Fatalf("Error streaming blob: %d %s", resp.StatusCode, body)
 				}
 
 			}
@@ -483,12 +501,14 @@ func TestCalls(t *testing.T) {
 			for k, v := range tc.RequestHeader {
 				req.Header.Set(k, v)
 			}
+			t.Log(req.Method, req.URL)
 			resp, err := s.Client().Do(req)
 			if err != nil {
 				t.Fatalf("Error getting %q: %v", tc.URL, err)
 			}
 			if resp.StatusCode != tc.Code {
-				t.Errorf("Incorrect status code, got %d, want %d", resp.StatusCode, tc.Code)
+				body, _ := ioutil.ReadAll(resp.Body)
+				t.Errorf("Incorrect status code, got %d, want %d; body: %s", resp.StatusCode, tc.Code, body)
 			}
 
 			for k, v := range tc.Header {

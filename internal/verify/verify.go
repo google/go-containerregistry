@@ -38,6 +38,18 @@ type verifyReader struct {
 	gotSize, wantSize int64
 }
 
+// Error provides information about the failed hash verification.
+type Error struct {
+	got     string
+	want    v1.Hash
+	gotSize int64
+}
+
+func (v Error) Error() string {
+	return fmt.Sprintf("error verifying %s checksum after reading %d bytes; got %q, want %q",
+		v.want.Algorithm, v.gotSize, v.got, v.want)
+}
+
 // Read implements io.Reader
 func (vc *verifyReader) Read(b []byte) (int, error) {
 	n, err := vc.inner.Read(b)
@@ -48,8 +60,11 @@ func (vc *verifyReader) Read(b []byte) (int, error) {
 		}
 		got := hex.EncodeToString(vc.hasher.Sum(make([]byte, 0, vc.hasher.Size())))
 		if want := vc.expected.Hex; got != want {
-			return n, fmt.Errorf("error verifying %s checksum after reading %d bytes; got %q, want %q",
-				vc.expected.Algorithm, vc.gotSize, got, want)
+			return n, Error{
+				got:     got,
+				want:    vc.expected,
+				gotSize: vc.gotSize,
+			}
 		}
 	}
 	return n, err

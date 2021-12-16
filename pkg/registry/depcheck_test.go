@@ -27,6 +27,9 @@ func TestDeps(t *testing.T) {
 			"github.com/google/go-containerregistry/internal/httptest",
 			"github.com/google/go-containerregistry/pkg/v1",
 			"github.com/google/go-containerregistry/pkg/v1/types",
+
+			"github.com/google/go-containerregistry/internal/verify",
+			"github.com/google/go-containerregistry/internal/and",
 		),
 	})
 }
