@@ -91,27 +91,39 @@ func errTODO(msg string) *regError {
 	}
 }
 
-type memHandler map[string][]byte
+type memHandler struct {
+	m    map[string][]byte
+	lock sync.Mutex
+}
 
-func (m memHandler) Stat(_ string, h v1.Hash) (int64, error) {
-	b, found := m[h.String()]
+func (m *memHandler) Stat(_ string, h v1.Hash) (int64, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	b, found := m.m[h.String()]
 	if !found {
 		return 0, ErrNotFound
 	}
 	return int64(len(b)), nil
 }
-func (m memHandler) Get(_ string, h v1.Hash) (io.ReadCloser, error) {
-	b, found := m[h.String()]
+func (m *memHandler) Get(_ string, h v1.Hash) (io.ReadCloser, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	b, found := m.m[h.String()]
 	if !found {
 		return nil, ErrNotFound
 	}
 	return ioutil.NopCloser(bytes.NewReader(b)), nil
 }
-func (m memHandler) Put(_ string, h v1.Hash, rc io.ReadCloser) error {
+func (m *memHandler) Put(_ string, h v1.Hash, rc io.ReadCloser) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	defer rc.Close()
 	var buf bytes.Buffer
 	io.Copy(&buf, rc)
-	m[h.String()] = buf.Bytes()
+	m.m[h.String()] = buf.Bytes()
 	return nil
 }
 
@@ -147,9 +159,6 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 
 	switch req.Method {
 	case http.MethodHead:
-		b.lock.Lock()
-		defer b.lock.Unlock()
-
 		h, err := v1.NewHash(target)
 		if err != nil {
 			return &regError{
@@ -176,9 +185,6 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		return nil
 
 	case http.MethodGet:
-		b.lock.Lock()
-		defer b.lock.Unlock()
-
 		h, err := v1.NewHash(target)
 		if err != nil {
 			return &regError{
@@ -235,9 +241,6 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		}
 
 		if digest != "" {
-			b.lock.Lock()
-			defer b.lock.Unlock()
-
 			h, err := v1.NewHash(digest)
 			if err != nil {
 				return &regError{

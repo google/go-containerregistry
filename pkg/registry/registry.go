@@ -77,7 +77,7 @@ func New(opts ...Option) http.Handler {
 	r := &registry{
 		log: log.New(os.Stderr, "", log.LstdFlags),
 		blobs: blobs{
-			blobHandler: memHandler{},
+			blobHandler: &memHandler{m: map[string][]byte{}},
 			uploads:     map[string][]byte{},
 		},
 		manifests: manifests{
