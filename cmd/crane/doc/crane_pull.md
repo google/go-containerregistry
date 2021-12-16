@@ -1,6 +1,6 @@
 ## crane pull
 
-Pull remote images by reference and store their contents in a tarball
+Pull remote images by reference and store their contents locally
 
 ```
 crane pull IMAGE TARBALL [flags]
