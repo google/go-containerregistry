@@ -16,6 +16,7 @@ package registry
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -52,11 +53,11 @@ func isBlob(req *http.Request) bool {
 // For all methods, repo is a string that can be passed to
 // pkg/name.NewRepository to validate the repository.
 type blobHandler interface {
-	// Stat returns the size of the blob, or ErrNotFound if the blob wasn't found.
-	Stat(repo string, h v1.Hash) (int64, error)
+	// Stat returns the size of the blob, or errNotFound if the blob wasn't found.
+	Stat(ctx context.Context, repo string, h v1.Hash) (int64, error)
 
-	// Get gets the blob contents, or ErrNotFound if the blob wasn't found.
-	Get(repo string, h v1.Hash) (io.ReadCloser, error)
+	// Get gets the blob contents, or errNotFound if the blob wasn't found.
+	Get(ctx context.Context, repo string, h v1.Hash) (io.ReadCloser, error)
 
 	// Put puts the blob contents.
 	//
@@ -64,13 +65,13 @@ type blobHandler interface {
 	// as the contents are read, and an error will be returned if these
 	// don't match. Implementations should return that error, or a wrapper
 	// around that error, to return the correct error when these don't match.
-	Put(repo string, h v1.Hash, rc io.ReadCloser) error
+	Put(ctx context.Context, repo string, h v1.Hash, rc io.ReadCloser) error
 }
 
-// RedirectError represents a signal that the blob handler doesn't have the blob
+// redirectError represents a signal that the blob handler doesn't have the blob
 // contents, but that those contents are at another location which registry
 // clients should redirect to.
-type RedirectError struct {
+type redirectError struct {
 	// Location is the location to find the contents.
 	Location string
 
@@ -78,10 +79,10 @@ type RedirectError struct {
 	Code int
 }
 
-func (e RedirectError) Error() string { return fmt.Sprintf("Redirecting (%d): %s", e.Code, e.Location) }
+func (e redirectError) Error() string { return fmt.Sprintf("redirecting (%d): %s", e.Code, e.Location) }
 
-// ErrNotFound represents an error locating the blob.
-var ErrNotFound = errors.New("not found")
+// errNotFound represents an error locating the blob.
+var errNotFound = errors.New("not found")
 
 func errTODO(msg string) *regError {
 	return &regError{
@@ -96,27 +97,27 @@ type memHandler struct {
 	lock sync.Mutex
 }
 
-func (m *memHandler) Stat(_ string, h v1.Hash) (int64, error) {
+func (m *memHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	b, found := m.m[h.String()]
 	if !found {
-		return 0, ErrNotFound
+		return 0, errNotFound
 	}
 	return int64(len(b)), nil
 }
-func (m *memHandler) Get(_ string, h v1.Hash) (io.ReadCloser, error) {
+func (m *memHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	b, found := m.m[h.String()]
 	if !found {
-		return nil, ErrNotFound
+		return nil, errNotFound
 	}
 	return ioutil.NopCloser(bytes.NewReader(b)), nil
 }
-func (m *memHandler) Put(_ string, h v1.Hash, rc io.ReadCloser) error {
+func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadCloser) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -168,8 +169,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		size, err := b.blobHandler.Stat(repo, h)
-		if errors.Is(err, ErrNotFound) {
+		size, err := b.blobHandler.Stat(req.Context(), repo, h)
+		if errors.Is(err, errNotFound) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "BLOB_UNKNOWN",
@@ -194,8 +195,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		size, err := b.blobHandler.Stat(repo, h)
-		if errors.Is(err, ErrNotFound) {
+		size, err := b.blobHandler.Stat(req.Context(), repo, h)
+		if errors.Is(err, errNotFound) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "BLOB_UNKNOWN",
@@ -205,15 +206,15 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			return errTODO(err.Error())
 		}
 
-		rc, err := b.blobHandler.Get(repo, h)
-		if errors.Is(err, ErrNotFound) {
+		rc, err := b.blobHandler.Get(req.Context(), repo, h)
+		if errors.Is(err, errNotFound) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "BLOB_UNKNOWN",
 				Message: "Unknown blob",
 			}
 		} else if err != nil {
-			var rerr RedirectError
+			var rerr redirectError
 			if errors.As(err, &rerr) {
 				http.Redirect(resp, req, rerr.Location, rerr.Code)
 				return nil
@@ -256,7 +257,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 			defer vrc.Close()
 
-			if err := b.blobHandler.Put(repo, h, vrc); err != nil {
+			if err := b.blobHandler.Put(req.Context(), repo, h, vrc); err != nil {
 				if errors.As(err, &verify.Error{}) {
 					return &regError{
 						Status:  http.StatusBadRequest,
@@ -375,7 +376,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		}
 		defer vrc.Close()
 
-		if err := b.blobHandler.Put(repo, h, vrc); err != nil {
+		if err := b.blobHandler.Put(req.Context(), repo, h, vrc); err != nil {
 			if errors.As(err, &verify.Error{}) {
 				return &regError{
 					Status:  http.StatusBadRequest,
