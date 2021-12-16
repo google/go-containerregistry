@@ -47,12 +47,12 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 }
 
 func loadImage(path string) (v1.Image, error) {
-	dir, err := isDir(path)
+	stat, err := os.Stat(path)
 	if err != nil {
 		return nil, err
 	}
 
-	if !dir {
+	if !stat.IsDir() {
 		img, err := crane.Load(path)
 		if err != nil {
 			return nil, fmt.Errorf("loading %s as tarball: %w", path, err)
@@ -72,17 +72,4 @@ func loadImage(path string) (v1.Image, error) {
 		return nil, errors.New("pushing multiple images from layout not yet supported (PRs welcome)")
 	}
 	return l.Image(m.Manifests[0].Digest)
-}
-
-func isDir(path string) (bool, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return false, err
-	}
-	defer file.Close()
-	fi, err := file.Stat()
-	if err != nil {
-		return false, err
-	}
-	return fi.IsDir(), nil
 }
