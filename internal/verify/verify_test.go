@@ -30,6 +30,7 @@ func mustHash(s string, t *testing.T) v1.Hash {
 	if err != nil {
 		t.Fatalf("v1.SHA256(%s) = %v", s, err)
 	}
+	t.Logf("Hashed: %q -> %q", s, h)
 	return h
 }
 

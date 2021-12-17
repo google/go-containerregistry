@@ -58,10 +58,10 @@ func (vc *verifyReader) Read(b []byte) (int, error) {
 		if vc.wantSize != SizeUnknown && vc.gotSize != vc.wantSize {
 			return n, fmt.Errorf("error verifying size; got %d, want %d", vc.gotSize, vc.wantSize)
 		}
-		got := hex.EncodeToString(vc.hasher.Sum(make([]byte, 0, vc.hasher.Size())))
+		got := hex.EncodeToString(vc.hasher.Sum(nil))
 		if want := vc.expected.Hex; got != want {
 			return n, Error{
-				got:     got,
+				got:     vc.expected.Algorithm + ":" + got,
 				want:    vc.expected,
 				gotSize: vc.gotSize,
 			}

@@ -66,7 +66,8 @@ func TestCalls(t *testing.T) {
 		Code   int
 		Header map[string]string
 		Method string
-		Body   string
+		Body   string // request body to send
+		Want   string // response body to expect
 	}{
 		{
 			Description: "/v2 returns 200",
@@ -126,6 +127,7 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusOK,
 			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
+			Want:        "foo",
 		},
 		{
 			Description: "GET blob",
@@ -134,6 +136,7 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusOK,
 			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
+			Want:        "foo",
 		},
 		{
 			Description: "HEAD blob",
@@ -261,6 +264,7 @@ func TestCalls(t *testing.T) {
 			Method:      "GET",
 			URL:         "/v2/foo/manifests/latest",
 			Code:        http.StatusOK,
+			Want:        "foo",
 		},
 		{
 			Description: "get manifest by digest",
@@ -268,6 +272,7 @@ func TestCalls(t *testing.T) {
 			Method:      "GET",
 			URL:         "/v2/foo/manifests/sha256:" + sha256String("foo"),
 			Code:        http.StatusOK,
+			Want:        "foo",
 		},
 		{
 			Description: "head manifest",
@@ -506,8 +511,12 @@ func TestCalls(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error getting %q: %v", tc.URL, err)
 			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("Reading response body: %v", err)
+			}
 			if resp.StatusCode != tc.Code {
-				body, _ := ioutil.ReadAll(resp.Body)
 				t.Errorf("Incorrect status code, got %d, want %d; body: %s", resp.StatusCode, tc.Code, body)
 			}
 
@@ -516,6 +525,10 @@ func TestCalls(t *testing.T) {
 				if r != v {
 					t.Errorf("Incorrect header %q received, got %q, want %q", k, r, v)
 				}
+			}
+
+			if tc.Want != "" && string(body) != tc.Want {
+				t.Errorf("Incorrect response body, got %q, want %q", body, tc.Want)
 			}
 		}
 		t.Run(tc.Description, testf)

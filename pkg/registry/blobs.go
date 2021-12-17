@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"path"
@@ -48,17 +49,24 @@ func isBlob(req *http.Request) bool {
 		elem[len(elem)-2] == "uploads")
 }
 
-// blobHandler represents a blob storage backend.
-//
-// For all methods, repo is a string that can be passed to
-// pkg/name.NewRepository to validate the repository.
+// blobHandler represents a minimal blob storage backend, capable of serving
+// blob contents.
 type blobHandler interface {
-	// Stat returns the size of the blob, or errNotFound if the blob wasn't found.
-	Stat(ctx context.Context, repo string, h v1.Hash) (int64, error)
-
 	// Get gets the blob contents, or errNotFound if the blob wasn't found.
 	Get(ctx context.Context, repo string, h v1.Hash) (io.ReadCloser, error)
+}
 
+// blobStatHandler is an extension interface representing a blob storage
+// backend that can serve metadata about blobs.
+type blobStatHandler interface {
+	// Stat returns the size of the blob, or errNotFound if the blob wasn't
+	// found, or redirectError if the blob can be found elsewhere.
+	Stat(ctx context.Context, repo string, h v1.Hash) (int64, error)
+}
+
+// blobStatHandler is an extension interface representing a blob storage
+// backend that can write blob contents.
+type blobPutHandler interface {
 	// Put puts the blob contents.
 	//
 	// The contents will be verified against the expected size and digest
@@ -83,14 +91,6 @@ func (e redirectError) Error() string { return fmt.Sprintf("redirecting (%d): %s
 
 // errNotFound represents an error locating the blob.
 var errNotFound = errors.New("not found")
-
-func errTODO(msg string) *regError {
-	return &regError{
-		Status:  http.StatusInternalServerError,
-		Code:    "INTERNAL_SERVER_ERROR",
-		Message: msg,
-	}
-}
 
 type memHandler struct {
 	m    map[string][]byte
@@ -122,15 +122,20 @@ func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClose
 	defer m.lock.Unlock()
 
 	defer rc.Close()
-	var buf bytes.Buffer
-	io.Copy(&buf, rc)
-	m.m[h.String()] = buf.Bytes()
+	all, err := ioutil.ReadAll(rc)
+	if err != nil {
+		// TODO: not verifying correctly :(
+		// return err
+	}
+	m.m[h.String()] = all
 	return nil
 }
 
 // blobs
 type blobs struct {
-	blobHandler blobHandler
+	blobHandler     blobHandler
+	blobStatHandler blobStatHandler
+	blobPutHandler  blobPutHandler
 
 	// Each upload gets a unique id that writes occur to until finalized.
 	uploads map[string][]byte
@@ -169,15 +174,26 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		size, err := b.blobHandler.Stat(req.Context(), repo, h)
-		if errors.Is(err, errNotFound) {
-			return &regError{
-				Status:  http.StatusNotFound,
-				Code:    "BLOB_UNKNOWN",
-				Message: "Unknown blob",
+		var size int64
+		if b.blobStatHandler != nil {
+			size, err = b.blobStatHandler.Stat(req.Context(), repo, h)
+			if errors.Is(err, errNotFound) {
+				return regErrBlobUnknown
+			} else if err != nil {
+				return regErrInternal(err)
 			}
-		} else if err != nil {
-			return errTODO(err.Error())
+		} else {
+			rc, err := b.blobHandler.Get(req.Context(), repo, h)
+			if errors.Is(err, errNotFound) {
+				return regErrBlobUnknown
+			} else if err != nil {
+				return regErrInternal(err)
+			}
+			defer rc.Close()
+			size, err = io.Copy(ioutil.Discard, rc)
+			if err != nil {
+				return regErrInternal(err)
+			}
 		}
 
 		resp.Header().Set("Content-Length", fmt.Sprint(size))
@@ -195,42 +211,61 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		size, err := b.blobHandler.Stat(req.Context(), repo, h)
-		if errors.Is(err, errNotFound) {
-			return &regError{
-				Status:  http.StatusNotFound,
-				Code:    "BLOB_UNKNOWN",
-				Message: "Unknown blob",
-			}
-		} else if err != nil {
-			return errTODO(err.Error())
-		}
-
-		rc, err := b.blobHandler.Get(req.Context(), repo, h)
-		if errors.Is(err, errNotFound) {
-			return &regError{
-				Status:  http.StatusNotFound,
-				Code:    "BLOB_UNKNOWN",
-				Message: "Unknown blob",
-			}
-		} else if err != nil {
-			var rerr redirectError
-			if errors.As(err, &rerr) {
-				http.Redirect(resp, req, rerr.Location, rerr.Code)
-				return nil
+		var size int64
+		var r io.Reader
+		if b.blobStatHandler != nil {
+			size, err = b.blobStatHandler.Stat(req.Context(), repo, h)
+			if errors.Is(err, errNotFound) {
+				return regErrBlobUnknown
+			} else if err != nil {
+				return regErrInternal(err)
 			}
 
-			return errTODO(err.Error())
+			rc, err := b.blobHandler.Get(req.Context(), repo, h)
+			if errors.Is(err, errNotFound) {
+				return regErrBlobUnknown
+			} else if err != nil {
+				var rerr redirectError
+				if errors.As(err, &rerr) {
+					http.Redirect(resp, req, rerr.Location, rerr.Code)
+					return nil
+				}
+
+				return regErrInternal(err)
+			}
+			defer rc.Close()
+			r = rc
+		} else {
+			tmp, err := b.blobHandler.Get(req.Context(), repo, h)
+			if errors.Is(err, errNotFound) {
+				return regErrBlobUnknown
+			} else if err != nil {
+				var rerr redirectError
+				if errors.As(err, &rerr) {
+					http.Redirect(resp, req, rerr.Location, rerr.Code)
+					return nil
+				}
+
+				return regErrInternal(err)
+			}
+			defer tmp.Close()
+			var buf bytes.Buffer
+			io.Copy(&buf, tmp)
+			size = int64(buf.Len())
+			r = &buf
 		}
-		defer rc.Close()
 
 		resp.Header().Set("Content-Length", fmt.Sprint(size))
 		resp.Header().Set("Docker-Content-Digest", h.String())
 		resp.WriteHeader(http.StatusOK)
-		io.Copy(resp, rc)
+		io.Copy(resp, r)
 		return nil
 
 	case http.MethodPost:
+		if b.blobPutHandler == nil {
+			return regErrUnsupported
+		}
+
 		// It is weird that this is "target" instead of "service", but
 		// that's how the index math works out above.
 		if target != "uploads" {
@@ -244,28 +279,26 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		if digest != "" {
 			h, err := v1.NewHash(digest)
 			if err != nil {
-				return &regError{
-					Status:  http.StatusBadRequest,
-					Code:    "NAME_INVALID",
-					Message: "invalid digest",
-				}
+				return regErrDigestInvalid
 			}
 
-			vrc, err := verify.ReadCloser(req.Body, req.ContentLength, h)
+			var size int64 = verify.SizeUnknown
+			if req.ContentLength != 0 {
+				size = req.ContentLength
+			}
+			vrc, err := verify.ReadCloser(req.Body, size, h)
 			if err != nil {
-				return errTODO(err.Error())
+				return regErrInternal(err)
 			}
 			defer vrc.Close()
 
-			if err := b.blobHandler.Put(req.Context(), repo, h, vrc); err != nil {
-				if errors.As(err, &verify.Error{}) {
-					return &regError{
-						Status:  http.StatusBadRequest,
-						Code:    "DIGEST_INVALID",
-						Message: "digest does not match contents",
-					}
+			if err = b.blobPutHandler.Put(req.Context(), repo, h, vrc); err != nil {
+				var verr verify.Error
+				if errors.As(err, &verr) {
+					log.Printf("Digest mismatch: %v", verr)
+					return regErrDigestMismatch
 				}
-				return errTODO(err.Error())
+				return regErrInternal(err)
 			}
 			resp.Header().Set("Docker-Content-Digest", h.String())
 			resp.WriteHeader(http.StatusCreated)
@@ -334,6 +367,10 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		return nil
 
 	case http.MethodPut:
+		if b.blobPutHandler == nil {
+			return regErrUnsupported
+		}
+
 		if service != "uploads" {
 			return &regError{
 				Status:  http.StatusBadRequest,
@@ -372,19 +409,17 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 
 		vrc, err := verify.ReadCloser(in, size, h)
 		if err != nil {
-			return errTODO(err.Error())
+			return regErrInternal(err)
 		}
 		defer vrc.Close()
 
-		if err := b.blobHandler.Put(req.Context(), repo, h, vrc); err != nil {
-			if errors.As(err, &verify.Error{}) {
-				return &regError{
-					Status:  http.StatusBadRequest,
-					Code:    "DIGEST_INVALID",
-					Message: "digest does not match contents",
-				}
+		if err := b.blobPutHandler.Put(req.Context(), repo, h, vrc); err != nil {
+			var verr verify.Error
+			if errors.As(err, &verr) {
+				log.Printf("Digest mismatch: %v", verr)
+				return regErrDigestMismatch
 			}
-			return errTODO(err.Error())
+			return regErrInternal(err)
 		}
 
 		delete(b.uploads, target)
