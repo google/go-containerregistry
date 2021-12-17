@@ -179,6 +179,11 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
+				var rerr redirectError
+				if errors.As(err, &rerr) {
+					http.Redirect(resp, req, rerr.Location, rerr.Code)
+					return nil
+				}
 				return regErrInternal(err)
 			}
 		} else {
@@ -186,6 +191,11 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
+				var rerr redirectError
+				if errors.As(err, &rerr) {
+					http.Redirect(resp, req, rerr.Location, rerr.Code)
+					return nil
+				}
 				return regErrInternal(err)
 			}
 			defer rc.Close()
@@ -217,6 +227,11 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
+				var rerr redirectError
+				if errors.As(err, &rerr) {
+					http.Redirect(resp, req, rerr.Location, rerr.Code)
+					return nil
+				}
 				return regErrInternal(err)
 			}
 
