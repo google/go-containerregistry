@@ -124,8 +124,7 @@ func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClose
 	defer rc.Close()
 	all, err := ioutil.ReadAll(rc)
 	if err != nil {
-		// TODO: not verifying correctly :(
-		// return err
+		return err
 	}
 	m.m[h.String()] = all
 	return nil
@@ -282,20 +281,15 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				return regErrDigestInvalid
 			}
 
-			var size int64 = verify.SizeUnknown
-			if req.ContentLength != 0 {
-				size = req.ContentLength
-			}
-			vrc, err := verify.ReadCloser(req.Body, size, h)
+			vrc, err := verify.ReadCloser(req.Body, req.ContentLength, h)
 			if err != nil {
 				return regErrInternal(err)
 			}
 			defer vrc.Close()
 
 			if err = b.blobPutHandler.Put(req.Context(), repo, h, vrc); err != nil {
-				var verr verify.Error
-				if errors.As(err, &verr) {
-					log.Printf("Digest mismatch: %v", verr)
+				if errors.As(err, &verify.Error{}) {
+					log.Printf("Digest mismatch: %v", err)
 					return regErrDigestMismatch
 				}
 				return regErrInternal(err)
@@ -414,9 +408,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		defer vrc.Close()
 
 		if err := b.blobPutHandler.Put(req.Context(), repo, h, vrc); err != nil {
-			var verr verify.Error
-			if errors.As(err, &verr) {
-				log.Printf("Digest mismatch: %v", verr)
+			if errors.As(err, &verify.Error{}) {
+				log.Printf("Digest mismatch: %v", err)
 				return regErrDigestMismatch
 			}
 			return regErrInternal(err)

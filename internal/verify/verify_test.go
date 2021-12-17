@@ -60,6 +60,19 @@ func TestVerification(t *testing.T) {
 	}
 }
 
+func TestVerificationSizeUnknown(t *testing.T) {
+	want := "This is the input string."
+	buf := bytes.NewBufferString(want)
+
+	verified, err := ReadCloser(ioutil.NopCloser(buf), SizeUnknown, mustHash(want, t))
+	if err != nil {
+		t.Fatal("ReadCloser() =", err)
+	}
+	if _, err := ioutil.ReadAll(verified); err != nil {
+		t.Error("ReadAll() =", err)
+	}
+}
+
 func TestBadHash(t *testing.T) {
 	h := v1.Hash{
 		Algorithm: "fake256",

@@ -84,9 +84,9 @@ func ReadCloser(r io.ReadCloser, size int64, h v1.Hash) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	var r2 io.Reader = r
+	r2 := io.TeeReader(r, w) // pass all writes to the hasher.
 	if size != SizeUnknown {
-		r2 = io.LimitReader(io.TeeReader(r, w), size)
+		r2 = io.LimitReader(r2, size) // if we know the size, limit to that size.
 	}
 	return &and.ReadCloser{
 		Reader: &verifyReader{
