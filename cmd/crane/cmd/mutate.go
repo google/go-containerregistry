@@ -35,6 +35,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var newLayers []string
 	var workingDir string
 	var newRef string
+	var argsEscaped bool
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
@@ -69,6 +70,9 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				return err
 			}
 			cfg = cfg.DeepCopy()
+
+			// Set args escaped.
+			cfg.Config.ArgsEscaped = argsEscaped
 
 			// Set labels.
 			if cfg.Config.Labels == nil {
@@ -149,6 +153,8 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
 	mutateCmd.Flags().StringSliceVar(&newLayers, "append", []string{}, "Path to tarball to append to image")
 	mutateCmd.Flags().StringVar(&workingDir, "working_dir", "", "New WorkingDir to set")
+	mutateCmd.Flags().BoolVar(&argsEscaped, "args_escaped", false, "[true|false] Command is already escaped (Windows only)")
+
 	return mutateCmd
 }
 
