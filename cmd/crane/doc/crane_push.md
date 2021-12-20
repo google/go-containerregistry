@@ -13,7 +13,8 @@ crane push PATH IMAGE [flags]
 ### Options
 
 ```
-  -h, --help   help for push
+  -h, --help    help for push
+      --index   Push the collection of images as a single index
 ```
 
 ### Options inherited from parent commands
