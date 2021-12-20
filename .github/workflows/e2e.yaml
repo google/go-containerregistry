@@ -60,6 +60,6 @@ jobs:
         layout=$(mktemp -d)
         dst=localhost:1338/roundtrip-test
 
-        ./crane pull --format=oci $img $layout
-        ./crane push $layout 
-        diff <(./crane manifest $img) <(./crane manifest $dst)
+        ./app/crane pull --format=oci $img $layout
+        ./app/crane push $layout $dst 
+        diff <(./app/crane manifest $img) <(./app/crane manifest $dst)
