@@ -21,7 +21,7 @@ jobs:
       with:
         go-version: 1.17.x
 
-    - name: crane append to an image, set the entrypoint, run it locally
+    - name: crane append to an image, set the entrypoint, run it locally, roundtrip it
       shell: bash
       run: |
         set -euxo pipefail
@@ -55,3 +55,11 @@ jobs:
         # Run the image with and without args.
         docker run $img 
         docker run $img --help
+
+        # Make sure we can roundtrip it through pull/push
+        layout=$(mktemp -d)
+        dst=localhost:1338/roundtrip-test
+
+        ./crane pull --format=oci $img $layout
+        ./crane push $layout 
+        diff <(./crane manifest $img) <(./crane manifest $dst)
