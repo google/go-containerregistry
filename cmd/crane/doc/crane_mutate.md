@@ -11,6 +11,7 @@ crane mutate [flags]
 ```
   -a, --annotation stringToString   New annotations to add (default [])
       --append strings              Path to tarball to append to image
+      --args_escaped                [true|false] Command is already escaped (Windows only)
       --cmd strings                 New cmd to set
       --entrypoint strings          New entrypoint to set
   -e, --env stringToString          New envvar to add (default [])
