@@ -15,18 +15,21 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdPush creates a new cobra.Command for the push subcommand.
 func NewCmdPush(options *[]crane.Option) *cobra.Command {
+	index := false
 	cmd := &cobra.Command{
 		Use:   "push PATH IMAGE",
 		Short: "Push local image contents to a remote registry",
@@ -35,18 +38,31 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			path, tag := args[0], args[1]
 
-			img, err := loadImage(path)
+			img, err := loadImage(path, index)
 			if err != nil {
 				return err
 			}
 
-			return crane.Push(img, tag, *options...)
+			if i, ok := img.(v1.Image); ok {
+				return crane.Push(i, tag, *options...)
+			}
+			if idx, ok := img.(v1.ImageIndex); ok {
+				// TODO(generics): Make crane.Push support index.
+				o := crane.GetOptions(*options...)
+				ref, err := name.ParseReference(tag, o.Name...)
+				if err != nil {
+					return err
+				}
+				return remote.WriteIndex(ref, idx, o.Remote...)
+			}
+			return fmt.Errorf("cannot push type (%T) to registry", img)
 		},
 	}
+	cmd.Flags().BoolVar(&index, "index", false, "Push the collection of images as a single index")
 	return cmd
 }
 
-func loadImage(path string) (v1.Image, error) {
+func loadImage(path string, index bool) (partial.WithRawManifest, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -64,12 +80,25 @@ func loadImage(path string) (v1.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading %s as OCI layout: %w", path, err)
 	}
+
+	if index {
+		return l, nil
+	}
+
 	m, err := l.IndexManifest()
 	if err != nil {
 		return nil, err
 	}
 	if len(m.Manifests) != 1 {
-		return nil, errors.New("pushing multiple images from layout not yet supported (PRs welcome)")
+		return nil, fmt.Errorf("layout contains %d entries, consider --index", len(m.Manifests))
 	}
-	return l.Image(m.Manifests[0].Digest)
+
+	desc := m.Manifests[0]
+	if desc.MediaType.IsImage() {
+		return l.Image(desc.Digest)
+	} else if desc.MediaType.IsIndex() {
+		return l.ImageIndex(desc.Digest)
+	}
+
+	return nil, fmt.Errorf("layout contains non-image (mediaType: %q), consider --index", desc.MediaType)
 }
