@@ -43,22 +43,23 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 				return err
 			}
 
-			if i, ok := img.(v1.Image); ok {
-				return crane.Push(i, tag, *options...)
-			}
-			if idx, ok := img.(v1.ImageIndex); ok {
-				// TODO(generics): Make crane.Push support index.
+			// TODO(generics): Make crane.Push support index.
+			switch t := img.(type) {
+			case v1.Image:
+				return crane.Push(t, tag, *options...)
+			case v1.ImageIndex:
 				o := crane.GetOptions(*options...)
 				ref, err := name.ParseReference(tag, o.Name...)
 				if err != nil {
 					return err
 				}
-				return remote.WriteIndex(ref, idx, o.Remote...)
+				return remote.WriteIndex(ref, t, o.Remote...)
 			}
+
 			return fmt.Errorf("cannot push type (%T) to registry", img)
 		},
 	}
-	cmd.Flags().BoolVar(&index, "index", false, "Push the collection of images as a single index")
+	cmd.Flags().BoolVar(&index, "index", false, "push a collection of images as a single index, currently required if PATH contains multiple images")
 	return cmd
 }
 
