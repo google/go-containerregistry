@@ -64,8 +64,8 @@ type blobStatHandler interface {
 	Stat(ctx context.Context, repo string, h v1.Hash) (int64, error)
 }
 
-// blobStatHandler is an extension interface representing a blob storage
-// backend that can write blob contents.
+// blobPutHandler is an extension interface representing a blob storage backend
+// that can write blob contents.
 type blobPutHandler interface {
 	// Put puts the blob contents.
 	//
@@ -132,9 +132,7 @@ func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClose
 
 // blobs
 type blobs struct {
-	blobHandler     blobHandler
-	blobStatHandler blobStatHandler
-	blobPutHandler  blobPutHandler
+	blobHandler blobHandler
 
 	// Each upload gets a unique id that writes occur to until finalized.
 	uploads map[string][]byte
@@ -174,8 +172,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		}
 
 		var size int64
-		if b.blobStatHandler != nil {
-			size, err = b.blobStatHandler.Stat(req.Context(), repo, h)
+		if bsh, ok := b.blobHandler.(blobStatHandler); ok {
+			size, err = bsh.Stat(req.Context(), repo, h)
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
@@ -222,8 +220,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 
 		var size int64
 		var r io.Reader
-		if b.blobStatHandler != nil {
-			size, err = b.blobStatHandler.Stat(req.Context(), repo, h)
+		if bsh, ok := b.blobHandler.(blobStatHandler); ok {
+			size, err = bsh.Stat(req.Context(), repo, h)
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
@@ -276,7 +274,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		return nil
 
 	case http.MethodPost:
-		if b.blobPutHandler == nil {
+		bph, ok := b.blobHandler.(blobPutHandler)
+		if !ok {
 			return regErrUnsupported
 		}
 
@@ -302,7 +301,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 			defer vrc.Close()
 
-			if err = b.blobPutHandler.Put(req.Context(), repo, h, vrc); err != nil {
+			if err = bph.Put(req.Context(), repo, h, vrc); err != nil {
 				if errors.As(err, &verify.Error{}) {
 					log.Printf("Digest mismatch: %v", err)
 					return regErrDigestMismatch
@@ -376,7 +375,8 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		return nil
 
 	case http.MethodPut:
-		if b.blobPutHandler == nil {
+		bph, ok := b.blobHandler.(blobPutHandler)
+		if !ok {
 			return regErrUnsupported
 		}
 
@@ -422,7 +422,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		}
 		defer vrc.Close()
 
-		if err := b.blobPutHandler.Put(req.Context(), repo, h, vrc); err != nil {
+		if err := bph.Put(req.Context(), repo, h, vrc); err != nil {
 			if errors.As(err, &verify.Error{}) {
 				log.Printf("Digest mismatch: %v", err)
 				return regErrDigestMismatch
