@@ -16,25 +16,90 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdPush creates a new cobra.Command for the push subcommand.
 func NewCmdPush(options *[]crane.Option) *cobra.Command {
-	return &cobra.Command{
-		Use:   "push TARBALL IMAGE",
-		Short: "Push image contents as a tarball to a remote registry",
+	index := false
+	cmd := &cobra.Command{
+		Use:   "push PATH IMAGE",
+		Short: "Push local image contents to a remote registry",
+		Long:  `If the PATH is a directory, it will be read as an OCI image layout. Otherwise, PATH is assumed to be a docker-style tarball.`,
 		Args:  cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			path, tag := args[0], args[1]
-			img, err := crane.Load(path)
+
+			img, err := loadImage(path, index)
 			if err != nil {
-				return fmt.Errorf("loading %s as tarball: %w", path, err)
+				return err
 			}
 
-			return crane.Push(img, tag, *options...)
+			// TODO(generics): Make crane.Push support index.
+			switch t := img.(type) {
+			case v1.Image:
+				return crane.Push(t, tag, *options...)
+			case v1.ImageIndex:
+				o := crane.GetOptions(*options...)
+				ref, err := name.ParseReference(tag, o.Name...)
+				if err != nil {
+					return err
+				}
+				return remote.WriteIndex(ref, t, o.Remote...)
+			}
+
+			return fmt.Errorf("cannot push type (%T) to registry", img)
 		},
 	}
+	cmd.Flags().BoolVar(&index, "index", false, "push a collection of images as a single index, currently required if PATH contains multiple images")
+	return cmd
+}
+
+func loadImage(path string, index bool) (partial.WithRawManifest, error) {
+	stat, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if !stat.IsDir() {
+		img, err := crane.Load(path)
+		if err != nil {
+			return nil, fmt.Errorf("loading %s as tarball: %w", path, err)
+		}
+		return img, nil
+	}
+
+	l, err := layout.ImageIndexFromPath(path)
+	if err != nil {
+		return nil, fmt.Errorf("loading %s as OCI layout: %w", path, err)
+	}
+
+	if index {
+		return l, nil
+	}
+
+	m, err := l.IndexManifest()
+	if err != nil {
+		return nil, err
+	}
+	if len(m.Manifests) != 1 {
+		return nil, fmt.Errorf("layout contains %d entries, consider --index", len(m.Manifests))
+	}
+
+	desc := m.Manifests[0]
+	if desc.MediaType.IsImage() {
+		return l.Image(desc.Digest)
+	} else if desc.MediaType.IsIndex() {
+		return l.ImageIndex(desc.Digest)
+	}
+
+	return nil, fmt.Errorf("layout contains non-image (mediaType: %q), consider --index", desc.MediaType)
 }

@@ -1,15 +1,20 @@
 ## crane push
 
-Push image contents as a tarball to a remote registry
+Push local image contents to a remote registry
+
+### Synopsis
+
+If the PATH is a directory, it will be read as an OCI image layout. Otherwise, PATH is assumed to be a docker-style tarball.
 
 ```
-crane push TARBALL IMAGE [flags]
+crane push PATH IMAGE [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for push
+  -h, --help    help for push
+      --index   push a collection of images as a single index, currently required if PATH contains multiple images
 ```
 
 ### Options inherited from parent commands
