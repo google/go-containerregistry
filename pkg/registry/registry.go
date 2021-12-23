@@ -74,11 +74,14 @@ func (r *registry) root(resp http.ResponseWriter, req *http.Request) {
 // New returns a handler which implements the docker registry protocol.
 // It should be registered at the site root.
 func New(opts ...Option) http.Handler {
+	bh := &memHandler{
+		blobs:   map[string][]byte{},
+		uploads: map[string][]byte{},
+	}
 	r := &registry{
 		log: log.New(os.Stderr, "", log.LstdFlags),
 		blobs: blobs{
-			blobHandler: &memHandler{m: map[string][]byte{}},
-			uploads:     map[string][]byte{},
+			blobHandler: bh,
 		},
 		manifests: manifests{
 			manifests: map[string]map[string]manifest{},

@@ -76,6 +76,35 @@ type blobPutHandler interface {
 	Put(ctx context.Context, repo string, h v1.Hash, rc io.ReadCloser) error
 }
 
+// uploadHandler represents a minimal upload storage backend, capable of
+// appending streamed upload contents and finally returning them to be stored
+// in blob storage.
+type uploadHandler interface {
+	// StatUpload returns the current size of the given upload.
+	StatUpload(ctx context.Context, uploadID string) (int64, error)
+
+	// AppendUpload appends the contents of the ReadCloser to the current
+	// upload contents, and returns the new total size.
+	AppendUpload(ctx context.Context, uploadID string, rc io.ReadCloser) (int64, error)
+
+	// FinishUpload appends the contents of the ReadCloser to the curent
+	// upload contents, and returns the total contents and their size.
+	FinishUpload(ctx context.Context, uploadID string, rc io.ReadCloser) (io.ReadCloser, int64, error)
+}
+
+// uploadFinalizeHandler is an extension interface representing upload storage
+// that can finalize contents into blob storage.
+type uploadFinalizeHandler interface {
+	// FinalizeUpload appends the contents of the ReadCloser to the current
+	// uplaod contents, checks the total contents digest matches, and
+	// finalizes it into blob storage.
+	//
+	// Implementations that implement this method are responsible for
+	// verifying the given hash matches the total contents before
+	// persisting to blob storage.
+	FinalizeUpload(ctx context.Context, uploadID string, rc io.ReadCloser, h v1.Hash) error
+}
+
 // redirectError represents a signal that the blob handler doesn't have the blob
 // contents, but that those contents are at another location which registry
 // clients should redirect to.
@@ -93,15 +122,15 @@ func (e redirectError) Error() string { return fmt.Sprintf("redirecting (%d): %s
 var errNotFound = errors.New("not found")
 
 type memHandler struct {
-	m    map[string][]byte
-	lock sync.Mutex
+	blobs, uploads map[string][]byte
+	lock           sync.Mutex
 }
 
 func (m *memHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	b, found := m.m[h.String()]
+	b, found := m.blobs[h.String()]
 	if !found {
 		return 0, errNotFound
 	}
@@ -111,7 +140,7 @@ func (m *memHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser,
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	b, found := m.m[h.String()]
+	b, found := m.blobs[h.String()]
 	if !found {
 		return nil, errNotFound
 	}
@@ -126,20 +155,82 @@ func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClose
 	if err != nil {
 		return err
 	}
-	m.m[h.String()] = all
+	m.blobs[h.String()] = all
+	return nil
+}
+func (m *memHandler) StatUpload(_ context.Context, uploadID string) (int64, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return int64(len(m.uploads[uploadID])), nil
+}
+func (m *memHandler) AppendUpload(_ context.Context, uploadID string, rc io.ReadCloser) (int64, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	defer rc.Close()
+
+	have := m.uploads[uploadID]
+	next, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return -1, err
+	}
+	all := append(have, next...)
+	size := int64(len(all))
+	m.uploads[uploadID] = all
+	return size, nil
+}
+func (m *memHandler) FinishUpload(_ context.Context, uploadID string, rc io.ReadCloser) (io.ReadCloser, int64, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	defer rc.Close()
+
+	have := m.uploads[uploadID]
+	all, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return nil, -1, err
+	}
+	delete(m.uploads, uploadID)
+	return ioutil.NopCloser(bytes.NewReader(append(have, all...))), int64(len(have) + len(all)), nil
+}
+func (m *memHandler) FinalizeUpload(_ context.Context, uploadID string, rc io.ReadCloser, h v1.Hash) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	defer rc.Close()
+
+	have := m.uploads[uploadID]
+	last, err := ioutil.ReadAll(rc)
+	if err != nil {
+		return err
+	}
+	delete(m.uploads, uploadID)
+	all := append(have, last...)
+	size := int64(len(all))
+
+	// Read and verify the full contents' digest.
+	rc = ioutil.NopCloser(bytes.NewReader(all))
+	vrc, err := verify.ReadCloser(rc, size, h)
+	if err != nil {
+		return err
+	}
+	defer vrc.Close()
+	all, err = ioutil.ReadAll(vrc)
+	if err != nil {
+		return err
+	}
+
+	m.blobs[h.String()] = all
 	return nil
 }
 
 // blobs
 type blobs struct {
 	blobHandler blobHandler
-
-	// Each upload gets a unique id that writes occur to until finalized.
-	uploads map[string][]byte
-	lock    sync.Mutex
 }
 
 func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
+	ctx := req.Context()
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
 	if elem[len(elem)-1] == "" {
@@ -173,7 +264,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 
 		var size int64
 		if bsh, ok := b.blobHandler.(blobStatHandler); ok {
-			size, err = bsh.Stat(req.Context(), repo, h)
+			size, err = bsh.Stat(ctx, repo, h)
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
@@ -185,7 +276,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				return regErrInternal(err)
 			}
 		} else {
-			rc, err := b.blobHandler.Get(req.Context(), repo, h)
+			rc, err := b.blobHandler.Get(ctx, repo, h)
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
@@ -221,7 +312,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		var size int64
 		var r io.Reader
 		if bsh, ok := b.blobHandler.(blobStatHandler); ok {
-			size, err = bsh.Stat(req.Context(), repo, h)
+			size, err = bsh.Stat(ctx, repo, h)
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
@@ -233,7 +324,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				return regErrInternal(err)
 			}
 
-			rc, err := b.blobHandler.Get(req.Context(), repo, h)
+			rc, err := b.blobHandler.Get(ctx, repo, h)
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
@@ -248,7 +339,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			defer rc.Close()
 			r = rc
 		} else {
-			tmp, err := b.blobHandler.Get(req.Context(), repo, h)
+			tmp, err := b.blobHandler.Get(ctx, repo, h)
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
@@ -313,6 +404,12 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			return nil
 		}
 
+		if _, ok := b.blobHandler.(uploadHandler); !ok {
+			// Registry doesn't support streamed uploads, only
+			// monolithic blob PUTs.
+			return regErrUnsupported
+		}
+
 		id := fmt.Sprint(rand.Int63())
 		resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-2]...), "blobs/uploads", id))
 		resp.Header().Set("Range", "0-0")
@@ -327,37 +424,47 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				Message: fmt.Sprintf("PATCH to /blobs must be followed by /uploads, got %s", service),
 			}
 		}
+		uh, ok := b.blobHandler.(uploadHandler)
+		if !ok {
+			return regErrUnsupported
+		}
 
 		if contentRange != "" {
-			start, end := 0, 0
-			if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, &end); err != nil {
+			var start int64
+			if _, err := fmt.Sscanf(contentRange, "%d-%d", &start, new(int)); err != nil {
 				return &regError{
 					Status:  http.StatusRequestedRangeNotSatisfiable,
 					Code:    "BLOB_UPLOAD_UNKNOWN",
 					Message: "We don't understand your Content-Range",
 				}
 			}
-			b.lock.Lock()
-			defer b.lock.Unlock()
-			if start != len(b.uploads[target]) {
+
+			size, err := uh.StatUpload(ctx, target)
+			if err != nil {
+				return regErrInternal(err)
+			}
+			if start != size {
 				return &regError{
 					Status:  http.StatusRequestedRangeNotSatisfiable,
 					Code:    "BLOB_UPLOAD_UNKNOWN",
 					Message: "Your content range doesn't match what we have",
 				}
 			}
-			l := bytes.NewBuffer(b.uploads[target])
-			io.Copy(l, req.Body)
-			b.uploads[target] = l.Bytes()
+
+			size, err = uh.AppendUpload(ctx, target, req.Body)
+			if err != nil {
+				return regErrInternal(err)
+			}
+
 			resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
-			resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())-1))
+			resp.Header().Set("Range", fmt.Sprintf("0-%d", size-1))
 			resp.WriteHeader(http.StatusNoContent)
 			return nil
 		}
 
-		b.lock.Lock()
-		defer b.lock.Unlock()
-		if _, ok := b.uploads[target]; ok {
+		if size, err := uh.StatUpload(ctx, target); err != nil {
+			return regErrInternal(err)
+		} else if size != 0 {
 			return &regError{
 				Status:  http.StatusBadRequest,
 				Code:    "BLOB_UPLOAD_INVALID",
@@ -365,17 +472,17 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		l := &bytes.Buffer{}
-		io.Copy(l, req.Body)
-
-		b.uploads[target] = l.Bytes()
+		size, err := uh.AppendUpload(ctx, target, req.Body)
+		if err != nil {
+			return regErrInternal(err)
+		}
 		resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
-		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())-1))
+		resp.Header().Set("Range", fmt.Sprintf("0-%d", size-1))
 		resp.WriteHeader(http.StatusNoContent)
 		return nil
 
 	case http.MethodPut:
-		bph, ok := b.blobHandler.(blobPutHandler)
+		uh, ok := b.blobHandler.(uploadHandler)
 		if !ok {
 			return regErrUnsupported
 		}
@@ -396,9 +503,6 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		b.lock.Lock()
-		defer b.lock.Unlock()
-
 		h, err := v1.NewHash(digest)
 		if err != nil {
 			return &regError{
@@ -408,21 +512,32 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		defer req.Body.Close()
-		in := ioutil.NopCloser(io.MultiReader(bytes.NewBuffer(b.uploads[target]), req.Body))
-
-		size := int64(verify.SizeUnknown)
-		if req.ContentLength > 0 {
-			size = int64(len(b.uploads[target])) + req.ContentLength
+		if ufh, ok := uh.(uploadFinalizeHandler); ok {
+			if err := ufh.FinalizeUpload(ctx, target, req.Body, h); err != nil {
+				return regErrInternal(err)
+			}
+			resp.Header().Set("Docker-Content-Digest", h.String())
+			resp.WriteHeader(http.StatusCreated)
+			return nil
 		}
 
-		vrc, err := verify.ReadCloser(in, size, h)
+		bph, ok := b.blobHandler.(blobPutHandler)
+		if !ok {
+			return regErrUnsupported
+		}
+
+		rc, size, err := uh.FinishUpload(ctx, target, req.Body)
+		if err != nil {
+			return regErrInternal(err)
+		}
+
+		vrc, err := verify.ReadCloser(rc, size, h)
 		if err != nil {
 			return regErrInternal(err)
 		}
 		defer vrc.Close()
 
-		if err := bph.Put(req.Context(), repo, h, vrc); err != nil {
+		if err := bph.Put(ctx, repo, h, vrc); err != nil {
 			if errors.As(err, &verify.Error{}) {
 				log.Printf("Digest mismatch: %v", err)
 				return regErrDigestMismatch
@@ -430,7 +545,6 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			return regErrInternal(err)
 		}
 
-		delete(b.uploads, target)
 		resp.Header().Set("Docker-Content-Digest", h.String())
 		resp.WriteHeader(http.StatusCreated)
 		return nil
