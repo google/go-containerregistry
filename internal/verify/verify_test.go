@@ -30,6 +30,7 @@ func mustHash(s string, t *testing.T) v1.Hash {
 	if err != nil {
 		t.Fatalf("v1.SHA256(%s) = %v", s, err)
 	}
+	t.Logf("Hashed: %q -> %q", s, h)
 	return h
 }
 
@@ -51,6 +52,19 @@ func TestVerification(t *testing.T) {
 	buf := bytes.NewBufferString(want)
 
 	verified, err := ReadCloser(ioutil.NopCloser(buf), int64(len(want)), mustHash(want, t))
+	if err != nil {
+		t.Fatal("ReadCloser() =", err)
+	}
+	if _, err := ioutil.ReadAll(verified); err != nil {
+		t.Error("ReadAll() =", err)
+	}
+}
+
+func TestVerificationSizeUnknown(t *testing.T) {
+	want := "This is the input string."
+	buf := bytes.NewBufferString(want)
+
+	verified, err := ReadCloser(ioutil.NopCloser(buf), SizeUnknown, mustHash(want, t))
 	if err != nil {
 		t.Fatal("ReadCloser() =", err)
 	}
