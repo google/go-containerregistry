@@ -61,5 +61,5 @@ jobs:
         dst=localhost:1338/roundtrip-test
 
         ./app/crane pull --format=oci $img $layout
-        ./app/crane push $layout $dst 
-        diff <(./app/crane manifest $img) <(./app/crane manifest $dst)
+        ./app/crane push --image-refs=foo.images $layout $dst
+        diff <(./app/crane manifest $img) <(./app/crane manifest $(cat foo.images))
