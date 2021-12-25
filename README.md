@@ -23,7 +23,7 @@ which can be backed by a variety of medium (e.g. [registry](./pkg/v1/remote/READ
 
 To complement these immutable views, we support functional mutations that produce new immutable views
 of the resulting resource (e.g. [mutate](./pkg/v1/mutate/README.md)).  The end goal is to provide a
-set of versatile primives that can compose to do extraordinarily powerful things efficiently and easily.
+set of versatile primitives that can compose to do extraordinarily powerful things efficiently and easily.
 
 Both the resource views and mutations may be lazy, eager, memoizing, etc, and most are optimized
 for common paths based on the tooling we have seen in the wild (e.g. writing new images from disk
