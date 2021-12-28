@@ -87,22 +87,26 @@ type uploadHandler interface {
 	// upload contents, and returns the new total size.
 	AppendUpload(ctx context.Context, uploadID string, rc io.ReadCloser) (int64, error)
 
-	// FinishUpload appends the contents of the ReadCloser to the curent
-	// upload contents, and returns the total contents and their size.
-	FinishUpload(ctx context.Context, uploadID string, rc io.ReadCloser) (io.ReadCloser, int64, error)
+	// GetUpload returns the contents and size of the upload.
+	//
+	// If an implementation implements FinalizeUpload (below), then
+	// GetUpload will not be called, and can simply return an error.
+	GetUpload(ctx context.Context, uploadID string) (io.ReadCloser, int64, error)
+
+	// DeleteUpload deletes the upload contents.
+	DeleteUpload(ctx context.Context, uploadID string) error
 }
 
 // uploadFinalizeHandler is an extension interface representing upload storage
-// that can finalize contents into blob storage.
+// that can finalize contents directly into blob storage.
 type uploadFinalizeHandler interface {
-	// FinalizeUpload appends the contents of the ReadCloser to the current
-	// uplaod contents, checks the total contents digest matches, and
-	// finalizes it into blob storage.
+	// FinalizeUpload copies the upload contents into blob storage and
+	// deletes it from upload storage.
 	//
 	// Implementations that implement this method are responsible for
 	// verifying the given hash matches the total contents before
 	// persisting to blob storage.
-	FinalizeUpload(ctx context.Context, uploadID string, rc io.ReadCloser, h v1.Hash) error
+	FinalizeUpload(ctx context.Context, uploadID string, h v1.Hash) error
 }
 
 // redirectError represents a signal that the blob handler doesn't have the blob
@@ -136,6 +140,7 @@ func (m *memHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error)
 	}
 	return int64(len(b)), nil
 }
+
 func (m *memHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -146,6 +151,7 @@ func (m *memHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser,
 	}
 	return ioutil.NopCloser(bytes.NewReader(b)), nil
 }
+
 func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadCloser) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -158,11 +164,13 @@ func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClose
 	m.blobs[h.String()] = all
 	return nil
 }
+
 func (m *memHandler) StatUpload(_ context.Context, uploadID string) (int64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	return int64(len(m.uploads[uploadID])), nil
 }
+
 func (m *memHandler) AppendUpload(_ context.Context, uploadID string, rc io.ReadCloser) (int64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -179,48 +187,40 @@ func (m *memHandler) AppendUpload(_ context.Context, uploadID string, rc io.Read
 	m.uploads[uploadID] = all
 	return size, nil
 }
-func (m *memHandler) FinishUpload(_ context.Context, uploadID string, rc io.ReadCloser) (io.ReadCloser, int64, error) {
+
+func (m *memHandler) GetUpload(_ context.Context, uploadID string) (io.ReadCloser, int64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	defer rc.Close()
-
 	have := m.uploads[uploadID]
-	all, err := ioutil.ReadAll(rc)
-	if err != nil {
-		return nil, -1, err
-	}
-	delete(m.uploads, uploadID)
-	return ioutil.NopCloser(bytes.NewReader(append(have, all...))), int64(len(have) + len(all)), nil
+	return ioutil.NopCloser(bytes.NewReader(have)), int64(len(have)), nil
 }
-func (m *memHandler) FinalizeUpload(_ context.Context, uploadID string, rc io.ReadCloser, h v1.Hash) error {
+
+func (m *memHandler) DeleteUpload(_ context.Context, uploadID string) error {
+	delete(m.uploads, uploadID)
+	return nil
+}
+
+func (m *memHandler) FinalizeUpload(_ context.Context, uploadID string, h v1.Hash) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	defer rc.Close()
-
 	have := m.uploads[uploadID]
-	last, err := ioutil.ReadAll(rc)
-	if err != nil {
-		return err
-	}
-	delete(m.uploads, uploadID)
-	all := append(have, last...)
-	size := int64(len(all))
 
-	// Read and verify the full contents' digest.
-	rc = ioutil.NopCloser(bytes.NewReader(all))
-	vrc, err := verify.ReadCloser(rc, size, h)
+	// Read and verify the upload contents' digest.
+	vrc, err := verify.ReadCloser(
+		ioutil.NopCloser(bytes.NewReader(have)),
+		int64(len(have)),
+		h)
 	if err != nil {
 		return err
 	}
 	defer vrc.Close()
-	all, err = ioutil.ReadAll(vrc)
-	if err != nil {
+	if _, err := io.Copy(ioutil.Discard, vrc); err != nil {
 		return err
 	}
 
-	m.blobs[h.String()] = all
+	m.blobs[h.String()] = have
 	return nil
 }
 
@@ -512,8 +512,12 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
+		if _, err := uh.AppendUpload(ctx, target, req.Body); err != nil {
+			return regErrInternal(err)
+		}
+
 		if ufh, ok := uh.(uploadFinalizeHandler); ok {
-			if err := ufh.FinalizeUpload(ctx, target, req.Body, h); err != nil {
+			if err := ufh.FinalizeUpload(ctx, target, h); err != nil {
 				return regErrInternal(err)
 			}
 			resp.Header().Set("Docker-Content-Digest", h.String())
@@ -526,7 +530,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			return regErrUnsupported
 		}
 
-		rc, size, err := uh.FinishUpload(ctx, target, req.Body)
+		rc, size, err := uh.GetUpload(ctx, target)
 		if err != nil {
 			return regErrInternal(err)
 		}
@@ -542,6 +546,12 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				log.Printf("Digest mismatch: %v", err)
 				return regErrDigestMismatch
 			}
+			return regErrInternal(err)
+		}
+
+		// Finally, delete the in-progress upload now that it's
+		// finished.
+		if err := uh.DeleteUpload(ctx, target); err != nil {
 			return regErrInternal(err)
 		}
 
