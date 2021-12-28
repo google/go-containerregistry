@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -30,6 +31,7 @@ import (
 // NewCmdPush creates a new cobra.Command for the push subcommand.
 func NewCmdPush(options *[]crane.Option) *cobra.Command {
 	index := false
+	imageRefs := ""
 	cmd := &cobra.Command{
 		Use:   "push PATH IMAGE",
 		Short: "Push local image contents to a remote registry",
@@ -43,23 +45,43 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 				return err
 			}
 
-			// TODO(generics): Make crane.Push support index.
+			o := crane.GetOptions(*options...)
+			ref, err := name.ParseReference(tag, o.Name...)
+			if err != nil {
+				return err
+			}
+			var h v1.Hash
 			switch t := img.(type) {
 			case v1.Image:
-				return crane.Push(t, tag, *options...)
-			case v1.ImageIndex:
-				o := crane.GetOptions(*options...)
-				ref, err := name.ParseReference(tag, o.Name...)
-				if err != nil {
+				if err := remote.Write(ref, t, o.Remote...); err != nil {
 					return err
 				}
-				return remote.WriteIndex(ref, t, o.Remote...)
+				if h, err = t.Digest(); err != nil {
+					return err
+				}
+			case v1.ImageIndex:
+				if err := remote.WriteIndex(ref, t, o.Remote...); err != nil {
+					return err
+				}
+				if h, err = t.Digest(); err != nil {
+					return err
+				}
+			default:
+				return fmt.Errorf("cannot push type (%T) to registry", img)
 			}
 
-			return fmt.Errorf("cannot push type (%T) to registry", img)
+			digest := ref.Context().Digest(h.String())
+			if imageRefs != "" {
+				return ioutil.WriteFile(imageRefs, []byte(digest.String()), 0600)
+			}
+			// TODO(mattmoor): think about printing the digest to standard out
+			// to facilitate command composition similar to ko build.
+
+			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&index, "index", false, "push a collection of images as a single index, currently required if PATH contains multiple images")
+	cmd.Flags().StringVar(&imageRefs, "image-refs", "", "path to file where a list of the published image references will be written")
 	return cmd
 }
 

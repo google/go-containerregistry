@@ -13,8 +13,9 @@ crane push PATH IMAGE [flags]
 ### Options
 
 ```
-  -h, --help    help for push
-      --index   push a collection of images as a single index, currently required if PATH contains multiple images
+  -h, --help                help for push
+      --image-refs string   path to file where a list of the published image references will be written
+      --index               push a collection of images as a single index, currently required if PATH contains multiple images
 ```
 
 ### Options inherited from parent commands
