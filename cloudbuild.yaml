@@ -23,23 +23,29 @@ steps:
     chmod +x ko
     alias ko=./ko
 
-    # Use the ko binary to build the crane and gcrane builder images.
+    # Use the ko binary to build the crane-ish builder images.
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/krane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
 
-    # Use the ko binary to build the crane and gcrane builder *debug* images.
+    # Use the ko binary to build the crane-ish builder *debug* images.
     export KO_CONFIG_PATH=./.ko/debug/
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t "debug"
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t "debug"
+    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/krane -t "debug"
 
-    # Tag-specific debug images are pushed to gcr.io/go-containerregistry/{g}crane/debug:...
+    # Tag-specific debug images are pushed to gcr.io/go-containerregistry/TOOL/debug:...
     KO_DOCKER_REPO=gcr.io/$PROJECT_ID/crane/debug  ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
     KO_DOCKER_REPO=gcr.io/$PROJECT_ID/gcrane/debug ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/krane/debug ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/krane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
 
-# Use the crane builder to get the digest for crane and gcrane.
+# Use the crane builder to get the digest for crane-ish.
 - name: gcr.io/$PROJECT_ID/crane
   args: ['digest', 'gcr.io/$PROJECT_ID/crane']
 
 - name: gcr.io/$PROJECT_ID/crane
   args: ['digest', 'gcr.io/$PROJECT_ID/gcrane']
+
+- name: gcr.io/$PROJECT_ID/crane
+  args: ['digest', 'gcr.io/$PROJECT_ID/krane']
 
