@@ -83,7 +83,8 @@ func NewGcloudAuthenticator() (authn.Authenticator, error) {
 
 // NewJSONKeyAuthenticator returns a Basic authenticator which uses Service Account
 // as a way of authenticating with Google Container Registry.
-// More information: https://cloud.google.com/container-registry/docs/advanced-authentication#json_key_file
+//
+// See: https://cloud.google.com/container-registry/docs/advanced-authentication#json_key_file
 func NewJSONKeyAuthenticator(serviceAccountJSON string) authn.Authenticator {
 	return &authn.Basic{
 		Username: "_json_key",
@@ -93,7 +94,8 @@ func NewJSONKeyAuthenticator(serviceAccountJSON string) authn.Authenticator {
 
 // NewTokenAuthenticator returns an oauth2.TokenSource that generates access
 // tokens by using the Google SDK to produce JWT tokens from a Service Account.
-// More information: https://godoc.org/golang.org/x/oauth2/google#JWTAccessTokenSourceFromJSON
+//
+// See: https://godoc.org/golang.org/x/oauth2/google#JWTAccessTokenSourceFromJSON
 func NewTokenAuthenticator(serviceAccountJSON string, scope string) (authn.Authenticator, error) {
 	ts, err := googauth.JWTAccessTokenSourceFromJSON([]byte(serviceAccountJSON), scope)
 	if err != nil {
