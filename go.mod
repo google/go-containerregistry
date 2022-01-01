@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/Microsoft/go-winio v0.5.1 // indirect
+	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20211027214941-f15886b5ccdc
 	github.com/containerd/containerd v1.5.8 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.10.1
 	github.com/docker/cli v20.10.12+incompatible
