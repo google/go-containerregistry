@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
@@ -113,12 +114,25 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		return layersExist(layers)
 	}
 
+	cf, err := img.ConfigFile()
+	if err != nil {
+		return err
+	}
+
+	m, err := img.Manifest()
+	if err != nil {
+		return err
+	}
+
 	digests := []v1.Hash{}
 	diffids := []v1.Hash{}
 	udiffids := []v1.Hash{}
 	sizes := []int64{}
-	for _, layer := range layers {
+	for i, layer := range layers {
 		cl, err := computeLayer(layer)
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return fmt.Errorf("undersized layer[%d] content: Manifest.Layers[%d].Size=%d", i, i, m.Layers[i].Size)
+		}
 		if err != nil {
 			return err
 		}
@@ -128,16 +142,6 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		diffids = append(diffids, cl.diffid)
 		udiffids = append(udiffids, cl.uncompressedDiffid)
 		sizes = append(sizes, cl.size)
-	}
-
-	cf, err := img.ConfigFile()
-	if err != nil {
-		return err
-	}
-
-	m, err := img.Manifest()
-	if err != nil {
-		return err
 	}
 
 	errs := []string{}

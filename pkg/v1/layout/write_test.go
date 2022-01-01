@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -705,6 +706,8 @@ func TestOverwriteWithReplaceImage(t *testing.T) {
 	}
 	if err := validate.Image(truncatedImg); err == nil {
 		t.Fatal("validating image after truncating layer; validate.Image() = nil, expected err")
+	} else if strings.Contains(err.Error(), "unexpected EOF") {
+		t.Fatalf("validating image after truncating layer; validate.Image() error is not helpful: %v", err)
 	}
 
 	// try writing expected contents with ReplaceImage
