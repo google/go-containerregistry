@@ -42,7 +42,9 @@ func main() {
 }
 ```
 
-(If you're only using [gcr.io](https://gcr.io), see the [`pkg/v1/google.Keychain`](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/google#Keychain), which emulates [`docker-credential-gcr`](https://github.com/GoogleCloudPlatform/docker-credential-gcr).)
+If you're using [gcr.io](https://gcr.io), see the [`pkg/authn/google.Keychain`](https://godoc.org/github.com/google/go-containerregistry/pkg/authn/google#Keychain), which emulates [`docker-credential-gcr`](https://github.com/GoogleCloudPlatform/docker-credential-gcr).
+
+If you're using [AWS Elastic Container Registry](https://aws.amazon.com/ecr/), see the [`pkg/authn/amazon.Keychain`](https://godoc.org/github.com/google/go-containerregistry/pkg/authn/amazon#Keychain), which emulates [`docker-credential-ecr-login`](https://github.com/awslabs/amazon-ecr-credential-helper).
 
 ## The Config File
 
