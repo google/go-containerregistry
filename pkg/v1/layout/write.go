@@ -16,9 +16,9 @@ package layout
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/match"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
 )
@@ -223,10 +224,15 @@ func (l Path) WriteFile(name string, data []byte, perm os.FileMode) error {
 // WriteBlob copies a file to the blobs/ directory in the Path from the given ReadCloser at
 // blobs/{hash.Algorithm}/{hash.Hex}.
 func (l Path) WriteBlob(hash v1.Hash, r io.ReadCloser) error {
-	return l.writeBlob(hash, 0, r, nil)
+	return l.writeBlob(hash, -1, r, nil)
 }
 
-func (l Path) writeBlob(hash v1.Hash, size int64, r io.ReadCloser, renamer func() (v1.Hash, error)) error {
+func (l Path) writeBlob(hash v1.Hash, size int64, r io.Reader, renamer func() (v1.Hash, error)) error {
+	if hash.Hex == "" && renamer == nil {
+		// Should we panic, since this is a programming error?
+		return errors.New("writeBlob called an invalid hash and no renamer")
+	}
+
 	dir := l.path("blobs", hash.Algorithm)
 	if err := os.MkdirAll(dir, os.ModePerm); err != nil && !os.IsExist(err) {
 		return err
@@ -234,72 +240,83 @@ func (l Path) writeBlob(hash v1.Hash, size int64, r io.ReadCloser, renamer func(
 
 	// Check if blob already exists and is the correct size
 	file := filepath.Join(dir, hash.Hex)
-	if s, err := os.Stat(file); err == nil && (s.Size() == size || size == 0) {
+	if s, err := os.Stat(file); err == nil && !s.IsDir() && (s.Size() == size || size == -1) {
 		return nil
 	}
 
-	// If a rename func was provided, use a temporary file suffix
+	// If a renamer func was provided write to a temporary file
+	open := func() (*os.File, error) { return os.Create(file) }
 	if renamer != nil {
-		file += ".tmp"
+		open = func() (*os.File, error) { return ioutil.TempFile(dir, hash.Hex) }
 	}
-	w, err := os.Create(file)
+	w, err := open()
 	if err != nil {
 		return err
 	}
 	defer w.Close()
 
-	// Write to file and optionally rename
+	// Write to file and exit if not renaming
 	if _, err := io.Copy(w, r); err != nil || renamer == nil {
 		return err
 	}
-	finalHash, err := renamer()
-	if err != nil {
-		return err
-	}
+
 	// Always close file before renaming
 	if err := w.Close(); err != nil {
 		return err
 	}
-	return os.Rename(file, l.path("blobs", finalHash.Algorithm, finalHash.Hex))
+
+	// Rename file based on the final hash
+	finalHash, err := renamer()
+	if err != nil {
+		return fmt.Errorf("error getting final digest of layer: %w", err)
+	}
+
+	renamePath := l.path("blobs", finalHash.Algorithm, finalHash.Hex)
+	return os.Rename(w.Name(), renamePath)
 }
 
-// WriteLayer writes the compressed layer to a blob. Unlike WriteBlob it will
+// writeLayer writes the compressed layer to a blob. Unlike WriteBlob it will
 // write to a temporary file (suffixed with .tmp) within the layout until the
 // compressed reader is fully consumed and written to disk. Also unlike
 // WriteBlob, it will not skip writing and exit without error when a blob file
 // exists, but does not have the correct size. (The blob hash is not
 // considered, because it may be expensive to compute.)
-func (l Path) WriteLayer(layer v1.Layer) error {
+func (l Path) writeLayer(layer v1.Layer) error {
 	d, err := layer.Digest()
-	if err != nil {
+	if errors.Is(err, stream.ErrNotComputed) {
 		// Allow digest errors, since streams may not have calculated the hash
-		// yet. Instead, use a random value for the digest and require it to be
+		// yet. Instead, use an empty value, which will be transformed into a
+		// random file name with `ioutil.TempFile` and the final digest will be
 		// calculated after writing to a temp file and before renaming to the
 		// final path.
-		var randHash [32]byte
-		if _, err := rand.Read(randHash[:]); err != nil {
-			return err
-		}
-		d = v1.Hash{Algorithm: "sha256", Hex: hex.EncodeToString(randHash[:])}
+		d = v1.Hash{Algorithm: "sha256", Hex: ""}
+	} else if err != nil {
+		return err
 	}
 
 	s, err := layer.Size()
-	if err != nil {
+	if errors.Is(err, stream.ErrNotComputed) {
 		// Allow size errors, since streams may not have calculated the size
 		// yet. Instead, use zero as a sentinel value meaning that no size
 		// comparison can be done and any sized blob file should be considered
 		// valid and not overwritten.
 		//
 		// TODO: Provide an option to always overwrite blobs.
-		s = 0
+		s = -1
+	} else if err != nil {
+		return err
 	}
 
 	r, err := layer.Compressed()
 	if err != nil {
 		return err
 	}
+	defer r.Close()
 
-	return l.writeBlob(d, s, r, layer.Digest)
+	if err := l.writeBlob(d, s, r, layer.Digest); err != nil {
+		return fmt.Errorf("error writing layer: %w", err)
+	}
+	return nil
 }
 
 // RemoveBlob removes a file from the blobs directory in the Path
@@ -332,7 +349,7 @@ func (l Path) WriteImage(img v1.Image) error {
 	for _, layer := range layers {
 		layer := layer
 		g.Go(func() error {
-			return l.WriteLayer(layer)
+			return l.writeLayer(layer)
 		})
 	}
 	if err := g.Wait(); err != nil {

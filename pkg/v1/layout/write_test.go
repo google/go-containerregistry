@@ -526,7 +526,7 @@ func TestStreamingWriteLayer(t *testing.T) {
 	if _, err := img.Digest(); err == nil {
 		t.Fatal("digesting image before stream is consumed; (v1.Image).Digest() = nil, expected err")
 	}
-	// AppendImage uses WriteLayer
+	// AppendImage uses writeLayer
 	if err := l.AppendImage(img); err != nil {
 		t.Fatalf("(Path).AppendImage() = %v", err)
 	}
@@ -538,14 +538,14 @@ func TestStreamingWriteLayer(t *testing.T) {
 	}
 	img, err = l.Image(imgDigest)
 	if err != nil {
-		t.Fatalf("error loading image after WriteLayer for validation; (Path).Image = %v", err)
+		t.Fatalf("error loading image after writeLayer for validation; (Path).Image = %v", err)
 	}
 	if err := validate.Image(img); err != nil {
 		t.Fatalf("validate.Image() = %v", err)
 	}
 }
 
-func TestOverwriteWithWriteLayer(t *testing.T) {
+func TestOverwriteWithwriteLayer(t *testing.T) {
 	// need to set up a basic path
 	tmp, err := ioutil.TempDir("", "overwrite-with-write-layer-test")
 	if err != nil {
@@ -626,18 +626,18 @@ func TestOverwriteWithWriteLayer(t *testing.T) {
 		t.Fatal("validating image after attempting repair of truncated layer with WriteBlob; validate.Image() = nil, expected err")
 	}
 
-	// try writing expected contents with WriteLayer
-	if err := l.WriteLayer(layer); err != nil {
-		t.Fatalf("error attempting to overwrite truncated layer with valid layer; (Path).WriteLayer = %v", err)
+	// try writing expected contents with writeLayer
+	if err := l.writeLayer(layer); err != nil {
+		t.Fatalf("error attempting to overwrite truncated layer with valid layer; (Path).writeLayer = %v", err)
 	}
 
 	// validation should now succeed
 	img, err = l.Image(imgDigest)
 	if err != nil {
-		t.Fatalf("error loading truncated image after WriteLayer for validation; (Path).Image = %v", err)
+		t.Fatalf("error loading truncated image after writeLayer for validation; (Path).Image = %v", err)
 	}
 	if err := validate.Image(img); err != nil {
-		t.Fatalf("validating image after attempting repair of truncated layer with WriteLayer; validate.Image() = %v", err)
+		t.Fatalf("validating image after attempting repair of truncated layer with writeLayer; validate.Image() = %v", err)
 	}
 }
 

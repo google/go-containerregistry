@@ -114,16 +114,6 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		return layersExist(layers)
 	}
 
-	cf, err := img.ConfigFile()
-	if err != nil {
-		return err
-	}
-
-	m, err := img.Manifest()
-	if err != nil {
-		return err
-	}
-
 	digests := []v1.Hash{}
 	diffids := []v1.Hash{}
 	udiffids := []v1.Hash{}
@@ -131,6 +121,13 @@ func validateLayers(img v1.Image, opt ...Option) error {
 	for i, layer := range layers {
 		cl, err := computeLayer(layer)
 		if errors.Is(err, io.ErrUnexpectedEOF) {
+			// Errored while reading tar content of layer because a header or
+			// content section was not the correct length. This is most likely
+			// due to an incomplete download or otherwise interrupted process.
+			m, err := img.Manifest()
+			if err != nil {
+				return fmt.Errorf("undersized layer[%d] content", i)
+			}
 			return fmt.Errorf("undersized layer[%d] content: Manifest.Layers[%d].Size=%d", i, i, m.Layers[i].Size)
 		}
 		if err != nil {
@@ -142,6 +139,16 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		diffids = append(diffids, cl.diffid)
 		udiffids = append(udiffids, cl.uncompressedDiffid)
 		sizes = append(sizes, cl.size)
+	}
+
+	cf, err := img.ConfigFile()
+	if err != nil {
+		return err
+	}
+
+	m, err := img.Manifest()
+	if err != nil {
+		return err
 	}
 
 	errs := []string{}

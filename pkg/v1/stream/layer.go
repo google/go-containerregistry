@@ -159,13 +159,17 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 	}
 
 	cr := &compressedReader{
-		closer: newMultiCloser(zw, l.blob),
-		pr:     pr,
-		bw:     bw,
-		h:      h,
-		zh:     zh,
-		count:  count,
-		l:      l,
+		// NOTE: Order matters! If zw is closed first, then it will panic,
+		// because io.Copy in the goroutine below will still be copying the
+		// contents of l.blob into it.
+		closer: newMultiCloser(l.blob, zw),
+
+		pr:    pr,
+		bw:    bw,
+		h:     h,
+		zh:    zh,
+		count: count,
+		l:     l,
 	}
 	go func() {
 		if _, err := io.Copy(io.MultiWriter(h, zw), l.blob); err != nil {
