@@ -15,13 +15,16 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdTag creates a new cobra.Command for the tag subcommand.
 func NewCmdTag(options *[]crane.Option) *cobra.Command {
-	return &cobra.Command{
+	bump := false
+	cmd := &cobra.Command{
 		Use:   "tag IMG TAG",
 		Short: "Efficiently tag a remote image",
 		Long: `This differs slightly from the "copy" command in a couple subtle ways:
@@ -38,7 +41,19 @@ crane tag ubuntu v1`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			img, tag := args[0], args[1]
-			return crane.Tag(img, tag, *options...)
+			if !bump {
+				return crane.Tag(img, tag, *options...)
+			}
+
+			refs, err := crane.Bump(img, tag, *options...)
+			for _, ref := range refs {
+				fmt.Println(ref)
+			}
+			return err
 		},
 	}
+
+	cmd.Flags().BoolVar(&bump, "bump", false, "Whether to update affected semver tags as well")
+
+	return cmd
 }
