@@ -116,6 +116,7 @@ github.com/spf13/pflag
 # github.com/vbatts/tar-split v0.11.2
 github.com/vbatts/tar-split/archive/tar
 # golang.org/x/mod v0.5.1
+## explicit
 golang.org/x/mod/semver
 # golang.org/x/net v0.0.0-20211216030914-fe4d6282115f
 ## explicit

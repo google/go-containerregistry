@@ -28,6 +28,7 @@ crane tag ubuntu v1
 ### Options
 
 ```
+      --bump   Whether to update affected semver tags as well
   -h, --help   help for tag
 ```
 
