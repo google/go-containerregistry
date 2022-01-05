@@ -256,8 +256,10 @@ func (l Path) writeBlob(hash v1.Hash, size int64, r io.Reader, renamer func() (v
 	defer w.Close()
 
 	// Write to file and exit if not renaming
-	if _, err := io.Copy(w, r); err != nil || renamer == nil {
+	if n, err := io.Copy(w, r); err != nil || renamer == nil {
 		return err
+	} else if size != -1 && n != size {
+		return fmt.Errorf("expected blob size %d, but only wrote %d", size, n)
 	}
 
 	// Always close file before renaming
