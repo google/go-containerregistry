@@ -63,3 +63,21 @@ jobs:
         ./app/crane pull --format=oci $img $layout
         ./app/crane push --image-refs=foo.images $layout $dst
         diff <(./app/crane manifest $img) <(./app/crane manifest $(cat foo.images))
+
+        # Make sure we can roundtrip an index (distroless).
+        distroless=$(mktemp -d)
+        remote="gcr.io/distroless/static"
+        local="localhost:1338/distroless:static"
+
+        ./app/crane pull --format=oci $remote $distroless
+        ./app/crane push $distroless $local
+        diff <(./app/crane manifest $remote) <(./app/crane manifest $local)
+
+        # And that it works for a single platform (pulling from what we just pushed).
+        distroless=$(mktemp -d)
+        remote="$local"
+        local="localhost:1338/distroless/platform:static"
+
+        ./app/crane pull --platform=linux/arm64 --format=oci $remote $distroless
+        ./app/crane push $distroless $local
+        diff <(./app/crane manifest --platform linux/arm64 $remote) <(./app/crane manifest $local)
