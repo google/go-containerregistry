@@ -90,8 +90,11 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				for _, idx := range indexMap {
-					if err := p.AppendIndex(idx); err != nil {
+				for ref, idx := range indexMap {
+					anns := map[string]string{
+						"dev.ggcr.image.name": ref,
+					}
+					if err := p.AppendIndex(idx, layout.WithAnnotations(anns)); err != nil {
 						return err
 					}
 				}
