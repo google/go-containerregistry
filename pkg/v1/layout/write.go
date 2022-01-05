@@ -311,7 +311,6 @@ func (l Path) writeLayer(layer v1.Layer) error {
 	if err != nil {
 		return err
 	}
-	defer r.Close()
 
 	if err := l.writeBlob(d, s, r, layer.Digest); err != nil {
 		return fmt.Errorf("error writing layer: %w", err)

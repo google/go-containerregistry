@@ -127,8 +127,6 @@ func (l *Layer) Compressed() (io.ReadCloser, error) {
 }
 
 type compressedReader struct {
-	closer io.Closer // original blob's Closer.
-
 	h, zh hash.Hash // collects digests of compressed and uncompressed stream.
 	pr    io.Reader
 	bw    *bufio.Writer
@@ -159,11 +157,6 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 	}
 
 	cr := &compressedReader{
-		// NOTE: Order matters! If zw is closed first, then it will panic,
-		// because io.Copy in the goroutine below will still be copying the
-		// contents of l.blob into it.
-		closer: newMultiCloser(l.blob, zw),
-
 		pr:    pr,
 		bw:    bw,
 		h:     h,
@@ -172,10 +165,26 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 		l:     l,
 	}
 	go func() {
-		if _, err := io.Copy(io.MultiWriter(h, zw), l.blob); err != nil {
-			pw.CloseWithError(err)
+		// Copy blob into the gzip writer - which also hashes and counts the
+		// size of the compressed output - and hasher of the raw contents.
+		_, copyErr := io.Copy(io.MultiWriter(h, zw), l.blob)
+
+		// Close the gzip writer once copying is done. If this is done in the
+		// Close method of compressedReader instead, then it can cause a panic
+		// when the compressedReader is closed before the blob is fully
+		// consumed and io.Copy in this goroutine is still blocking.
+		closeErr := zw.Close()
+
+		// Check errors from writing and closing streams.
+		if copyErr != nil {
+			pw.CloseWithError(copyErr)
 			return
 		}
+		if closeErr != nil {
+			pw.CloseWithError(closeErr)
+			return
+		}
+
 		// Now close the compressed reader, to flush the gzip stream
 		// and calculate digest/diffID/size. This will cause pr to
 		// return EOF which will cause readers of the Compressed stream
@@ -193,7 +202,10 @@ func (cr *compressedReader) Close() error {
 	defer cr.l.mu.Unlock()
 
 	// Close the inner ReadCloser.
-	if err := cr.closer.Close(); err != nil {
+	//
+	// NOTE: net/http will call close on success, so if we've already
+	// closed the inner rc, it's not an error.
+	if err := cr.l.blob.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 		return err
 	}
 
@@ -225,22 +237,4 @@ type countWriter struct{ n int64 }
 func (c *countWriter) Write(p []byte) (int, error) {
 	c.n += int64(len(p))
 	return len(p), nil
-}
-
-// multiCloser is a Closer that collects multiple Closers and Closes them in order.
-type multiCloser []io.Closer
-
-var _ io.Closer = (multiCloser)(nil)
-
-func newMultiCloser(c ...io.Closer) multiCloser { return multiCloser(c) }
-
-func (m multiCloser) Close() error {
-	for _, c := range m {
-		// NOTE: net/http will call close on success, so if we've already
-		// closed the inner rc, it's not an error.
-		if err := c.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
-			return err
-		}
-	}
-	return nil
 }
