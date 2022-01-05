@@ -100,6 +100,32 @@ func main() {
 
 <!-- TODO(jasonhall): Wrap these in docker-credential-magic and reference those from here. -->
 
+## Using Multiple `Keychain`s
+
+[`NewMultiKeychain`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/authn#NewMultiKeychain) allows you to specify multiple `Keychain` implementations, which will be checked in order when credentials are needed.
+
+For example:
+ 
+```go
+kc := authn.NewMultiKeychain(
+    authn.DefaultKeychain,
+    google.Keychain,
+    authn.NewFromHelper(ecr.ECRHelper{ClientFactory: api.DefaultClientFactory{}}),
+    authn.NewFromHelper(acr.ACRCredHelper{}),
+)
+```
+
+This multi-keychain will:
+
+- first check for credentials found in the Docker config file, as describe above, then
+- check for GCP credentials available in the environment, as described above, then
+- check for ECR credentials by emulating the ECR credential helper, then
+- check for ACR credentials by emulating the ACR credential helper.
+
+If any keychain implementation is able to provide credentials for the request, they will be used, and further keychain implementations will not be consulted.
+
+If no implementations are able to provide credentials, `Anonymous` credentials will be used.
+
 ## Docker Config Auth
 
 What follows attempts to gather useful information about Docker's config.json and make it available in one place.
