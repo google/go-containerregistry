@@ -105,7 +105,7 @@ func main() {
 [`NewMultiKeychain`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/authn#NewMultiKeychain) allows you to specify multiple `Keychain` implementations, which will be checked in order when credentials are needed.
 
 For example:
- 
+
 ```go
 kc := authn.NewMultiKeychain(
     authn.DefaultKeychain,
