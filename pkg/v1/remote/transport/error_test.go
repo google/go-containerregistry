@@ -59,6 +59,13 @@ func TestTemporary(t *testing.T) {
 		retry: true,
 	}, {
 		error: &Error{
+			Errors: []Diagnostic{{
+				Code: UnavailableErrorCode,
+			}},
+		},
+		retry: true,
+	}, {
+		error: &Error{
 			StatusCode: http.StatusInternalServerError,
 		},
 		retry: true,
