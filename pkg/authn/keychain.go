@@ -140,7 +140,7 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 }
 
 // Helper is a subset of the Docker credential helper credentials.Helper
-// interface used by NewFromHelper.
+// interface used by NewKeychainFromHelper.
 //
 // See:
 // https://pkg.go.dev/github.com/docker/docker-credential-helpers/credentials#Helper
@@ -148,10 +148,10 @@ type Helper interface {
 	Get(serverURL string) (string, string, error)
 }
 
-// NewFromHelper returns a Keychain based on a Docker credential helper
+// NewKeychainFromHelper returns a Keychain based on a Docker credential helper
 // implementation that can Get username and password credentials for a given
 // server URL.
-func NewFromHelper(h Helper) Keychain { return wrapper{h} }
+func NewKeychainFromHelper(h Helper) Keychain { return wrapper{h} }
 
 type wrapper struct{ h Helper }
 

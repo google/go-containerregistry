@@ -262,9 +262,9 @@ func (h helper) Get(serverURL string) (string, string, error) {
 	return "helper-username", "helper-password", h.err
 }
 
-func TestNewFromHelper(t *testing.T) {
+func TestNewKeychainFromHelper(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		kc := NewFromHelper(helper{})
+		kc := NewKeychainFromHelper(helper{})
 		auth, err := kc.Resolve(defaultRegistry)
 		if err != nil {
 			t.Fatalf("Resolve(%q): %v", defaultRegistry, err)
@@ -282,7 +282,7 @@ func TestNewFromHelper(t *testing.T) {
 	})
 
 	t.Run("failure", func(t *testing.T) {
-		kc := NewFromHelper(helper{errors.New("oh no bad")})
+		kc := NewKeychainFromHelper(helper{errors.New("oh no bad")})
 		auth, err := kc.Resolve(defaultRegistry)
 		if err != nil {
 			t.Fatalf("Resolve(%q): %v", defaultRegistry, err)
