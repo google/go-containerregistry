@@ -16,6 +16,7 @@ package authn
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -253,4 +254,41 @@ func TestVariousPaths(t *testing.T) {
 			}
 		})
 	}
+}
+
+type helper struct{ err error }
+
+func (h helper) Get(serverURL string) (string, string, error) {
+	return "helper-username", "helper-password", h.err
+}
+
+func TestNewKeychainFromHelper(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		kc := NewKeychainFromHelper(helper{})
+		auth, err := kc.Resolve(defaultRegistry)
+		if err != nil {
+			t.Fatalf("Resolve(%q): %v", defaultRegistry, err)
+		}
+		cfg, err := auth.Authorization()
+		if err != nil {
+			t.Fatalf("Authorization: %v", err)
+		}
+		if got, want := cfg.Username, "helper-username"; got != want {
+			t.Errorf("Username: got %q, want %q", got, want)
+		}
+		if got, want := cfg.Password, "helper-password"; got != want {
+			t.Errorf("Password: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("failure", func(t *testing.T) {
+		kc := NewKeychainFromHelper(helper{errors.New("oh no bad")})
+		auth, err := kc.Resolve(defaultRegistry)
+		if err != nil {
+			t.Fatalf("Resolve(%q): %v", defaultRegistry, err)
+		}
+		if auth != Anonymous {
+			t.Errorf("Resolve: got %v, want %v", auth, Anonymous)
+		}
+	})
 }
