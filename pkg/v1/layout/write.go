@@ -253,6 +253,10 @@ func (l Path) writeBlob(hash v1.Hash, size int64, r io.Reader, renamer func() (v
 	if err != nil {
 		return err
 	}
+	if renamer != nil {
+		// Delete temp file if an error is encountered before renaming
+		defer os.Remove(w.Name())
+	}
 	defer w.Close()
 
 	// Write to file and exit if not renaming
