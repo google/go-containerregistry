@@ -4,9 +4,9 @@
 
 This README outlines how we acquire and use credentials when interacting with a registry.
 
-As much as possible, we attempt to emulate Docker's authentication behavior and configuration so that this library "just works" if you've already configured credentials that work with Docker; however, when things don't work, a basic understanding of what's going on can help with debugging.
+As much as possible, we attempt to emulate `docker`'s authentication behavior and configuration so that this library "just works" if you've already configured credentials that work with `docker`; however, when things don't work, a basic understanding of what's going on can help with debugging.
 
-The official documentation for how Docker authentication works is (reasonably) scattered across several different sites and GitHub repositories, so we've tried to summarize the relevant bits here.
+The official documentation for how authentication with `docker` works is (reasonably) scattered across several different sites and GitHub repositories, so we've tried to summarize the relevant bits here.
 
 ## tl;dr for consumers of this package
 
@@ -172,7 +172,7 @@ For what it's worth, this config file is equivalent to:
 
 ### Helpers
 
-If you log in like this, Docker will warn you that you should use a [credential helper](https://docs.docker.com/engine/reference/commandline/login/#credentials-store), and you should!
+If you log in like this, `docker` will warn you that you should use a [credential helper](https://docs.docker.com/engine/reference/commandline/login/#credentials-store), and you should!
 
 To configure a global credential helper:
 ```json
