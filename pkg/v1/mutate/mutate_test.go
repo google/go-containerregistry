@@ -358,8 +358,8 @@ func TestMutateMediaType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if manifest.MediaType != "" {
-		t.Errorf("MediaType should not be set for OCI media types: %v", manifest.MediaType)
+	if manifest.MediaType == "" {
+		t.Error("MediaType should be set for OCI media types")
 	}
 	if gotCfg := manifest.Config.MediaType; gotCfg != wantCfg {
 		t.Errorf("manifest.Config.MediaType = %v, wanted %v", gotCfg, wantCfg)
@@ -400,8 +400,8 @@ func TestMutateMediaType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if im.MediaType != "" {
-		t.Errorf("MediaType should not be set for OCI media types: %v", im.MediaType)
+	if im.MediaType == "" {
+		t.Error("MediaType should be set for OCI media types")
 	}
 
 	want = types.DockerManifestList
