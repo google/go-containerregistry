@@ -24,10 +24,11 @@ import (
 
 	"github.com/google/go-containerregistry/internal/retry"
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/authn/google"
+	gauth "github.com/google/go-containerregistry/pkg/authn/google"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"golang.org/x/sync/errgroup"
@@ -35,7 +36,7 @@ import (
 
 // Keychain tries to use google-specific credential sources, falling back to
 // the DefaultKeychain (config-file based).
-var Keychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
+var Keychain = authn.NewMultiKeychain(gauth.Keychain, authn.DefaultKeychain)
 
 // GCRBackoff returns a retry.Backoff that is suitable for use with gcr.io.
 //
