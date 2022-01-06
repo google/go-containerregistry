@@ -20,4 +20,6 @@ import (
 )
 
 // Keychain exports an instance of the google Keychain.
+//
+// Deprecated: Use pkg/authn/google.Keychain.
 var Keychain authn.Keychain = gauth.Keychain
