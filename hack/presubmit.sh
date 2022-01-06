@@ -44,9 +44,15 @@ mkdir -p /tmp/gendoc && go run cmd/crane/help/main.go --dir /tmp/gendoc && diff 
 go test ./...
 ./pkg/name/internal/must_test.sh
 
+# Check that each of the sub-Go-modules build and pass tests (if any)
+
 pushd ${PROJECT_ROOT}/pkg/authn/k8schain
 trap popd EXIT
 go test ./...
+
+pushd ${PROJECT_ROOT}/cmd/krane
+trap popd EXIT
+go build ./...
 
 pushd ${PROJECT_ROOT}/pkg/authn/amazon
 trap popd EXIT

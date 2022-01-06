@@ -3,12 +3,12 @@ module github.com/google/go-containerregistry/cmd/krane
 go 1.17
 
 replace (
-	github.com/google/go-containerregistry => ../..
-	github.com/google/go-containerregistry/pkg/authn/k8schain => ../../pkg/authn/k8schain
+	github.com/google/go-containerregistry => ../../
+	github.com/google/go-containerregistry/pkg/authn/k8schain => ../../pkg/authn/k8schain/
 )
 
 require (
-	github.com/google/go-containerregistry v0.7.0
+	github.com/google/go-containerregistry v0.8.0
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20211223213658-2874338840a6
 )
 
