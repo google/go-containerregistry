@@ -107,7 +107,9 @@ func NewFromPullSecrets(ctx context.Context, secrets []corev1.Secret) (authn.Key
 	m := map[string]authn.AuthConfig{}
 	for _, secret := range secrets {
 		if b, exists := secret.Data[corev1.DockerConfigJsonKey]; secret.Type == corev1.SecretTypeDockerConfigJson && exists && len(b) > 0 {
-			var cfg config
+			var cfg struct {
+				Auths map[string]authn.AuthConfig
+			}
 			if err := json.Unmarshal(b, &cfg); err != nil {
 				return nil, err
 			}
@@ -121,25 +123,27 @@ func NewFromPullSecrets(ctx context.Context, secrets []corev1.Secret) (authn.Key
 			}
 		}
 	}
-	return configKeychain{m}, nil
+	return authsKeychain(m), nil
 }
 
-type config struct {
-	Auths map[string]authn.AuthConfig
-}
+type authsKeychain map[string]authn.AuthConfig
 
-type configKeychain struct {
-	m map[string]authn.AuthConfig
-}
-
-func (kc configKeychain) Resolve(target authn.Resource) (authn.Authenticator, error) {
-	key := target.String()
-	if key == name.DefaultRegistry {
-		key = authn.DefaultAuthKey
+func (kc authsKeychain) Resolve(target authn.Resource) (authn.Authenticator, error) {
+	// Check for an auth that matches the repository, then if that's not
+	// found, one that matches the registry.
+	var cfg authn.AuthConfig
+	for _, key := range []string{target.String(), target.RegistryStr()} {
+		if key == name.DefaultRegistry {
+			key = authn.DefaultAuthKey
+		}
+		var ok bool
+		cfg, ok = kc[key]
+		if ok {
+			break
+		}
 	}
-
-	cfg, ok := kc.m[key]
-	if !ok {
+	empty := authn.AuthConfig{}
+	if cfg == empty {
 		return authn.Anonymous, nil
 	}
 
