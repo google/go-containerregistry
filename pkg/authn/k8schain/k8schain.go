@@ -16,17 +16,21 @@ package k8schain
 
 import (
 	"context"
-	"fmt"
-	"sync"
 
+	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
+	"github.com/awslabs/amazon-ecr-credential-helper/ecr-login/api"
+	"github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
-	credentialprovider "github.com/vdemeester/k8s-pkg-credentialprovider"
-	credentialprovidersecrets "github.com/vdemeester/k8s-pkg-credentialprovider/secrets"
+	kauth "github.com/google/go-containerregistry/pkg/authn/kubernetes"
+	"github.com/google/go-containerregistry/pkg/v1/google"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+)
+
+var (
+	amazonKeychain authn.Keychain = authn.NewKeychainFromHelper(ecr.ECRHelper{ClientFactory: api.DefaultClientFactory{}})
+	azureKeychain  authn.Keychain = authn.NewKeychainFromHelper(credhelper.NewACRCredentialsHelper())
 )
 
 // Options holds configuration data for guiding credential resolution.
@@ -42,60 +46,35 @@ type Options struct {
 	ImagePullSecrets []string
 }
 
-var (
-	keyring credentialprovider.DockerKeyring
-	once    sync.Once
-)
-
 // New returns a new authn.Keychain suitable for resolving image references as
 // scoped by the provided Options.  It speaks to Kubernetes through the provided
 // client interface.
+//
+// Deprecated: Use pkg/authn/kubernetes.
 func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.Keychain, error) {
-	if opt.Namespace == "" {
-		opt.Namespace = "default"
-	}
-	if opt.ServiceAccountName == "" {
-		opt.ServiceAccountName = "default"
-	}
-
-	// Implement a Kubernetes-style authentication keychain.
-	// This needs to support roughly the following kinds of authentication:
-	//  1) The implicit authentication from k8s.io/kubernetes/pkg/credentialprovider
-	//  2) The explicit authentication from imagePullSecrets on Pod
-	//  3) The semi-implicit authentication where imagePullSecrets are on the
-	//    Pod's service account.
-
-	// First, fetch all of the explicitly declared pull secrets
-	var pullSecrets []corev1.Secret
-	if client != nil {
-		for _, name := range opt.ImagePullSecrets {
-			ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, name, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			pullSecrets = append(pullSecrets, *ps)
-		}
-
-		// Second, fetch all of the pull secrets attached to our service account.
-		sa, err := client.CoreV1().ServiceAccounts(opt.Namespace).Get(ctx, opt.ServiceAccountName, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
-		}
-		for _, localObj := range sa.ImagePullSecrets {
-			ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, localObj.Name, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			pullSecrets = append(pullSecrets, *ps)
-		}
+	k8s, err := kauth.New(ctx, client, kauth.Options{
+		Namespace:          opt.Namespace,
+		ServiceAccountName: opt.ServiceAccountName,
+		ImagePullSecrets:   opt.ImagePullSecrets,
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	return NewFromPullSecrets(ctx, pullSecrets)
+	return authn.NewMultiKeychain(
+		authn.DefaultKeychain,
+		google.Keychain,
+		amazonKeychain,
+		azureKeychain,
+		k8s,
+	), nil
 }
 
 // NewInCluster returns a new authn.Keychain suitable for resolving image references as
 // scoped by the provided Options, constructing a kubernetes.Interface based on in-cluster
 // authentication.
+//
+// Deprecated: Use pkg/authn/kubernetes.
 func NewInCluster(ctx context.Context, opt Options) (authn.Keychain, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -117,68 +96,32 @@ func NewInCluster(ctx context.Context, opt Options) (authn.Keychain, error) {
 // for Kubernetes authentication, but this actually targets a different use-case.  What
 // remains is an interesting sweet spot: this variant can serve as a credential provider
 // for all of the major public clouds, but in library form (vs. an executable you exec).
+//
+// Deprecated: Use pkg/authn/{amazon,azure,google}.Keychain.
 func NewNoClient(ctx context.Context) (authn.Keychain, error) {
-	return New(ctx, nil, Options{})
+	return authn.NewMultiKeychain(
+		authn.DefaultKeychain,
+		google.Keychain,
+		amazonKeychain,
+		azureKeychain,
+	), nil
 }
 
 // NewFromPullSecrets returns a new authn.Keychain suitable for resolving image references as
 // scoped by the pull secrets.
+//
+// Deprecated: Use pkg/authn/kubernetes.
 func NewFromPullSecrets(ctx context.Context, pullSecrets []corev1.Secret) (authn.Keychain, error) {
-	once.Do(func() {
-		keyring = credentialprovider.NewDockerKeyring()
-	})
-
-	// Extend the default keyring with the pull secrets.
-	kr, err := credentialprovidersecrets.MakeDockerKeyring(pullSecrets, keyring)
+	k8s, err := kauth.NewFromPullSecrets(ctx, pullSecrets)
 	if err != nil {
 		return nil, err
 	}
-	return &keychain{
-		keyring: kr,
-	}, nil
-}
 
-type lazyProvider struct {
-	kc    *keychain
-	image string
-}
-
-// Authorization implements Authenticator.
-func (lp lazyProvider) Authorization() (*authn.AuthConfig, error) {
-	creds, found := lp.kc.keyring.Lookup(lp.image)
-	if !found || len(creds) < 1 {
-		return nil, fmt.Errorf("keychain returned no credentials for %q", lp.image)
-	}
-	authConfig := creds[0]
-	return &authn.AuthConfig{
-		Username:      authConfig.Username,
-		Password:      authConfig.Password,
-		Auth:          authConfig.Auth,
-		IdentityToken: authConfig.IdentityToken,
-		RegistryToken: authConfig.RegistryToken,
-	}, nil
-}
-
-type keychain struct {
-	keyring credentialprovider.DockerKeyring
-}
-
-// Resolve implements authn.Keychain
-func (kc *keychain) Resolve(target authn.Resource) (authn.Authenticator, error) {
-	var image string
-	if repo, ok := target.(name.Repository); ok {
-		image = repo.String()
-	} else {
-		// Lookup expects an image reference and we only have a registry.
-		image = target.RegistryStr() + "/foo/bar"
-	}
-
-	if creds, found := kc.keyring.Lookup(image); !found || len(creds) < 1 {
-		return authn.Anonymous, nil
-	}
-	// TODO(mattmoor): How to support multiple credentials?
-	return lazyProvider{
-		kc:    kc,
-		image: image,
-	}, nil
+	return authn.NewMultiKeychain(
+		authn.DefaultKeychain,
+		google.Keychain,
+		amazonKeychain,
+		azureKeychain,
+		k8s,
+	), nil
 }
