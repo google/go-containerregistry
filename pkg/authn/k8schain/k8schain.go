@@ -34,29 +34,13 @@ var (
 )
 
 // Options holds configuration data for guiding credential resolution.
-type Options struct {
-	// Namespace holds the namespace inside of which we are resolving the
-	// image reference.  If empty, "default" is assumed.
-	Namespace string
-	// ServiceAccountName holds the serviceaccount as which the container
-	// will run (scoped to Namespace).  If empty, "default" is assumed.
-	ServiceAccountName string
-	// ImagePullSecrets holds the names of the Kubernetes secrets (scoped to
-	// Namespace) containing credential data to use for the image pull.
-	ImagePullSecrets []string
-}
+type Options = kauth.Options
 
 // New returns a new authn.Keychain suitable for resolving image references as
 // scoped by the provided Options.  It speaks to Kubernetes through the provided
 // client interface.
-//
-// Deprecated: Use pkg/authn/kubernetes.
 func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.Keychain, error) {
-	k8s, err := kauth.New(ctx, client, kauth.Options{
-		Namespace:          opt.Namespace,
-		ServiceAccountName: opt.ServiceAccountName,
-		ImagePullSecrets:   opt.ImagePullSecrets,
-	})
+	k8s, err := kauth.New(ctx, client, kauth.Options(opt))
 	if err != nil {
 		return nil, err
 	}
@@ -73,8 +57,6 @@ func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.K
 // NewInCluster returns a new authn.Keychain suitable for resolving image references as
 // scoped by the provided Options, constructing a kubernetes.Interface based on in-cluster
 // authentication.
-//
-// Deprecated: Use pkg/authn/kubernetes.
 func NewInCluster(ctx context.Context, opt Options) (authn.Keychain, error) {
 	clusterConfig, err := rest.InClusterConfig()
 	if err != nil {
@@ -96,8 +78,6 @@ func NewInCluster(ctx context.Context, opt Options) (authn.Keychain, error) {
 // for Kubernetes authentication, but this actually targets a different use-case.  What
 // remains is an interesting sweet spot: this variant can serve as a credential provider
 // for all of the major public clouds, but in library form (vs. an executable you exec).
-//
-// Deprecated: Use pkg/authn/{amazon,azure,google}.Keychain.
 func NewNoClient(ctx context.Context) (authn.Keychain, error) {
 	return authn.NewMultiKeychain(
 		authn.DefaultKeychain,
@@ -109,8 +89,6 @@ func NewNoClient(ctx context.Context) (authn.Keychain, error) {
 
 // NewFromPullSecrets returns a new authn.Keychain suitable for resolving image references as
 // scoped by the pull secrets.
-//
-// Deprecated: Use pkg/authn/kubernetes.
 func NewFromPullSecrets(ctx context.Context, pullSecrets []corev1.Secret) (authn.Keychain, error) {
 	k8s, err := kauth.NewFromPullSecrets(ctx, pullSecrets)
 	if err != nil {
