@@ -46,5 +46,12 @@ go test ./...
 
 pushd ${PROJECT_ROOT}/pkg/authn/k8schain
 trap popd EXIT
-
 go test ./...
+
+pushd ${PROJECT_ROOT}/pkg/authn/amazon
+trap popd EXIT
+go build ./...
+
+pushd ${PROJECT_ROOT}/pkg/authn/azure
+trap popd EXIT
+go build ./...

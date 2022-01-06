@@ -53,52 +53,11 @@ If those are not found, `DefaultKeychain` will look for credentials configured u
 [`pkg/v1/google.Keychain`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/v1/google#Keychain) provides a `Keychain` implementation that emulates [`docker-credential-gcr`](https://github.com/GoogleCloudPlatform/docker-credential-gcr) to find credentials in the environment.
 See [`google.NewEnvAuthenticator`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/v1/google#NewEnvAuthenticator) and [`google.NewGcloudAuthenticator`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/v1/google#NewGcloudAuthenticator) for more information.
 
+[`pkg/authn/amazon.Keychain`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/authn/amazon#Keychain) provides a `Keychain` implementation that emulates [Amazon ECR's `docker-credential-ecr-login` credential helper](https://github.com/awslabs/amazon-ecr-credential-helper).
+
+[`pkg/authn/azure.Keychain`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/authn/azure#Keychain) provides a `Keychain` implementation that emulates [Azure's ACR `docker-credential-acr-env` credential helper](https://github.com/chrismellard/docker-credential-acr-env).
+
 To emulate other credential helpers without requiring them to be available as executables, [`NewKeychainFromHelper`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/authn#NewKeychainFromHelper) provides an adapter that takes a Go implementation satisfying a subset of the [`credentials.Helper`](https://pkg.go.dev/github.com/docker/docker-credential-helpers/credentials#Helper) interface, and makes it available as a `Keychain`.
-
-This means that you can emulate, for example, [Amazon ECR's `docker-credential-ecr-login` credential helper](https://github.com/awslabs/amazon-ecr-credential-helper) using the same implementation:
-
-```go
-import (
-	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
-	"github.com/awslabs/amazon-ecr-credential-helper/ecr-login/api"
-
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-)
-
-func main() {
-	// ...
-	ecrHelper := ecr.ECRHelper{ClientFactory: api.DefaultClientFactory()}
-	img, err := remote.Get(ref, remote.WithAuthFromKeychain(authn.NewKeychainFromHelper(ecrHelper)))
-	if err != nil {
-		panic(err)
-	}
-	// ...
-}
-```
-
-Likewise, you can emulate [Azure's ACR `docker-credential-acr-env` credential helper](https://github.com/chrismellard/docker-credential-acr-env):
-
-```go
-import (
-	"github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
-
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
-)
-
-func main() {
-	// ...
-	acrHelper := credhelper.NewACRCredentialsHelper()
-	img, err := remote.Get(ref, remote.WithAuthFromKeychain(authn.NewKeychainFromHelper(acrHelper)))
-	if err != nil {
-		panic(err)
-	}
-	// ...
-}
-```
-
-<!-- TODO(jasonhall): Wrap these in docker-credential-magic and reference those from here. -->
 
 ## Using Multiple `Keychain`s
 
@@ -110,8 +69,8 @@ For example:
 kc := authn.NewMultiKeychain(
     authn.DefaultKeychain,
     google.Keychain,
-    authn.NewFromHelper(ecr.ECRHelper{ClientFactory: api.DefaultClientFactory{}}),
-    authn.NewFromHelper(acr.ACRCredHelper{}),
+    amazon.Keychain,
+    azure.Keychain,
 )
 ```
 
