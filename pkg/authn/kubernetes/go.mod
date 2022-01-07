@@ -4,9 +4,9 @@ go 1.17
 
 require (
 	github.com/google/go-containerregistry v0.8.0
-	k8s.io/api v0.23.1
-	k8s.io/apimachinery v0.23.1
-	k8s.io/client-go v0.23.1
+	k8s.io/api v0.22.5
+	k8s.io/apimachinery v0.22.5
+	k8s.io/client-go v0.22.5
 )
 
 require (
