@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/match"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -254,7 +255,11 @@ func (l Path) writeBlob(hash v1.Hash, size int64, r io.Reader, renamer func() (v
 	}
 	if renamer != nil {
 		// Delete temp file if an error is encountered before renaming
-		defer os.Remove(w.Name())
+		defer func() {
+			if err := os.Remove(w.Name()); err != nil && !errors.Is(err, os.ErrNotExist) {
+				logs.Warn.Printf("error removing temporary file after encountering an error while writing blob: %v", err)
+			}
+		}()
 	}
 	defer w.Close()
 

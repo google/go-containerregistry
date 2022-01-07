@@ -545,7 +545,7 @@ func TestStreamingWriteLayer(t *testing.T) {
 	}
 }
 
-func TestOverwriteWithwriteLayer(t *testing.T) {
+func TestOverwriteWithWriteLayer(t *testing.T) {
 	// need to set up a basic path
 	tmp, err := ioutil.TempDir("", "overwrite-with-write-layer-test")
 	if err != nil {
