@@ -7,9 +7,9 @@ require (
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20210203204924-09e2b5a8ac86
 	github.com/google/go-containerregistry v0.8.0
 	github.com/google/go-containerregistry/pkg/authn/kubernetes v0.0.0-00010101000000-000000000000
-	k8s.io/api v0.23.1
-	k8s.io/apimachinery v0.23.1
-	k8s.io/client-go v0.23.1
+	k8s.io/api v0.22.5
+	k8s.io/apimachinery v0.22.5
+	k8s.io/client-go v0.22.5
 )
 
 replace (
