@@ -229,8 +229,7 @@ func (l Path) WriteBlob(hash v1.Hash, r io.ReadCloser) error {
 
 func (l Path) writeBlob(hash v1.Hash, size int64, r io.Reader, renamer func() (v1.Hash, error)) error {
 	if hash.Hex == "" && renamer == nil {
-		// Should we panic, since this is a programming error?
-		return errors.New("writeBlob called an invalid hash and no renamer")
+		panic("writeBlob called an invalid hash and no renamer")
 	}
 
 	dir := l.path("blobs", hash.Algorithm)
