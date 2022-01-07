@@ -106,6 +106,7 @@ func NewInCluster(ctx context.Context, opt Options) (authn.Keychain, error) {
 func NewFromPullSecrets(ctx context.Context, secrets []corev1.Secret) (authn.Keychain, error) {
 	m := map[string]authn.AuthConfig{}
 	for _, secret := range secrets {
+		auths := map[string]authn.AuthConfig{}
 		if b, exists := secret.Data[corev1.DockerConfigJsonKey]; secret.Type == corev1.SecretTypeDockerConfigJson && exists && len(b) > 0 {
 			var cfg struct {
 				Auths map[string]authn.AuthConfig
@@ -113,13 +114,19 @@ func NewFromPullSecrets(ctx context.Context, secrets []corev1.Secret) (authn.Key
 			if err := json.Unmarshal(b, &cfg); err != nil {
 				return nil, err
 			}
-			for k, v := range cfg.Auths {
-				m[k] = v
-			}
+			auths = cfg.Auths
 		}
 		if b, exists := secret.Data[corev1.DockerConfigKey]; secret.Type == corev1.SecretTypeDockercfg && exists && len(b) > 0 {
-			if err := json.Unmarshal(b, &m); err != nil {
+			if err := json.Unmarshal(b, &auths); err != nil {
 				return nil, err
+			}
+		}
+
+		for k, v := range auths {
+			// Don't overwrite previously specified Auths for a
+			// given key.
+			if _, found := m[k]; !found {
+				m[k] = v
 			}
 		}
 	}
