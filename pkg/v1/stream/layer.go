@@ -126,16 +126,36 @@ func (l *Layer) Compressed() (io.ReadCloser, error) {
 	return newCompressedReader(l)
 }
 
-type compressedReader struct {
-	h, zh hash.Hash // collects digests of compressed and uncompressed stream.
-	pr    io.Reader
-	bw    *bufio.Writer
-	count *countWriter
+// finalize sets the layer to consumed and computes all hash and size values.
+func (l *Layer) finalize(uncompressed, compressed hash.Hash, size int64) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-	l *Layer // stream.Layer to update upon Close.
+	diffID, err := v1.NewHash("sha256:" + hex.EncodeToString(uncompressed.Sum(nil)))
+	if err != nil {
+		return err
+	}
+	l.diffID = &diffID
+
+	digest, err := v1.NewHash("sha256:" + hex.EncodeToString(compressed.Sum(nil)))
+	if err != nil {
+		return err
+	}
+	l.digest = &digest
+
+	l.size = size
+	l.consumed = true
+	return nil
+}
+
+type compressedReader struct {
+	pr     io.Reader
+	closer func() error
 }
 
 func newCompressedReader(l *Layer) (*compressedReader, error) {
+	// Collect digests of compressed and uncompressed stream and size of
+	// compressed stream.
 	h := sha256.New()
 	zh := sha256.New()
 	count := &countWriter{}
@@ -156,17 +176,41 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 		return nil, err
 	}
 
+	doneDigesting := make(chan struct{})
+
 	cr := &compressedReader{
-		pr:    pr,
-		bw:    bw,
-		h:     h,
-		zh:    zh,
-		count: count,
-		l:     l,
+		pr: pr,
+		closer: func() error {
+			// Immediately close pw without error. There are three ways to get
+			// here.
+			//
+			// 1. There was a copy error due from the underlying reader, in which
+			//    case the error will not be overwritten.
+			// 2. Copying from the underlying reader completed successfully.
+			// 3. Close has been called before the underlying reader has been
+			//    fully consumed. In this case pw must be closed in order to
+			//    keep the flush of bw from blocking indefinitely.
+			//
+			// NOTE: pw.Close never returns an error. The signature is only to
+			// implement io.Closer.
+			_ = pw.Close()
+
+			// Close the inner ReadCloser.
+			//
+			// NOTE: net/http will call close on success, so if we've already
+			// closed the inner rc, it's not an error.
+			if err := l.blob.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+				return err
+			}
+
+			// Finalize layer with its digest and size values.
+			<-doneDigesting
+			return l.finalize(h, zh, count.n)
+		},
 	}
 	go func() {
-		// Copy blob into the gzip writer - which also hashes and counts the
-		// size of the compressed output - and hasher of the raw contents.
+		// Copy blob into the gzip writer, which also hashes and counts the
+		// size of the compressed output, and hasher of the raw contents.
 		_, copyErr := io.Copy(io.MultiWriter(h, zw), l.blob)
 
 		// Close the gzip writer once copying is done. If this is done in the
@@ -177,18 +221,29 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 
 		// Check errors from writing and closing streams.
 		if copyErr != nil {
+			close(doneDigesting)
 			pw.CloseWithError(copyErr)
 			return
 		}
 		if closeErr != nil {
+			close(doneDigesting)
 			pw.CloseWithError(closeErr)
 			return
 		}
 
-		// Now close the compressed reader, to flush the gzip stream
-		// and calculate digest/diffID/size. This will cause pr to
-		// return EOF which will cause readers of the Compressed stream
-		// to finish reading.
+		// Flush the buffer once all writes are complete to the gzip writer.
+		if err := bw.Flush(); err != nil {
+			close(doneDigesting)
+			pw.CloseWithError(err)
+			return
+		}
+
+		// Notify closer that digests are done being written.
+		close(doneDigesting)
+
+		// Close the compressed reader to calculate digest/diffID/size. This
+		// will cause pr to return EOF which will cause readers of the
+		// Compressed stream to finish reading.
 		pw.CloseWithError(cr.Close())
 	}()
 
@@ -197,39 +252,7 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 
 func (cr *compressedReader) Read(b []byte) (int, error) { return cr.pr.Read(b) }
 
-func (cr *compressedReader) Close() error {
-	cr.l.mu.Lock()
-	defer cr.l.mu.Unlock()
-
-	// Close the inner ReadCloser.
-	//
-	// NOTE: net/http will call close on success, so if we've already
-	// closed the inner rc, it's not an error.
-	if err := cr.l.blob.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
-		return err
-	}
-
-	// Flush the buffer.
-	if err := cr.bw.Flush(); err != nil {
-		return err
-	}
-
-	diffID, err := v1.NewHash("sha256:" + hex.EncodeToString(cr.h.Sum(nil)))
-	if err != nil {
-		return err
-	}
-	cr.l.diffID = &diffID
-
-	digest, err := v1.NewHash("sha256:" + hex.EncodeToString(cr.zh.Sum(nil)))
-	if err != nil {
-		return err
-	}
-	cr.l.digest = &digest
-
-	cr.l.size = cr.count.n
-	cr.l.consumed = true
-	return nil
-}
+func (cr *compressedReader) Close() error { return cr.closer() }
 
 // countWriter counts bytes written to it.
 type countWriter struct{ n int64 }
