@@ -1,0 +1,85 @@
+name: ECR Authentication test
+
+on:
+  pull_request_target:
+    branches: [ 'main' ]
+
+permissions:
+  # This let's us clone the repo
+  contents: read
+  # This let's us mint identity tokens.
+  id-token: write
+
+jobs:
+  krane:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCOUNT: 479305788615
+      AWS_REGION: us-east-2
+
+    steps:
+      - name: Set up Go 1.17.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install krane
+        working-directory: ./cmd/krane
+        run: go install .
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@master
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Test krane + ECR
+        run: |
+          # List the tags
+          krane ls ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/go-containerregistry-test
+
+  crane-ecr-login:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCOUNT: 479305788615
+      AWS_REGION: us-east-2
+
+    steps:
+      - name: Set up Go 1.17.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Install crane
+        working-directory: ./cmd/crane
+        run: go install .
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@master
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
+          aws-region: ${{ env.AWS_REGION }}
+
+      - run: |
+          wget https://amazon-ecr-credential-helper-releases.s3.us-east-2.amazonaws.com/0.5.0/linux-amd64/docker-credential-ecr-login
+          chmod +x ./docker-credential-ecr-login
+          mv docker-credential-ecr-login /usr/local/bin
+
+          cat > $HOME/.docker/config.json <<EOF
+          {
+            "credHelpers": {
+              "${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com": "ecr-login"
+            }
+          }
+          EOF
+
+      - name: Test crane + ECR
+        run: |
+          # List the tags
+          crane ls ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/go-containerregistry-test
