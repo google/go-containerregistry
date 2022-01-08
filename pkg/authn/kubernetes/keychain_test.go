@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package k8schain
+package kubernetes
 
 import (
 	"context"
@@ -183,22 +183,34 @@ func TestFromPullSecrets(t *testing.T) {
 	username, password := "foo", "bar"
 	specificUser, specificPass := "very", "specific"
 
-	pullSecrets := []corev1.Secret{
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "secret",
-				Namespace: "ns",
-			},
-			Type: corev1.SecretTypeDockercfg,
-			Data: map[string][]byte{
-				corev1.DockerConfigKey: []byte(
-					fmt.Sprintf(`{"fake.registry.io": {"auth": %q}, "fake.registry.io/more/specific": {"auth": %q}}`,
-						base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
-						base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass))),
-				),
-			},
+	pullSecrets := []corev1.Secret{{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "secret",
+			Namespace: "ns",
 		},
-	}
+		Type: corev1.SecretTypeDockercfg,
+		Data: map[string][]byte{
+			corev1.DockerConfigKey: []byte(
+				fmt.Sprintf(`{"fake.registry.io": {"auth": %q}, "fake.registry.io/more/specific": {"auth": %q}}`,
+					base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
+					base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass))),
+			),
+		},
+	}, {
+		// Check that a subsequent Secret that matches the registry is
+		// _not_ used; i.e., first matching Secret wins.
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "secret-2",
+			Namespace: "ns",
+		},
+		Type: corev1.SecretTypeDockercfg,
+		Data: map[string][]byte{
+			corev1.DockerConfigKey: []byte(
+				fmt.Sprintf(`{"fake.registry.io": {"auth": %q}}`,
+					base64.StdEncoding.EncodeToString([]byte("anotherUser:anotherPass"))),
+			),
+		},
+	}}
 
 	kc, err := NewFromPullSecrets(context.Background(), pullSecrets)
 	if err != nil {
