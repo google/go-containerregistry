@@ -223,6 +223,55 @@ func TestConsumed(t *testing.T) {
 	}
 }
 
+func TestCloseTextStreamBeforeConsume(t *testing.T) {
+	// Create stream layer from tar pipe
+	l := NewLayer(ioutil.NopCloser(strings.NewReader("hello")))
+	rc, err := l.Compressed()
+	if err != nil {
+		t.Fatalf("Compressed: %v", err)
+	}
+
+	// Close stream layer before consuming
+	if err := rc.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+}
+
+func TestCloseTarStreamBeforeConsume(t *testing.T) {
+	// Write small tar to pipe
+	pr, pw := io.Pipe()
+	tw := tar.NewWriter(pw)
+	go func() {
+		pw.CloseWithError(func() error {
+			body := "test file"
+			if err := tw.WriteHeader(&tar.Header{
+				Name:     "test.txt",
+				Mode:     0600,
+				Size:     int64(len(body)),
+				Typeflag: tar.TypeReg,
+			}); err != nil {
+				return err
+			}
+			if _, err := tw.Write([]byte(body)); err != nil {
+				return err
+			}
+			return tw.Close()
+		}())
+	}()
+
+	// Create stream layer from tar pipe
+	l := NewLayer(pr)
+	rc, err := l.Compressed()
+	if err != nil {
+		t.Fatalf("Compressed: %v", err)
+	}
+
+	// Close stream layer before consuming
+	if err := rc.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+}
+
 func TestMediaType(t *testing.T) {
 	l := NewLayer(ioutil.NopCloser(strings.NewReader("hello")))
 	mediaType, err := l.MediaType()
