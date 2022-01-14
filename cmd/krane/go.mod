@@ -9,7 +9,7 @@ replace (
 )
 
 require (
-	github.com/google/go-containerregistry v0.8.0
+	github.com/google/go-containerregistry v0.8.1-0.20220110151055-a61fd0a8e2bb
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20211223213658-2874338840a6
 )
 
@@ -24,18 +24,20 @@ require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.7.1 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.5.0 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.3.1 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.3.0 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.1.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ecr v1.4.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.4.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.2.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.3.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.6.0 // indirect
-	github.com/aws/smithy-go v1.6.0 // indirect
-	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20211027214941-f15886b5ccdc // indirect
+	github.com/aws/aws-sdk-go-v2 v1.12.0 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.12.0 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.7.0 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.9.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.3 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.1.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ecr v1.13.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ecrpublic v1.10.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.6.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.8.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.13.0 // indirect
+	github.com/aws/smithy-go v1.9.1 // indirect
+	github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.0.0-20211215200129-69c85dc22db6 // indirect
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20210203204924-09e2b5a8ac86 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.10.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -49,7 +51,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.6 // indirect
-	github.com/google/go-containerregistry/pkg/authn/kubernetes v0.0.0-00010101000000-000000000000 // indirect
+	github.com/google/go-containerregistry/pkg/authn/kubernetes v0.0.0-20220110151055-a61fd0a8e2bb // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -70,7 +72,7 @@ require (
 	golang.org/x/net v0.0.0-20211216030914-fe4d6282115f // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
+	golang.org/x/sys v0.0.0-20220111092808-5a964db01320 // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
