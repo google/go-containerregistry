@@ -44,6 +44,10 @@ mkdir -p /tmp/gendoc && go run cmd/crane/help/main.go --dir /tmp/gendoc && diff 
 go test ./...
 ./pkg/name/internal/must_test.sh
 
+pushd ${PROJECT_ROOT}/cmd/krane
+trap popd EXIT
+go build ./...
+
 pushd ${PROJECT_ROOT}/pkg/authn/k8schain
 trap popd EXIT
 go build ./...
