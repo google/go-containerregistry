@@ -16,15 +16,22 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 
+	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
+	"github.com/awslabs/amazon-ecr-credential-helper/ecr-login/api"
+	"github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
 	"github.com/google/go-containerregistry/internal/signal"
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
+	"github.com/google/go-containerregistry/pkg/v1/google"
+)
+
+var (
+	amazonKeychain authn.Keychain = authn.NewKeychainFromHelper(ecr.ECRHelper{ClientFactory: api.DefaultClientFactory{}})
+	azureKeychain  authn.Keychain = authn.NewKeychainFromHelper(credhelper.NewACRCredentialsHelper())
 )
 
 func init() {
@@ -41,11 +48,12 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	kc, err := k8schain.NewNoClient(ctx)
-	if err != nil {
-		log.Fatalf("Unable to create kubernetes-style keychain: %v", err)
-	}
-	keychain := authn.NewMultiKeychain(authn.DefaultKeychain, kc)
+	keychain := authn.NewMultiKeychain(
+		authn.DefaultKeychain,
+		google.Keychain,
+		amazonKeychain,
+		azureKeychain,
+	)
 
 	// Same as crane, but override usage and keychain.
 	root := cmd.New(use, short, []crane.Option{crane.WithAuthFromKeychain(keychain)})
