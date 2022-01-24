@@ -156,7 +156,7 @@ func NewKeychainFromHelper(h Helper) Keychain { return wrapper{h} }
 type wrapper struct{ h Helper }
 
 func (w wrapper) Resolve(r Resource) (Authenticator, error) {
-	u, p, err := w.h.Get(r.String())
+	u, p, err := w.h.Get(r.RegistryStr())
 	if err != nil {
 		return Anonymous, nil
 	}
