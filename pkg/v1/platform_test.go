@@ -33,9 +33,29 @@ func TestPlatformString(t *testing.T) {
 		{v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"}, "linux/amd64:1.2.3.4"},
 		{v1.Platform{OS: "linux", Architecture: "amd64", OSFeatures: []string{"a", "b"}}, "linux/amd64 (osfeatures=a,b)"},
 		{v1.Platform{OS: "linux", Architecture: "amd64", OSFeatures: []string{"a", "b"}, Features: []string{"c", "d"}}, "linux/amd64 (osfeatures=a,b) (features=c,d)"},
+		{v1.Platform{OS: "linux", Architecture: "amd64", Features: []string{"c", "d"}}, "linux/amd64 (features=c,d)"},
 	} {
 		if got := c.plat.String(); got != c.want {
 			t.Errorf("got %q, want %q", got, c.want)
+		}
+
+		back, err := v1.PlatformFromString(c.plat.String())
+		if err != nil {
+			t.Errorf("PlatformFromString(%q): %v", c.plat, err)
+		}
+		if d := cmp.Diff(&c.plat, back); d != "" {
+			t.Errorf("PlatformFromString(%q) diff:\n%s", c.plat.String(), d)
+		}
+	}
+
+	for _, s := range []string{
+		"linux/amd64 (badparens)",
+		"linux/amd64 (osfeatures=a,b) (features=c,d) (osversion=e,f)", // too many parens
+		"linux/amd64/v7/s9",                                           // too many slashes
+	} {
+		got, err := v1.PlatformFromString(s)
+		if err == nil {
+			t.Errorf("PlatformFromString(%q) wanted error; got %v", s, got)
 		}
 	}
 }
