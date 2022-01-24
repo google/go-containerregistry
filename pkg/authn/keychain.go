@@ -160,5 +160,12 @@ func (w wrapper) Resolve(r Resource) (Authenticator, error) {
 	if err != nil {
 		return Anonymous, nil
 	}
+
+	// if the secret being stored is an identity token, the Username should be set to <token>
+	// reference: https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol
+	if u == "<token>" {
+		return FromConfig(AuthConfig{Username: u, IdentityToken: p}), nil
+	}
+
 	return FromConfig(AuthConfig{Username: u, Password: p}), nil
 }
