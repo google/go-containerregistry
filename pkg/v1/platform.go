@@ -133,28 +133,20 @@ func (p Platform) FuzzyEquals(o Platform) bool {
 	if p.OS != o.OS {
 		return false
 	}
-	if p.Architecture == "" {
-		return true
-	}
-	if p.Architecture != o.Architecture {
+	if p.Architecture != "" && p.Architecture != o.Architecture {
 		return false
 	}
 	if p.Variant != "" && p.Variant != o.Variant {
 		return false
 	}
-	if p.OSVersion == "" {
-		return true
-	}
-	pparts, oparts := strings.Split(p.OSVersion, "."), strings.Split(o.OSVersion, ".")
-	if len(pparts) > len(oparts) {
+	if p.OSVersion != "" &&
+		p.OSVersion != o.OSVersion &&
+		(len(p.OSVersion) >= len(o.OSVersion) ||
+			!strings.HasPrefix(o.OSVersion, p.OSVersion+".")) {
 		return false
 	}
-	for i, ppart := range pparts {
-		if ppart != oparts[i] {
-			return false
-		}
-	}
-	return stringSliceEqualIgnoreOrder(p.OSFeatures, o.OSFeatures) && stringSliceEqualIgnoreOrder(p.Features, o.Features)
+	return stringSliceEqualIgnoreOrder(p.OSFeatures, o.OSFeatures) &&
+		stringSliceEqualIgnoreOrder(p.Features, o.Features)
 }
 
 // stringSliceEqual compares 2 string slices and returns if their contents are identical.

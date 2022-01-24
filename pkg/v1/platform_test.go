@@ -167,6 +167,10 @@ func TestPlatformFuzzyEquals(t *testing.T) {
 		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"},
 		true,
 	}, {
+		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"},
+		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"},
+		true,
+	}, {
 		v1.Platform{OS: "linux"},
 		v1.Platform{OS: "windows"},
 		false,
@@ -185,6 +189,10 @@ func TestPlatformFuzzyEquals(t *testing.T) {
 	}, {
 		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"},
 		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.6"},
+		false,
+	}, {
+		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"},
+		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.45"},
 		false,
 	}, {
 		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4.5"},
