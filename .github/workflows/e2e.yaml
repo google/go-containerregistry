@@ -21,7 +21,7 @@ jobs:
       with:
         go-version: 1.17.x
 
-    - name: crane append to an image, set the entrypoint, run it locally, roundtrip it
+    - name: crane e2e test
       shell: bash
       run: |
         set -euxo pipefail
@@ -44,6 +44,7 @@ jobs:
         # Windows.
         export MSYS_NO_PATHCONV=1
 
+        # Append to an image, set the entrypoint, run it locally, roundtrip it.
         img=$(./app/crane mutate \
             --entrypoint=/app/crane,version \
             $(./app/crane append \
@@ -60,6 +61,7 @@ jobs:
         layout=$(mktemp -d)
         dst=localhost:1338/roundtrip-test
 
+        # Roundtrip OCI layouts.
         ./app/crane pull --format=oci $img $layout
         ./app/crane push --image-refs=foo.images $layout $dst
         diff <(./app/crane manifest $img) <(./app/crane manifest $(cat foo.images))
@@ -81,3 +83,7 @@ jobs:
         ./app/crane pull --platform=linux/arm64 --format=oci $remote $distroless
         ./app/crane push $distroless $local
         diff <(./app/crane manifest --platform linux/arm64 $remote) <(./app/crane manifest $local)
+
+        # We can pull an image specified by partial osversion, as long as it's
+        # a unique match in the image.
+        ./app/crane pull --platform=windows/amd64:10.0.17763 golang:1.17 win.tar

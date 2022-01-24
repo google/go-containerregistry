@@ -75,10 +75,55 @@ func TestPlatforms(t *testing.T) {
 		{v1.Descriptor{Platform: &v1.Platform{OS: "linux"}}, []v1.Platform{{Architecture: "arm64", OS: "linux"}}, false},
 		{v1.Descriptor{Platform: &v1.Platform{}}, []v1.Platform{{Architecture: "arm64", OS: "linux"}}, false},
 		{v1.Descriptor{Platform: nil}, []v1.Platform{{Architecture: "arm64", OS: "linux"}}, false},
-		{v1.Descriptor{}, []v1.Platform{{Architecture: "arm64", OS: "linux"}}, false},
 	}
 	for i, tt := range tests {
 		f := match.Platforms(tt.platforms...)
+		if match := f(tt.desc); match != tt.match {
+			t.Errorf("%d: mismatched, got %v expected %v for desc %#v platform %#v", i, match, tt.match, tt.desc, tt.platforms)
+		}
+	}
+}
+
+func TestFuzzyPlatforms(t *testing.T) {
+	tests := []struct {
+		desc      v1.Descriptor
+		platforms []v1.Platform
+		match     bool
+	}{{
+		v1.Descriptor{Platform: &v1.Platform{OS: "linux", Architecture: "amd64"}},
+		[]v1.Platform{{OS: "darwin", Architecture: "amd64"}, {OS: "linux", Architecture: "amd64"}},
+		true,
+	}, {
+		v1.Descriptor{Platform: &v1.Platform{OS: "linux", Architecture: "amd64"}},
+		[]v1.Platform{{OS: "linux"}},
+		true,
+	}, {
+		v1.Descriptor{Platform: &v1.Platform{OS: "linux", Architecture: "amd64", Variant: "v7"}},
+		[]v1.Platform{{OS: "linux", Architecture: "amd64"}},
+		true,
+	}, {
+		v1.Descriptor{Platform: &v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"}},
+		[]v1.Platform{{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3"}},
+		true,
+	}, {
+		v1.Descriptor{Platform: &v1.Platform{OS: "linux", Architecture: "amd64"}},
+		[]v1.Platform{{OS: "linux", Architecture: "arm64"}, {OS: "linux", Architecture: "s390x"}},
+		false,
+	}, {
+		v1.Descriptor{Platform: &v1.Platform{OS: "linux"}},
+		[]v1.Platform{{OS: "linux", Architecture: "arm64"}},
+		false,
+	}, {
+		v1.Descriptor{Platform: &v1.Platform{}},
+		[]v1.Platform{{OS: "linux", Architecture: "arm64"}},
+		false,
+	}, {
+		v1.Descriptor{Platform: nil},
+		[]v1.Platform{{OS: "linux", Architecture: "arm64"}},
+		false,
+	}}
+	for i, tt := range tests {
+		f := match.FuzzyPlatforms(tt.platforms...)
 		if match := f(tt.desc); match != tt.match {
 			t.Errorf("%d: mismatched, got %v expected %v for desc %#v platform %#v", i, match, tt.match, tt.desc, tt.platforms)
 		}
