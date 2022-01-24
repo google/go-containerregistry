@@ -9,6 +9,10 @@ type platformValue struct {
 }
 
 func (pv *platformValue) Set(platform string) error {
+	if platform == "all" {
+		return nil
+	}
+
 	p, err := v1.PlatformFromString(platform)
 	if err != nil {
 		return err
@@ -19,7 +23,7 @@ func (pv *platformValue) Set(platform string) error {
 
 func (pv *platformValue) String() string {
 	if pv == nil || pv.platform == nil {
-		return "none"
+		return "all"
 	}
 	return pv.platform.String()
 }
