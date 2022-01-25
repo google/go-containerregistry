@@ -33,7 +33,7 @@ steps:
     cd ../../
 
     # Use the ko binary to build the crane-ish builder *debug* images.
-    export KO_CONFIG_PATH=./.ko/debug/
+    export KO_CONFIG_PATH=$(pwd)/.ko/debug/
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t "debug"
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t "debug"
     # ./cmd/krane is a separate module, so switch directories.
