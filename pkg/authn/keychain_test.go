@@ -256,36 +256,68 @@ func TestVariousPaths(t *testing.T) {
 	}
 }
 
-type helper struct{ err error }
+type helper struct {
+	u, p string
+	err  error
+}
 
 func (h helper) Get(serverURL string) (string, string, error) {
-	return "helper-username", "helper-password", h.err
+	if serverURL != "example.com" {
+		return "", "", fmt.Errorf("unexpected serverURL: %s", serverURL)
+	}
+	return h.u, h.p, h.err
 }
 
 func TestNewKeychainFromHelper(t *testing.T) {
+	var repo = name.MustParseReference("example.com/my/repo").Context()
+
 	t.Run("success", func(t *testing.T) {
-		kc := NewKeychainFromHelper(helper{})
-		auth, err := kc.Resolve(defaultRegistry)
+		kc := NewKeychainFromHelper(helper{"username", "password", nil})
+		auth, err := kc.Resolve(repo)
 		if err != nil {
-			t.Fatalf("Resolve(%q): %v", defaultRegistry, err)
+			t.Fatalf("Resolve(%q): %v", repo, err)
 		}
 		cfg, err := auth.Authorization()
 		if err != nil {
 			t.Fatalf("Authorization: %v", err)
 		}
-		if got, want := cfg.Username, "helper-username"; got != want {
+		if got, want := cfg.Username, "username"; got != want {
 			t.Errorf("Username: got %q, want %q", got, want)
 		}
-		if got, want := cfg.Password, "helper-password"; got != want {
+		if got, want := cfg.IdentityToken, ""; got != want {
+			t.Errorf("IdentityToken: got %q, want %q", got, want)
+		}
+		if got, want := cfg.Password, "password"; got != want {
+			t.Errorf("Password: got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("success; identity token", func(t *testing.T) {
+		kc := NewKeychainFromHelper(helper{"<token>", "idtoken", nil})
+		auth, err := kc.Resolve(repo)
+		if err != nil {
+			t.Fatalf("Resolve(%q): %v", repo, err)
+		}
+		cfg, err := auth.Authorization()
+		if err != nil {
+			t.Fatalf("Authorization: %v", err)
+		}
+		if got, want := cfg.Username, "<token>"; got != want {
+			t.Errorf("Username: got %q, want %q", got, want)
+		}
+		if got, want := cfg.IdentityToken, "idtoken"; got != want {
+			t.Errorf("IdentityToken: got %q, want %q", got, want)
+		}
+		if got, want := cfg.Password, ""; got != want {
 			t.Errorf("Password: got %q, want %q", got, want)
 		}
 	})
 
 	t.Run("failure", func(t *testing.T) {
-		kc := NewKeychainFromHelper(helper{errors.New("oh no bad")})
-		auth, err := kc.Resolve(defaultRegistry)
+		kc := NewKeychainFromHelper(helper{"", "", errors.New("oh no bad")})
+		auth, err := kc.Resolve(repo)
 		if err != nil {
-			t.Fatalf("Resolve(%q): %v", defaultRegistry, err)
+			t.Fatalf("Resolve(%q): %v", repo, err)
 		}
 		if auth != Anonymous {
 			t.Errorf("Resolve: got %v, want %v", auth, Anonymous)
