@@ -285,7 +285,7 @@ func TestNewKeychainFromHelper(t *testing.T) {
 			t.Errorf("Username: got %q, want %q", got, want)
 		}
 		if got, want := cfg.IdentityToken, ""; got != want {
-			t.Errorf("Password: got %q, want %q", got, want)
+			t.Errorf("IdentityToken: got %q, want %q", got, want)
 		}
 		if got, want := cfg.Password, "password"; got != want {
 			t.Errorf("Password: got %q, want %q", got, want)
@@ -306,7 +306,7 @@ func TestNewKeychainFromHelper(t *testing.T) {
 			t.Errorf("Username: got %q, want %q", got, want)
 		}
 		if got, want := cfg.IdentityToken, "idtoken"; got != want {
-			t.Errorf("Password: got %q, want %q", got, want)
+			t.Errorf("IdentityToken: got %q, want %q", got, want)
 		}
 		if got, want := cfg.Password, ""; got != want {
 			t.Errorf("Password: got %q, want %q", got, want)
