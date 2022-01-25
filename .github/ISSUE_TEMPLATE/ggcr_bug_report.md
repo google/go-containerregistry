@@ -1,5 +1,5 @@
 ---
-name: Go library: Bug report
+name: Go library bug report
 about: Create a report to help us improve the Go library
 title: 'ggcr:'
 labels: bug
