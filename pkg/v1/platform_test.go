@@ -51,7 +51,7 @@ func TestPlatformString(t *testing.T) {
 		if len(c.plat.OSFeatures) > 0 || len(c.plat.Features) > 0 {
 			// If these values are set, roundtripping back to the
 			// Platform will be lossy, and we expect that.
-			return
+			continue
 		}
 
 		back, err := v1.ParsePlatform(c.plat.String())
