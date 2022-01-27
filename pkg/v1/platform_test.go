@@ -63,9 +63,9 @@ func TestPlatformString(t *testing.T) {
 		}
 	}
 
+	// Known bad examples.
 	for _, s := range []string{
-		"linux/amd64 something else", // unknown other stuff
-		"linux/amd64/v7/s9",          // too many slashes
+		"linux/amd64/v7/s9", // too many slashes
 	} {
 		got, err := v1.ParsePlatform(s)
 		if err == nil {
