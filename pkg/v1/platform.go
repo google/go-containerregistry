@@ -48,46 +48,16 @@ func (p Platform) String() string {
 		b.WriteString(":")
 		b.WriteString(p.OSVersion)
 	}
-	if len(p.OSFeatures) != 0 {
-		b.WriteString(" (osfeatures=")
-		b.WriteString(strings.Join(p.OSFeatures, ","))
-		b.WriteString(")")
-	}
-	if len(p.Features) != 0 {
-		b.WriteString(" (features=")
-		b.WriteString(strings.Join(p.Features, ","))
-		b.WriteString(")")
-	}
 	return b.String()
 }
 
 // ParsePlatform parses a string representing a Platform, if possible.
 func ParsePlatform(s string) (*Platform, error) {
 	var p Platform
-	parts := strings.Split(s, ":")
+	parts := strings.Split(strings.TrimSpace(s), ":")
 	if len(parts) == 2 {
 		p.OSVersion = parts[1]
 	}
-	parts = strings.Split(parts[0], " ")
-	if len(parts) > 3 {
-		return nil, fmt.Errorf("too many spaces in platform spec: %s", s)
-	}
-	if len(parts) > 1 {
-		for _, part := range parts[1:] {
-			if strings.HasPrefix(part, "(osfeatures=") && strings.HasSuffix(part, ")") {
-				pt := strings.TrimPrefix(part, "(osfeatures=")
-				pt = strings.TrimSuffix(pt, ")")
-				p.OSFeatures = strings.Split(pt, ",")
-			} else if strings.HasPrefix(part, "(features=") && strings.HasSuffix(part, ")") {
-				pt := strings.TrimPrefix(part, "(features=")
-				pt = strings.TrimSuffix(pt, ")")
-				p.Features = strings.Split(pt, ",")
-			} else {
-				return nil, fmt.Errorf("unknown parenthetical: %s", part)
-			}
-		}
-	}
-
 	parts = strings.Split(parts[0], "/")
 	if len(parts) > 0 {
 		p.OS = parts[0]

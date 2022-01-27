@@ -25,18 +25,33 @@ func TestPlatformString(t *testing.T) {
 	for _, c := range []struct {
 		plat v1.Platform
 		want string
-	}{
-		{v1.Platform{}, ""},
-		{v1.Platform{OS: "linux"}, "linux"},
-		{v1.Platform{OS: "linux", Architecture: "amd64"}, "linux/amd64"},
-		{v1.Platform{OS: "linux", Architecture: "amd64", Variant: "v7"}, "linux/amd64/v7"},
-		{v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"}, "linux/amd64:1.2.3.4"},
-		{v1.Platform{OS: "linux", Architecture: "amd64", OSFeatures: []string{"a", "b"}}, "linux/amd64 (osfeatures=a,b)"},
-		{v1.Platform{OS: "linux", Architecture: "amd64", OSFeatures: []string{"a", "b"}, Features: []string{"c", "d"}}, "linux/amd64 (osfeatures=a,b) (features=c,d)"},
-		{v1.Platform{OS: "linux", Architecture: "amd64", Features: []string{"c", "d"}}, "linux/amd64 (features=c,d)"},
-	} {
+	}{{
+		v1.Platform{},
+		"",
+	}, {
+		v1.Platform{OS: "linux"},
+		"linux",
+	}, {
+		v1.Platform{OS: "linux", Architecture: "amd64"},
+		"linux/amd64",
+	}, {
+		v1.Platform{OS: "linux", Architecture: "amd64", Variant: "v7"},
+		"linux/amd64/v7",
+	}, {
+		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4"},
+		"linux/amd64:1.2.3.4",
+	}, {
+		v1.Platform{OS: "linux", Architecture: "amd64", OSVersion: "1.2.3.4", OSFeatures: []string{"a", "b"}, Features: []string{"c", "d"}},
+		"linux/amd64:1.2.3.4",
+	}} {
 		if got := c.plat.String(); got != c.want {
 			t.Errorf("got %q, want %q", got, c.want)
+		}
+
+		if len(c.plat.OSFeatures) > 0 || len(c.plat.Features) > 0 {
+			// If these values are set, roundtripping back to the
+			// Platform will be lossy, and we expect that.
+			return
 		}
 
 		back, err := v1.ParsePlatform(c.plat.String())
@@ -49,9 +64,8 @@ func TestPlatformString(t *testing.T) {
 	}
 
 	for _, s := range []string{
-		"linux/amd64 (badparens)",
-		"linux/amd64 (osfeatures=a,b) (features=c,d) (osversion=e,f)", // too many parens
-		"linux/amd64/v7/s9",                                           // too many slashes
+		"linux/amd64 something else", // unknown other stuff
+		"linux/amd64/v7/s9",          // too many slashes
 	} {
 		got, err := v1.ParsePlatform(s)
 		if err == nil {
