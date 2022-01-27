@@ -11,7 +11,7 @@ require (
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/docker/docker-credential-helpers v0.6.4 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
-	github.com/google/go-cmp v0.5.6
+	github.com/google/go-cmp v0.5.7
 	github.com/klauspost/compress v1.14.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/moby/term v0.0.0-20201216013528-df9cb8a40635 // indirect
