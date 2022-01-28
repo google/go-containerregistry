@@ -19,19 +19,24 @@ import (
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdExport creates a new cobra.Command for the export subcommand.
 func NewCmdExport(options *[]crane.Option) *cobra.Command {
 	return &cobra.Command{
-		Use:   "export IMAGE TARBALL",
-		Short: "Export contents of a remote image as a tarball",
+		Use:   "export IMAGE|- TARBALL",
+		Short: "Export contents of a remote image as a filesystem tarball",
 		Example: `  # Write tarball to stdout
   crane export ubuntu -
 
   # Write tarball to file
-  crane export ubuntu ubuntu.tar`,
+  crane export ubuntu ubuntu.tar
+
+  # Read image tarball from stdin
+  crane export - ubuntu.tar`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			src, dst := args[0], "-"
@@ -45,9 +50,18 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
 			}
 			defer f.Close()
 
-			img, err := crane.Pull(src, *options...)
-			if err != nil {
-				return fmt.Errorf("pulling %s: %w", src, err)
+			var img v1.Image
+			if src == "-" {
+				//img, err = tarball.Image(func() (io.ReadCloser, error) { return io.ReadCloser(os.Stdin), nil }, nil)
+				img, err = tarball.ImageFromPath("test.tar", nil)
+				if err != nil {
+					return fmt.Errorf("reading tarball from stdin: %w", err)
+				}
+			} else {
+				img, err = crane.Pull(src, *options...)
+				if err != nil {
+					return fmt.Errorf("pulling %s: %w", src, err)
+				}
 			}
 
 			return crane.Export(img, f)
