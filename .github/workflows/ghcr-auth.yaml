@@ -1,0 +1,31 @@
+name: GHCR Authentication test
+
+on:
+  pull_request_target:
+    branches: ['main']
+  push:
+    branches: ['main']
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  krane:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.17.x
+
+      - name: Install krane
+        working-directory: ./cmd/krane
+        run: go install .
+
+      - name: Test krane + GHCR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          # List the tags
+          krane ls ghcr.io/${{ github.repository }}

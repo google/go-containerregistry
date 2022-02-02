@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
 	"github.com/google/go-containerregistry/internal/signal"
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/authn/github"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/v1/google"
@@ -51,6 +52,7 @@ func main() {
 	keychain := authn.NewMultiKeychain(
 		authn.DefaultKeychain,
 		google.Keychain,
+		github.Keychain,
 		amazonKeychain,
 		azureKeychain,
 	)
