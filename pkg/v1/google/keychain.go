@@ -63,21 +63,21 @@ func (gk *googleKeychain) Resolve(target authn.Resource) (authn.Authenticator, e
 	}
 
 	gk.once.Do(func() {
-		gk.auth, gk.err = resolve()
+		gk.auth = resolve()
 	})
 
-	return gk.auth, gk.err
+	return gk.auth, nil
 }
 
-func resolve() (authn.Authenticator, error) {
+func resolve() authn.Authenticator {
 	auth, envErr := NewEnvAuthenticator()
 	if envErr == nil && auth != authn.Anonymous {
-		return auth, nil
+		return auth
 	}
 
 	auth, gErr := NewGcloudAuthenticator()
 	if gErr == nil && auth != authn.Anonymous {
-		return auth, nil
+		return auth
 	}
 
 	logs.Debug.Println("Failed to get any Google credentials, falling back to Anonymous")
@@ -87,5 +87,5 @@ func resolve() (authn.Authenticator, error) {
 	if gErr != nil {
 		logs.Debug.Printf("gcloud error: %v", gErr)
 	}
-	return authn.Anonymous, nil
+	return authn.Anonymous
 }
