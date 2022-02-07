@@ -1,5 +1,5 @@
-//go:build !arm64 && !darwin
-// +build !arm64,!darwin
+//go:build !arm64
+// +build !arm64
 
 // Copyright 2018 Google LLC All Rights Reserved.
 //
@@ -234,8 +234,10 @@ func TestKeychainError(t *testing.T) {
 
 	// Reset the keychain to ensure we don't cache earlier results.
 	Keychain = &googleKeychain{}
-	if _, err := Keychain.Resolve(mustRegistry("gcr.io")); err == nil {
-		t.Fatalf("expected err, got: %v", err)
+	if auth, err := Keychain.Resolve(mustRegistry("gcr.io")); err != nil {
+		t.Fatalf("got error: %v", err)
+	} else if auth != authn.Anonymous {
+		t.Fatalf("wanted Anonymous, got %v", auth)
 	}
 }
 
