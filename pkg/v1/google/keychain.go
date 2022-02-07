@@ -28,7 +28,6 @@ var Keychain authn.Keychain = &googleKeychain{}
 type googleKeychain struct {
 	once sync.Once
 	auth authn.Authenticator
-	err  error
 }
 
 // Resolve implements authn.Keychain a la docker-credential-gcr.
