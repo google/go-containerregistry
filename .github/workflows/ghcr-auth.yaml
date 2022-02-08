@@ -28,4 +28,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           # List the tags
-          krane ls ghcr.io/${{ github.repository }}
+          krane ls ghcr.io/${{ github.repository }}/testimage
