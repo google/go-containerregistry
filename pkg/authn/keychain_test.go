@@ -230,8 +230,8 @@ func TestVariousPaths(t *testing.T) {
 		target: testRepo,
 		content: fmt.Sprintf(`{
   "auths": {
-    "test.io/my-repo": {"auth": %q}, 
-    "test.io/another-repo": {"auth": %q}, 
+    "test.io/my-repo": {"auth": %q},
+    "test.io/another-repo": {"auth": %q},
     "test.io": {"auth": %q}
   }
 }`, encode("foo", "bar"), encode("bar", "baz"), encode("baz", "quux")),
