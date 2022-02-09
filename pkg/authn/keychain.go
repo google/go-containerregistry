@@ -22,6 +22,7 @@ import (
 	"github.com/docker/cli/cli/config"
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/cli/cli/config/types"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/mitchellh/go-homedir"
 )
@@ -154,6 +155,16 @@ func NewKeychainFromHelper(h Helper) Keychain { return wrapper{h} }
 type wrapper struct{ h Helper }
 
 func (w wrapper) Resolve(r Resource) (Authenticator, error) {
+	// Route any logging from the cred helper to logs.Debug, since some of
+	// these may produce spammy logs that we don't necessarily care about.
+	stdout, stderr := os.Stdout, os.Stderr
+	os.Stdout = logs.Debug.Writer()
+	os.Stdout = logs.Debug.Writer()
+	defer func() {
+		os.Stdout = stdout
+		os.Stderr = stderr
+	}()
+
 	u, p, err := w.h.Get(r.RegistryStr())
 	if err != nil {
 		return Anonymous, nil
