@@ -156,15 +156,18 @@ type wrapper struct{ h Helper }
 
 func (w wrapper) Resolve(r Resource) (Authenticator, error) {
 	if !logs.Enabled(logs.Debug) {
-		// Route any logging from the cred helper to logs.Debug, since some of
-		// these may produce spammy logs that we don't necessarily care about.
+		// Route any logging from the cred helper to /dev/null, since
+		// some of these may produce spammy logs that we don't
+		// necessarily care about.
 		devnull, err := os.Open(os.DevNull)
 		if err != nil {
 			return Anonymous, err
 		}
+		defer devnull.Close()
 		stdout, stderr := os.Stdout, os.Stderr
 		os.Stdout = devnull
-		os.Stdout = devnull
+		os.Stderr = devnull
+
 		defer func() {
 			os.Stdout = stdout
 			os.Stderr = stderr
