@@ -24,6 +24,7 @@ import (
 
 	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/internal/compare"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
@@ -222,6 +223,35 @@ func TestLayerFromOpenerReader(t *testing.T) {
 
 	if err := compare.Layers(tarLayer, tarGzLayer); err != nil {
 		t.Errorf("compare.Layers: %v", err)
+	}
+}
+
+func TestWithMediaType(t *testing.T) {
+	setupFixtures(t)
+	defer teardownFixtures(t)
+
+	l, err := LayerFromFile("testdata/content.tar")
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+	got, err := l.MediaType()
+	if err != nil {
+		t.Fatalf("MediaType: %v", err)
+	}
+	if want := types.DockerLayer; got != want {
+		t.Errorf("got %v, want %v", got, want)
+	}
+
+	l, err = LayerFromFile("testdata/content.tar", WithMediaType(types.OCILayer))
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+	got, err = l.MediaType()
+	if err != nil {
+		t.Fatalf("MediaType: %v", err)
+	}
+	if want := types.OCILayer; got != want {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 
