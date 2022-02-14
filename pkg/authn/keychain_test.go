@@ -31,6 +31,7 @@ import (
 var (
 	fresh              = 0
 	testRegistry, _    = name.NewRegistry("test.io", name.WeakValidation)
+	testRepo, _        = name.NewRepository("test.io/my-repo", name.WeakValidation)
 	defaultRegistry, _ = name.NewRegistry(name.DefaultRegistry, name.WeakValidation)
 )
 
@@ -196,7 +197,7 @@ func TestVariousPaths(t *testing.T) {
 		desc    string
 		content string
 		wantErr bool
-		target  name.Registry
+		target  Resource
 		cfg     *AuthConfig
 	}{{
 		desc:    "invalid config file",
@@ -220,6 +221,20 @@ func TestVariousPaths(t *testing.T) {
 		desc:    "valid config file; default registry",
 		target:  defaultRegistry,
 		content: fmt.Sprintf(`{"auths": {"%s": {"auth": %q}}}`, DefaultAuthKey, encode("foo", "bar")),
+		cfg: &AuthConfig{
+			Username: "foo",
+			Password: "bar",
+		},
+	}, {
+		desc:   "valid config file; matches repo",
+		target: testRepo,
+		content: fmt.Sprintf(`{
+  "auths": {
+    "test.io/my-repo": {"auth": %q},
+    "test.io/another-repo": {"auth": %q},
+    "test.io": {"auth": %q}
+  }
+}`, encode("foo", "bar"), encode("bar", "baz"), encode("baz", "quux")),
 		cfg: &AuthConfig{
 			Username: "foo",
 			Password: "bar",
