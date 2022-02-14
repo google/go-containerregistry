@@ -252,6 +252,8 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 // LayerFromReader returns a v1.Layer given a io.Reader.
 //
 // The reader's contents are read and buffered to a temp file in the process.
+//
+// Deprecated: Use LayerFromOpener or stream.NewLayer instead, if possible.
 func LayerFromReader(reader io.Reader, opts ...LayerOption) (v1.Layer, error) {
 	tmp, err := ioutil.TempFile("", "")
 	if err != nil {
