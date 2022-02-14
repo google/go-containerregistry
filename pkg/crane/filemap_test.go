@@ -16,6 +16,7 @@ package crane_test
 
 import (
 	"archive/tar"
+	"errors"
 	"io"
 	"io/ioutil"
 	"testing"
@@ -85,7 +86,7 @@ func TestLayer(t *testing.T) {
 			saw := map[string]struct{}{}
 			for {
 				th, err := tr.Next()
-				if err == io.EOF {
+				if errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
