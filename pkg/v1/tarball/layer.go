@@ -262,7 +262,7 @@ func LayerFromReader(reader io.Reader, opts ...LayerOption) (v1.Layer, error) {
 	if _, err := io.Copy(tmp, reader); err != nil {
 		return nil, fmt.Errorf("writing temp file to buffer reader: %w", err)
 	}
-	return LayerFromFile(tmp.Name())
+	return LayerFromFile(tmp.Name(), opts...)
 }
 
 func computeDigest(opener Opener) (v1.Hash, int64, error) {

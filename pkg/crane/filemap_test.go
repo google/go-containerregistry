@@ -15,6 +15,9 @@
 package crane_test
 
 import (
+	"archive/tar"
+	"io"
+	"io/ioutil"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -69,7 +72,44 @@ func TestLayer(t *testing.T) {
 				t.Fatalf("Error calling digest: %v", err)
 			}
 			if d.String() != tc.Digest {
-				t.Fatalf("Incorrect digest, want %q, got %q", tc.Digest, d.String())
+				t.Errorf("Incorrect digest, want %q, got %q", tc.Digest, d.String())
+			}
+
+			// Check contents match.
+			rc, err := l.Uncompressed()
+			if err != nil {
+				t.Fatalf("Uncompressed: %v", err)
+			}
+			defer rc.Close()
+			tr := tar.NewReader(rc)
+			saw := map[string]struct{}{}
+			for {
+				th, err := tr.Next()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Fatalf("Next: %v", err)
+				}
+				saw[th.Name] = struct{}{}
+				want, found := tc.FileMap[th.Name]
+				if !found {
+					t.Errorf("found %q, not in original map", th.Name)
+					continue
+				}
+				got, err := ioutil.ReadAll(tr)
+				if err != nil {
+					t.Fatalf("ReadAll(%q): %v", th.Name, err)
+				}
+				if string(want) != string(got) {
+					t.Errorf("File %q: got %v, want %v", th.Name, string(got), string(want))
+				}
+			}
+			for k := range saw {
+				delete(tc.FileMap, k)
+			}
+			for k := range tc.FileMap {
+				t.Errorf("Layer did not contain %q", k)
 			}
 		})
 		t.Run(tc.Name+" is reproducible", func(t *testing.T) {
