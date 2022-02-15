@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.11.0
 	github.com/docker/cli v20.10.12+incompatible
-	github.com/docker/distribution v2.7.1+incompatible
+	github.com/docker/distribution v2.8.0+incompatible
 	github.com/docker/docker v20.10.12+incompatible
 	github.com/google/go-cmp v0.5.7
 	github.com/mitchellh/go-homedir v1.1.0
