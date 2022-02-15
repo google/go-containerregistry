@@ -32,7 +32,7 @@ jobs:
         base=alpine
         platform=linux/amd64
         if [[ "${{ matrix.platform }}" == "windows-latest" ]]; then
-          base=mcr.microsoft.com/windows/nanoserver:1809
+          base=mcr.microsoft.com/windows/nanoserver:ltsc2022
           platform=windows/amd64
         fi
 
