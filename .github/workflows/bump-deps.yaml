@@ -1,0 +1,34 @@
+name: Bump Deps
+
+on:
+  schedule:
+  - cron: '0 6 * * 2' # weekly at 6AM Tuesday
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-deps:
+    name: Bump Deps
+
+    # Don't bother bumping deps on forks.
+    if: ${{ github.repository == 'google/go-containerregistry' }}
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-go@v2
+      with:
+        go-version: 1.17
+
+    - run: ./hack/bump-deps.sh
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v3
+      with:
+        title: "Bump dependencies using hack/bump-deps.sh"
+        commit-message: "Bump dependencies using hack/bump-deps.sh"
+        labels: dependencies
+        assignees: imjasonh
+        delete-branch: true
