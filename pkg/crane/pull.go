@@ -135,7 +135,7 @@ func MultiSaveOCI(imgMap map[string]v1.Image, path string) error {
 	}
 	for ref, img := range imgMap {
 		anns := map[string]string{
-			"dev.ggcr.image.name": ref,
+			"org.opencontainers.image.ref.name": ref,
 		}
 		if err = p.AppendImage(img, layout.WithAnnotations(anns)); err != nil {
 			return err

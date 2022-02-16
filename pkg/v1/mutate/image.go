@@ -81,11 +81,17 @@ func (i *image) compute() error {
 		}
 	}
 
-	m, err := i.base.Manifest()
-	if err != nil {
-		return err
+	var manifest *v1.Manifest
+	if i.manifest != nil {
+		manifest = i.manifest
+	} else {
+		m, err := i.base.Manifest()
+		if err != nil {
+			return err
+		}
+		manifest = m
 	}
-	manifest := m.DeepCopy()
+	m := manifest.DeepCopy()
 	manifestLayers := manifest.Layers
 	for _, add := range i.adds {
 		if add.Layer == nil {

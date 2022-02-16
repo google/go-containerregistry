@@ -22,13 +22,14 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull(options *[]crane.Option) *cobra.Command {
-	var cachePath, format string
+	var cachePath, format, convert string
 
 	cmd := &cobra.Command{
 		Use:   "pull IMAGE TARBALL",
@@ -57,6 +58,12 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 					if err != nil {
 						return err
 					}
+					if convert == "oci" {
+						idx, err = mutate.OCIImageIndex(idx)
+						if err != nil {
+							return err
+						}
+					}
 					indexMap[src] = idx
 					continue
 				}
@@ -67,6 +74,12 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 				}
 				if cachePath != "" {
 					img = cache.Image(img, cache.NewFilesystemCache(cachePath))
+				}
+				if convert == "oci" {
+					img, err = mutate.OCIImage(img)
+					if err != nil {
+						return err
+					}
 				}
 				imageMap[src] = img
 			}
@@ -92,7 +105,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 				}
 				for ref, idx := range indexMap {
 					anns := map[string]string{
-						"dev.ggcr.image.name": ref,
+						"org.opencontainers.image.ref.name": ref,
 					}
 					if err := p.AppendIndex(idx, layout.WithAnnotations(anns)); err != nil {
 						return err
@@ -106,6 +119,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
 	cmd.Flags().StringVar(&format, "format", "tarball", fmt.Sprintf("Format in which to save images (%q, %q, or %q)", "tarball", "legacy", "oci"))
+	cmd.Flags().StringVar(&convert, "convert", "oci", fmt.Sprintf("Image spec to convert the pulled image (%q)", "oci"))
 
 	return cmd
 }
