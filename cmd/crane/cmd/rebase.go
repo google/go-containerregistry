@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/spf13/cobra"
@@ -179,9 +180,12 @@ func rebaseImage(orig v1.Image, oldBase, newBase string, opt ...crane.Option) (v
 		return nil, fmt.Errorf("either old base or %q annotation is required", specsv1.AnnotationBaseImageDigest)
 	}
 
-	oldBaseImg, err := crane.Pull(oldBase, opt...)
-	if err != nil {
-		return nil, err
+	oldBaseImg := empty.Image
+	if oldBase != empty.Scratch {
+		oldBaseImg, err = crane.Pull(oldBase, opt...)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// NB: if newBase is an index, we need to grab the index's digest to
