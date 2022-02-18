@@ -181,7 +181,7 @@ func rebaseImage(orig v1.Image, oldBase, newBase string, opt ...crane.Option) (v
 	}
 
 	oldBaseImg := empty.Image
-	if oldBase != empty.Scratch {
+	if oldBase != "scratch" {
 		oldBaseImg, err = crane.Pull(oldBase, opt...)
 		if err != nil {
 			return nil, err

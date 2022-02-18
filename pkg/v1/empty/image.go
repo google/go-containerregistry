@@ -22,9 +22,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-// docker scratch image name
-const Scratch = "scratch"
-
 // Image is a singleton empty image, think: FROM scratch.
 var Image, _ = partial.UncompressedToImage(emptyImage{})
 
