@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -167,9 +166,6 @@ func (kc authsKeychain) Resolve(target authn.Resource) (authn.Authenticator, err
 	// found, one that matches the registry.
 	var cfg authn.AuthConfig
 	for _, key := range []string{target.String(), target.RegistryStr()} {
-		if key == name.DefaultRegistry {
-			key = authn.DefaultAuthKey
-		}
 		var ok bool
 		cfg, ok = kc[key]
 		if ok {
