@@ -196,12 +196,14 @@ func TestFromPullSecrets(t *testing.T) {
 						"fake.registry.io": {"auth": %q},
 						"fake.registry.io/more/specific": {"auth": %q},
 						"http://fake.scheme-registry.io": {"auth": %q},
-						"https://fake.scheme-registry.io/more/specific": {"auth": %q}
+						"https://fake.scheme-registry.io/more/specific": {"auth": %q},
+						"https://index.docker.io/v1/": {"auth": %q}
 					}`,
 					base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
 					base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass)),
 					base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
-					base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass))),
+					base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass)),
+					base64.StdEncoding.EncodeToString([]byte(username+":"+password))),
 			),
 		},
 	}, {
@@ -235,6 +237,11 @@ func TestFromPullSecrets(t *testing.T) {
 		t.Errorf("NewRegistry() = %v", err)
 	}
 
+	dockerHubRepo, err := name.NewRepository("nginx", name.WeakValidation)
+	if err != nil {
+		t.Errorf("NewRegistry() = %v", err)
+	}
+
 	for _, tc := range []struct {
 		name   string
 		auth   authn.Authenticator
@@ -255,6 +262,10 @@ func TestFromPullSecrets(t *testing.T) {
 		name:   "repo with scheme",
 		auth:   &authn.Basic{Username: specificUser, Password: specificPass},
 		target: schemeRepo,
+	}, {
+		name:   "docker hub repo",
+		auth:   &authn.Basic{Username: username, Password: password},
+		target: dockerHubRepo,
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc := tc
