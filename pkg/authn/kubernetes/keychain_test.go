@@ -191,7 +191,15 @@ func TestFromPullSecrets(t *testing.T) {
 		Type: corev1.SecretTypeDockercfg,
 		Data: map[string][]byte{
 			corev1.DockerConfigKey: []byte(
-				fmt.Sprintf(`{"fake.registry.io": {"auth": %q}, "fake.registry.io/more/specific": {"auth": %q}}`,
+				fmt.Sprintf(`
+					{
+						"fake.registry.io": {"auth": %q},
+						"fake.registry.io/more/specific": {"auth": %q},
+						"http://fake.scheme-registry.io": {"auth": %q},
+						"https://fake.scheme-registry.io/more/specific": {"auth": %q}
+					}`,
+					base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
+					base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass)),
 					base64.StdEncoding.EncodeToString([]byte(username+":"+password)),
 					base64.StdEncoding.EncodeToString([]byte(specificUser+":"+specificPass))),
 			),
@@ -222,6 +230,11 @@ func TestFromPullSecrets(t *testing.T) {
 		t.Errorf("NewRegistry() = %v", err)
 	}
 
+	schemeRepo, err := name.NewRepository("fake.scheme-registry.io/more/specific", name.WeakValidation)
+	if err != nil {
+		t.Errorf("NewRegistry() = %v", err)
+	}
+
 	for _, tc := range []struct {
 		name   string
 		auth   authn.Authenticator
@@ -234,6 +247,14 @@ func TestFromPullSecrets(t *testing.T) {
 		name:   "repo",
 		auth:   &authn.Basic{Username: specificUser, Password: specificPass},
 		target: repo,
+	}, {
+		name:   "registry with scheme",
+		auth:   &authn.Basic{Username: username, Password: password},
+		target: schemeRepo.Registry,
+	}, {
+		name:   "repo with scheme",
+		auth:   &authn.Basic{Username: specificUser, Password: specificPass},
+		target: schemeRepo,
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc := tc
