@@ -60,3 +60,38 @@ if [[ $code -ne 1 ]]; then
   echo "a.txt was found in rebased image"
   exit 1
 fi
+
+
+# Test #2: use rebase to append all layers of one image to another
+set -ex
+
+# Create an image localhost:1338/common containing two layers
+echo first > ${tmp}/layer1.txt
+common=$(./crane append -f <(tar -f - -c ${tmp}) -t localhost:1338/common)
+rm ${tmp}/layer1.txt
+
+echo second > ${tmp}/layer2.txt
+common=$(./crane append -f <(tar -f - -c ${tmp}) -b ${common} -t localhost:1338/common)
+rm ${tmp}/layer2.txt
+
+# Create an image localhost:1338/target containing base.txt
+echo base > ${tmp}/base.txt
+target=$(./crane append -f <(tar -f - -c ${tmp}) -t localhost:1338/target)
+rm ${tmp}/base.txt
+
+# Use rebase to append all layers of common image to target image
+merged=$(./crane rebase --old_base scratch --new_base ${target} ${common})
+
+# List files in the rebased image.
+./crane export ${merged} - | tar -tvf -
+
+# Extract layer1.txt out of the rebased image.
+./crane export ${merged} - | tar -Oxf - ${tmp:1}/layer1.txt
+
+# Extract layer2.txt out of the rebased image.
+./crane export ${merged} - | tar -Oxf - ${tmp:1}/layer2.txt
+
+# Extract base.txt out of the rebased image.
+./crane export ${merged} - | tar -Oxf - ${tmp:1}/base.txt
+
+# Verified all layers present in merged image
