@@ -226,6 +226,30 @@ func TestVariousPaths(t *testing.T) {
 			Password: "bar",
 		},
 	}, {
+		desc:   "valid config file; matches registry w/ v1",
+		target: testRegistry,
+		content: fmt.Sprintf(`{
+	  "auths": {
+		"http://test.io/v1/": {"auth": %q}
+	  }
+	}`, encode("baz", "quux")),
+		cfg: &AuthConfig{
+			Username: "baz",
+			Password: "quux",
+		},
+	}, {
+		desc:   "valid config file; matches registry w/ v2",
+		target: testRegistry,
+		content: fmt.Sprintf(`{
+	  "auths": {
+		"http://test.io/v2/": {"auth": %q}
+	  }
+	}`, encode("baz", "quux")),
+		cfg: &AuthConfig{
+			Username: "baz",
+			Password: "quux",
+		},
+	}, {
 		desc:   "valid config file; matches repo",
 		target: testRepo,
 		content: fmt.Sprintf(`{
