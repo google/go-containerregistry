@@ -33,7 +33,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var entrypoint, cmd []string
 	var envVars map[string]string
 	var newLayers []string
-
+	var outFile string
 	var newRef string
 
 	mutateCmd := &cobra.Command{
@@ -122,17 +122,23 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("digesting new image: %w", err)
 			}
-			r, err := name.ParseReference(newRef)
-			if err != nil {
-				return fmt.Errorf("parsing %s: %w", newRef, err)
+			if outFile != "" {
+				if err := crane.Save(img, newRef, outFile); err != nil {
+					return fmt.Errorf("writing output %q: %w", outFile, err)
+				}
+			} else {
+				r, err := name.ParseReference(newRef)
+				if err != nil {
+					return fmt.Errorf("parsing %s: %w", newRef, err)
+				}
+				if _, ok := r.(name.Digest); ok {
+					newRef = r.Context().Digest(digest.String()).String()
+				}
+				if err := crane.Push(img, newRef, *options...); err != nil {
+					return fmt.Errorf("pushing %s: %w", newRef, err)
+				}
+				fmt.Println(r.Context().Digest(digest.String()))
 			}
-			if _, ok := r.(name.Digest); ok {
-				newRef = r.Context().Digest(digest.String()).String()
-			}
-			if err := crane.Push(img, newRef, *options...); err != nil {
-				return fmt.Errorf("pushing %s: %w", newRef, err)
-			}
-			fmt.Println(r.Context().Digest(digest.String()))
 			return nil
 		},
 	}
@@ -142,6 +148,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringSliceVar(&entrypoint, "entrypoint", nil, "New entrypoint to set")
 	mutateCmd.Flags().StringSliceVar(&cmd, "cmd", nil, "New cmd to set")
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag to apply to mutated image. If not provided, push by digest to the original image repository.")
+	mutateCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
 	mutateCmd.Flags().StringSliceVar(&newLayers, "append", []string{}, "Path to tarball to append to image")
 	return mutateCmd
 }
