@@ -249,9 +249,11 @@ func TestMultiWrite_Retry(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		noRetry := func(error) bool { return false }
+
 		if err := MultiWrite(map[name.Reference]Taggable{
 			tag1: img1,
-		}, WithTransport(transportWrapper), WithJobs(1)); err == nil {
+		}, WithTransport(transportWrapper), WithJobs(1), WithRetryPredicate(noRetry)); err == nil {
 			t.Errorf("Expected an error, got nil")
 		}
 
