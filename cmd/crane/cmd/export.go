@@ -17,6 +17,8 @@ package cmd
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -53,10 +55,18 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
 
 			var img v1.Image
 			if src == "-" {
-				img, err = tarball.Image(func() (io.ReadCloser, error) {
-					return io.ReadCloser(os.Stdin), nil
-				}, nil)
-				//img, err = tarball.ImageFromPath("test.tar", nil)
+				tmpfile, err := ioutil.TempFile("", "crane")
+				if err != nil {
+					log.Fatal(err)
+				}
+				defer os.Remove(tmpfile.Name())
+
+				if _, err := io.Copy(tmpfile, os.Stdin); err != nil {
+					log.Fatal(err)
+				}
+				tmpfile.Close()
+
+				img, err = tarball.ImageFromPath(tmpfile.Name(), nil)
 				if err != nil {
 					return fmt.Errorf("reading tarball from stdin: %w", err)
 				}

@@ -17,6 +17,7 @@ package crane
 import (
 	"io"
 
+	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 )
@@ -29,6 +30,7 @@ func Export(img v1.Image, w io.Writer) error {
 	if err != nil {
 		return err
 	}
+	logs.Debug.Printf("layers found: %v", len(layers))
 	if len(layers) == 1 {
 		// If it's a single layer, we don't have to flatten the filesystem.
 		// An added perk of skipping mutate.Extract here is that this works
