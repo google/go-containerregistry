@@ -1,9 +1,9 @@
 ## crane export
 
-Export contents of a remote image as a tarball
+Export filesystem of a container image as a tarball
 
 ```
-crane export IMAGE TARBALL [flags]
+crane export IMAGE|- TARBALL [flags]
 ```
 
 ### Examples
@@ -14,6 +14,9 @@ crane export IMAGE TARBALL [flags]
 
   # Write tarball to file
   crane export ubuntu ubuntu.tar
+
+  # Read image from stdin
+  crane export - ubuntu.tar
 ```
 
 ### Options

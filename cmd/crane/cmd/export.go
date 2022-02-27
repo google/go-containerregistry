@@ -31,14 +31,14 @@ import (
 func NewCmdExport(options *[]crane.Option) *cobra.Command {
 	return &cobra.Command{
 		Use:   "export IMAGE|- TARBALL",
-		Short: "Export contents of a remote image as a filesystem tarball",
+		Short: "Export filesystem of a container image as a tarball",
 		Example: `  # Write tarball to stdout
   crane export ubuntu -
 
   # Write tarball to file
   crane export ubuntu ubuntu.tar
 
-  # Read image tarball from stdin
+  # Read image from stdin
   crane export - ubuntu.tar`,
 		Args: cobra.RangeArgs(1, 2),
 		RunE: func(_ *cobra.Command, args []string) error {
