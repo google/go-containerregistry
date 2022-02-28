@@ -56,7 +56,7 @@ set +e
 ./crane export ${rebased} - | tar -Oxf - ${tmp:1}/a.txt  # this should fail
 code=$?
 echo "finding a.txt exited ${code}"
-if [[ $code -ne 1 ]]; then
+if [[ $code -eq 0 ]]; then
   echo "a.txt was found in rebased image"
   exit 1
 fi
