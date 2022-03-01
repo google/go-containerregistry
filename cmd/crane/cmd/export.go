@@ -30,7 +30,7 @@ import (
 // NewCmdExport creates a new cobra.Command for the export subcommand.
 func NewCmdExport(options *[]crane.Option) *cobra.Command {
 	return &cobra.Command{
-		Use:   "export IMAGE|- TARBALL",
+		Use:   "export IMAGE|- TARBALL|-",
 		Short: "Export filesystem of a container image as a tarball",
 		Example: `  # Write tarball to stdout
   crane export ubuntu -
