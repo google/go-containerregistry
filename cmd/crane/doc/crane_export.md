@@ -3,7 +3,7 @@
 Export filesystem of a container image as a tarball
 
 ```
-crane export IMAGE|- TARBALL [flags]
+crane export IMAGE|- TARBALL|- [flags]
 ```
 
 ### Examples
