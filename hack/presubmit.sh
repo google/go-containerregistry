@@ -23,6 +23,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # We can't install in the current directory without changing the current module.
 TMP_DIR="$(mktemp -d)"
 export PATH="${PATH}:${TMP_DIR}/bin"
+export GOPATH="${TMP_DIR}"
 pushd ${TMP_DIR}
 trap popd EXIT
 go install golang.org/x/lint/golint@v0.0.0-20210508222113-6edffad5e616
