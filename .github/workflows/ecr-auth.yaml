@@ -24,7 +24,7 @@ jobs:
           go-version: 1.17.x
 
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install krane
         working-directory: ./cmd/krane
@@ -54,7 +54,7 @@ jobs:
           go-version: 1.17.x
 
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Install crane
         working-directory: ./cmd/crane
