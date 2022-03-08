@@ -119,7 +119,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
 	cmd.Flags().StringVar(&format, "format", "tarball", fmt.Sprintf("Format in which to save images (%q, %q, or %q)", "tarball", "legacy", "oci"))
-	cmd.Flags().StringVar(&convert, "convert", "oci", fmt.Sprintf("Image spec to convert the pulled image (%q)", "oci"))
+	cmd.Flags().StringVar(&convert, "convert", "preserve", fmt.Sprintf("Image spec to convert the pulled image (%q or %q)", "preserve", "oci"))
 
 	return cmd
 }
