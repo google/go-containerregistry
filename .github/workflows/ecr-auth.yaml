@@ -5,9 +5,9 @@ on:
     branches: [ 'main' ]
 
 permissions:
-  # This let's us clone the repo
+  # This lets us clone the repo
   contents: read
-  # This let's us mint identity tokens.
+  # This lets us mint identity tokens.
   id-token: write
 
 jobs:
@@ -18,13 +18,10 @@ jobs:
       AWS_REGION: us-east-2
 
     steps:
-      - name: Set up Go 1.17.x
-        uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v2
         with:
           go-version: 1.17.x
-
-      - name: Check out code
-        uses: actions/checkout@v3
 
       - name: Install krane
         working-directory: ./cmd/krane
@@ -48,13 +45,10 @@ jobs:
       AWS_REGION: us-east-2
 
     steps:
-      - name: Set up Go 1.17.x
-        uses: actions/setup-go@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v2
         with:
           go-version: 1.17.x
-
-      - name: Check out code
-        uses: actions/checkout@v3
 
       - name: Install crane
         working-directory: ./cmd/crane
