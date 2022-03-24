@@ -41,117 +41,133 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
 		Short: "Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			// Pull image and get config.
-			ref := args[0]
+			var targetRef string
+			var pushedDigests []name.Digest
 
-			if len(annotations) != 0 {
-				desc, err := crane.Head(ref, *options...)
+			for _, arg := range args {
+				// Pull image and get config.
+				ref := arg
+
+				if len(annotations) != 0 {
+					desc, err := crane.Head(ref, *options...)
+					if err != nil {
+						return err
+					}
+					if desc.MediaType.IsIndex() {
+						return errors.New("mutating annotations on an index is not yet supported")
+					}
+				}
+
+				if newRepo != "" && newRef != "" {
+					return errors.New("repository can't be set when a tag is specified")
+				}
+
+				img, err := crane.Pull(ref, *options...)
+				if err != nil {
+					return fmt.Errorf("pulling %s: %w", ref, err)
+				}
+				if len(newLayers) != 0 {
+					img, err = crane.Append(img, newLayers...)
+					if err != nil {
+						return fmt.Errorf("appending %v: %w", newLayers, err)
+					}
+				}
+				cfg, err := img.ConfigFile()
 				if err != nil {
 					return err
 				}
-				if desc.MediaType.IsIndex() {
-					return errors.New("mutating annotations on an index is not yet supported")
+				cfg = cfg.DeepCopy()
+
+				// Set labels.
+				if cfg.Config.Labels == nil {
+					cfg.Config.Labels = map[string]string{}
 				}
-			}
 
-			if newRepo != "" && newRef != "" {
-				return errors.New("repository can't be set when a tag is specified")
-			}
+				if err := validateKeyVals(labels); err != nil {
+					return err
+				}
 
-			img, err := crane.Pull(ref, *options...)
-			if err != nil {
-				return fmt.Errorf("pulling %s: %w", ref, err)
-			}
-			if len(newLayers) != 0 {
-				img, err = crane.Append(img, newLayers...)
+				for k, v := range labels {
+					cfg.Config.Labels[k] = v
+				}
+
+				if err := validateKeyVals(annotations); err != nil {
+					return err
+				}
+
+				// set envvars if specified
+				if err := setEnvVars(cfg, envVars); err != nil {
+					return err
+				}
+
+				// Set entrypoint.
+				if len(entrypoint) > 0 {
+					cfg.Config.Entrypoint = entrypoint
+					cfg.Config.Cmd = nil // This matches Docker's behavior.
+				}
+
+				// Set cmd.
+				if len(cmd) > 0 {
+					cfg.Config.Cmd = cmd
+				}
+
+				// Set user.
+				if len(user) > 0 {
+					cfg.Config.User = user
+				}
+
+				// Mutate and write image.
+				img, err = mutate.Config(img, cfg.Config)
 				if err != nil {
-					return fmt.Errorf("appending %v: %w", newLayers, err)
+					return fmt.Errorf("mutating config: %w", err)
 				}
-			}
-			cfg, err := img.ConfigFile()
-			if err != nil {
-				return err
-			}
-			cfg = cfg.DeepCopy()
 
-			// Set labels.
-			if cfg.Config.Labels == nil {
-				cfg.Config.Labels = map[string]string{}
-			}
+				img = mutate.Annotations(img, annotations).(v1.Image)
 
-			if err := validateKeyVals(labels); err != nil {
-				return err
-			}
-
-			for k, v := range labels {
-				cfg.Config.Labels[k] = v
-			}
-
-			if err := validateKeyVals(annotations); err != nil {
-				return err
-			}
-
-			// set envvars if specified
-			if err := setEnvVars(cfg, envVars); err != nil {
-				return err
-			}
-
-			// Set entrypoint.
-			if len(entrypoint) > 0 {
-				cfg.Config.Entrypoint = entrypoint
-				cfg.Config.Cmd = nil // This matches Docker's behavior.
-			}
-
-			// Set cmd.
-			if len(cmd) > 0 {
-				cfg.Config.Cmd = cmd
-			}
-
-			// Set user.
-			if len(user) > 0 {
-				cfg.Config.User = user
-			}
-
-			// Mutate and write image.
-			img, err = mutate.Config(img, cfg.Config)
-			if err != nil {
-				return fmt.Errorf("mutating config: %w", err)
-			}
-
-			img = mutate.Annotations(img, annotations).(v1.Image)
-
-			// If the new ref isn't provided, write over the original image.
-			// If that ref was provided by digest (e.g., output from
-			// another crane command), then strip that and push the
-			// mutated image by digest instead.
-			if newRepo != "" {
-				newRef = newRepo
-			} else if newRef == "" {
-				newRef = ref
-			}
-			digest, err := img.Digest()
-			if err != nil {
-				return fmt.Errorf("digesting new image: %w", err)
-			}
-			if outFile != "" {
-				if err := crane.Save(img, newRef, outFile); err != nil {
-					return fmt.Errorf("writing output %q: %w", outFile, err)
+				// If the new ref isn't provided, write over the original image.
+				// If that ref was provided by digest (e.g., output from
+				// another crane command), then strip that and push the
+				// mutated image by digest instead.
+				targetRef = newRef
+				if newRepo != "" {
+					targetRef = newRepo
+				} else if targetRef == "" {
+					targetRef = ref
 				}
-			} else {
-				r, err := name.ParseReference(newRef)
+				digest, err := img.Digest()
 				if err != nil {
-					return fmt.Errorf("parsing %s: %w", newRef, err)
+					return fmt.Errorf("digesting new image: %w", err)
 				}
-				if _, ok := r.(name.Digest); ok || newRepo != "" {
-					newRef = r.Context().Digest(digest.String()).String()
+				if outFile != "" {
+					if err := crane.Save(img, targetRef, outFile); err != nil {
+						return fmt.Errorf("writing output %q: %w", outFile, err)
+					}
+				} else {
+					r, err := name.ParseReference(targetRef)
+					if err != nil {
+						return fmt.Errorf("parsing %s: %w", targetRef, err)
+					}
+					// push by digest if either original ref is a digest, a repo is specified, or we're creating a manifest list
+					if _, ok := r.(name.Digest); ok || newRepo != "" || len(args) > 1 {
+						targetRef = r.Context().Digest(digest.String()).String()
+					}
+					if err := crane.Push(img, targetRef, *options...); err != nil {
+						return fmt.Errorf("pushing %s: %w", targetRef, err)
+					}
+
+					pushedDigest := r.Context().Digest(digest.String())
+					pushedDigests = append(pushedDigests, pushedDigest)
+					fmt.Println(pushedDigest)
 				}
-				if err := crane.Push(img, newRef, *options...); err != nil {
-					return fmt.Errorf("pushing %s: %w", newRef, err)
-				}
-				fmt.Println(r.Context().Digest(digest.String()))
 			}
+
+			// if a tag is specified and multiple refs were provided, create a manifest list after all digests were pushed
+			if len(args) > 1 && newRef != "" {
+				// TODO
+			}
+
 			return nil
 		},
 	}
