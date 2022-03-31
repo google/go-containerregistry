@@ -240,9 +240,9 @@ func (i *image) configHistory(author string) ([]v1.History, error) {
 		return nil, err
 	}
 
-	var history []v1.History
-	for _, h := range historyItems {
-		history = append(history, v1.History{
+	history := make([]v1.History, len(historyItems))
+	for j, h := range historyItems {
+		history[j] = v1.History{
 			Author: author,
 			Created: v1.Time{
 				Time: time.Unix(h.Created, 0).UTC(),
@@ -250,19 +250,19 @@ func (i *image) configHistory(author string) ([]v1.History, error) {
 			CreatedBy:  h.CreatedBy,
 			Comment:    h.Comment,
 			EmptyLayer: h.Size == 0,
-		})
+		}
 	}
 	return history, nil
 }
 
 func (i *image) diffIDs(rootFS api.RootFS) ([]v1.Hash, error) {
-	var diffIDs []v1.Hash
-	for _, l := range rootFS.Layers {
+	diffIDs := make([]v1.Hash, len(rootFS.Layers))
+	for j, l := range rootFS.Layers {
 		h, err := v1.NewHash(l)
 		if err != nil {
 			return nil, err
 		}
-		diffIDs = append(diffIDs, h)
+		diffIDs[j] = h
 	}
 	return diffIDs, nil
 }
@@ -298,7 +298,6 @@ func (i *image) computeConfigFile(inspect api.ImageInspect) (*v1.ConfigFile, err
 		Config:    i.computeImageConfig(inspect.Config),
 		OSVersion: inspect.OsVersion,
 	}, nil
-
 }
 
 func (i *image) computeImageConfig(config *container.Config) v1.Config {

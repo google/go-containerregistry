@@ -99,7 +99,6 @@ func (m *MockClient) ImageHistory(_ context.Context, _ string) ([]api.HistoryRes
 			},
 		},
 	}, nil
-
 }
 
 func TestImage(t *testing.T) {
