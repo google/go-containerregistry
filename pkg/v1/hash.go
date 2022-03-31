@@ -19,11 +19,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	sha256simd "github.com/minio/sha256-simd"
 	"hash"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 )
+
+const HasherSHA256 = "sha256"
 
 // Hash is an unqualified digest of some content, e.g. sha256:deadbeef
 type Hash struct {
@@ -77,7 +81,10 @@ func (h *Hash) UnmarshalText(text []byte) error {
 // Hasher returns a hash.Hash for the named algorithm (e.g. "sha256")
 func Hasher(name string) (hash.Hash, error) {
 	switch name {
-	case "sha256":
+	case HasherSHA256:
+		if simd := os.Getenv("GGCR_EXPERIMENT_SHA256_SIMD"); simd == "1" {
+			return sha256simd.New(), nil
+		}
 		return sha256.New(), nil
 	default:
 		return nil, fmt.Errorf("unsupported hash: %q", name)
@@ -111,7 +118,10 @@ func (h *Hash) parse(unquoted string) error {
 
 // SHA256 computes the Hash of the provided io.Reader's content.
 func SHA256(r io.Reader) (Hash, int64, error) {
-	hasher := sha256.New()
+	hasher, err := Hasher(HasherSHA256)
+	if err != nil {
+		return Hash{}, 0, err
+	}
 	n, err := io.Copy(hasher, r)
 	if err != nil {
 		return Hash{}, 0, err

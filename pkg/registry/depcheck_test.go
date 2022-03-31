@@ -30,6 +30,9 @@ func TestDeps(t *testing.T) {
 
 			"github.com/google/go-containerregistry/internal/verify",
 			"github.com/google/go-containerregistry/internal/and",
+
+			"github.com/minio/sha256-simd",
+			"github.com/klauspost/cpuid/v2",
 		),
 	})
 }

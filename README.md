@@ -37,6 +37,7 @@ Over time, we will add new functionality under experimental environment variable
 | Env Var | Value(s) | What is does |
 |---------|----------|--------------|
 | `GGCR_EXPERIMENT_ESTARGZ` | `"1"` | When enabled this experiment will direct `tarball.LayerFromOpener` to emit [estargz](https://github.com/opencontainers/image-spec/issues/815) compatible layers, which enable them to be lazily loaded by an appropriately configured containerd. |
+| `GGCR_EXPERIMENT_SHA256_SIMD` | `"1"` | When enabled this experiment will direct `sha256` computations to use simd instructions (if the CPU supports them). |
 
 
 ### `v1.Image`
