@@ -79,6 +79,14 @@ func (m *MockClient) ImageInspectWithRaw(_ context.Context, _ string) (types.Ima
 		Size:         8,
 		VirtualSize:  8,
 		Config:       &container.Config{},
+		GraphDriver: types.GraphDriverData{
+			Data: map[string]string{
+				"MergedDir": "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/merged",
+				"UpperDir":  "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/diff",
+				"WorkDir":   "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/work",
+			},
+			Name: "overlay2",
+		},
 		RootFS: types.RootFS{
 			Type: "layers",
 			Layers: []string{
