@@ -24,6 +24,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -139,6 +140,86 @@ func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClose
 
 // Mount is a no-op since all the blobs are store indexed by sha
 func (m *memHandler) Mount(_ context.Context, _, _ string, _ v1.Hash) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	return nil
+}
+
+func newBlobDiskHandler(blobFolder string) *diskHandler {
+	return &diskHandler{
+		m:      map[string]blobDiskLocation{},
+		tmpDir: blobFolder,
+		lock:   sync.Mutex{},
+	}
+}
+
+type blobDiskLocation struct {
+	size     int64
+	location string
+}
+
+// diskHandler Contains the location in disk of the blobs
+type diskHandler struct {
+	m      map[string]blobDiskLocation
+	tmpDir string
+	lock   sync.Mutex
+}
+
+func (m *diskHandler) Stat(_ context.Context, repo string, h v1.Hash) (int64, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if _, found := m.m[h.String()]; !found {
+		return 0, errNotFound
+	}
+
+	return m.m[h.String()].size, nil
+}
+func (m *diskHandler) Get(_ context.Context, repo string, h v1.Hash) (io.ReadCloser, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if _, found := m.m[h.String()]; !found {
+		return nil, errNotFound
+	}
+
+	blobFile, err := os.Open(m.m[h.String()].location)
+	if err != nil {
+		return nil, err
+	}
+
+	return blobFile, nil
+}
+func (m *diskHandler) Put(_ context.Context, repo string, h v1.Hash, rc io.ReadCloser) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	defer rc.Close()
+
+	// if the blob already exists there is no need to copy it
+	if _, found := m.m[h.String()]; found {
+		return nil
+	}
+
+	blobFile, err := ioutil.TempFile(m.tmpDir, h.String())
+	if err != nil {
+		return err
+	}
+	defer blobFile.Close()
+
+	s, err := io.Copy(blobFile, rc)
+	if err != nil {
+		return err
+	}
+
+	m.m[h.String()] = blobDiskLocation{
+		size:     s,
+		location: blobFile.Name(),
+	}
+	return nil
+}
+func (m *diskHandler) Mount(_ context.Context, _, _ string, _ v1.Hash) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 

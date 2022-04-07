@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -51,24 +52,26 @@ func sha256String(s string) string {
 	return hex.EncodeToString(h[:])
 }
 
+type registryTest struct {
+	Description string
+
+	// Request / setup
+	URL           string
+	Digests       map[string]string
+	Manifests     map[string]string
+	BlobStream    map[string]string
+	RequestHeader map[string]string
+
+	// Response
+	Code   int
+	Header map[string]string
+	Method string
+	Body   string // request body to send
+	Want   string // response body to expect
+}
+
 func TestCalls(t *testing.T) {
-	tcs := []struct {
-		Description string
-
-		// Request / setup
-		URL           string
-		Digests       map[string]string
-		Manifests     map[string]string
-		BlobStream    map[string]string
-		RequestHeader map[string]string
-
-		// Response
-		Code   int
-		Header map[string]string
-		Method string
-		Body   string // request body to send
-		Want   string // response body to expect
-	}{
+	tcs := []registryTest{
 		{
 			Description: "/v2 returns 200",
 			Method:      "GET",
@@ -431,14 +434,10 @@ func TestCalls(t *testing.T) {
 	}
 
 	for _, tc := range tcs {
-
-		var logger *log.Logger
+		var opts []registry.Option
 		testf := func(t *testing.T) {
 
-			r := registry.New()
-			if logger != nil {
-				r = registry.New(registry.Logger(logger))
-			}
+			r := registry.New(opts...)
 			s := httptest.NewServer(r)
 			defer s.Close()
 
@@ -546,7 +545,17 @@ func TestCalls(t *testing.T) {
 			}
 		}
 		t.Run(tc.Description, testf)
-		logger = log.New(ioutil.Discard, "", log.Ldate)
+		opts = append(opts, registry.Logger(log.New(ioutil.Discard, "", log.Ldate)))
 		t.Run(tc.Description+" - custom log", testf)
+		blobsTmpFolder, err := ioutil.TempDir("", "blobs")
+		if err != nil {
+			t.Errorf("Creating temporary folder: %v", err)
+		}
+		opts = append(opts, registry.DiskBlobStorage(blobsTmpFolder))
+		t.Run(tc.Description+" - save blobs to disk", testf)
+		err = os.RemoveAll(blobsTmpFolder)
+		if err != nil {
+			t.Errorf("Unable to remove blobs tmp folder: %v", err)
+		}
 	}
 }

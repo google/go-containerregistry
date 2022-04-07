@@ -102,3 +102,10 @@ func Logger(l *log.Logger) Option {
 		r.manifests.log = l
 	}
 }
+
+// DiskBlobStorage Save the blobs in the folder tmpFolder
+func DiskBlobStorage(blobFolder string) Option {
+	return func(r *registry) {
+		r.blobs.blobHandler = newBlobDiskHandler(blobFolder)
+	}
+}
