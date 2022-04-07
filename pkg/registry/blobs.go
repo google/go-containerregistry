@@ -76,6 +76,13 @@ type blobPutHandler interface {
 	Put(ctx context.Context, repo string, h v1.Hash, rc io.ReadCloser) error
 }
 
+// blobMountHandler is an extension interface representing a blob storage backend
+// that can write blob contents.
+type blobMountHandler interface {
+	// Mount puts the blob contents.
+	Mount(ctx context.Context, repo, from string, h v1.Hash) error
+}
+
 // redirectError represents a signal that the blob handler doesn't have the blob
 // contents, but that those contents are at another location which registry
 // clients should redirect to.
@@ -127,6 +134,14 @@ func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClose
 		return err
 	}
 	m.m[h.String()] = all
+	return nil
+}
+
+// Mount is a no-op since all the blobs are store indexed by sha
+func (m *memHandler) Mount(_ context.Context, _, _ string, _ v1.Hash) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	return nil
 }
 
@@ -278,6 +293,10 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		if !ok {
 			return regErrUnsupported
 		}
+		bmh, ok := b.blobHandler.(blobMountHandler)
+		if !ok {
+			return regErrUnsupported
+		}
 
 		// It is weird that this is "target" instead of "service", but
 		// that's how the index math works out above.
@@ -306,6 +325,23 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 					log.Printf("Digest mismatch: %v", err)
 					return regErrDigestMismatch
 				}
+				return regErrInternal(err)
+			}
+			resp.Header().Set("Docker-Content-Digest", h.String())
+			resp.WriteHeader(http.StatusCreated)
+			return nil
+		}
+
+		from := req.URL.Query().Get("from")
+		mount := req.URL.Query().Get("mount")
+		if from != "" && mount != "" {
+			h, err := v1.NewHash(mount)
+			if err != nil {
+				return regErrDigestInvalid
+			}
+
+			err = bmh.Mount(req.Context(), repo, from, h)
+			if err != nil {
 				return regErrInternal(err)
 			}
 			resp.Header().Set("Docker-Content-Digest", h.String())

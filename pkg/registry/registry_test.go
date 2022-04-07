@@ -191,6 +191,20 @@ func TestCalls(t *testing.T) {
 			Body:        "foo",
 		},
 		{
+			Description: "mount blob using an invalid digest",
+			Method:      "POST",
+			URL:         "/v2/foo/blobs/uploads?from=some/other/repo&mount=sha256:fake",
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
+		},
+		{
+			Description: "mount blob",
+			Method:      "POST",
+			URL:         "/v2/foo/blobs/uploads?from=some/other/repo&mount=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusCreated,
+			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
+		},
+		{
 			Description: "upload good digest",
 			Method:      "PUT",
 			URL:         "/v2/foo/blobs/uploads/1?digest=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
