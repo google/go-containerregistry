@@ -351,3 +351,48 @@ func repo(t *testing.T, repository string) authn.Resource {
 	}
 	return repo
 }
+
+// TestDockerConfigJSON tests using secrets using the .dockerconfigjson form,
+// like you might get from running:
+// kubectl create secret docker-registry secret -n ns --docker-server="fake.registry.io" --docker-username="foo" --docker-password="bar"
+func TestDockerConfigJSON(t *testing.T) {
+	username, password := "foo", "bar"
+	kc, err := NewFromPullSecrets(context.Background(), []corev1.Secret{{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "secret",
+			Namespace: "ns",
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+		Data: map[string][]byte{
+			corev1.DockerConfigJsonKey: []byte(
+				fmt.Sprintf(`{"auths":{"fake.registry.io":{"username":%q,"password":%q,"auth":%q}}}`,
+					username, password,
+					base64.StdEncoding.EncodeToString([]byte(username+":"+password))),
+			),
+		},
+	}})
+	if err != nil {
+		t.Fatalf("NewFromPullSecrets() = %v", err)
+	}
+
+	reg, err := name.NewRegistry("fake.registry.io", name.WeakValidation)
+	if err != nil {
+		t.Errorf("NewRegistry() = %v", err)
+	}
+
+	auth, err := kc.Resolve(reg)
+	if err != nil {
+		t.Errorf("Resolve(%v) = %v", reg, err)
+	}
+	got, err := auth.Authorization()
+	if err != nil {
+		t.Errorf("Authorization() = %v", err)
+	}
+	want, err := (&authn.Basic{Username: username, Password: password}).Authorization()
+	if err != nil {
+		t.Errorf("Authorization() = %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Resolve() = %v, want %v", got, want)
+	}
+}
