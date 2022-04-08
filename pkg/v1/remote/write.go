@@ -413,7 +413,6 @@ func (w *writer) incrProgress(written int64) {
 // uploadOne performs a complete upload of a single layer.
 func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 	tryUpload := func() error {
-		//TODO: add origin variable
 		var from, mount, origin string
 		if h, err := l.Digest(); err == nil {
 			// If we know the digest, this isn't a streaming layer. Do an existence
@@ -429,20 +428,16 @@ func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 				}
 				w.incrProgress(size)
 				logs.Progress.Printf("existing blob: %v", h)
-				//TODO q: Why return nil here, then upload does not go through?
 				return nil
 			}
 
 			mount = h.String()
 		}
-		//TODO q: what's going on here
-		// Do I need this check?
 		if ml, ok := l.(*MountableLayer); ok {
 			from = ml.Reference.Context().RepositoryStr()
 			origin = ml.Reference.Context().RegistryStr()
 		}
 
-		//TODO: Add origin paramter and update method
 		location, mounted, err := w.initiateUpload(from, mount, origin)
 		if err != nil {
 			return err

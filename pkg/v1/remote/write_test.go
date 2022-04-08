@@ -236,8 +236,9 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 	expectedRepo := "foo/bar"
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
-		"mount": []string{h.String()},
-		"from":  []string{"baz/bar"},
+		"mount":  []string{h.String()},
+		"from":   []string{"baz/bar"},
+		"origin": []string{""},
 	}.Encode()
 
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -272,8 +273,9 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 	expectedRepo := "baz/blah"
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
-		"mount": []string{h.String()},
-		"from":  []string{"baz/bar"},
+		"mount":  []string{h.String()},
+		"from":   []string{"baz/bar"},
+		"origin": []string{""},
 	}.Encode()
 	expectedLocation := "https://somewhere.io/upload?foo=bar"
 
@@ -313,8 +315,9 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 	expectedRepo := "ugh/another"
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
-		"mount": []string{h.String()},
-		"from":  []string{"baz/bar"},
+		"mount":  []string{h.String()},
+		"from":   []string{"baz/bar"},
+		"origin": []string{""},
 	}.Encode()
 
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -346,8 +349,9 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	expectedRepo := "yet/again"
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
-		"mount": []string{h.String()},
-		"from":  []string{"baz/bar"},
+		"mount":  []string{h.String()},
+		"from":   []string{"baz/bar"},
+		"origin": []string{""},
 	}.Encode()
 
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -383,8 +387,9 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 	expectedRepo := "yet/again"
 	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 	expectedQuery := url.Values{
-		"mount": []string{h.String()},
-		"from":  []string{expectedMountRepo},
+		"mount":  []string{h.String()},
+		"from":   []string{expectedMountRepo},
+		"origin": []string{""},
 	}.Encode()
 
 	serverHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
