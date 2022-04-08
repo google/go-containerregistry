@@ -27,7 +27,7 @@ import (
 // setup to authenticate with the remote registry "reg", in the capacity
 // laid out by the specified scopes.
 //
-// TODO(jonjohnsonjr): Deprecate this.
+// Deprecated: Use NewWithContext.
 func New(reg name.Registry, auth authn.Authenticator, t http.RoundTripper, scopes []string) (http.RoundTripper, error) {
 	return NewWithContext(context.Background(), reg, auth, t, scopes)
 }
