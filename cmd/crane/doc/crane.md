@@ -31,7 +31,7 @@ crane [flags]
 * [crane ls](crane_ls.md)	 - List the tags in a repo
 * [crane manifest](crane_manifest.md)	 - Get the manifest of an image
 * [crane mutate](crane_mutate.md)	 - Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.
-* [crane pull](crane_pull.md)	 - Pull remote images by reference and store their contents locally
+* [crane pull](crane_pull.md)	 - Pull remote images by reference and store them locally
 * [crane push](crane_push.md)	 - Push local image contents to a remote registry
 * [crane rebase](crane_rebase.md)	 - Rebase an image onto a new base image
 * [crane tag](crane_tag.md)	 - Efficiently tag a remote image

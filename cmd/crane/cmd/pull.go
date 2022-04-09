@@ -35,8 +35,8 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "pull IMAGE TARBALL",
-		Short: "Pull remote images by reference and store their contents locally",
+		Use:   "pull IMAGE TARBALL|-",
+		Short: "Pull remote images by reference and store them locally",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			imageMap := map[string]v1.Image{}
