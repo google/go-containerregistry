@@ -27,6 +27,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
+
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 type registry struct {
@@ -77,7 +80,7 @@ func New(opts ...Option) http.Handler {
 	r := &registry{
 		log: log.New(os.Stderr, "", log.LstdFlags),
 		blobs: blobs{
-			blobHandler: &memHandler{m: map[string][]byte{}},
+			blobHandler: newBlobMemHandler(),
 			uploads:     map[string][]byte{},
 		},
 		manifests: manifests{
@@ -107,5 +110,25 @@ func Logger(l *log.Logger) Option {
 func DiskBlobStorage(blobFolder string) Option {
 	return func(r *registry) {
 		r.blobs.blobHandler = newBlobDiskHandler(blobFolder)
+	}
+}
+
+// SplitBlobsByRepository When accessing the blobs ensures that each repository has a separated place to store them
+// By default the Storage mechanisms store will save blob information ignoring the repository, with this option
+// it takes into account the repository
+func SplitBlobsByRepository() Option {
+	return func(r *registry) {
+		h, ok := r.blobs.blobHandler.(blobSetAccessFunc)
+		if !ok {
+			r.log.Println("Blob Handler does not implement blobSetAccessFunc interface")
+			return
+		}
+
+		h.AccessFunc(func(repo string, h v1.Hash) string {
+			if strings.HasSuffix(repo, "/blobs") {
+				return repo[:len(repo)-len("/blobs")] + "@" + h.String()
+			}
+			return repo + "@" + h.String()
+		})
 	}
 }

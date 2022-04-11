@@ -547,6 +547,9 @@ func TestCalls(t *testing.T) {
 		t.Run(tc.Description, testf)
 		opts = append(opts, registry.Logger(log.New(ioutil.Discard, "", log.Ldate)))
 		t.Run(tc.Description+" - custom log", testf)
+		opts = append(opts, registry.SplitBlobsByRepository())
+		t.Run(tc.Description+" - save blobs to memory split by repository", testf)
+
 		blobsTmpFolder, err := ioutil.TempDir("", "blobs")
 		if err != nil {
 			t.Errorf("Creating temporary folder: %v", err)
@@ -557,5 +560,103 @@ func TestCalls(t *testing.T) {
 		if err != nil {
 			t.Errorf("Unable to remove blobs tmp folder: %v", err)
 		}
+	}
+}
+
+func TestBlobAccess(t *testing.T) {
+	accessTestCases := []struct {
+		Description    string
+		Repository     string
+		BlobRepository string
+		ExpectedStatus int
+		UseSplitBlob   bool
+	}{
+		{
+			Description:    "unable to get blobs from different repositories when blobs are split per registry",
+			Repository:     "some-other/repo",
+			BlobRepository: "some/repo",
+			ExpectedStatus: http.StatusNotFound,
+			UseSplitBlob:   true,
+		},
+		{
+			Description:    "able to get blobs from different repositories by default",
+			Repository:     "some-other/repo",
+			BlobRepository: "some/repo",
+			ExpectedStatus: http.StatusOK,
+			UseSplitBlob:   false,
+		},
+	}
+
+	for _, tc := range accessTestCases {
+		var opts []registry.Option
+		testf := func(t *testing.T) {
+			digest := "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+			contents := "foo"
+			if tc.UseSplitBlob {
+				opts = append(opts, registry.SplitBlobsByRepository())
+			}
+			r := registry.New(opts...)
+			s := httptest.NewServer(r)
+			defer s.Close()
+
+			uploadBlob(t, s, tc.BlobRepository, digest, contents)
+
+			loc := fmt.Sprintf("%s/v2/%s/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae", s.URL, tc.Repository)
+			u, err := url.Parse(loc)
+			if err != nil {
+				t.Fatalf("Error parsing %q: %v", loc, err)
+			}
+			req := &http.Request{
+				Method: "HEAD",
+				URL:    u,
+				Header: map[string][]string{},
+			}
+			t.Log(req.Method, req.URL)
+			resp, err := s.Client().Do(req)
+			if err != nil {
+				t.Fatalf("Error getting %s: %v", loc, err)
+			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Errorf("Reading response body: %v", err)
+			}
+			if resp.StatusCode != tc.ExpectedStatus {
+				t.Errorf("Incorrect status code, got %d, want %d; body: %s", resp.StatusCode, tc.ExpectedStatus, body)
+			}
+		}
+
+		t.Run(tc.Description, testf)
+		blobsTmpFolder, err := ioutil.TempDir("", "blobs")
+		if err != nil {
+			t.Errorf("Creating temporary folder: %v", err)
+		}
+		opts = append(opts, registry.DiskBlobStorage(blobsTmpFolder))
+		t.Run(tc.Description+" - save blobs to disk", testf)
+		err = os.RemoveAll(blobsTmpFolder)
+		if err != nil {
+			t.Errorf("Unable to remove blobs tmp folder: %v", err)
+		}
+	}
+}
+
+func uploadBlob(t *testing.T, s *httptest.Server, repo, digest, contents string) {
+	u, err := url.Parse(fmt.Sprintf("%s/v2/%s/blobs/uploads/1?digest=%s", s.URL, repo, digest))
+	if err != nil {
+		t.Fatalf("Error parsing %q: %v", s.URL, err)
+	}
+	req := &http.Request{
+		Method: "PUT",
+		URL:    u,
+		Body:   ioutil.NopCloser(strings.NewReader(contents)),
+	}
+	t.Log(req.Method, req.URL)
+	resp, err := s.Client().Do(req)
+	if err != nil {
+		t.Fatalf("Error uploading digest: %v", err)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		body, _ := ioutil.ReadAll(resp.Body)
+		t.Fatalf("Error uploading digest got status: %d %s", resp.StatusCode, body)
 	}
 }

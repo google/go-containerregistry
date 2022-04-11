@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -84,6 +85,13 @@ type blobMountHandler interface {
 	Mount(ctx context.Context, repo, from string, h v1.Hash) error
 }
 
+// blobSetAccessFunc is an extension interface representing a blob storage backend
+// that can write blob contents.
+type blobSetAccessFunc interface {
+	// AccessFunc Sets access function to be used when retrieving the blobs
+	AccessFunc(func(repo string, h v1.Hash) string)
+}
+
 // redirectError represents a signal that the blob handler doesn't have the blob
 // contents, but that those contents are at another location which registry
 // clients should redirect to.
@@ -100,32 +108,41 @@ func (e redirectError) Error() string { return fmt.Sprintf("redirecting (%d): %s
 // errNotFound represents an error locating the blob.
 var errNotFound = errors.New("not found")
 
-type memHandler struct {
-	m    map[string][]byte
-	lock sync.Mutex
+func newBlobMemHandler() *memHandler {
+	return &memHandler{
+		m:          map[string][]byte{},
+		accessFunc: func(repo string, h v1.Hash) string { return h.String() },
+		lock:       sync.Mutex{},
+	}
 }
 
-func (m *memHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error) {
+type memHandler struct {
+	m          map[string][]byte
+	accessFunc func(repo string, h v1.Hash) string
+	lock       sync.Mutex
+}
+
+func (m *memHandler) Stat(_ context.Context, repo string, h v1.Hash) (int64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	b, found := m.m[h.String()]
+	b, found := m.m[m.accessFunc(repo, h)]
 	if !found {
 		return 0, errNotFound
 	}
 	return int64(len(b)), nil
 }
-func (m *memHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser, error) {
+func (m *memHandler) Get(_ context.Context, repo string, h v1.Hash) (io.ReadCloser, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	b, found := m.m[h.String()]
+	b, found := m.m[m.accessFunc(repo, h)]
 	if !found {
 		return nil, errNotFound
 	}
 	return ioutil.NopCloser(bytes.NewReader(b)), nil
 }
-func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadCloser) error {
+func (m *memHandler) Put(_ context.Context, repo string, h v1.Hash, rc io.ReadCloser) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -134,23 +151,33 @@ func (m *memHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClose
 	if err != nil {
 		return err
 	}
-	m.m[h.String()] = all
+	m.m[m.accessFunc(repo, h)] = all
 	return nil
 }
 
 // Mount is a no-op since all the blobs are store indexed by sha
-func (m *memHandler) Mount(_ context.Context, _, _ string, _ v1.Hash) error {
+func (m *memHandler) Mount(_ context.Context, from, to string, h v1.Hash) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
+	fromKey := m.accessFunc(from, h)
+	toKey := m.accessFunc(to, h)
+	if fromKey == toKey {
+		return nil
+	}
 
+	m.m[toKey] = m.m[fromKey]
 	return nil
+}
+func (m *memHandler) AccessFunc(f func(repo string, h v1.Hash) string) {
+	m.accessFunc = f
 }
 
 func newBlobDiskHandler(blobFolder string) *diskHandler {
 	return &diskHandler{
-		m:      map[string]blobDiskLocation{},
-		tmpDir: blobFolder,
-		lock:   sync.Mutex{},
+		m:          map[string]blobDiskLocation{},
+		accessFunc: func(repo string, h v1.Hash) string { return h.String() },
+		tmpDir:     blobFolder,
+		lock:       sync.Mutex{},
 	}
 }
 
@@ -161,16 +188,17 @@ type blobDiskLocation struct {
 
 // diskHandler Contains the location in disk of the blobs
 type diskHandler struct {
-	m      map[string]blobDiskLocation
-	tmpDir string
-	lock   sync.Mutex
+	m          map[string]blobDiskLocation
+	accessFunc func(repo string, h v1.Hash) string
+	tmpDir     string
+	lock       sync.Mutex
 }
 
 func (m *diskHandler) Stat(_ context.Context, repo string, h v1.Hash) (int64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if _, found := m.m[h.String()]; !found {
+	if _, found := m.m[m.accessFunc(repo, h)]; !found {
 		return 0, errNotFound
 	}
 
@@ -180,11 +208,11 @@ func (m *diskHandler) Get(_ context.Context, repo string, h v1.Hash) (io.ReadClo
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if _, found := m.m[h.String()]; !found {
+	if _, found := m.m[m.accessFunc(repo, h)]; !found {
 		return nil, errNotFound
 	}
 
-	blobFile, err := os.Open(m.m[h.String()].location)
+	blobFile, err := os.Open(m.m[m.accessFunc(repo, h)].location)
 	if err != nil {
 		return nil, err
 	}
@@ -198,11 +226,11 @@ func (m *diskHandler) Put(_ context.Context, repo string, h v1.Hash, rc io.ReadC
 	defer rc.Close()
 
 	// if the blob already exists there is no need to copy it
-	if _, found := m.m[h.String()]; found {
+	if _, found := m.m[m.accessFunc(repo, h)]; found {
 		return nil
 	}
 
-	blobFile, err := ioutil.TempFile(m.tmpDir, h.String())
+	blobFile, err := ioutil.TempFile(m.tmpDir, filepath.Clean(h.String()))
 	if err != nil {
 		return err
 	}
@@ -213,17 +241,27 @@ func (m *diskHandler) Put(_ context.Context, repo string, h v1.Hash, rc io.ReadC
 		return err
 	}
 
-	m.m[h.String()] = blobDiskLocation{
+	m.m[m.accessFunc(repo, h)] = blobDiskLocation{
 		size:     s,
 		location: blobFile.Name(),
 	}
 	return nil
 }
-func (m *diskHandler) Mount(_ context.Context, _, _ string, _ v1.Hash) error {
+func (m *diskHandler) Mount(_ context.Context, from, to string, h v1.Hash) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
+	fromKey := m.accessFunc(from, h)
+	toKey := m.accessFunc(to, h)
+	if fromKey == toKey {
+		return nil
+	}
+
+	m.m[toKey] = m.m[fromKey]
 	return nil
+}
+func (m *diskHandler) AccessFunc(f func(repo string, h v1.Hash) string) {
+	m.accessFunc = f
 }
 
 // blobs
@@ -236,6 +274,13 @@ type blobs struct {
 }
 
 func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
+	if req == nil {
+		return &regError{
+			Status:  http.StatusInternalServerError,
+			Code:    "INTERNAL_CONSISTENCY",
+			Message: "request pointer not present",
+		}
+	}
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
 	if elem[len(elem)-1] == "" {
