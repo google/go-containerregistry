@@ -183,17 +183,17 @@ func (keyring *keyring) Resolve(target authn.Resource) (authn.Authenticator, err
 
 	for _, k := range keyring.index {
 		// both k and image are schemeless URLs because even though schemes are allowed
-		// in the credential configurations, we remove them in Add.
+		// in the credential configurations, we remove them when constructing the keyring
 		if matched, _ := urlsMatchStr(k, image); matched {
 			auths = append(auths, keyring.creds[k]...)
 		}
 	}
 
-	if len(auths) > 0 {
-		return toAuthenticator(auths...)
+	if len(auths) == 0 {
+		return authn.Anonymous, nil
 	}
 
-	return authn.Anonymous, nil
+	return toAuthenticator(auths)
 }
 
 // urlsMatchStr is wrapper for URLsMatch, operating on strings instead of URLs.
@@ -270,7 +270,7 @@ func urlsMatch(globURL *url.URL, targetURL *url.URL) (bool, error) {
 	return true, nil
 }
 
-func toAuthenticator(configs ...authn.AuthConfig) (authn.Authenticator, error) {
+func toAuthenticator(configs []authn.AuthConfig) (authn.Authenticator, error) {
 	cfg := configs[0]
 
 	if cfg.Auth != "" {
