@@ -894,7 +894,7 @@ func TestWriteWithErrors(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
 			}
-			b, err := json.Marshal(expectedError)
+			b, err := json.Marshal(expectedError) // nolint: staticcheck
 			if err != nil {
 				t.Fatalf("json.Marshal() = %v", err)
 			}
