@@ -21,7 +21,8 @@ jobs:
       - name: Set up Go 1.17.x
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17.x
+          go-version: 1.17
+          check-latest: true
 
       - name: Check out code
         uses: actions/checkout@v3
@@ -51,7 +52,8 @@ jobs:
       - name: Set up Go 1.17.x
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17.x
+          go-version: 1.17
+          check-latest: true
 
       - name: Check out code
         uses: actions/checkout@v3

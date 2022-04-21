@@ -208,7 +208,7 @@ func TestCheckErrorWithError(t *testing.T) {
 	}}
 
 	for _, test := range tests {
-		b, err := json.Marshal(test.error)
+		b, err := json.Marshal(test.error) // nolint: staticcheck
 		if err != nil {
 			t.Errorf("json.Marshal(%v) = %v", test.error, err)
 		}
