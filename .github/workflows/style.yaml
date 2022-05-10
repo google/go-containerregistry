@@ -38,6 +38,7 @@ jobs:
           github_token: ${{ secrets.github_token }}
           fail_on_error: true
           locale: "US"
+          exclude: ./vendor/*
 
       - uses: chainguard-dev/actions/trailing-space@84c993eaf02da1c325854fb272a4df9184bd80fc # main
         if: ${{ always() }}
