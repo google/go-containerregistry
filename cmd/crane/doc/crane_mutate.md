@@ -17,7 +17,8 @@ crane mutate [flags]
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
   -o, --output string               Path to new tarball of resulting image
-  -t, --tag string                  New tag to apply to mutated image. If not provided, push by digest to the original image repository.
+      --repo string                 Repository to push the mutated image to. If provided, push by digest to this repository.
+  -t, --tag string                  New tag reference to apply to mutated image. If not provided, push by digest to the original image repository.
   -u, --user string                 New user to set
 ```
 
