@@ -96,10 +96,10 @@ func NewFromPullSecrets(ctx context.Context, pullSecrets []corev1.Secret) (authn
 	}
 
 	return authn.NewMultiKeychain(
+		k8s,
 		authn.DefaultKeychain,
 		google.Keychain,
 		amazonKeychain,
 		azureKeychain,
-		k8s,
 	), nil
 }
