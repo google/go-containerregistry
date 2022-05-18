@@ -160,6 +160,9 @@ func TestRawManifestDigests(t *testing.T) {
 					if r.Method != http.MethodGet {
 						t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 					}
+					if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+						t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+					}
 
 					w.Header().Set("Docker-Content-Digest", tc.contentDigest)
 					w.Write(tc.responseBody)
@@ -202,6 +205,9 @@ func TestRawManifestNotFound(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.WriteHeader(http.StatusNotFound)
 		default:
 			t.Fatalf("Unexpected path: %v", r.URL.Path)
@@ -237,10 +243,16 @@ func TestRawConfigFileNotFound(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.WriteHeader(http.StatusNotFound)
 		case manifestPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
 			}
 			w.Write(mustRawManifest(t, img))
 		default:
@@ -275,6 +287,9 @@ func TestAcceptHeaders(t *testing.T) {
 		case manifestPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
 			}
 			wantAccept := strings.Join([]string{
 				string(types.DockerManifestSchema2),
@@ -328,11 +343,17 @@ func TestImage(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.Write(mustRawConfigFile(t, img))
 		case manifestPath:
 			manifestReqCount++
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
 			}
 			w.Write(mustRawManifest(t, img))
 		case layerPath:
@@ -419,21 +440,33 @@ func TestPullingManifestList(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.Header().Set("Content-Type", string(mustMediaType(t, idx)))
 			w.Write(rawManifest)
 		case childPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.Write(mustRawManifest(t, child))
 		case configPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.Write(mustRawConfigFile(t, child))
 		case fakePlatformChildPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
 			}
 			w.Write(mustRawManifest(t, fakePlatformChild))
 		default:
@@ -492,16 +525,25 @@ func TestPullingManifestListNoMatch(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.Header().Set("Content-Type", string(mustMediaType(t, idx)))
 			w.Write(mustRawManifest(t, idx))
 		case childPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.Write(mustRawManifest(t, child))
 		case configPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
 			}
 			w.Write(mustRawConfigFile(t, child))
 		default:
@@ -619,10 +661,16 @@ func TestPullingForeignLayer(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.Write(mustRawConfigFile(t, img))
 		case manifestPath:
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
 			}
 			w.Write(mustRawManifest(t, img))
 		case layerPath:
@@ -715,6 +763,9 @@ func TestData(t *testing.T) {
 		case "/v2/test/manifests/latest":
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
 			}
 			w.Write(rawManifest)
 		default:

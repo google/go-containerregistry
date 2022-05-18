@@ -102,6 +102,9 @@ func TestGetImageAsIndex(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
+			if got := r.Header.Get("X-Go-Container-Registry-For-Ref"); got == "" {
+				t.Errorf("X-Go-Container-Registry-For-Ref header missing")
+			}
 			w.Header().Set("Content-Type", string(types.DockerManifestSchema2))
 			w.Write([]byte("doesn't matter"))
 		default:

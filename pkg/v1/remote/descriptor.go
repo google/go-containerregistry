@@ -243,6 +243,9 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 	if err != nil {
 		return nil, nil, err
 	}
+	if f.Ref != nil {
+		req.Header.Set("X-Go-Container-Registry-For-Ref", f.Ref.Name())
+	}
 	accept := []string{}
 	for _, mt := range acceptable {
 		accept = append(accept, string(mt))
@@ -307,6 +310,9 @@ func (f *fetcher) headManifest(ref name.Reference, acceptable []types.MediaType)
 	if err != nil {
 		return nil, err
 	}
+	if f.Ref != nil {
+		req.Header.Set("X-Go-Container-Registry-For-Ref", f.Ref.Name())
+	}
 	accept := []string{}
 	for _, mt := range acceptable {
 		accept = append(accept, string(mt))
@@ -363,6 +369,10 @@ func (f *fetcher) fetchBlob(ctx context.Context, size int64, h v1.Hash) (io.Read
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	if f.Ref != nil {
+		req.Header.Set("X-Go-Container-Registry-For-Ref", f.Ref.Name())
 	}
 
 	resp, err := f.Client.Do(req.WithContext(ctx))
