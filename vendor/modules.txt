@@ -75,7 +75,7 @@ github.com/google/go-cmp/cmp/internal/value
 # github.com/inconshreveable/mousetrap v1.0.0
 ## explicit
 github.com/inconshreveable/mousetrap
-# github.com/klauspost/compress v1.15.4
+# github.com/klauspost/compress v1.15.5
 ## explicit; go 1.16
 github.com/klauspost/compress
 github.com/klauspost/compress/fse
@@ -120,7 +120,7 @@ github.com/vbatts/tar-split/archive/tar
 # golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
 ## explicit; go 1.17
 golang.org/x/mod/semver
-# golang.org/x/net v0.0.0-20220524220425-1d687d428aca
+# golang.org/x/net v0.0.0-20220526153639-5463443f8c37
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
