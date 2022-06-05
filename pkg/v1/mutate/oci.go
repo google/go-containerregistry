@@ -1,8 +1,12 @@
 package mutate
 
 import (
+	"fmt"
+
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -39,31 +43,61 @@ func toOCIV1ConfigFile(cf *v1.ConfigFile) *v1.ConfigFile {
 // Check image-spec to see which properties are ported and which are dropped.
 // https://github.com/opencontainers/image-spec/blob/main/config.md
 func OCIImage(base v1.Image) (v1.Image, error) {
+	// Get original manifest
 	m, err := base.Manifest()
 	if err != nil {
 		return nil, err
 	}
-
-	manifest := m.DeepCopy()
-
-	for i, layer := range manifest.Layers {
-		switch layer.MediaType {
-		case types.DockerLayer:
-			manifest.Layers[i].MediaType = types.OCILayer
-		case types.DockerUncompressedLayer:
-			manifest.Layers[i].MediaType = types.OCIUncompressedLayer
-		}
-	}
-
-	base = ImageManifest(base, manifest)
-	base = MediaType(base, types.OCIManifestSchema1)
-	base = ConfigMediaType(base, types.OCIConfigJSON)
-
+	// Convert config
 	cfg, err := base.ConfigFile()
 	if err != nil {
 		return nil, err
 	}
 	cfg = toOCIV1ConfigFile(cfg)
+
+	layers, err := base.Layers()
+	if err != nil {
+		return nil, err
+	}
+
+	newLayers := []v1.Layer{}
+
+	for _, layer := range layers {
+		mediaType, err := layer.MediaType()
+		if err != nil {
+			return nil, err
+		}
+		switch mediaType {
+		case types.DockerLayer:
+			reader, err := layer.Compressed()
+			if err != nil {
+				return nil, fmt.Errorf("getting layer: %w", err)
+			}
+			layer, err = tarball.LayerFromReader(reader, tarball.WithMediaType(types.OCILayer))
+			if err != nil {
+				return nil, fmt.Errorf("building layer: %w", err)
+			}
+		case types.DockerUncompressedLayer:
+			reader, err := layer.Uncompressed()
+			if err != nil {
+				return nil, fmt.Errorf("getting layer: %w", err)
+			}
+			layer, err = tarball.LayerFromReader(reader, tarball.WithMediaType(types.OCIUncompressedLayer))
+			if err != nil {
+				return nil, fmt.Errorf("building layer: %w", err)
+			}
+		}
+		newLayers = append(newLayers, layer)
+	}
+
+	base, err = AppendLayers(empty.Image, layers...)
+	if err != nil {
+		return nil, err
+	}
+
+	base = MediaType(base, types.OCIManifestSchema1)
+	base = ConfigMediaType(base, types.OCIConfigJSON)
+	base = Annotations(base, m.Annotations).(v1.Image)
 	base, err = ConfigFile(base, cfg)
 	if err != nil {
 		return nil, err

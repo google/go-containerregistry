@@ -474,14 +474,6 @@ func ConfigMediaType(img v1.Image, mt types.MediaType) v1.Image {
 	}
 }
 
-// ImageManifest modifies the Manifest() of the given image
-func ImageManifest(img v1.Image, manifest *v1.Manifest) v1.Image {
-	return &image{
-		base:     img,
-		manifest: manifest,
-	}
-}
-
 // IndexMediaType modifies the MediaType() of the given index.
 func IndexMediaType(idx v1.ImageIndex, mt types.MediaType) v1.ImageIndex {
 	return &index{
