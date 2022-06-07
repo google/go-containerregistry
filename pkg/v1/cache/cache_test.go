@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
@@ -38,6 +39,30 @@ func TestImage(t *testing.T) {
 		t.Errorf("Validate: %v", err)
 	}
 	if err := validate.Image(img); err != nil {
+		t.Errorf("Validate: %v", err)
+	}
+}
+
+func TestImageIndex(t *testing.T) {
+	// ImageIndex with child Image and ImageIndex manifests.
+	ii, err := random.Index(1024, 5, 2)
+	if err != nil {
+		t.Fatalf("random.Index: %v", err)
+	}
+	iiChild, err := random.Index(1024, 5, 2)
+	if err != nil {
+		t.Fatalf("random.Index: %v", err)
+	}
+	ii = mutate.AppendManifests(ii, mutate.IndexAddendum{Add: iiChild})
+
+	m := &memcache{map[v1.Hash]v1.Layer{}}
+	ii = ImageIndex(ii, m)
+
+	// Validate twice to hit the cache.
+	if err := validate.Index(ii); err != nil {
+		t.Errorf("Validate: %v", err)
+	}
+	if err := validate.Index(ii); err != nil {
 		t.Errorf("Validate: %v", err)
 	}
 }
