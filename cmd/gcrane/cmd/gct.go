@@ -54,7 +54,7 @@ func gct(ctx context.Context, root string, recursive bool) error {
 	}
 
 	if recursive {
-		return google.Walk(repo, printUntaggedImages, opts...)
+		return google.Walk(repo, printTaggedImages, opts...)
 	}
 
 	tags, err := google.List(repo, opts...)
