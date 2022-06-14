@@ -51,6 +51,8 @@ func Index(ref name.Reference, options ...Option) (v1.ImageIndex, error) {
 	return desc.ImageIndex()
 }
 
+func (r *remoteIndex) ETag() string { return r.etag }
+
 func (r *remoteIndex) MediaType() (types.MediaType, error) {
 	if string(r.mediaType) != "" {
 		return r.mediaType, nil

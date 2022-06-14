@@ -60,6 +60,8 @@ func Image(ref name.Reference, options ...Option) (v1.Image, error) {
 	return desc.Image()
 }
 
+func (r *remoteImage) ETag() string { return r.etag }
+
 func (r *remoteImage) MediaType() (types.MediaType, error) {
 	if string(r.mediaType) != "" {
 		return r.mediaType, nil

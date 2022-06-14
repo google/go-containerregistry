@@ -25,6 +25,16 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+// WithETag defines the subset of manifest types that can expose an ETag
+// returned by a registry server.
+//
+// If a manifest provides an ETag using this method, it will be used when
+// pushing updates, to prevent race conditions.
+type WithETag interface {
+	// ETag returns the ETag returned by remote registry implementations.
+	ETag() string
+}
+
 // WithRawConfigFile defines the subset of v1.Image used by these helper methods
 type WithRawConfigFile interface {
 	// RawConfigFile returns the serialized bytes of this image's config file.

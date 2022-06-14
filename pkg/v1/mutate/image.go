@@ -39,6 +39,13 @@ type image struct {
 	digestMap       map[v1.Hash]v1.Layer
 }
 
+func (i *image) ETag() string {
+	if e, ok := i.base.(partial.WithETag); ok {
+		return e.ETag()
+	}
+	return ""
+}
+
 var _ v1.Image = (*image)(nil)
 
 func (i *image) MediaType() (types.MediaType, error) {
