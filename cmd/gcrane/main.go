@@ -42,7 +42,7 @@ func main() {
 	root := cmd.New(use, short, []crane.Option{crane.WithAuthFromKeychain(gcrane.Keychain)})
 
 	// Add or override commands.
-	gcraneCmds := []*cobra.Command{gcmd.NewCmdList(), gcmd.NewCmdGc(), gcmd.NewCmdCopy(), cmd.NewCmdAuth("gcrane", "auth")}
+	gcraneCmds := []*cobra.Command{gcmd.NewCmdList(), gcmd.NewCmdGc(), gcmd.NewCmdGct(), gcmd.NewCmdCopy(), cmd.NewCmdAuth("gcrane", "auth")}
 
 	// Maintain a map of google-specific commands that we "override".
 	used := make(map[string]bool)
