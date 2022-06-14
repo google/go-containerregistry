@@ -612,6 +612,13 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 		}
 		req.Header.Set("Content-Type", string(desc.MediaType))
 
+		if ri, ok := t.(*remoteImage); ok && ri.etag != "" {
+			req.Header.Set("If-Match", ri.etag)
+		}
+		if ri, ok := t.(*remoteIndex); ok && ri.etag != "" {
+			req.Header.Set("If-Match", ri.etag)
+		}
+
 		resp, err := w.client.Do(req.WithContext(ctx))
 		if err != nil {
 			return err

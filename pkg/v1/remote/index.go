@@ -38,6 +38,7 @@ type remoteIndex struct {
 	manifest     []byte
 	mediaType    types.MediaType
 	descriptor   *v1.Descriptor
+	etag         string
 }
 
 // Index provides access to a remote index reference.
@@ -75,7 +76,7 @@ func (r *remoteIndex) RawManifest() ([]byte, error) {
 	// NOTE(jonjohnsonjr): We should never get here because the public entrypoints
 	// do type-checking via remote.Descriptor. I've left this here for tests that
 	// directly instantiate a remoteIndex.
-	manifest, desc, err := r.fetchManifest(r.Ref, acceptableIndexMediaTypes)
+	manifest, desc, _, err := r.fetchManifest(r.Ref, acceptableIndexMediaTypes)
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +237,7 @@ func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform)
 	var (
 		manifest []byte
 		err      error
+		etag     string
 	)
 	if child.Data != nil {
 		if err := verify.Descriptor(child); err != nil {
@@ -243,7 +245,7 @@ func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform)
 		}
 		manifest = child.Data
 	} else {
-		manifest, _, err = r.fetchManifest(ref, []types.MediaType{child.MediaType})
+		manifest, _, etag, err = r.fetchManifest(ref, []types.MediaType{child.MediaType})
 		if err != nil {
 			return nil, err
 		}
@@ -257,6 +259,7 @@ func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform)
 		Manifest:   manifest,
 		Descriptor: child,
 		platform:   platform,
+		etag:       etag,
 	}, nil
 }
 

@@ -61,6 +61,8 @@ type Descriptor struct {
 
 	// So we can share this implementation with Image..
 	platform v1.Platform
+
+	etag string
 }
 
 // RawManifest exists to satisfy the Taggable interface.
@@ -122,7 +124,7 @@ func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*
 	if err != nil {
 		return nil, err
 	}
-	b, desc, err := f.fetchManifest(ref, acceptable)
+	b, desc, etag, err := f.fetchManifest(ref, acceptable)
 	if err != nil {
 		return nil, err
 	}
@@ -131,6 +133,7 @@ func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*
 		Manifest:   b,
 		Descriptor: *desc,
 		platform:   o.platform,
+		etag:       etag,
 	}, nil
 }
 
@@ -197,6 +200,7 @@ func (d *Descriptor) remoteImage() *remoteImage {
 		manifest:   d.Manifest,
 		mediaType:  d.MediaType,
 		descriptor: &d.Descriptor,
+		etag:       d.etag,
 	}
 }
 
@@ -206,6 +210,7 @@ func (d *Descriptor) remoteIndex() *remoteIndex {
 		manifest:   d.Manifest,
 		mediaType:  d.MediaType,
 		descriptor: &d.Descriptor,
+		etag:       d.etag,
 	}
 }
 
@@ -237,11 +242,11 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 	}
 }
 
-func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
+func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, string, error) {
 	u := f.url("manifests", ref.Identifier())
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	accept := []string{}
 	for _, mt := range acceptable {
@@ -251,22 +256,22 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 
 	resp, err := f.Client.Do(req.WithContext(f.context))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 	defer resp.Body.Close()
 
 	if err := transport.CheckError(resp, http.StatusOK); err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	manifest, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	digest, size, err := v1.SHA256(bytes.NewReader(manifest))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
 
 	mediaType := types.MediaType(resp.Header.Get("Content-Type"))
@@ -280,7 +285,7 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 	// Validate the digest matches what we asked for, if pulling by digest.
 	if dgst, ok := ref.(name.Digest); ok {
 		if digest.String() != dgst.DigestStr() {
-			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.Ref)
+			return nil, nil, "", fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.Ref)
 		}
 	}
 	// Do nothing for tags; I give up.
@@ -298,7 +303,8 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 		MediaType: mediaType,
 	}
 
-	return manifest, &desc, nil
+	etag := resp.Header.Get("ETag")
+	return manifest, &desc, etag, nil
 }
 
 func (f *fetcher) headManifest(ref name.Reference, acceptable []types.MediaType) (*v1.Descriptor, error) {

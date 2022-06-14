@@ -45,6 +45,7 @@ type remoteImage struct {
 	config       []byte
 	mediaType    types.MediaType
 	descriptor   *v1.Descriptor
+	etag         string
 }
 
 var _ partial.CompressedImageCore = (*remoteImage)(nil)
@@ -76,7 +77,7 @@ func (r *remoteImage) RawManifest() ([]byte, error) {
 	// NOTE(jonjohnsonjr): We should never get here because the public entrypoints
 	// do type-checking via remote.Descriptor. I've left this here for tests that
 	// directly instantiate a remoteImage.
-	manifest, desc, err := r.fetchManifest(r.Ref, acceptableImageMediaTypes)
+	manifest, desc, _, err := r.fetchManifest(r.Ref, acceptableImageMediaTypes)
 	if err != nil {
 		return nil, err
 	}
