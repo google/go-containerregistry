@@ -32,7 +32,7 @@ func NewCmdGct() *cobra.Command {
 		Short: "List images that are tagged",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cc *cobra.Command, args []string) error {
-			return gc(cc.Context(), args[0], recursive)
+			return gct(cc.Context(), args[0], recursive)
 		},
 	}
 
