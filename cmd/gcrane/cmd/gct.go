@@ -69,7 +69,7 @@ func printTaggedImages(repo name.Repository, tags *google.Tags, err error) error
 	for digest, manifest := range tags.Manifests {
 		if len(manifest.Tags) != 0 {
 			for _, tag := range manifest.Tags {
-			    fmt.Printf("%s@%s,%s:%s\n", repo, digest, repo, tag)
+				fmt.Printf("%s@%s,%s:%s\n", repo, digest, repo, tag)
 			}
 		}
 	}
