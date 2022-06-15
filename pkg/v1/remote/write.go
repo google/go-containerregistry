@@ -267,13 +267,16 @@ func (w *writer) checkExistingManifest(h v1.Hash, mt types.MediaType) (bool, err
 // On success, the layer was either mounted (nothing more to do) or a blob
 // upload was initiated and the body of that blob should be sent to the returned
 // location.
-func (w *writer) initiateUpload(from, mount string) (location string, mounted bool, err error) {
+func (w *writer) initiateUpload(from, mount, origin string) (location string, mounted bool, err error) {
 	u := w.url(fmt.Sprintf("/v2/%s/blobs/uploads/", w.repo.RepositoryStr()))
 	uv := url.Values{}
 	if mount != "" && from != "" {
 		// Quay will fail if we specify a "mount" without a "from".
-		uv["mount"] = []string{mount}
-		uv["from"] = []string{from}
+		uv.Set("mount", mount)
+		uv.Set("from", from)
+		if origin != "" {
+			uv.Set("origin", origin)
+		}
 	}
 	u.RawQuery = uv.Encode()
 
@@ -411,7 +414,7 @@ func (w *writer) incrProgress(written int64) {
 // uploadOne performs a complete upload of a single layer.
 func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 	tryUpload := func() error {
-		var from, mount string
+		var from, mount, origin string
 		if h, err := l.Digest(); err == nil {
 			// If we know the digest, this isn't a streaming layer. Do an existence
 			// check so we can skip uploading the layer if possible.
@@ -432,12 +435,11 @@ func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 			mount = h.String()
 		}
 		if ml, ok := l.(*MountableLayer); ok {
-			if w.repo.RegistryStr() == ml.Reference.Context().RegistryStr() {
-				from = ml.Reference.Context().RepositoryStr()
-			}
+			from = ml.Reference.Context().RepositoryStr()
+			origin = ml.Reference.Context().RegistryStr()
 		}
 
-		location, mounted, err := w.initiateUpload(from, mount)
+		location, mounted, err := w.initiateUpload(from, mount, origin)
 		if err != nil {
 			return err
 		} else if mounted {
