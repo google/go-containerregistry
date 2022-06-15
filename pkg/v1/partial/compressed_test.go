@@ -87,6 +87,14 @@ func TestRemote(t *testing.T) {
 	if got, want := ok, true; got != want {
 		t.Errorf("Exists() = %t != %t", got, want)
 	}
+
+	cl, err := partial.ConfigLayer(img)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := cl.(*remote.MountableLayer); !ok {
+		t.Errorf("ConfigLayer() expected to be MountableLayer, got %T", cl)
+	}
 }
 
 type noDiffID struct {
