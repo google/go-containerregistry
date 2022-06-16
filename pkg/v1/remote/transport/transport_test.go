@@ -136,9 +136,10 @@ func TestTransportSelectionBearer(t *testing.T) {
 				if got, want := r.FormValue("scope"), testReference.Scope(PullScope); got != want {
 					t.Errorf("FormValue(scope); got %v, want %v", got, want)
 				}
-				// Check that we get the default value (we didn't specify it above)
-				if got, want := r.FormValue("service"), testReference.RegistryStr(); got != want {
-					t.Errorf("FormValue(service); got %v, want %v", got, want)
+				// Check that the service isn't set (we didn't specify it above)
+				// https://github.com/google/go-containerregistry/issues/1359
+				if got, want := r.FormValue("service"), ""; got != want {
+					t.Errorf("FormValue(service); got %q, want %q", got, want)
 				}
 				w.Write([]byte(`{"token": "dfskdjhfkhsjdhfkjhsdf"}`))
 			}

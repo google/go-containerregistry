@@ -52,4 +52,13 @@ func TestRandomIndex(t *testing.T) {
 	if got, want := mt, types.OCIImageIndex; got != want {
 		t.Errorf("MediaType(): got: %v, want: %v", got, want)
 	}
+
+	man, err := ii.IndexManifest()
+	if err != nil {
+		t.Errorf("IndexManifest(): unexpected err: %v", err)
+	}
+
+	if got, want := man.MediaType, types.OCIImageIndex; got != want {
+		t.Errorf("MediaType: got: %v, want: %v", got, want)
+	}
 }
