@@ -586,12 +586,8 @@ func TestStreamBlob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ConfigLayer: %v", err)
 	}
-	blob, err := l.Compressed()
-	if err != nil {
-		t.Fatalf("layer.Compressed: %v", err)
-	}
 
-	commitLocation, err := w.streamBlob(context.Background(), blob, streamLocation.String())
+	commitLocation, err := w.streamBlob(context.Background(), l, streamLocation.String())
 	if err != nil {
 		t.Errorf("streamBlob() = %v", err)
 	}
@@ -638,12 +634,8 @@ func TestStreamLayer(t *testing.T) {
 
 	streamLocation := w.url(expectedPath)
 	sl := stream.NewLayer(newBlob())
-	blob, err := sl.Compressed()
-	if err != nil {
-		t.Fatalf("layer.Compressed: %v", err)
-	}
 
-	commitLocation, err := w.streamBlob(context.Background(), blob, streamLocation.String())
+	commitLocation, err := w.streamBlob(context.Background(), sl, streamLocation.String())
 	if err != nil {
 		t.Errorf("streamBlob: %v", err)
 	}

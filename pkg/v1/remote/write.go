@@ -337,16 +337,29 @@ func (r *progressReader) Close() error { return r.rc.Close() }
 // streamBlob streams the contents of the blob to the specified location.
 // On failure, this will return an error.  On success, this will return the location
 // header indicating how to commit the streamed blob.
-func (w *writer) streamBlob(ctx context.Context, blob io.ReadCloser, streamLocation string) (commitLocation string, rerr error) {
+func (w *writer) streamBlob(ctx context.Context, layer v1.Layer, streamLocation string) (commitLocation string, rerr error) {
 	reset := func() {}
 	defer func() {
 		if rerr != nil {
 			reset()
 		}
 	}()
+	blob, err := layer.Compressed()
+	if err != nil {
+		return "", err
+	}
+
+	getBody := layer.Compressed
 	if w.updates != nil {
 		var count int64
 		blob = &progressReader{rc: blob, updates: w.updates, lastUpdate: w.lastUpdate, count: &count}
+		getBody = func() (io.ReadCloser, error) {
+			blob, err := layer.Compressed()
+			if err != nil {
+				return nil, err
+			}
+			return &progressReader{rc: blob, updates: w.updates, lastUpdate: w.lastUpdate, count: &count}, nil
+		}
 		reset = func() {
 			atomic.AddInt64(&w.lastUpdate.Complete, -count)
 			w.updates <- *w.lastUpdate
@@ -356,6 +369,10 @@ func (w *writer) streamBlob(ctx context.Context, blob io.ReadCloser, streamLocat
 	req, err := http.NewRequest(http.MethodPatch, streamLocation, blob)
 	if err != nil {
 		return "", err
+	}
+	if _, ok := layer.(*stream.Layer); !ok {
+		// We can't retry streaming layers.
+		req.GetBody = getBody
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
 
@@ -467,11 +484,7 @@ func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 			ctx = redact.NewContext(ctx, "omitting binary blobs from logs")
 		}
 
-		blob, err := l.Compressed()
-		if err != nil {
-			return err
-		}
-		location, err = w.streamBlob(ctx, blob, location)
+		location, err = w.streamBlob(ctx, l, location)
 		if err != nil {
 			return err
 		}
