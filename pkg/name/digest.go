@@ -69,7 +69,7 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 	dig := parts[1]
 	prefix := digest.Canonical.String() + ":"
 	if !strings.HasPrefix(dig, prefix) {
-		return Digest{}, newErrBadName("unsupported digest algorithm: %s", parts[1])
+		return Digest{}, newErrBadName("unsupported digest algorithm: %s", dig)
 	}
 	hex := strings.TrimPrefix(dig, prefix)
 	if err := digest.Canonical.Validate(hex); err != nil {
@@ -87,7 +87,7 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 	}
 	return Digest{
 		Repository: repo,
-		digest:     parts[1],
+		digest:     dig,
 		original:   name,
 	}, nil
 }
