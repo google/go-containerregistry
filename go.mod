@@ -9,6 +9,7 @@ require (
 	github.com/docker/docker v20.10.16+incompatible
 	github.com/google/go-cmp v0.5.8
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
 	github.com/spf13/cobra v1.4.0
 	golang.org/x/oauth2 v0.0.0-20220524215830-622c5d57e401
@@ -30,7 +31,6 @@ require (
 	github.com/klauspost/compress v1.15.4 // indirect
 	github.com/moby/term v0.0.0-20210610120745-9d4ed1856297 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
-	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
