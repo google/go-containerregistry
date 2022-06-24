@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"log"
 	"regexp"
 )
 
@@ -185,7 +184,6 @@ func (a Algorithm) Validate(encoded string) error {
 	// Digests much always be hex-encoded, ensuring that their hex portion will
 	// always be size*2
 	if a.Size()*2 != len(encoded) {
-		log.Println(a.Size()*2, len(encoded))
 		return ErrDigestInvalidLength
 	}
 	if r.MatchString(encoded) {
