@@ -28,7 +28,7 @@ func TestBadName(t *testing.T) {
 	if !errors.As(err, &berr) {
 		t.Errorf("Not an ErrBadName using errors.As: %v", err)
 	}
-	if err.Error() != "could not parse reference: @@" {
+	if err.Error() != "could not parse reference: @@. detail: parse tag err: repository can only contain the characters `abcdefghijklmnopqrstuvwxyz0123456789_-./`: @@. parse digest err: a digest must contain exactly one '@' separator (e.g. registry/repository@digest) saw: @@" {
 		t.Errorf("Unexpected string: %v", err)
 	}
 }
