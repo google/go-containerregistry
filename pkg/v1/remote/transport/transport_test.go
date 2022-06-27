@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -31,6 +32,26 @@ import (
 var (
 	testReference, _ = name.NewTag("localhost:8080/user/image:latest", name.StrictValidation)
 )
+
+func TestTransportNoActionIfTransportIsAlreadyWrapper(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
+			http.Error(w, "Should not contact the server", http.StatusBadRequest)
+		}))
+	defer server.Close()
+	tprt := &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			return url.Parse(server.URL)
+		},
+	}
+
+	wTprt := &Wrapper{inner: tprt}
+
+	if _, err := NewWithContext(context.Background(), testReference.Context().Registry, nil, wTprt, []string{testReference.Scope(PullScope)}); err != nil {
+		t.Errorf("NewWithContext unexpected error %s", err)
+	}
+}
 
 func TestTransportSelectionAnonymous(t *testing.T) {
 	// Record the requests we get in the inner transport.

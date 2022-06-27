@@ -19,7 +19,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -27,6 +26,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -908,12 +908,10 @@ func TestWriteWithErrors(t *testing.T) {
 	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
 
-	expectedError := &transport.Error{
-		Errors: []transport.Diagnostic{{
-			Code:    transport.NameInvalidErrorCode,
-			Message: "some explanation of how things were messed up.",
-		}},
-		StatusCode: 400,
+	errorBody := `{"errors":[{"code":"NAME_INVALID","message":"some explanation of how things were messed up."}],"StatusCode":400}`
+	expectedErrMsg, err := regexp.Compile(`POST .+ NAME_INVALID: some explanation of how things were messed up.`)
+	if err != nil {
+		t.Error(err)
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -928,12 +926,9 @@ func TestWriteWithErrors(t *testing.T) {
 			if r.Method != http.MethodPost {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
 			}
-			b, err := json.Marshal(expectedError) // nolint: staticcheck
-			if err != nil {
-				t.Fatalf("json.Marshal() = %v", err)
-			}
+
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write(b)
+			w.Write([]byte(errorBody))
 		default:
 			t.Fatalf("Unexpected path: %v", r.URL.Path)
 		}
@@ -955,7 +950,8 @@ func TestWriteWithErrors(t *testing.T) {
 		t.Error("Write() = nil; wanted error")
 	} else if !errors.As(err, &terr) {
 		t.Errorf("Write() = %T; wanted *transport.Error", err)
-	} else if diff := cmp.Diff(expectedError, terr, cmpopts.IgnoreFields(transport.Error{}, "Request", "rawBody")); diff != "" {
+	} else if !expectedErrMsg.Match([]byte(terr.Error())) {
+		diff := cmp.Diff(expectedErrMsg, terr.Error())
 		t.Errorf("Write(); (-want +got) = %s", diff)
 	}
 

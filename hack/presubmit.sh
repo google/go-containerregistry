@@ -27,7 +27,7 @@ export GOPATH="${TMP_DIR}"
 pushd ${TMP_DIR}
 trap popd EXIT
 go install golang.org/x/lint/golint@v0.0.0-20210508222113-6edffad5e616
-go install honnef.co/go/tools/cmd/staticcheck@v0.2.1
+go install honnef.co/go/tools/cmd/staticcheck@v0.3.2
 popd
 
 pushd ${PROJECT_ROOT}
