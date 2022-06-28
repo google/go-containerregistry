@@ -201,9 +201,17 @@ func TestCalls(t *testing.T) {
 			Body:        "foo",
 		},
 		{
-			Description: "mount blob",
+			Description: "mount blob request when blob to be mounted cannot be found",
 			Method:      "POST",
 			URL:         "/v2/foo/blobs/uploads?from=some/other/repo&mount=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusAccepted,
+			Header:      map[string]string{"Range": "0-0"},
+		},
+		{
+			Description: "mount blob request when blob can be mounted",
+			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
+			Method:      "POST",
+			URL:         "/v2/some/other/repo/blobs/uploads?from=foo&mount=sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusCreated,
 			Header:      map[string]string{"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"},
 		},
@@ -611,7 +619,6 @@ func TestBlobAccess(t *testing.T) {
 				URL:    u,
 				Header: map[string][]string{},
 			}
-			t.Log(req.Method, req.URL)
 			resp, err := s.Client().Do(req)
 			if err != nil {
 				t.Fatalf("Error getting %s: %v", loc, err)

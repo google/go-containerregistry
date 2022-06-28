@@ -81,8 +81,10 @@ type blobPutHandler interface {
 // blobMountHandler is an extension interface representing a blob storage backend
 // that can write blob contents.
 type blobMountHandler interface {
-	// Mount puts the blob contents.
-	Mount(ctx context.Context, repo, from string, h v1.Hash) error
+	// Mount copied the blob content from one registry to another.
+	// If error is returned it assumes that mount could not be done forcing
+	// the request for upload of the blob content
+	Mount(ctx context.Context, destRepo, originReg, originRepo string, h v1.Hash) error
 }
 
 // blobSetAccessFunc is an extension interface representing a blob storage backend
@@ -156,11 +158,20 @@ func (m *memHandler) Put(_ context.Context, repo string, h v1.Hash, rc io.ReadCl
 }
 
 // Mount is a no-op since all the blobs are store indexed by sha
-func (m *memHandler) Mount(_ context.Context, from, to string, h v1.Hash) error {
+func (m *memHandler) Mount(_ context.Context, destRepo, originReg, originRepo string, h v1.Hash) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	fromKey := m.accessFunc(from, h)
-	toKey := m.accessFunc(to, h)
+
+	if originReg != "" {
+		return errors.New("do not support inter registry mount")
+	}
+
+	fromKey := m.accessFunc(originRepo, h)
+	if _, present := m.m[fromKey]; !present {
+		return errors.New("blob not present in the registry")
+	}
+
+	toKey := m.accessFunc(destRepo, h)
 	if fromKey == toKey {
 		return nil
 	}
@@ -173,10 +184,14 @@ func (m *memHandler) AccessFunc(f func(repo string, h v1.Hash) string) {
 }
 
 func newBlobDiskHandler(blobFolder string) *diskHandler {
+	if blobFolder == "" {
+		panic("The provided folder cannot be empty")
+	}
+
 	return &diskHandler{
 		m:          map[string]blobDiskLocation{},
 		accessFunc: func(repo string, h v1.Hash) string { return h.String() },
-		tmpDir:     blobFolder,
+		tmpDir:     filepath.Clean(blobFolder),
 		lock:       sync.Mutex{},
 	}
 }
@@ -230,7 +245,7 @@ func (m *diskHandler) Put(_ context.Context, repo string, h v1.Hash, rc io.ReadC
 		return nil
 	}
 
-	blobFile, err := ioutil.TempFile(m.tmpDir, filepath.Clean(h.String()))
+	blobFile, err := ioutil.TempFile(filepath.Clean(m.tmpDir), filepath.Clean(h.String()))
 	if err != nil {
 		return err
 	}
@@ -247,12 +262,19 @@ func (m *diskHandler) Put(_ context.Context, repo string, h v1.Hash, rc io.ReadC
 	}
 	return nil
 }
-func (m *diskHandler) Mount(_ context.Context, from, to string, h v1.Hash) error {
+func (m *diskHandler) Mount(_ context.Context, destRepo, originReg, originRepo string, h v1.Hash) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	fromKey := m.accessFunc(from, h)
-	toKey := m.accessFunc(to, h)
+	if originReg != "" {
+		return errors.New("do not support inter registry mount")
+	}
+
+	fromKey := m.accessFunc(originRepo, h)
+	if _, present := m.m[fromKey]; !present {
+		return errors.New("blob not present in the registry")
+	}
+	toKey := m.accessFunc(destRepo, h)
 	if fromKey == toKey {
 		return nil
 	}
@@ -279,6 +301,13 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			Status:  http.StatusInternalServerError,
 			Code:    "INTERNAL_CONSISTENCY",
 			Message: "request pointer not present",
+		}
+	}
+	if req.URL == nil {
+		return &regError{
+			Status:  http.StatusInternalServerError,
+			Code:    "INTERNAL_CONSISTENCY",
+			Message: "Request URL not present",
 		}
 	}
 	elem := strings.Split(req.URL.Path, "/")
@@ -460,19 +489,19 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 
 		from := req.URL.Query().Get("from")
 		mount := req.URL.Query().Get("mount")
+		origin := req.URL.Query().Get("origin")
 		if from != "" && mount != "" {
 			h, err := v1.NewHash(mount)
 			if err != nil {
 				return regErrDigestInvalid
 			}
 
-			err = bmh.Mount(req.Context(), repo, from, h)
-			if err != nil {
-				return regErrInternal(err)
+			err = bmh.Mount(req.Context(), repo, origin, from, h)
+			if err == nil {
+				resp.Header().Set("Docker-Content-Digest", h.String())
+				resp.WriteHeader(http.StatusCreated)
+				return nil
 			}
-			resp.Header().Set("Docker-Content-Digest", h.String())
-			resp.WriteHeader(http.StatusCreated)
-			return nil
 		}
 
 		id := fmt.Sprint(rand.Int63())
