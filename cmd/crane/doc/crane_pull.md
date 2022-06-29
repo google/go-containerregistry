@@ -9,6 +9,7 @@ crane pull IMAGE TARBALL [flags]
 ### Options
 
 ```
+      --annotate-ref        Preserves image reference used to pull as an annotation when used with --format=oci
   -c, --cache_path string   Path to cache image layers
       --format string       Format in which to save images ("tarball", "legacy", or "oci") (default "tarball")
   -h, --help                help for pull
