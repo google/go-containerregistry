@@ -284,6 +284,11 @@ func (w *writer) initiateUpload(from, mount, origin string) (location string, mo
 	defer resp.Body.Close()
 
 	if err := transport.CheckError(resp, http.StatusCreated, http.StatusAccepted); err != nil {
+		if origin != "" && origin != w.repo.RegistryStr() {
+			// https://github.com/google/go-containerregistry/issues/1404
+			logs.Warn.Printf("retrying without mount: %v", err)
+			return w.initiateUpload("", "", "")
+		}
 		return "", false, err
 	}
 
