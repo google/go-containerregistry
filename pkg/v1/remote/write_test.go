@@ -458,6 +458,56 @@ func TestInitiateUploadMountsWithOrigin(t *testing.T) {
 	}
 }
 
+func TestInitiateUploadMountsWithOriginFallback(t *testing.T) {
+	img := setupImage(t)
+	h := mustConfigName(t, img)
+	expectedMountRepo := "a/different/repo"
+	expectedRepo := "yet/again"
+	expectedPath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	expectedOrigin := "fakeOrigin"
+	expectedQuery := url.Values{
+		"mount":  []string{h.String()},
+		"from":   []string{expectedMountRepo},
+		"origin": []string{expectedOrigin},
+	}.Encode()
+
+	queries := []string{expectedQuery, ""}
+	queryCount := 0
+
+	serverHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
+		}
+		if r.URL.Path != expectedPath {
+			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
+		}
+		if r.URL.RawQuery != queries[queryCount] {
+			t.Errorf("RawQuery; got %v, want %v", r.URL.RawQuery, expectedQuery)
+		}
+		if queryCount == 0 {
+			http.Error(w, "nope", http.StatusUnauthorized)
+		} else {
+			http.Error(w, "Mounted", http.StatusCreated)
+		}
+		queryCount++
+	})
+	server := httptest.NewServer(serverHandler)
+
+	w, closer, err := setupWriterWithServer(server, expectedRepo)
+	if err != nil {
+		t.Fatalf("setupWriterWithServer() = %v", err)
+	}
+	defer closer.Close()
+
+	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String(), "fakeOrigin")
+	if err != nil {
+		t.Errorf("intiateUpload() = %v", err)
+	}
+	if !mounted {
+		t.Error("initiateUpload() = !mounted, want mounted")
+	}
+}
+
 func TestDedupeLayers(t *testing.T) {
 	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, 10000))) }
 
