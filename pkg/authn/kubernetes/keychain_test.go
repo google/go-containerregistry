@@ -17,8 +17,10 @@ package kubernetes
 import (
 	"context"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -350,4 +352,125 @@ func repo(t *testing.T, repository string) authn.Resource {
 		t.Fatal("failed to create repo", err)
 	}
 	return repo
+}
+
+// TestDockerConfigJSON tests using secrets using the .dockerconfigjson form,
+// like you might get from running:
+// kubectl create secret docker-registry secret -n ns --docker-server="fake.registry.io" --docker-username="foo" --docker-password="bar"
+func TestDockerConfigJSON(t *testing.T) {
+	username, password := "foo", "bar"
+	kc, err := NewFromPullSecrets(context.Background(), []corev1.Secret{{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "secret",
+			Namespace: "ns",
+		},
+		Type: corev1.SecretTypeDockerConfigJson,
+		Data: map[string][]byte{
+			corev1.DockerConfigJsonKey: []byte(
+				fmt.Sprintf(`{"auths":{"fake.registry.io":{"username":%q,"password":%q,"auth":%q}}}`,
+					username, password,
+					base64.StdEncoding.EncodeToString([]byte(username+":"+password))),
+			),
+		},
+	}})
+	if err != nil {
+		t.Fatalf("NewFromPullSecrets() = %v", err)
+	}
+
+	reg, err := name.NewRegistry("fake.registry.io", name.WeakValidation)
+	if err != nil {
+		t.Errorf("NewRegistry() = %v", err)
+	}
+
+	auth, err := kc.Resolve(reg)
+	if err != nil {
+		t.Errorf("Resolve(%v) = %v", reg, err)
+	}
+	got, err := auth.Authorization()
+	if err != nil {
+		t.Errorf("Authorization() = %v", err)
+	}
+	want, err := (&authn.Basic{Username: username, Password: password}).Authorization()
+	if err != nil {
+		t.Errorf("Authorization() = %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Resolve() = %v, want %v", got, want)
+	}
+}
+
+func TestKubernetesAuth(t *testing.T) {
+	// From https://github.com/knative/serving/issues/12761#issuecomment-1097441770
+	// All of these should work with K8s' docker auth parsing.
+	for k, ss := range map[string][]string{
+		"registry.gitlab.com/dprotaso/test/nginx": []string{
+			"registry.gitlab.com",
+			"http://registry.gitlab.com",
+			"https://registry.gitlab.com",
+			"registry.gitlab.com/dprotaso",
+			"http://registry.gitlab.com/dprotaso",
+			"https://registry.gitlab.com/dprotaso",
+			"registry.gitlab.com/dprotaso/test",
+			"http://registry.gitlab.com/dprotaso/test",
+			"https://registry.gitlab.com/dprotaso/test",
+			"registry.gitlab.com/dprotaso/test/nginx",
+			"http://registry.gitlab.com/dprotaso/test/nginx",
+			"https://registry.gitlab.com/dprotaso/test/nginx",
+		},
+		"dtestcontainer.azurecr.io/dave/nginx": []string{
+			"dtestcontainer.azurecr.io",
+			"http://dtestcontainer.azurecr.io",
+			"https://dtestcontainer.azurecr.io",
+			"dtestcontainer.azurecr.io/dave",
+			"http://dtestcontainer.azurecr.io/dave",
+			"https://dtestcontainer.azurecr.io/dave",
+			"dtestcontainer.azurecr.io/dave/nginx",
+			"http://dtestcontainer.azurecr.io/dave/nginx",
+			"https://dtestcontainer.azurecr.io/dave/nginx",
+		}} {
+		repo, err := name.NewRepository(k)
+		if err != nil {
+			t.Errorf("parsing %q: %v", k, err)
+			continue
+		}
+
+		for _, s := range ss {
+			t.Run(fmt.Sprintf("%s - %s", k, s), func(t *testing.T) {
+				username, password := "foo", "bar"
+				kc, err := NewFromPullSecrets(context.Background(), []corev1.Secret{{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "secret",
+						Namespace: "ns",
+					},
+					Type: corev1.SecretTypeDockerConfigJson,
+					Data: map[string][]byte{
+						corev1.DockerConfigJsonKey: []byte(
+							fmt.Sprintf(`{"auths":{%q:{"username":%q,"password":%q,"auth":%q}}}`,
+								s,
+								username, password,
+								base64.StdEncoding.EncodeToString([]byte(username+":"+password))),
+						),
+					},
+				}})
+				if err != nil {
+					t.Fatalf("NewFromPullSecrets() = %v", err)
+				}
+				auth, err := kc.Resolve(repo)
+				if err != nil {
+					t.Errorf("Resolve(%v) = %v", repo, err)
+				}
+				got, err := auth.Authorization()
+				if err != nil {
+					t.Errorf("Authorization() = %v", err)
+				}
+				want, err := (&authn.Basic{Username: username, Password: password}).Authorization()
+				if err != nil {
+					t.Errorf("Authorization() = %v", err)
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Errorf("Resolve() = %v, want %v", got, want)
+				}
+			})
+		}
+	}
 }
