@@ -17,8 +17,10 @@ package kubernetes
 import (
 	"context"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -397,7 +399,7 @@ func TestDockerConfigJSON(t *testing.T) {
 	}
 }
 
-func TestDave(t *testing.T) {
+func TestKubernetesAuth(t *testing.T) {
 	// From https://github.com/knative/serving/issues/12761#issuecomment-1097441770
 	// All of these should work with K8s' docker auth parsing.
 	for k, ss := range map[string][]string{
