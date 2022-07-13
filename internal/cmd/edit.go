@@ -199,7 +199,7 @@ func editConfig(in io.Reader, out io.Writer, src, dst string, options ...crane.O
 			return nil, err
 		}
 		if _, ok := ref.(name.Digest); ok {
-			dst = fmt.Sprintf("%s@%s", ref.Context(), digest)
+			dst = ref.Context().Digest(digest.String()).String()
 		}
 	}
 
@@ -250,7 +250,7 @@ func editManifest(in io.Reader, out io.Writer, src string, dst string, options .
 	if dst == "" {
 		dst = src
 		if _, ok := ref.(name.Digest); ok {
-			dst = fmt.Sprintf("%s@%s", ref.Context(), digest)
+			dst = ref.Context().Digest(digest.String()).String()
 		}
 	}
 	dstRef, err := name.ParseReference(dst, o.Name...)
@@ -352,7 +352,7 @@ func editFile(in io.Reader, out io.Writer, src, file, dst string, options ...cra
 			return nil, err
 		}
 		if _, ok := ref.(name.Digest); ok {
-			dst = fmt.Sprintf("%s@%s", ref.Context(), digest)
+			dst = ref.Context().Digest(digest.String()).String()
 		}
 	}
 
