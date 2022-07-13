@@ -15,7 +15,7 @@ jobs:
           go-version: 1.18
           check-latest: true
       - uses: actions/checkout@v3
-      - uses: chainguard-dev/actions/goimports@84c993eaf02da1c325854fb272a4df9184bd80fc # main
+      - uses: chainguard-dev/actions/goimports@5e21cb47971231c078a677dfe89a348371cb880c # main
 
   lint:
     name: Lint
@@ -40,10 +40,10 @@ jobs:
           locale: "US"
           exclude: ./vendor/*
 
-      - uses: chainguard-dev/actions/trailing-space@84c993eaf02da1c325854fb272a4df9184bd80fc # main
+      - uses: chainguard-dev/actions/trailing-space@5e21cb47971231c078a677dfe89a348371cb880c # main
         if: ${{ always() }}
 
-      - uses: chainguard-dev/actions/eof-newline@84c993eaf02da1c325854fb272a4df9184bd80fc # main
+      - uses: chainguard-dev/actions/eof-newline@5e21cb47971231c078a677dfe89a348371cb880c # main
         if: ${{ always() }}
 
       - uses: get-woke/woke-action-reviewdog@v0
