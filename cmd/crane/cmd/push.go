@@ -50,6 +50,42 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// If the destination contains a digest then we should only push the manifest with that digest
+			if digestRef, ok := ref.(name.Digest); ok {
+				// convert the string to a v1.Hash
+				hashRef, err := v1.NewHash(digestRef.DigestStr())
+				if err != nil {
+					return err
+				}
+
+				switch t := img.(type) {
+				case v1.Image:
+					// ensure that the digest matches
+					hh, err := t.Digest()
+					if err != nil {
+						return err
+					}
+					if hashRef != hh {
+						return fmt.Errorf("requested manifest not present in index, missing %s", hh)
+					}
+				case v1.ImageIndex:
+					// Get a specific image
+					// Try ImageIndex first
+					img, err = t.ImageIndex(hashRef)
+					if err == nil {
+						break
+					}
+					// Fallback to plain Image
+					img, err = t.Image(hashRef)
+					if err != nil {
+						return err
+					}
+					// TODO there is no good way to handle the errors here since they are untyped and they contain information we do not know (the media type of the match).
+					//  I wish the findDescriptor() function was exposed or there was a more tolerant call to "Image" that did not care about Manifest vs Manifest List.
+				}
+			}
+
 			var h v1.Hash
 			switch t := img.(type) {
 			case v1.Image:
