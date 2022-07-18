@@ -399,7 +399,7 @@ func (f *fetcher) headBlob(h v1.Hash) (*http.Response, error) {
 
 	resp, err := f.Client.Do(req.WithContext(f.context))
 	if err != nil {
-		return nil, err
+		return nil, redact.Error(err)
 	}
 
 	if err := transport.CheckError(resp, http.StatusOK); err != nil {
@@ -419,7 +419,7 @@ func (f *fetcher) blobExists(h v1.Hash) (bool, error) {
 
 	resp, err := f.Client.Do(req.WithContext(f.context))
 	if err != nil {
-		return false, err
+		return false, redact.Error(err)
 	}
 	defer resp.Body.Close()
 

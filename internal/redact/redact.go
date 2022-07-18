@@ -41,10 +41,8 @@ func FromContext(ctx context.Context) (bool, string) {
 // If the error is a *url.Error, this returns a *url.Error with the URL redacted.
 // Any other error type, or nil, is returned unchanged.
 func Error(err error) error {
-	if err == nil {
-		return nil
-	}
 	// If the error is a url.Error, we can redact the URL.
+	// Otherwise (including if err is nil), we can't redact.
 	var uerr *url.Error
 	if ok := errors.As(err, &uerr); !ok {
 		return err
