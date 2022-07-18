@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -25,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -215,4 +217,43 @@ func TestHead_MissingHeaders(t *testing.T) {
 			t.Errorf("Head(%q): expected error, got nil", tag)
 		}
 	}
+}
+
+// TestRedactFetchBlob tests that a request to fetchBlob that gets redirected
+// to a URL that contains sensitive information has that information redacted
+// if the subsequent request fails.
+func TestRedactFetchBlob(t *testing.T) {
+	ctx := context.Background()
+	f := fetcher{
+		Ref: mustNewTag(t, "original.com/repo:latest"),
+		Client: &http.Client{
+			Transport: errTransport{},
+		},
+		context: ctx,
+	}
+	h, err := v1.NewHash("sha256:0000000000000000000000000000000000000000000000000000000000000000")
+	if err != nil {
+		t.Fatal("NewHash:", err)
+	}
+	if _, err := f.fetchBlob(ctx, 0, h); err == nil {
+		t.Fatalf("fetchBlob: expected error, got nil")
+	} else if !strings.Contains(err.Error(), "access_token=REDACTED") {
+		t.Fatalf("fetchBlob: expected error to contain redacted access token, got %v", err)
+	}
+}
+
+type errTransport struct{}
+
+func (errTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// This simulates a registry that returns a redirect upon the first
+	// request, and then returns an error upon subsequent requests. This helps
+	// test whether error redaction takes into account URLs in error messasges
+	// that are not the original request URL.
+	if req.URL.Host == "original.com" {
+		return &http.Response{
+			StatusCode: http.StatusSeeOther,
+			Header:     http.Header{"Location": []string{"https://redirected.com?access_token=SECRET"}},
+		}, nil
+	}
+	return nil, fmt.Errorf("error reaching %s", req.URL.String())
 }

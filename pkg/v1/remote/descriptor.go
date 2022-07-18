@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/internal/verify"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -367,7 +368,7 @@ func (f *fetcher) fetchBlob(ctx context.Context, size int64, h v1.Hash) (io.Read
 
 	resp, err := f.Client.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, err
+		return nil, redact.Error(err)
 	}
 
 	if err := transport.CheckError(resp, http.StatusOK); err != nil {
