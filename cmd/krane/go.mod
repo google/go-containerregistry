@@ -50,15 +50,15 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spf13/cobra v1.5.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vbatts/tar-split v0.11.2 // indirect
 	golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d // indirect
 	golang.org/x/net v0.0.0-20220708220712-1185a9018129 // indirect
-	golang.org/x/oauth2 v0.0.0-20220630143837-2104d58473e0 // indirect
+	golang.org/x/oauth2 v0.0.0-20220718184931-c8730f7fcb92 // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
-	golang.org/x/sys v0.0.0-20220712014510-0a85c31ab51e // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gotest.tools/v3 v3.1.0 // indirect
