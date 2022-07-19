@@ -79,3 +79,46 @@ jobs:
         run: |
           # List the tags
           crane ls ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/go-containerregistry-test
+
+  crane-authconfig-login:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCOUNT: 479305788615
+      AWS_REGION: us-east-2
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+          check-latest: true
+
+      - name: Install authconfig
+        working-directory: ./cmd/authconfig
+        run: go install .
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1.6.1
+        with:
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
+          aws-region: ${{ env.AWS_REGION }}
+
+      - shell: bash
+        run: |
+          export REGISTRY_SERVER="${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com"
+          cat > $HOME/.docker/config.json <<EOF
+          {
+            "auths": {
+              "$REGISTRY_SERVER": $(authconfig --server $REGISTRY_SERVER)
+            }
+          }
+          EOF
+
+      - name: Install crane
+        working-directory: ./cmd/crane
+        run: go install .
+
+      - name: Test crane + ECR
+        run: |
+          # List the tags
+          crane ls ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/go-containerregistry-test

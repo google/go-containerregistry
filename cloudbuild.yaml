@@ -31,6 +31,10 @@ steps:
     cd ./cmd/krane
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/krane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
     cd ../../
+    # ./cmd/authconfig is a separate module, so switch directories.
+    cd ./cmd/authconfig
+    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/authconfig -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    cd ../../
 
     # Use the ko binary to build the crane-ish builder *debug* images.
     export KO_CONFIG_PATH=$(pwd)/.ko/debug/
@@ -40,6 +44,10 @@ steps:
     cd ./cmd/krane
     ko publish --platform=all -B github.com/google/go-containerregistry/cmd/krane -t "debug"
     cd ../../
+    # ./cmd/authconfig is a separate module, so switch directories.
+    cd ./cmd/authconfig
+    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/authconfig -t "debug"
+    cd ../../
 
     # Tag-specific debug images are pushed to gcr.io/go-containerregistry/TOOL/debug:...
     KO_DOCKER_REPO=gcr.io/$PROJECT_ID/crane/debug  ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
@@ -47,6 +55,11 @@ steps:
     # ./cmd/krane is a separate module, so switch directories.
     cd ./cmd/krane
     KO_DOCKER_REPO=gcr.io/$PROJECT_ID/krane/debug ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/krane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    cd ../../
+    # ./cmd/authconfig is a separate module, so switch directories.
+    export KO_CONFIG_PATH=$(pwd)/.ko/release/
+    cd ./cmd/authconfig
+    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/authconfig/debug ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/authconfig -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
     cd ../../
 
 # Use the crane builder to get the digest for crane-ish.
@@ -59,3 +72,5 @@ steps:
 - name: gcr.io/$PROJECT_ID/crane
   args: ['digest', 'gcr.io/$PROJECT_ID/krane']
 
+- name: gcr.io/$PROJECT_ID/crane
+  args: ['digest', 'gcr.io/$PROJECT_ID/authconfig']
