@@ -65,9 +65,9 @@ func TestTransportSelectionAnonymous(t *testing.T) {
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
 	reg := testReference.Context().Registry
 
-	tp, err := New(reg, basic, recorder, []string{testReference.Scope(PullScope)})
+	tp, err := NewWithContext(context.Background(), reg, basic, recorder, []string{testReference.Scope(PullScope)})
 	if err != nil {
-		t.Errorf("New() = %v", err)
+		t.Errorf("NewWithContext() = %v", err)
 	}
 
 	req, err := http.NewRequest("GET", fmt.Sprintf("http://%s/v2/anything", reg), nil)
@@ -102,14 +102,14 @@ func TestTransportSelectionBasic(t *testing.T) {
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
 
-	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := NewWithContext(context.Background(), testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err != nil {
-		t.Errorf("New() = %v", err)
+		t.Errorf("NewWithContext() = %v", err)
 	}
 	if tpw, ok := tp.(*Wrapper); !ok {
-		t.Errorf("New(); got %T, want *Wrapper", tp)
+		t.Errorf("NewWithContext(); got %T, want *Wrapper", tp)
 	} else if _, ok := tpw.inner.(*basicTransport); !ok {
-		t.Errorf("New(); got %T, want *basicTransport", tp)
+		t.Errorf("NewWithContext(); got %T, want *basicTransport", tp)
 	}
 }
 
@@ -132,8 +132,8 @@ func TestTransportBadAuth(t *testing.T) {
 		},
 	}
 
-	if _, err := New(testReference.Context().Registry, &badAuth{}, tprt, []string{testReference.Scope(PullScope)}); err == nil {
-		t.Errorf("New() expected err, got nil")
+	if _, err := NewWithContext(context.Background(), testReference.Context().Registry, &badAuth{}, tprt, []string{testReference.Scope(PullScope)}); err == nil {
+		t.Errorf("NewWithContext() expected err, got nil")
 	}
 }
 
@@ -173,14 +173,14 @@ func TestTransportSelectionBearer(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := NewWithContext(context.Background(), testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err != nil {
-		t.Errorf("New() = %v", err)
+		t.Errorf("NewWithContext() = %v", err)
 	}
 	if tpw, ok := tp.(*Wrapper); !ok {
-		t.Errorf("New(); got %T, want *Wrapper", tp)
+		t.Errorf("NewWithContext(); got %T, want *Wrapper", tp)
 	} else if _, ok := tpw.inner.(*bearerTransport); !ok {
-		t.Errorf("New(); got %T, want *bearerTransport", tp)
+		t.Errorf("NewWithContext(); got %T, want *bearerTransport", tp)
 	}
 }
 
@@ -198,9 +198,9 @@ func TestTransportSelectionBearerMissingRealm(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := NewWithContext(context.Background(), testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err == nil || !strings.Contains(err.Error(), "missing realm") {
-		t.Errorf("New() = %v, %v", tp, err)
+		t.Errorf("NewWithContext() = %v, %v", tp, err)
 	}
 }
 
@@ -225,9 +225,9 @@ func TestTransportSelectionBearerAuthError(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := NewWithContext(context.Background(), testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err == nil {
-		t.Errorf("New() = %v", tp)
+		t.Errorf("NewWithContext() = %v", tp)
 	}
 }
 
@@ -245,9 +245,9 @@ func TestTransportSelectionUnrecognizedChallenge(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
+	tp, err := NewWithContext(context.Background(), testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
 	if err == nil || !strings.Contains(err.Error(), "challenge") {
-		t.Errorf("New() = %v, %v", tp, err)
+		t.Errorf("NewWithContext() = %v, %v", tp, err)
 	}
 }
 
@@ -272,9 +272,9 @@ func TestTransportAlwaysTriesHttps(t *testing.T) {
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := New(registry, basic, server.Client().Transport, []string{testReference.Scope(PullScope)})
+	tp, err := NewWithContext(context.Background(), registry, basic, server.Client().Transport, []string{testReference.Scope(PullScope)})
 	if err != nil {
-		t.Fatalf("New() = %v, %v", tp, err)
+		t.Fatalf("NewWithContext() = %v, %v", tp, err)
 	}
 	if count == 0 {
 		t.Errorf("failed to call TLS localhost server")
