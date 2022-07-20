@@ -93,7 +93,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 
 	commands := []*cobra.Command{
 		NewCmdAppend(&options),
-		NewCmdAuth(&options, "crane", "auth"),
+		NewCmdAuth(options, "crane", "auth"),
 		NewCmdBlob(&options),
 		NewCmdCatalog(&options),
 		NewCmdConfig(&options),

@@ -32,7 +32,7 @@ import (
 )
 
 // NewCmdAuth creates a new cobra.Command for the auth subcommand.
-func NewCmdAuth(options *[]crane.Option, argv ...string) *cobra.Command {
+func NewCmdAuth(options []crane.Option, argv ...string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth",
 		Short: "Log in or access credentials",
@@ -63,7 +63,7 @@ func toCreds(config *authn.AuthConfig) credentials {
 }
 
 // NewCmdAuthGet creates a new `crane auth get` command.
-func NewCmdAuthGet(options *[]crane.Option, argv ...string) *cobra.Command {
+func NewCmdAuthGet(options []crane.Option, argv ...string) *cobra.Command {
 	if len(argv) == 0 {
 		argv = []string{os.Args[0]}
 	}
@@ -97,12 +97,7 @@ func NewCmdAuthGet(options *[]crane.Option, argv ...string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			keychain := authn.DefaultKeychain
-			if options != nil {
-				opts := crane.GetOptions(*options...)
-				keychain = opts.Keychain
-			}
-			authorizer, err := keychain.Resolve(reg)
+			authorizer, err := crane.GetOptions(options...).Keychain.Resolve(reg)
 			if err != nil {
 				return err
 			}
