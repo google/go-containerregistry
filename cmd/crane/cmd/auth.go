@@ -26,19 +26,20 @@ import (
 	"github.com/docker/cli/cli/config"
 	"github.com/docker/cli/cli/config/types"
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdAuth creates a new cobra.Command for the auth subcommand.
-func NewCmdAuth(argv ...string) *cobra.Command {
+func NewCmdAuth(options *[]crane.Option, argv ...string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth",
 		Short: "Log in or access credentials",
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Usage() },
 	}
-	cmd.AddCommand(NewCmdAuthGet(argv...), NewCmdAuthLogin(argv...))
+	cmd.AddCommand(NewCmdAuthGet(options, argv...), NewCmdAuthLogin(argv...))
 	return cmd
 }
 
@@ -62,7 +63,7 @@ func toCreds(config *authn.AuthConfig) credentials {
 }
 
 // NewCmdAuthGet creates a new `crane auth get` command.
-func NewCmdAuthGet(argv ...string) *cobra.Command {
+func NewCmdAuthGet(options *[]crane.Option, argv ...string) *cobra.Command {
 	if len(argv) == 0 {
 		argv = []string{os.Args[0]}
 	}
@@ -85,7 +86,12 @@ func NewCmdAuthGet(argv ...string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			authorizer, err := authn.DefaultKeychain.Resolve(reg)
+			keychain := authn.DefaultKeychain
+			if options != nil {
+				opts := crane.GetOptions(*options...)
+				keychain = opts.Keychain
+			}
+			authorizer, err := keychain.Resolve(reg)
 			if err != nil {
 				return err
 			}
