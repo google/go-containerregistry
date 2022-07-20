@@ -68,21 +68,32 @@ func NewCmdAuthGet(options *[]crane.Option, argv ...string) *cobra.Command {
 		argv = []string{os.Args[0]}
 	}
 
+	baseCmd := strings.Join(argv, " ")
 	eg := fmt.Sprintf(`  # Read configured credentials for reg.example.com
-  echo "reg.example.com" | %s get
-  {"username":"AzureDiamond","password":"hunter2"}`, strings.Join(argv, " "))
+  $ echo "reg.example.com" | %s get
+  {"username":"AzureDiamond","password":"hunter2"}
+  # or 
+  $ %s get reg.example.com
+  {"username":"AzureDiamond","password":"hunter2"}`, baseCmd, baseCmd)
 
 	return &cobra.Command{
-		Use:     "get",
+		Use:     "get [REGISTRY_ADDR]",
 		Short:   "Implements a credential helper",
 		Example: eg,
-		Args:    cobra.NoArgs,
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			b, err := ioutil.ReadAll(os.Stdin)
-			if err != nil {
-				return err
+			registryAddr := ""
+			if len(args) == 1 {
+				registryAddr = args[0]
+			} else {
+				b, err := ioutil.ReadAll(os.Stdin)
+				if err != nil {
+					return err
+				}
+				registryAddr = strings.TrimSpace(string(b))
 			}
-			reg, err := name.NewRegistry(strings.TrimSpace(string(b)))
+
+			reg, err := name.NewRegistry(registryAddr)
 			if err != nil {
 				return err
 			}
