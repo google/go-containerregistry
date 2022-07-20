@@ -10,10 +10,10 @@ crane auth get [REGISTRY_ADDR] [flags]
 
 ```
   # Read configured credentials for reg.example.com
-  echo "reg.example.com" | crane auth get
+  $ echo "reg.example.com" | crane auth get
   {"username":"AzureDiamond","password":"hunter2"}
   # or
-  crane auth get reg.example.com
+  $ crane auth get reg.example.com
   {"username":"AzureDiamond","password":"hunter2"}
 ```
 
