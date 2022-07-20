@@ -72,7 +72,7 @@ func NewCmdAuthGet(options []crane.Option, argv ...string) *cobra.Command {
 	eg := fmt.Sprintf(`  # Read configured credentials for reg.example.com
   $ echo "reg.example.com" | %s get
   {"username":"AzureDiamond","password":"hunter2"}
-  # or 
+  # or
   $ %s get reg.example.com
   {"username":"AzureDiamond","password":"hunter2"}`, baseCmd, baseCmd)
 
