@@ -30,3 +30,18 @@ jobs:
         run: |
           # List the tags
           krane ls ghcr.io/${{ github.repository }}/testimage
+
+      - name: Test krane auth get + GHCR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          CRED1=$(krane auth get ghcr.io)
+          CRED2=$(krane auth get ghcr.io)
+          if [[ "$CRED1" == "" ]] ; then
+            exit 1
+          fi
+          if [[ "$CRED1" == "$CRED2" ]] ; then
+            echo "credentials are cached by infrastructure"
+          fi
+          

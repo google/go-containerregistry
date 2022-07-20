@@ -3,14 +3,17 @@
 Implements a credential helper
 
 ```
-crane auth get [flags]
+crane auth get [REGISTRY_ADDR] [flags]
 ```
 
 ### Examples
 
 ```
   # Read configured credentials for reg.example.com
-  echo "reg.example.com" | crane auth get
+  $ echo "reg.example.com" | crane auth get
+  {"username":"AzureDiamond","password":"hunter2"}
+  # or
+  $ crane auth get reg.example.com
   {"username":"AzureDiamond","password":"hunter2"}
 ```
 
