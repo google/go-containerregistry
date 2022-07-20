@@ -40,8 +40,6 @@ jobs:
           krane ls ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/go-containerregistry-test
 
       - name: Test krane auth get + ECR
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           CRED1=$(krane auth get ${{ env.AWS_ACCOUNT }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com)
@@ -52,7 +50,7 @@ jobs:
           if [[ "$CRED1" == "$CRED2" ]] ; then
             echo "credentials are cached by infrastructure"
           fi
-          
+
   crane-ecr-login:
     runs-on: ubuntu-latest
     env:
