@@ -23,7 +23,6 @@ import (
 	"io"
 	"io/ioutil"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -246,7 +245,6 @@ func extract(img v1.Image, w io.Writer) error {
 		return fmt.Errorf("retrieving image layers: %w", err)
 	}
 
-	isWin := runtime.GOOS == "windows"
 	// we iterate through the layers in reverse order because it makes handling
 	// whiteout layers more efficient, since we can just keep track of the removed
 	// files as we see .wh. layers and ignore those in previous layers.
@@ -270,14 +268,10 @@ func extract(img v1.Image, w io.Writer) error {
 			// Some tools prepend everything with "./", so if we don't Clean the
 			// name, we may have duplicate entries, which angers tar-split.
 			header.Name = filepath.Clean(header.Name)
-
-			// tar.Next() sometimes mistakenly guesses format as USTAR, which creates a problem:
-			// if the header.Name is > 100 characters long, WriteHeader() returns an error like
-			// "archive/tar: cannot encode header: Format specifies USTAR; and USTAR cannot encode Name=...".
-			// To fix, change format from USTAR to PAX on Windows
-			if isWin && header.Format == tar.FormatUSTAR {
-				header.Format = tar.FormatPAX
-			}
+			// force PAX format to remove Name/Linkname length limit of 100 characters
+			// required by USTAR and to not depend on internal tar package guess which
+			// prefers USTAR over PAX
+			header.Format = tar.FormatPAX
 
 			basename := filepath.Base(header.Name)
 			dirname := filepath.Dir(header.Name)
