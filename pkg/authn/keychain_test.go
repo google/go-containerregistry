@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -63,7 +64,7 @@ func setupConfigDir(t *testing.T) string {
 	fresh++
 	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
 	t.Logf("DOCKER_CONFIG=%s", p)
-	os.Setenv("DOCKER_CONFIG", p)
+	t.Setenv("DOCKER_CONFIG", p)
 	if err := os.Mkdir(p, 0777); err != nil {
 		t.Fatalf("mkdir %q: %v", p, err)
 	}
@@ -106,7 +107,7 @@ func TestPodmanConfig(t *testing.T) {
 	}
 	fresh++
 	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
-	os.Setenv("XDG_RUNTIME_DIR", p)
+	t.Setenv("XDG_RUNTIME_DIR", p)
 	os.Unsetenv("DOCKER_CONFIG")
 	if err := os.MkdirAll(filepath.Join(p, "containers"), 0777); err != nil {
 		t.Fatalf("mkdir %s/containers: %v", p, err)
@@ -146,6 +147,7 @@ func TestPodmanConfig(t *testing.T) {
 	if err := ioutil.WriteFile(cfg, []byte(content), 0600); err != nil {
 		t.Fatalf("write %q: %v", cfg, err)
 	}
+	defer func() { os.Remove(cfg) }()
 	auth, err = DefaultKeychain.Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
@@ -362,4 +364,22 @@ func TestNewKeychainFromHelper(t *testing.T) {
 			t.Errorf("Resolve: got %v, want %v", auth, Anonymous)
 		}
 	})
+}
+
+func TestConfigFileIsADir(t *testing.T) {
+	tmpdir := setupConfigDir(t)
+	// Create "config.json" as a directory, not a file to simulate optional
+	// secrets in Kubernetes.
+	err := os.Mkdir(path.Join(tmpdir, "config.json"), 0777)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	auth, err := DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	if auth != Anonymous {
+		t.Errorf("expected Anonymous, got %v", auth)
+	}
 }
