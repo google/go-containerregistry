@@ -1,0 +1,1 @@
+compile_go_fuzzer github.com/google/go-containerregistry/pkg/name FuzzParseReference fuzz_parse_reference
