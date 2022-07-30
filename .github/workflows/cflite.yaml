@@ -10,16 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        sanitizer: [address]
     steps:
-    - name: Build Fuzzers (${{ matrix.sanitizer }})
+    - name: Build Fuzzers
       id: build
       uses: google/clusterfuzzlite/actions/build_fuzzers@v1
       with:
-        sanitizer: ${{ matrix.sanitizer }}
+        sanitizer: 'address'
         language: go
-    - name: Run Fuzzers (${{ matrix.sanitizer }})
+    - name: Run Fuzzers
       id: run
       uses: google/clusterfuzzlite/actions/run_fuzzers@v1
       with:
