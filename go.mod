@@ -10,7 +10,7 @@ require (
 	github.com/google/go-cmp v0.5.8
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.0.3-0.20220114050600-8b9d41f48198
+	github.com/opencontainers/image-spec v1.0.3-0.20220729202839-6ad7100eb087
 	github.com/spf13/cobra v1.5.0
 	golang.org/x/oauth2 v0.0.0-20220718184931-c8730f7fcb92
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
