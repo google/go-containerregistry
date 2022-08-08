@@ -181,6 +181,15 @@ func (r *remoteIndex) Manifests() ([]partial.Describable, error) {
 	return manifests, nil
 }
 
+// References returns a list of descriptors for artifacts that refer to this index.
+//
+// This is based on https://github.com/opencontainers/wg-reference-types/blob/main/docs/proposals/PROPOSAL_E.md
+//
+// *NOTE*: This API is experimental, and is likely to change in the future.
+func (r *remoteIndex) References() ([]v1.Descriptor, error) {
+	return r.fetcher.fetchReferences(r.descriptor.Digest)
+}
+
 func (r *remoteIndex) imageByPlatform(platform v1.Platform) (v1.Image, error) {
 	desc, err := r.childByPlatform(platform)
 	if err != nil {

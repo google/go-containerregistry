@@ -17,6 +17,7 @@ package remote
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -428,4 +429,70 @@ func (f *fetcher) blobExists(h v1.Hash) (bool, error) {
 	}
 
 	return resp.StatusCode == http.StatusOK, nil
+}
+
+func (f *fetcher) fetchReferences(h v1.Hash) ([]v1.Descriptor, error) {
+	// First, query the referrers endpoint.
+	u := f.url("referrers", h.String())
+	url := u.String()
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	// TODO: Does this need an Accept header?
+	resp, err := f.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusNotFound); err != nil {
+		return nil, err
+	}
+
+	// The registry doesn't support the referrers API, fallback to tag style.
+	// TODO(jason): Memoize this to avoid future lookups for this registry.
+	if resp.StatusCode == http.StatusNotFound {
+		return f.fallbackReferences(h)
+	}
+	defer resp.Body.Close()
+	var mf v1.IndexManifest
+	if err := json.NewDecoder(resp.Body).Decode(&mf); err != nil {
+		return nil, err
+	}
+	if mf.MediaType != types.OCIImageIndex {
+		return nil, fmt.Errorf("mismatched media type: got %q, want %q", mf.MediaType, types.OCIImageIndex)
+	}
+	return mf.Manifests, nil
+}
+
+func (f *fetcher) fallbackReferences(h v1.Hash) ([]v1.Descriptor, error) {
+	tag := strings.Replace(h.String(), ":", "-", 1)
+	u := f.url("manifests", tag)
+	url := u.String()
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", string(types.OCIImageIndex))
+	resp, err := f.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusNotFound); err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		// TODO(jason): fallback further to cosign-style? (querying .sig, .sbom, .att)?
+		return nil, nil
+	}
+
+	// TODO(jason): Try to parse the response as an artifact manifest?
+	defer resp.Body.Close()
+	var mf v1.IndexManifest
+	if err := json.NewDecoder(resp.Body).Decode(&mf); err != nil {
+		return nil, err
+	}
+	if mf.MediaType != types.OCIImageIndex {
+		return nil, fmt.Errorf("mismatched media type: got %q, want %q", mf.MediaType, types.OCIImageIndex)
+	}
+	return mf.Manifests, nil
 }

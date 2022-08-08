@@ -131,6 +131,15 @@ func (r *remoteImage) Descriptor() (*v1.Descriptor, error) {
 	return r.descriptor, err
 }
 
+// References returns a list of descriptors for artifacts that refer to this image.
+//
+// This is based on https://github.com/opencontainers/wg-reference-types/blob/main/docs/proposals/PROPOSAL_E.md
+//
+// *NOTE*: This API is experimental, and is likely to change in the future.
+func (r *remoteImage) References() ([]v1.Descriptor, error) {
+	return r.fetcher.fetchReferences(r.descriptor.Digest)
+}
+
 // remoteImageLayer implements partial.CompressedLayer
 type remoteImageLayer struct {
 	ri     *remoteImage

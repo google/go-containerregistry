@@ -28,6 +28,11 @@ type Manifest struct {
 	Config        Descriptor        `json:"config"`
 	Layers        []Descriptor      `json:"layers"`
 	Annotations   map[string]string `json:"annotations,omitempty"`
+
+	// This field is *experimental* and surrounding behavior is likely to change.
+	//
+	// See https://github.com/opencontainers/wg-reference-types/blob/main/docs/proposals/PROPOSAL_E.md#image-spec
+	Refers *Descriptor `json:"refers,omitempty"`
 }
 
 // IndexManifest represents an OCI image index in a structured way.
