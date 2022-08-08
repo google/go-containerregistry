@@ -75,11 +75,8 @@ func Write(ref name.Reference, img v1.Image, w io.Writer, opts ...WriteOption) e
 	return MultiRefWrite(map[name.Reference]v1.Image{ref: img}, w, opts...)
 }
 
-// MultiWrite writes the contents of each image to the provided reader, in the compressed format.
-// The contents are written in the following format:
-// One manifest.json file at the top level containing information about several images.
-// One file for each layer, named after the layer's SHA.
-// One file for the config blob, named after its SHA.
+// MultiWrite writes the contents of each image to the provided writer, in the compressed format.
+// This is just syntactic sugar converting tags to references for tarball.MultiRefWrite
 func MultiWrite(tagToImage map[name.Tag]v1.Image, w io.Writer, opts ...WriteOption) error {
 	refToImage := make(map[name.Reference]v1.Image, len(tagToImage))
 	for i, d := range tagToImage {
@@ -88,7 +85,7 @@ func MultiWrite(tagToImage map[name.Tag]v1.Image, w io.Writer, opts ...WriteOpti
 	return MultiRefWrite(refToImage, w, opts...)
 }
 
-// MultiRefWrite writes the contents of each image to the provided reader, in the compressed format.
+// MultiRefWrite writes the contents of each image to the provided writer, in the compressed format.
 // The contents are written in the following format:
 // One manifest.json file at the top level containing information about several images.
 // One file for each layer, named after the layer's SHA.
