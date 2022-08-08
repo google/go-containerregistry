@@ -165,9 +165,7 @@ $ jq < nanoserver/manifest.json
 [
   {
     "Config": "sha256:bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6",
-    "RepoTags": [
-      "index.docker.io/library/hello-world:i-was-a-digest"
-    ],
+    "RepoTags": null,
     "Layers": [
       "a35da61c356213336e646756218539950461ff2bf096badf307a23add6e70053.tar.gz",
       "be21f08f670160cbae227e3053205b91d6bfa3de750b90c7e00bd2c511ccb63a.tar.gz",
@@ -188,11 +186,9 @@ $ jq < nanoserver/manifest.json
 ```
 
 A couple things to note about this `manifest.json` versus the other:
-* The `RepoTags` field is a bit weird here. `hello-world` is a multi-platform
+* The `RepoTags` field is `null`. `hello-world` is a multi-platform
   image, so We had to pull this image by digest, since we're (I'm) on
-  amd64/linux and wanted to grab a windows image. Since the tarball format
-  expects a tag under `RepoTags`, and we didn't pull by tag, we replace the
-  digest with a sentinel `i-was-a-digest` "tag" to appease docker.
+  amd64/linux and wanted to grab a windows image..
 * The `LayerSources` has enough information to reconstruct the foreign layers
   pointer when pushing/pulling from the registry. For legal reasons, microsoft
   doesn't want anyone but them to serve windows base images, so the mediaType
