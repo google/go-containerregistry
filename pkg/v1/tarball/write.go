@@ -55,15 +55,9 @@ func MultiWriteToFile(p string, tagToImage map[name.Tag]v1.Image, opts ...WriteO
 // MultiRefWriteToFile writes in the compressed format to a tarball, on disk.
 // This is just syntactic sugar wrapping tarball.MultiRefWrite with a new file.
 func MultiRefWriteToFile(p string, refToImage map[name.Reference]v1.Image, opts ...WriteOption) error {
-	var w io.WriteCloser
-	var err error
-	if p == "-" {
-		w = os.Stdout
-	} else {
-		w, err = os.Create(p)
-		if err != nil {
-			return err
-		}
+	w, err := os.Create(p)
+	if err != nil {
+		return err
 	}
 	defer w.Close()
 

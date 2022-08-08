@@ -75,6 +75,10 @@ func MultiSave(imgMap map[string]v1.Image, path string, opt ...Option) error {
 		tagToImage[tag] = img
 	}
 	// no progress channel (for now)
+	if path == "-" {
+		w := os.Stdout
+		return tarball.MultiWrite(tagToImage, w)
+	}
 	return tarball.MultiWriteToFile(path, tagToImage)
 }
 
