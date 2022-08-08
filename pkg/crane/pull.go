@@ -27,11 +27,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
-// Tag applied to images that were pulled by digest. This denotes that the
-// image was (probably) never tagged with this, but lets us avoid applying the
-// ":latest" tag which might be misleading.
-const iWasADigestTag = "i-was-a-digest"
-
 // Pull returns a v1.Image of the remote image src.
 func Pull(src string, opt ...Option) (v1.Image, error) {
 	o := makeOptions(opt...)
@@ -52,34 +47,21 @@ func Save(img v1.Image, src, path string) error {
 // MultiSave writes collection of v1.Image img with tag as a tarball.
 func MultiSave(imgMap map[string]v1.Image, path string, opt ...Option) error {
 	o := makeOptions(opt...)
-	tagToImage := map[name.Tag]v1.Image{}
+	refToImage := map[name.Reference]v1.Image{}
 
 	for src, img := range imgMap {
 		ref, err := name.ParseReference(src, o.Name...)
 		if err != nil {
 			return fmt.Errorf("parsing ref %q: %w", src, err)
 		}
-
-		// WriteToFile wants a tag to write to the tarball, but we might have
-		// been given a digest.
-		// If the original ref was a tag, use that. Otherwise, if it was a
-		// digest, tag the image with :i-was-a-digest instead.
-		tag, ok := ref.(name.Tag)
-		if !ok {
-			d, ok := ref.(name.Digest)
-			if !ok {
-				return fmt.Errorf("ref wasn't a tag or digest")
-			}
-			tag = d.Repository.Tag(iWasADigestTag)
-		}
-		tagToImage[tag] = img
+		refToImage[ref] = img
 	}
 	// no progress channel (for now)
 	if path == "-" {
 		w := os.Stdout
-		return tarball.MultiWrite(tagToImage, w)
+		return tarball.MultiRefWrite(refToImage, w)
 	}
-	return tarball.MultiWriteToFile(path, tagToImage)
+	return tarball.MultiRefWriteToFile(path, refToImage)
 }
 
 // PullLayer returns the given layer from a registry.
