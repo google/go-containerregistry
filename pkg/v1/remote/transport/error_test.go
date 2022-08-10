@@ -16,7 +16,6 @@ package transport
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -24,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestTemporary(t *testing.T) {
@@ -172,61 +170,43 @@ func TestCheckErrorNotError(t *testing.T) {
 
 func TestCheckErrorWithError(t *testing.T) {
 	tests := []struct {
-		code  int
-		error *Error
-		msg   string
+		name      string
+		code      int
+		errorBody string
+		msg       string
 	}{{
-		code: http.StatusBadRequest,
-		error: &Error{
-			Errors: []Diagnostic{{
-				Code:    NameInvalidErrorCode,
-				Message: "a message for you",
-			}},
-			StatusCode: 400,
-		},
-		msg: "NAME_INVALID: a message for you",
+		name:      "Invalid name error",
+		code:      http.StatusBadRequest,
+		errorBody: `{"errors":[{"code":"NAME_INVALID","message":"a message for you"}],"StatusCode":400}`,
+		msg:       "NAME_INVALID: a message for you",
 	}, {
-		code: http.StatusBadRequest,
-		error: &Error{
-			StatusCode: 400,
-		},
-		msg: "unexpected status code 400 Bad Request",
+		name:      "Only status code is provided",
+		code:      http.StatusBadRequest,
+		errorBody: `{"StatusCode":400}`,
+		msg:       "unexpected status code 400 Bad Request: {\"StatusCode\":400}",
 	}, {
-		code: http.StatusBadRequest,
-		error: &Error{
-			Errors: []Diagnostic{{
-				Code:    NameInvalidErrorCode,
-				Message: "a message for you",
-			}, {
-				Code:    SizeInvalidErrorCode,
-				Message: "another message for you",
-				Detail:  "with some details",
-			}},
-			StatusCode: 400,
-		},
-		msg: "multiple errors returned: NAME_INVALID: a message for you; SIZE_INVALID: another message for you; with some details",
+		name:      "Multiple diagnostics",
+		code:      http.StatusBadRequest,
+		errorBody: `{"errors":[{"code":"NAME_INVALID","message":"a message for you"}, {"code":"SIZE_INVALID","message":"another message for you", "detail": "with some details"}],"StatusCode":400,"Request":null}`,
+		msg:       "multiple errors returned: NAME_INVALID: a message for you; SIZE_INVALID: another message for you; with some details",
 	}}
 
 	for _, test := range tests {
-		b, err := json.Marshal(test.error) // nolint: staticcheck
-		if err != nil {
-			t.Errorf("json.Marshal(%v) = %v", test.error, err)
-		}
-		resp := &http.Response{
-			StatusCode: test.code,
-			Body:       ioutil.NopCloser(bytes.NewBuffer(b)),
-		}
+		t.Run(test.name, func(t *testing.T) {
+			resp := &http.Response{
+				StatusCode: test.code,
+				Body:       ioutil.NopCloser(bytes.NewBuffer([]byte(test.errorBody))),
+			}
 
-		var terr *Error
-		if err := CheckError(resp, http.StatusOK); err == nil {
-			t.Errorf("CheckError(%d, %s) = nil, wanted error", test.code, string(b))
-		} else if !errors.As(err, &terr) {
-			t.Errorf("CheckError(%d, %s) = %T, wanted *transport.Error", test.code, string(b), err)
-		} else if diff := cmp.Diff(test.error, terr, cmpopts.IgnoreUnexported(Error{})); diff != "" {
-			t.Errorf("CheckError(%d, %s); (-want +got) %s", test.code, string(b), diff)
-		} else if diff := cmp.Diff(test.msg, test.error.Error()); diff != "" {
-			t.Errorf("CheckError(%d, %s).Error(); (-want +got) %s", test.code, string(b), diff)
-		}
+			var terr *Error
+			if err := CheckError(resp, http.StatusOK); err == nil {
+				t.Errorf("CheckError(%d, %s) = nil, wanted error", test.code, test.errorBody)
+			} else if !errors.As(err, &terr) {
+				t.Errorf("CheckError(%d, %s) = %T, wanted *transport.Error", test.code, test.errorBody, err)
+			} else if diff := cmp.Diff(test.msg, err.Error()); diff != "" {
+				t.Errorf("CheckError(%d, %s).Error(); (-want +got) %s", test.code, test.errorBody, diff)
+			}
+		})
 	}
 }
 

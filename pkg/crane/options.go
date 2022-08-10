@@ -29,6 +29,7 @@ type Options struct {
 	Name     []name.Option
 	Remote   []remote.Option
 	Platform *v1.Platform
+	Keychain authn.Keychain
 }
 
 // GetOptions exposes the underlying []remote.Option, []name.Option, and
@@ -44,6 +45,7 @@ func makeOptions(opts ...Option) Options {
 		Remote: []remote.Option{
 			remote.WithAuthFromKeychain(authn.DefaultKeychain),
 		},
+		Keychain: authn.DefaultKeychain,
 	}
 	for _, o := range opts {
 		o(&opt)
@@ -86,6 +88,7 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 	return func(o *Options) {
 		// Replace the default keychain at position 0.
 		o.Remote[0] = remote.WithAuthFromKeychain(keys)
+		o.Keychain = keys
 	}
 }
 
@@ -105,6 +108,14 @@ func WithAuth(auth authn.Authenticator) Option {
 func WithUserAgent(ua string) Option {
 	return func(o *Options) {
 		o.Remote = append(o.Remote, remote.WithUserAgent(ua))
+	}
+}
+
+// WithNondistributable is an option that allows pushing non-distributable
+// layers.
+func WithNondistributable() Option {
+	return func(o *Options) {
+		o.Remote = append(o.Remote, remote.WithNondistributable)
 	}
 }
 

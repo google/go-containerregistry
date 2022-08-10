@@ -49,6 +49,10 @@ var badDigestNames = []string{
 	"gcr.io/project-id/unknown-alg@unknown:abc123",
 	"gcr.io/project-id/wrong-length@sha256:d34db33fd34db33f",
 	"gcr.io/project-id/missing-digest@",
+	// https://github.com/google/go-containerregistry/issues/1394
+	"repo@sha256:" + strings.Repeat(":", 64),
+	"repo@sha256:" + strings.Repeat("sh", 32),
+	"repo@sha256:" + validDigest + "@" + validDigest,
 }
 
 func TestNewDigestStrictValidation(t *testing.T) {

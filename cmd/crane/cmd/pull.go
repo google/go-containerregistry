@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/cache"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -29,7 +30,10 @@ import (
 
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull(options *[]crane.Option) *cobra.Command {
-	var cachePath, format, convert string
+	var (
+		cachePath, format, convert string
+		annotateRef                bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "pull IMAGE TARBALL",
@@ -39,8 +43,8 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 			imageMap := map[string]v1.Image{}
 			indexMap := map[string]v1.ImageIndex{}
 			srcList, path := args[:len(args)-1], args[len(args)-1]
+			o := crane.GetOptions(*options...)
 			for _, src := range srcList {
-				o := crane.GetOptions(*options...)
 				ref, err := name.ParseReference(src, o.Name...)
 				if err != nil {
 					return fmt.Errorf("parsing reference %q: %w", src, err)
@@ -94,20 +98,42 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 					return fmt.Errorf("saving legacy tarball %s: %w", path, err)
 				}
 			case "oci":
-				if err := crane.MultiSaveOCI(imageMap, path); err != nil {
-					return fmt.Errorf("saving oci image layout %s: %w", path, err)
-				}
-
-				// crane.MultiSaveOCI doesn't support index, so just append these at the end.
+				// Don't use crane.MultiSaveOCI so we can control annotations.
 				p, err := layout.FromPath(path)
 				if err != nil {
-					return err
-				}
-				for ref, idx := range indexMap {
-					anns := map[string]string{
-						"dev.ggcr.image.name": ref,
+					p, err = layout.Write(path, empty.Index)
+					if err != nil {
+						return err
 					}
-					if err := p.AppendIndex(idx, layout.WithAnnotations(anns)); err != nil {
+				}
+				for ref, img := range imageMap {
+					opts := []layout.Option{}
+					if annotateRef {
+						parsed, err := name.ParseReference(ref, o.Name...)
+						if err != nil {
+							return err
+						}
+						opts = append(opts, layout.WithAnnotations(map[string]string{
+							"org.opencontainers.image.ref.name": parsed.Name(),
+						}))
+					}
+					if err = p.AppendImage(img, opts...); err != nil {
+						return err
+					}
+				}
+
+				for ref, idx := range indexMap {
+					opts := []layout.Option{}
+					if annotateRef {
+						parsed, err := name.ParseReference(ref, o.Name...)
+						if err != nil {
+							return err
+						}
+						opts = append(opts, layout.WithAnnotations(map[string]string{
+							"org.opencontainers.image.ref.name": parsed.Name(),
+						}))
+					}
+					if err := p.AppendIndex(idx, opts...); err != nil {
 						return err
 					}
 				}
@@ -119,6 +145,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
 	cmd.Flags().StringVar(&format, "format", "tarball", fmt.Sprintf("Format in which to save images (%q, %q, or %q)", "tarball", "legacy", "oci"))
+	cmd.Flags().BoolVar(&annotateRef, "annotate-ref", false, "Preserves image reference used to pull as an annotation when used with --format=oci")
 	// Option --experimental-convert is not battle tested therefore marked as experimental.
 	// We may abandon it at any given time without prior notice.
 	cmd.Flags().StringVar(&convert, "experimental-convert", "preserve", fmt.Sprintf("Image spec to convert the pulled image (%q or %q). EXPERIMENTAL", "preserve", "oci"))
