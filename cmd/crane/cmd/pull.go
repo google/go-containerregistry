@@ -105,7 +105,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 				}
 				for ref, idx := range indexMap {
 					anns := map[string]string{
-						"org.opencontainers.image.ref.name": ref,
+						"dev.ggcr.image.name": ref,
 					}
 					if err := p.AppendIndex(idx, layout.WithAnnotations(anns)); err != nil {
 						return err
@@ -119,7 +119,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	}
 	cmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
 	cmd.Flags().StringVar(&format, "format", "tarball", fmt.Sprintf("Format in which to save images (%q, %q, or %q)", "tarball", "legacy", "oci"))
-	// Option --experimental-convert is not battled tested therefore marked as experimental.
+	// Option --experimental-convert is not battle tested therefore marked as experimental.
 	// We may abandon it at any given time without prior notice.
 	cmd.Flags().StringVar(&convert, "experimental-convert", "preserve", fmt.Sprintf("Image spec to convert the pulled image (%q or %q). EXPERIMENTAL", "preserve", "oci"))
 	cmd.Flags().MarkHidden("experimental-convert")

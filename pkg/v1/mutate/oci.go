@@ -1,7 +1,22 @@
+// Copyright 2022 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package mutate
 
 import (
 	"fmt"
+	"io"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -39,7 +54,7 @@ func toOCIV1ConfigFile(cf *v1.ConfigFile) *v1.ConfigFile {
 	}
 }
 
-// OCIImage mutates the provided v1.Image to be OCI compilant v1.Image
+// OCIImage mutates the provided v1.Image to be OCI compliant v1.Image
 // Check image-spec to see which properties are ported and which are dropped.
 // https://github.com/opencontainers/image-spec/blob/main/config.md
 func OCIImage(base v1.Image) (v1.Image, error) {
@@ -73,7 +88,7 @@ func OCIImage(base v1.Image) (v1.Image, error) {
 			if err != nil {
 				return nil, fmt.Errorf("getting layer: %w", err)
 			}
-			layer, err = tarball.LayerFromReader(reader, tarball.WithMediaType(types.OCILayer))
+			layer, err = tarball.LayerFromOpener(func() (io.ReadCloser, error) { return reader, nil }, tarball.WithMediaType(types.OCILayer))
 			if err != nil {
 				return nil, fmt.Errorf("building layer: %w", err)
 			}
@@ -82,7 +97,7 @@ func OCIImage(base v1.Image) (v1.Image, error) {
 			if err != nil {
 				return nil, fmt.Errorf("getting layer: %w", err)
 			}
-			layer, err = tarball.LayerFromReader(reader, tarball.WithMediaType(types.OCIUncompressedLayer))
+			layer, err = tarball.LayerFromOpener(func() (io.ReadCloser, error) { return reader, nil }, tarball.WithMediaType(types.OCIUncompressedLayer))
 			if err != nil {
 				return nil, fmt.Errorf("building layer: %w", err)
 			}
@@ -90,7 +105,7 @@ func OCIImage(base v1.Image) (v1.Image, error) {
 		newLayers = append(newLayers, layer)
 	}
 
-	base, err = AppendLayers(empty.Image, layers...)
+	base, err = AppendLayers(empty.Image, newLayers...)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +120,7 @@ func OCIImage(base v1.Image) (v1.Image, error) {
 	return base, nil
 }
 
-// OCIImageIndex mutates the provided v1.ImageIndex to be OCI compilant v1.ImageIndex
+// OCIImageIndex mutates the provided v1.ImageIndex to be OCI compliant v1.ImageIndex
 func OCIImageIndex(base v1.ImageIndex) (v1.ImageIndex, error) {
 	base = IndexMediaType(base, types.OCIImageIndex)
 	mn, err := base.IndexManifest()
