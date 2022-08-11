@@ -75,9 +75,9 @@ func ping(ctx context.Context, reg name.Registry, t http.RoundTripper) (*pingRes
 	// if the registry matches our localhost heuristic or if it is intentionally
 	// set to insecure via name.NewInsecureRegistry.
 	schemes := []string{"https"}
-	if reg.Scheme() == "http" {
-		schemes = append(schemes, "http")
-	}
+	// if reg.Scheme() == "http" {
+	schemes = append(schemes, "http")
+	// }
 
 	var errs []error
 	for _, scheme := range schemes {
