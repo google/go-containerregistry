@@ -250,7 +250,7 @@ func (tb *TarBuffered) scanFile(filePath string) (io.Reader, error) {
 		}
 	}
 	// if file is not found, continue parsing
-	for tb.EOF != true {
+	for !tb.EOF {
 		hdr, err := tb.tf.Next()
 		if errors.Is(err, io.EOF) {
 			tb.EOF = true
