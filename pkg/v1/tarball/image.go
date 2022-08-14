@@ -204,11 +204,10 @@ func (i *image) loadTarDescriptorAndConfig() error {
 		return err
 	}
 
-	cfg, err := extractFileFromTar(i.opener, i.imgDescriptor.Config)
+	cfg, err := i.tarbuf.scanFile(i.imgDescriptor.Config)
 	if err != nil {
 		return err
 	}
-	defer cfg.Close()
 
 	i.config, err = ioutil.ReadAll(cfg)
 	if err != nil {
@@ -241,6 +240,10 @@ func NewTarBuffered(f io.Reader) *TarBuffered {
 		content: make(map[int][]byte)}
 }
 
+//func (tb *TarBuffered) append(header *tar.Header, bytes io.Reader) (, error) {
+//}
+
+// TODO: track size of structure and remove content entries once they've been read
 func (tb *TarBuffered) scanFile(filePath string) (io.Reader, error) {
 	// scan records that are already read
 	for i := 0; i < tb.pos; i++ {
@@ -261,19 +264,18 @@ func (tb *TarBuffered) scanFile(filePath string) (io.Reader, error) {
 		}
 
 		tb.headers[tb.pos] = hdr
-		logs.Debug.Printf("tarbuf: scan %v", hdr.Name)
+		logs.Debug.Printf("tarbuf: scan %v, %v", tb.pos, hdr.Name)
 		tb.content[tb.pos], err = io.ReadAll(tb.tf)
 		if err != nil {
 			return nil, err
 		}
 		contentidx := tb.pos
 		tb.pos++
-		logs.Debug.Printf("tarbuf:   hdr.size %v", hdr.Size)
-		logs.Debug.Printf("tarbuf:   len %v", unsafe.Sizeof(*tb))
+		logs.Debug.Printf("tarbuf:   hdr.size %v, len %v", hdr.Size, unsafe.Sizeof(*tb))
 		if hdr.Name == filePath {
+			logs.Debug.Printf("tarbuf: found %v at pos %v", filePath, contentidx)
 			return bytes.NewReader(tb.content[contentidx]), nil
 		}
-		// logs.Debug.Printf("tarbuf: scan %v", hdr)
 	}
 	return nil, fmt.Errorf("file %s not found in tar", filePath)
 }
