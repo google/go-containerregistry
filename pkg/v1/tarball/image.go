@@ -177,11 +177,10 @@ func (i *image) areLayersCompressed() (bool, error) {
 		return false, errors.New("0 layers found in image")
 	}
 	layer := i.imgDescriptor.Layers[0]
-	blob, err := extractFileFromTar(i.opener, layer)
+	blob, err := i.tarbuf.scanFile(layer)
 	if err != nil {
 		return false, err
 	}
-	defer blob.Close()
 	return gzip.Is(blob)
 }
 
