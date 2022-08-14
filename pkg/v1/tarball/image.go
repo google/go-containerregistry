@@ -26,8 +26,10 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
+	"unsafe"
 
 	"github.com/google/go-containerregistry/internal/gzip"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -36,6 +38,7 @@ import (
 
 type image struct {
 	opener        Opener
+	tarbuf        *TarBuffered // replaces Opener
 	manifest      *Manifest
 	config        []byte
 	imgDescriptor *Descriptor
@@ -88,8 +91,21 @@ func LoadManifest(opener Opener) (Manifest, error) {
 
 // Image exposes an image from the tarball at the provided path.
 func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
+	f, err := opener()
+	if err != nil {
+		return nil, err
+	}
+	close := true
+	defer func() {
+		if close {
+			f.Close()
+		}
+	}()
+	tarbuf := NewTarBuffered(f)
+
 	img := &image{
 		opener: opener,
+		tarbuf: tarbuf,
 		tag:    tag,
 	}
 	if err := img.loadTarDescriptorAndConfig(); err != nil {
@@ -170,11 +186,10 @@ func (i *image) areLayersCompressed() (bool, error) {
 }
 
 func (i *image) loadTarDescriptorAndConfig() error {
-	m, err := extractFileFromTar(i.opener, "manifest.json")
+	m, err := i.tarbuf.scanFile("manifest.json")
 	if err != nil {
 		return err
 	}
-	defer m.Close()
 
 	if err := json.NewDecoder(m).Decode(&i.manifest); err != nil {
 		return err
@@ -204,6 +219,62 @@ func (i *image) loadTarDescriptorAndConfig() error {
 
 func (i *image) RawConfigFile() ([]byte, error) {
 	return i.config, nil
+}
+
+// TarBuffered stores parsed entries of tar file for subsequent access
+type TarBuffered struct {
+	tf      *tar.Reader
+	pos     int
+	headers map[int]*tar.Header
+	content map[int][]byte
+	EOF     bool
+}
+
+func NewTarBuffered(f io.Reader) *TarBuffered {
+	// [ ] what happens if we don't return a pointer here?
+	//     will reference to tf be duplicated in gc?
+	logs.Debug.Printf("tarbuf: start with %+v", f)
+	return &TarBuffered{
+		tf:      tar.NewReader(f),
+		headers: make(map[int]*tar.Header),
+		content: make(map[int][]byte)}
+}
+
+func (tb *TarBuffered) scanFile(filePath string) (io.Reader, error) {
+	// scan records that are already read
+	for i := 0; i < tb.pos; i++ {
+		if tb.headers[i].Name == filePath {
+			logs.Debug.Printf("tarbuf: found %v at chunk %v", filePath, i)
+			return bytes.NewReader(tb.content[i]), nil
+		}
+	}
+	// if file is not found, continue parsing
+	for tb.EOF != true {
+		hdr, err := tb.tf.Next()
+		if errors.Is(err, io.EOF) {
+			tb.EOF = true
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		tb.headers[tb.pos] = hdr
+		logs.Debug.Printf("tarbuf: scan %v", hdr.Name)
+		tb.content[tb.pos], err = io.ReadAll(tb.tf)
+		if err != nil {
+			return nil, err
+		}
+		contentidx := tb.pos
+		tb.pos++
+		logs.Debug.Printf("tarbuf:   hdr.size %v", hdr.Size)
+		logs.Debug.Printf("tarbuf:   len %v", unsafe.Sizeof(*tb))
+		if hdr.Name == filePath {
+			return bytes.NewReader(tb.content[contentidx]), nil
+		}
+		// logs.Debug.Printf("tarbuf: scan %v", hdr)
+	}
+	return nil, fmt.Errorf("file %s not found in tar", filePath)
 }
 
 // tarFile represents a single file inside a tar. Closing it closes the tar itself.
