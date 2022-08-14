@@ -230,6 +230,7 @@ type TarBuffered struct {
 	EOF     bool
 }
 
+// NewTarBuffered prepares and returns struct for parsing tar stream
 func NewTarBuffered(f io.Reader) *TarBuffered {
 	// [ ] what happens if we don't return a pointer here?
 	//     will reference to tf be duplicated in gc?
