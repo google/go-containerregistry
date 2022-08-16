@@ -26,7 +26,6 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
-	"unsafe"
 
 	"github.com/google/go-containerregistry/internal/gzip"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -247,14 +246,16 @@ func (tb *TarBuffered) scanFile(filePath string) (io.Reader, error) {
 	// scan records that are already read
 	for i := 0; i < tb.pos; i++ {
 		if tb.headers[i].Name == filePath {
-			logs.Debug.Printf("tarbuf: found %v at chunk %v", filePath, i)
+			logs.Debug.Printf("tarbuf: found in buffer %v %v", i, filePath)
 			return bytes.NewReader(tb.content[i]), nil
 		}
 	}
 	// if file is not found, continue parsing
 	for !tb.EOF {
+		logs.Debug.Printf("tarbuf: scan entry %v", tb.pos)
 		hdr, err := tb.tf.Next()
 		if errors.Is(err, io.EOF) {
+			logs.Debug.Printf("tarbuf: EOF")
 			tb.EOF = true
 			break
 		}
@@ -263,16 +264,16 @@ func (tb *TarBuffered) scanFile(filePath string) (io.Reader, error) {
 		}
 
 		tb.headers[tb.pos] = hdr
-		logs.Debug.Printf("tarbuf: scan %v, %v", tb.pos, hdr.Name)
+		logs.Debug.Printf("tarbuf:   %s", hdr.Name)
 		tb.content[tb.pos], err = io.ReadAll(tb.tf)
 		if err != nil {
 			return nil, err
 		}
 		contentidx := tb.pos
 		tb.pos++
-		logs.Debug.Printf("tarbuf:   hdr.size %v, len %v", hdr.Size, unsafe.Sizeof(*tb))
+		logs.Debug.Printf("tarbuf:   buffered %v", len(tb.content[contentidx]))
 		if hdr.Name == filePath {
-			logs.Debug.Printf("tarbuf: found %v at pos %v", filePath, contentidx)
+			logs.Debug.Printf("tarbuf:   found %v", filePath)
 			return bytes.NewReader(tb.content[contentidx]), nil
 		}
 	}
