@@ -90,4 +90,5 @@ jobs:
         
         ./app/crane pull ubuntu ubuntu.tar
         ./app/crane export - - < ubuntu.tar > filesystem.tar
+        ls -la *.tar
         
