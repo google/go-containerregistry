@@ -27,9 +27,6 @@ import (
 )
 
 func isWindows(img v1.Image) (bool, error) {
-	if img == nil {
-		return false, nil
-	}
 	cfg, err := img.ConfigFile()
 	if err != nil {
 		return false, err
@@ -43,13 +40,13 @@ func isWindows(img v1.Image) (bool, error) {
 // "windows"), the contents of the tarballs will be modified to be suitable for
 // a Windows container image.`,
 func Append(base v1.Image, paths ...string) (v1.Image, error) {
+	if base == nil {
+		return nil, fmt.Errorf("invalid argument: base")
+	}
+
 	win, err := isWindows(base)
 	if err != nil {
 		return nil, fmt.Errorf("getting base image: %w", err)
-	}
-
-	if base == nil {
-		return nil, fmt.Errorf("invalid argument: base")
 	}
 
 	baseMediaType, err := base.MediaType()
