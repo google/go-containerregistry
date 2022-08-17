@@ -284,3 +284,16 @@ func TestMediaType(t *testing.T) {
 		t.Errorf("MediaType(): want %q, got %q", want, got)
 	}
 }
+
+func TestMediaTypeOption(t *testing.T) {
+	l := NewLayer(ioutil.NopCloser(strings.NewReader("hello")), WithMediaType(types.OCILayer))
+	mediaType, err := l.MediaType()
+
+	if err != nil {
+		t.Fatalf("MediaType(): %v", err)
+	}
+
+	if got, want := mediaType, types.OCILayer; got != want {
+		t.Errorf("MediaType(): want %q, got %q", want, got)
+	}
+}

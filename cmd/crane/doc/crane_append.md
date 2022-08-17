@@ -23,6 +23,7 @@ crane append [flags]
   -h, --help                         help for append
   -f, --new_layer strings            Path to tarball to append to image
   -t, --new_tag string               Tag to apply to resulting image
+      --oci                          If true, empty base image will have OCI media types instead of Docker
   -o, --output string                Path to new tarball of resulting image
       --set-base-image-annotations   If true, annotate the resulting image as being based on the base image
 ```
