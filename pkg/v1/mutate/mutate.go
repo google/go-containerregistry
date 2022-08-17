@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/google/go-containerregistry/internal/gzip"
+	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
@@ -220,6 +221,7 @@ func CreatedAt(base v1.Image, created v1.Time) (v1.Image, error) {
 // If a caller doesn't read the full contents, they should Close it to free up
 // resources used during extraction.
 func Extract(img v1.Image) io.ReadCloser {
+	logs.Debug.Printf("mutate: extract %T", img)
 	pr, pw := io.Pipe()
 
 	go func() {
