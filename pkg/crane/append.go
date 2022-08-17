@@ -48,6 +48,10 @@ func Append(base v1.Image, paths ...string) (v1.Image, error) {
 		return nil, fmt.Errorf("getting base image: %w", err)
 	}
 
+	if base == nil {
+		return nil, fmt.Errorf("invalid argument: base")
+	}
+
 	baseMediaType, err := base.MediaType()
 
 	if err != nil {
