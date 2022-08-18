@@ -63,6 +63,15 @@ const (
 
 // Resolve implements Keychain.
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
+	auths, err := dk.ResolveMany(target)
+	if err != nil {
+		return nil, err
+	}
+	return auths[0], nil
+}
+
+// Resolve implements MultiKeychain.
+func (dk *defaultKeychain) ResolveMany(target Resource) ([]Authenticator, error) {
 	dk.mu.Lock()
 	defer dk.mu.Unlock()
 
@@ -98,7 +107,7 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	} else {
 		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
 		if err != nil {
-			return Anonymous, nil
+			return []Authenticator{Anonymous}, nil
 		}
 		defer f.Close()
 		cf, err = config.LoadFromReader(f)
@@ -110,7 +119,9 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	// See:
 	// https://github.com/google/ko/issues/90
 	// https://github.com/moby/moby/blob/fc01c2b481097a6057bec3cd1ab2d7b4488c50c4/registry/config.go#L397-L404
-	var cfg, empty types.AuthConfig
+	var empty types.AuthConfig
+
+	var cfgs []types.AuthConfig
 	for _, key := range []string{
 		target.String(),
 		target.RegistryStr(),
@@ -119,25 +130,30 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 			key = DefaultAuthKey
 		}
 
-		cfg, err = cf.GetAuthConfig(key)
+		cfg, err := cf.GetAuthConfig(key)
 		if err != nil {
 			return nil, err
 		}
 		if cfg != empty {
-			break
+			cfgs = append(cfgs, cfg)
 		}
 	}
-	if cfg == empty {
-		return Anonymous, nil
+
+	if len(cfgs) == 0 {
+		return []Authenticator{Anonymous}, nil
 	}
 
-	return FromConfig(AuthConfig{
-		Username:      cfg.Username,
-		Password:      cfg.Password,
-		Auth:          cfg.Auth,
-		IdentityToken: cfg.IdentityToken,
-		RegistryToken: cfg.RegistryToken,
-	}), nil
+	auths := make([]Authenticator, 0, len(cfgs))
+	for _, cfg := range cfgs {
+		auths = append(auths, FromConfig(AuthConfig{
+			Username:      cfg.Username,
+			Password:      cfg.Password,
+			Auth:          cfg.Auth,
+			IdentityToken: cfg.IdentityToken,
+			RegistryToken: cfg.RegistryToken,
+		}))
+	}
+	return auths, nil
 }
 
 // fileExists returns true if the given path exists and is not a directory.

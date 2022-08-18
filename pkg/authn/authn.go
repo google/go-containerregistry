@@ -27,6 +27,10 @@ type Authenticator interface {
 	Authorization() (*AuthConfig, error)
 }
 
+type MultiAuthenticator interface {
+	Authorizations() ([]AuthConfig, error)
+}
+
 // AuthConfig contains authorization information for connecting to a Registry
 // Inlined what we use from github.com/docker/cli/cli/config/types
 type AuthConfig struct {

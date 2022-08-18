@@ -28,14 +28,50 @@ func NewMultiKeychain(kcs ...Keychain) Keychain {
 
 // Resolve implements Keychain.
 func (mk *multiKeychain) Resolve(target Resource) (Authenticator, error) {
+	var auths []Authenticator
 	for _, kc := range mk.keychains {
 		auth, err := kc.Resolve(target)
 		if err != nil {
 			return nil, err
 		}
 		if auth != Anonymous {
-			return auth, nil
+			auths = append(auths, auth)
 		}
 	}
-	return Anonymous, nil
+	if len(auths) == 0 {
+		return Anonymous, nil
+	}
+	return multiAuthenticator{auths: auths}, nil
+}
+
+type multiAuthenticator struct {
+	auths []Authenticator
+}
+
+func (ma multiAuthenticator) Authorization() (*AuthConfig, error) {
+	auths, err := ma.Authorizations()
+	if err != nil {
+		return nil, err
+	}
+	return &auths[0], nil
+}
+
+func (ma *multiAuthenticator) Authorizations() ([]AuthConfig, error) {
+	var auths []AuthConfig
+	for _, a := range ma.auths {
+		if ma, ok := a.(MultiAuthenticator); ok {
+			as, err := ma.Authorizations()
+			if err != nil {
+				return nil, err
+			}
+			auths = append(auths, as...)
+		} else {
+			a, err := a.Authorization()
+			if err != nil {
+				return nil, err
+			}
+			auths = append(auths, *a)
+		}
+	}
+	return auths, nil
 }

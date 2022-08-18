@@ -70,16 +70,33 @@ func TestMultiKeychain(t *testing.T) {
 			fixedKeychain{regOne: three, regTwo: two},
 		),
 		want: Anonymous,
+	}, {
+		name: "match multiple keychains, take the first",
+		reg:  regOne,
+		kc: NewMultiKeychain(
+			fixedKeychain{regOne: one},
+			fixedKeychain{regOne: three, regTwo: two},
+			fixedKeychain{regOne: two},
+		),
+		want: one, // TODO: test that this actually has one,three,two internall and can return them all if asked.
 	}}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := test.kc.Resolve(test.reg)
+			auth, err := test.kc.Resolve(test.reg)
 			if err != nil {
 				t.Errorf("Resolve() = %v", err)
 			}
-			if got != test.want {
-				t.Errorf("Resolve() = %v, wanted %v", got, test.want)
+			got, err := auth.Authorization()
+			if err != nil {
+				t.Errorf("Authorization() = %v", err)
+			}
+			want, err := test.want.Authorization()
+			if err != nil {
+				t.Errorf("want.Authorization() = %v", err)
+			}
+			if got.Username != want.Username || got.Password != want.Password {
+				t.Errorf("Resolve() = %+v, wanted %+v", got, test.want)
 			}
 		})
 	}

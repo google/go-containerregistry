@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -135,4 +136,93 @@ func TestBasicTransportWithEmptyAuthnCred(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error during Get: %v", err)
 	}
+}
+
+func TestMultipleCreds(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hdr := r.Header.Get("Authorization")
+			switch hdr {
+			case "Basic good":
+				w.WriteHeader(http.StatusOK)
+			case "Basic bad":
+				t.Logf("rejecting bad request:" + hdr)
+				w.WriteHeader(http.StatusForbidden)
+			default:
+				t.Errorf("Got unexpected Authorization header: %v", hdr)
+				w.WriteHeader(http.StatusForbidden)
+			}
+		}))
+	defer server.Close()
+
+	auth := multiAuthenticator{auths: []authn.AuthConfig{
+		{Auth: "bad"},
+		{Auth: "bad"},
+		{Auth: "good"},
+		{Auth: "bad"},
+	}}
+
+	inner := &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			return url.Parse(server.URL)
+		},
+	}
+
+	client := http.Client{Transport: &basicTransport{inner: inner, auth: auth, target: "gcr.io"}}
+	resp, err := client.Get("http://gcr.io/v2/auth")
+	if err != nil {
+		t.Errorf("Unexpected error during Get: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("unepected status code (%d) %s", resp.StatusCode, resp.Status)
+	}
+}
+
+func TestMultipleCred_AllBad(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hdr := r.Header.Get("Authorization")
+			switch hdr {
+			case "Basic bad":
+				t.Logf("rejecting bad request:" + hdr)
+				w.WriteHeader(http.StatusForbidden)
+			default:
+				t.Errorf("Got unexpected Authorization header: %v", hdr)
+				w.WriteHeader(http.StatusForbidden)
+			}
+		}))
+	defer server.Close()
+
+	auth := multiAuthenticator{auths: []authn.AuthConfig{
+		{Auth: "bad"},
+		{Auth: "bad"},
+		{Auth: "bad"},
+	}}
+
+	inner := &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			return url.Parse(server.URL)
+		},
+	}
+
+	client := http.Client{Transport: &basicTransport{inner: inner, auth: auth, target: "gcr.io"}}
+	resp, err := client.Get("http://gcr.io/v2/auth")
+	if err != nil {
+		t.Errorf("Unexpected error during Get: %v", err)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("unepected status code (%d) %s", resp.StatusCode, resp.Status)
+	}
+}
+
+type multiAuthenticator struct {
+	auths []authn.AuthConfig
+}
+
+func (a multiAuthenticator) Authorization() (*authn.AuthConfig, error) {
+	return nil, errors.New("should not be called")
+}
+
+func (a multiAuthenticator) Authorizations() ([]authn.AuthConfig, error) {
+	return a.auths, nil
 }
