@@ -32,11 +32,25 @@ var _ http.RoundTripper = (*basicTransport)(nil)
 
 // RoundTrip implements http.RoundTripper
 func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
-	if bt.auth != authn.Anonymous {
+	// If the Authenticator is a MultiAuthenticator, we get all the auths it has and try them in order until one works.
+	// If there's only one auth, we just use that.
+	var auths []authn.AuthConfig
+	if ma, ok := bt.auth.(authn.MultiAuthenticator); ok {
+		var err error
+		auths, err = ma.Authorizations()
+		if err != nil {
+			return nil, err
+		}
+	} else {
 		auth, err := bt.auth.Authorization()
 		if err != nil {
 			return nil, err
 		}
+		auths = []authn.AuthConfig{*auth}
+	}
+
+	for idx, auth := range auths {
+		last := idx == len(auths)-1
 
 		// http.Client handles redirects at a layer above the http.RoundTripper
 		// abstraction, so to avoid forwarding Authorization headers to places
@@ -57,6 +71,19 @@ func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 				in.Header.Set("Authorization", hdr)
 			}
 		}
+		resp, err := bt.inner.RoundTrip(in)
+		if err != nil {
+			return nil, err
+		}
+
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			if last {
+				return resp, nil
+			}
+			continue
+		} else {
+			return resp, nil
+		}
 	}
-	return bt.inner.RoundTrip(in)
+	panic("unreachable")
 }

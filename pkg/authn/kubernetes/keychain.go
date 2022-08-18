@@ -178,6 +178,15 @@ type keyring struct {
 }
 
 func (keyring *keyring) Resolve(target authn.Resource) (authn.Authenticator, error) {
+	auths, err := keyring.ResolveMany(target)
+	if err != nil {
+		return nil, err
+	}
+
+	return auths[0], nil
+}
+
+func (keyring *keyring) ResolveMany(target authn.Resource) ([]authn.Authenticator, error) {
 	image := target.String()
 	auths := []authn.AuthConfig{}
 
@@ -190,10 +199,10 @@ func (keyring *keyring) Resolve(target authn.Resource) (authn.Authenticator, err
 	}
 
 	if len(auths) == 0 {
-		return authn.Anonymous, nil
+		return []authn.Authenticator{authn.Anonymous}, nil
 	}
 
-	return toAuthenticator(auths)
+	return toAuthenticators(auths), nil
 }
 
 // urlsMatchStr is wrapper for URLsMatch, operating on strings instead of URLs.
@@ -270,12 +279,14 @@ func urlsMatch(globURL *url.URL, targetURL *url.URL) (bool, error) {
 	return true, nil
 }
 
-func toAuthenticator(configs []authn.AuthConfig) (authn.Authenticator, error) {
-	cfg := configs[0]
-
-	if cfg.Auth != "" {
-		cfg.Auth = ""
+func toAuthenticators(configs []authn.AuthConfig) []authn.Authenticator {
+	auths := make([]authn.Authenticator, 0, len(configs))
+	for _, cfg := range configs {
+		if cfg.Auth != "" {
+			cfg.Auth = ""
+		}
+		auths = append(auths, authn.FromConfig(cfg))
 	}
 
-	return authn.FromConfig(cfg), nil
+	return auths
 }
