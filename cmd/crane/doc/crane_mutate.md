@@ -16,6 +16,7 @@ crane mutate [flags]
   -e, --env stringToString          New envvar to add (default [])
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
+      --oci-image-layout string     A path to OCI Image Layout directory
   -o, --output string               Path to new tarball of resulting image
       --repo string                 Repository to push the mutated image to. If provided, push by digest to this repository.
   -t, --tag string                  New tag reference to apply to mutated image. If not provided, push by digest to the original image repository.

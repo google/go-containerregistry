@@ -19,6 +19,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/match"
+
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -37,33 +40,78 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var newRef string
 	var newRepo string
 	var user string
+	var ociImageLayoutPath string
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
 		Short: "Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.",
-		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			var img v1.Image
+			var err error
 			// Pull image and get config.
-			ref := args[0]
+			var ref string
+			if len(args) > 0 {
+				ref = args[0]
+			}
 
-			if len(annotations) != 0 {
-				desc, err := crane.Head(ref, *options...)
+			if ref != "" && ociImageLayoutPath != "" {
+				return errors.New("cannot specify both image and oci image layout")
+			}
+
+			if ref != "" {
+				if len(annotations) != 0 {
+					desc, err := crane.Head(ref, *options...)
+					if err != nil {
+						return err
+					}
+					if desc.MediaType.IsIndex() {
+						return errors.New("mutating annotations on an index is not yet supported")
+					}
+				}
+
+				i, err := crane.Pull(ref, *options...)
+				if err != nil {
+					return fmt.Errorf("pulling %s: %w", ref, err)
+				}
+				img = i
+			} else if ociImageLayoutPath != "" {
+				oil, err := layout.FromPath(ociImageLayoutPath)
 				if err != nil {
 					return err
 				}
-				if desc.MediaType.IsIndex() {
-					return errors.New("mutating annotations on an index is not yet supported")
+				ii, err := oil.ImageIndex()
+				if err != nil {
+					return err
 				}
+
+				m, err := ii.IndexManifest()
+				if err != nil {
+					return err
+				}
+
+				desc := m.Manifests[0]
+
+				if len(annotations) != 0 {
+					if err != nil {
+						return err
+					}
+					if desc.MediaType.IsIndex() {
+						return errors.New("mutating annotations on an index is not yet supported")
+					}
+				}
+
+				var i v1.Image
+				if desc.MediaType.IsImage() {
+					i, err = oil.Image(desc.Digest)
+					if err != nil {
+						return err
+					}
+				} else if desc.MediaType.IsIndex() {
+					return errors.New("mutating layers on an index is not yet supported")
+				}
+				img = i
 			}
 
-			if newRepo != "" && newRef != "" {
-				return errors.New("repository can't be set when a tag is specified")
-			}
-
-			img, err := crane.Pull(ref, *options...)
-			if err != nil {
-				return fmt.Errorf("pulling %s: %w", ref, err)
-			}
 			if len(newLayers) != 0 {
 				img, err = crane.Append(img, newLayers...)
 				if err != nil {
@@ -122,35 +170,93 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 
 			img = mutate.Annotations(img, annotations).(v1.Image)
 
-			// If the new ref isn't provided, write over the original image.
-			// If that ref was provided by digest (e.g., output from
-			// another crane command), then strip that and push the
-			// mutated image by digest instead.
-			if newRepo != "" {
-				newRef = newRepo
-			} else if newRef == "" {
-				newRef = ref
-			}
 			digest, err := img.Digest()
 			if err != nil {
 				return fmt.Errorf("digesting new image: %w", err)
 			}
-			if outFile != "" {
-				if err := crane.Save(img, newRef, outFile); err != nil {
-					return fmt.Errorf("writing output %q: %w", outFile, err)
+			if ref != "" {
+				if newRepo != "" && newRef != "" {
+					return errors.New("repository can't be set when a tag is specified")
+				}
+
+				// If the new ref isn't provided, write over the original image.
+				// If that ref was provided by digest (e.g., output from
+				// another crane command), then strip that and push the
+				// mutated image by digest instead.
+				if newRepo != "" {
+					newRef = newRepo
+				} else if newRef == "" {
+					newRef = ref
+				}
+
+				if outFile != "" {
+					if err := crane.Save(img, newRef, outFile); err != nil {
+						return fmt.Errorf("writing output %q: %w", outFile, err)
+					}
+				} else {
+					r, err := name.ParseReference(newRef)
+					if err != nil {
+						return fmt.Errorf("parsing %s: %w", newRef, err)
+					}
+					if _, ok := r.(name.Digest); ok || newRepo != "" {
+						newRef = r.Context().Digest(digest.String()).String()
+					}
+					if err := crane.Push(img, newRef, *options...); err != nil {
+						return fmt.Errorf("pushing %s: %w", newRef, err)
+					}
+					fmt.Println(r.Context().Digest(digest.String()))
 				}
 			} else {
-				r, err := name.ParseReference(newRef)
+				// TODO: this adds the new manifest to the index, but doesn't remove the old one
+				p, err := layout.FromPath(ociImageLayoutPath)
 				if err != nil {
-					return fmt.Errorf("parsing %s: %w", newRef, err)
+					return err
 				}
-				if _, ok := r.(name.Digest); ok || newRepo != "" {
-					newRef = r.Context().Digest(digest.String()).String()
+
+				ii, err := p.ImageIndex()
+				if err != nil {
+					return err
 				}
-				if err := crane.Push(img, newRef, *options...); err != nil {
-					return fmt.Errorf("pushing %s: %w", newRef, err)
+
+				m, err := ii.IndexManifest()
+				if err != nil {
+					return err
 				}
-				fmt.Println(r.Context().Digest(digest.String()))
+
+				desc := m.Manifests[0]
+
+				i, err := p.Image(desc.Digest)
+				if err != nil {
+					return err
+				}
+
+				im, err := i.Manifest()
+				if err != nil {
+					return err
+				}
+
+				icd := im.Config.Digest
+
+				err = p.ReplaceImage(img, match.Digests(digest))
+				if err != nil {
+					return err
+				}
+
+				fmt.Printf("Removing old config layer: %s\n", icd.String())
+				err = p.RemoveBlob(icd)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("Removing old manifest from index: %s\n", desc.Digest.String())
+				err = p.RemoveDescriptors(match.Digests(desc.Digest))
+				if err != nil {
+					return err
+				}
+				fmt.Printf("Removing old manifest blob: %s\n", desc.Digest.String())
+				err = p.RemoveBlob(desc.Digest)
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		},
@@ -165,6 +271,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
 	mutateCmd.Flags().StringSliceVar(&newLayers, "append", []string{}, "Path to tarball to append to image")
 	mutateCmd.Flags().StringVarP(&user, "user", "u", "", "New user to set")
+	mutateCmd.Flags().StringVarP(&ociImageLayoutPath, "oci-image-layout", "", "", "A path to OCI Image Layout directory")
 	return mutateCmd
 }
 
