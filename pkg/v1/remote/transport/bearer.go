@@ -38,7 +38,9 @@ type bearerTransport struct {
 	// Basic credentials that we exchange for bearer tokens.
 	basic authn.Authenticator
 	// Holds the bearer response from the token service.
-	bearer authn.AuthConfig
+	bearer []authn.AuthConfig
+	// Holds the token parse from response, one to one correspondence with bearer.
+	bearerTokenList []string
 	// Registry to which we send bearer tokens.
 	registry name.Registry
 	// See https://tools.ietf.org/html/rfc6750#section-3
@@ -67,24 +69,48 @@ func stringSet(ss []string) map[string]struct{} {
 
 // RoundTrip implements http.RoundTripper
 func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
-	sendRequest := func() (*http.Response, error) {
+	sendRequest := func(registryToken string) (*http.Response, error) {
 		// http.Client handles redirects at a layer above the http.RoundTripper
 		// abstraction, so to avoid forwarding Authorization headers to places
 		// we are redirected, only set it when the authorization header matches
 		// the registry with which we are interacting.
 		// In case of redirect http.Client can use an empty Host, check URL too.
 		if matchesHost(bt.registry, in, bt.scheme) {
-			hdr := fmt.Sprintf("Bearer %s", bt.bearer.RegistryToken)
+			hdr := fmt.Sprintf("Bearer %s", registryToken)
 			in.Header.Set("Authorization", hdr)
 		}
 		return bt.inner.RoundTrip(in)
 	}
 
-	res, err := sendRequest()
-	if err != nil {
-		return nil, err
+	var res *http.Response
+	var err error
+	var refreshed bool
+	for index, _ := range bt.bearer {
+		res, err = sendRequest(bt.bearerTokenList[index])
+		if err != nil {
+			return nil, err
+		}
+
+		if refreshed, err = bt.refreshWithChallenges(in, res); err != nil {
+			return nil, err
+		}
+		if refreshed {
+			res, err = sendRequest(bt.bearerTokenList[index])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if res.StatusCode == http.StatusOK {
+			return res, nil
+		}
 	}
 
+	return res, err
+}
+
+// refreshWithChallenges implements token refresh if there are Challenges
+func (bt *bearerTransport) refreshWithChallenges(in *http.Request, res *http.Response) (bool, error) {
 	// If we hit a WWW-Authenticate challenge, it might be due to expired tokens or insufficient scope.
 	if challenges := authchallenge.ResponseChallenges(res); len(challenges) != 0 {
 		newScopes := []string{}
@@ -108,13 +134,13 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		// TODO(jonjohnsonjr): Teach transport.Error about "error" and "error_description" from challenge.
 
 		// Retry the request to attempt to get a valid token.
-		if err = bt.refresh(in.Context()); err != nil {
-			return nil, err
+		if err := bt.refresh(in.Context()); err != nil {
+			return false, err
 		}
-		return sendRequest()
+		return true, nil
 	}
 
-	return res, err
+	return false, nil
 }
 
 // It's unclear which authentication flow to use based purely on the protocol,
@@ -122,17 +148,32 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 // The basic token exchange is attempted first, falling back to the oauth flow.
 // If the IdentityToken is set, this indicates that we should start with the oauth flow.
 func (bt *bearerTransport) refresh(ctx context.Context) error {
-	auth, err := bt.basic.Authorization()
-	if err != nil {
+	if err := bt.initBearerCfg(); err != nil {
 		return err
 	}
 
-	if auth.RegistryToken != "" {
-		bt.bearer.RegistryToken = auth.RegistryToken
-		return nil
+	var err error
+	var isSuccessOne = false
+	for index, auth := range bt.bearer {
+		bt.basic = authn.FromConfig(auth)
+		if err = bt.refreshSingleAuthToken(ctx, auth, index); err != nil {
+			continue
+		}
+		isSuccessOne = true
 	}
 
+	if isSuccessOne {
+		return nil
+	}
+	return err
+}
+
+// refreshSingleAuth implements refresh the token based on the given auth
+func (bt *bearerTransport) refreshSingleAuthToken(ctx context.Context,
+	auth authn.AuthConfig,
+	bearerIndex int) error {
 	var content []byte
+	var err error
 	if auth.IdentityToken != "" {
 		// If the secret being stored is an identity token,
 		// the Username should be set to <token>, which indicates
@@ -172,16 +213,41 @@ func (bt *bearerTransport) refresh(ctx context.Context) error {
 
 	// Find a token to turn into a Bearer authenticator
 	if response.Token != "" {
-		bt.bearer.RegistryToken = response.Token
+		bt.bearerTokenList[bearerIndex] = response.Token
 	} else {
 		return fmt.Errorf("no token in bearer response:\n%s", content)
 	}
 
 	// If we obtained a refresh token from the oauth flow, use that for refresh() now.
 	if response.RefreshToken != "" {
-		bt.basic = authn.FromConfig(authn.AuthConfig{
+		bt.bearer[bearerIndex] = authn.AuthConfig{
 			IdentityToken: response.RefreshToken,
-		})
+		}
+	}
+
+	return nil
+}
+
+// initBearerCfg implements bearerTransport.bearer init operation
+func (bt *bearerTransport) initBearerCfg() error {
+	if len(bt.bearer) == 0 {
+		var auths []authn.AuthConfig
+		if multiAuth, ok := bt.basic.(authn.MultiAuthenticator); ok {
+			authCfgs, err := multiAuth.Authorizations()
+			if err != nil {
+				return err
+			}
+			auths = append(auths, authCfgs...)
+		} else {
+			authCfg, err := bt.basic.Authorization()
+			if err != nil {
+				return err
+			}
+			auths = append(auths, *authCfg)
+		}
+
+		bt.bearer = auths
+		bt.bearerTokenList = make([]string, len(auths))
 	}
 
 	return nil

@@ -35,26 +35,40 @@ func (mk *multiKeychain) Resolve(target Resource) (Authenticator, error) {
 			if err != nil {
 				return nil, err
 			}
-			auths = append(auths, manyAuths...)
+			noneAnonymousAuths := filterAnonymousAuthenticator(manyAuths...)
+			auths = append(auths, noneAnonymousAuths...)
 		} else {
 			singleAuth, err := kc.Resolve(target)
 			if err != nil {
 				return nil, err
 			}
-			auths = append(auths, singleAuth)
+			noneAnonymousAuths := filterAnonymousAuthenticator(singleAuth)
+			auths = append(auths, noneAnonymousAuths...)
 		}
 	}
 	if len(auths) == 0 {
 		return Anonymous, nil
 	}
-	return multiAuthenticator{auths: auths}, nil
+	return &multiAuthenticator{auths: auths}, nil
+}
+
+// filterAnonymousAuthenticator filter Authenticators which is not Anonymous.
+func filterAnonymousAuthenticator(auths ...Authenticator) []Authenticator {
+	var noneAnonymousAuths []Authenticator
+	for _, v := range auths {
+		if v != Anonymous {
+			noneAnonymousAuths = append(noneAnonymousAuths, v)
+		}
+	}
+
+	return noneAnonymousAuths
 }
 
 type multiAuthenticator struct {
 	auths []Authenticator
 }
 
-func (ma multiAuthenticator) Authorization() (*AuthConfig, error) {
+func (ma *multiAuthenticator) Authorization() (*AuthConfig, error) {
 	auths, err := ma.Authorizations()
 	if err != nil {
 		return nil, err
@@ -65,19 +79,11 @@ func (ma multiAuthenticator) Authorization() (*AuthConfig, error) {
 func (ma *multiAuthenticator) Authorizations() ([]AuthConfig, error) {
 	var auths []AuthConfig
 	for _, a := range ma.auths {
-		if ma, ok := a.(MultiAuthenticator); ok {
-			as, err := ma.Authorizations()
-			if err != nil {
-				return nil, err
-			}
-			auths = append(auths, as...)
-		} else {
-			a, err := a.Authorization()
-			if err != nil {
-				return nil, err
-			}
-			auths = append(auths, *a)
+		a, err := a.Authorization()
+		if err != nil {
+			return nil, err
 		}
+		auths = append(auths, *a)
 	}
 	return auths, nil
 }
