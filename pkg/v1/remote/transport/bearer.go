@@ -83,9 +83,15 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	}
 
 	var res *http.Response
-	var err error
 	var refreshed bool
-	for index, _ := range bt.bearer {
+	var err error
+	if len(bt.bearer) != len(bt.bearerTokenList) {
+		err = bt.refresh(in.Context())
+		if err != nil {
+			return nil, err
+		}
+	}
+	for index := range bt.bearer {
 		res, err = sendRequest(bt.bearerTokenList[index])
 		if err != nil {
 			return nil, err
@@ -106,7 +112,7 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		}
 	}
 
-	return res, err
+	return res, nil
 }
 
 // refreshWithChallenges implements token refresh if there are Challenges

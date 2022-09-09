@@ -44,6 +44,7 @@ type Keychain interface {
 	Resolve(Resource) (Authenticator, error)
 }
 
+// KeychainMany is an interface for resolving an image reference to multiple credentials.
 type KeychainMany interface {
 	ResolveMany(Resource) ([]Authenticator, error)
 }

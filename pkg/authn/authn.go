@@ -27,6 +27,7 @@ type Authenticator interface {
 	Authorization() (*AuthConfig, error)
 }
 
+// MultiAuthenticator is used to authenticate Docker transports with multiple configs.
 type MultiAuthenticator interface {
 	Authorizations() ([]AuthConfig, error)
 }

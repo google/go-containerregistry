@@ -77,7 +77,7 @@ func (ma *multiAuthenticator) Authorization() (*AuthConfig, error) {
 }
 
 func (ma *multiAuthenticator) Authorizations() ([]AuthConfig, error) {
-	var auths []AuthConfig
+	auths := []AuthConfig{}
 	for _, a := range ma.auths {
 		a, err := a.Authorization()
 		if err != nil {

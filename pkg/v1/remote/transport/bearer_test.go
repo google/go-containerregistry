@@ -127,10 +127,11 @@ func TestBearerTransport(t *testing.T) {
 	}
 
 	client := http.Client{Transport: &bearerTransport{
-		inner:    &http.Transport{},
-		bearer:   authn.AuthConfig{RegistryToken: expectedToken},
-		registry: registry,
-		scheme:   "http",
+		inner:           &http.Transport{},
+		bearer:          []authn.AuthConfig{{RegistryToken: expectedToken}},
+		bearerTokenList: []string{expectedToken},
+		registry:        registry,
+		scheme:          "http",
 	}}
 
 	_, err = client.Get(fmt.Sprintf("http://%s/v2/auth", u.Host))
@@ -176,7 +177,8 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	// Pass Username/Password
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
-		bearer:   authn.AuthConfig{RegistryToken: initialToken},
+		bearer:   []authn.AuthConfig{{RegistryToken: initialToken}},
+		bearerTokenList: []string{initialToken},
 		basic:    &authn.Basic{Username: "foo", Password: "bar"},
 		registry: registry,
 		realm:    server.URL,
@@ -192,12 +194,12 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
 	}
-	if got, want := transport.bearer.RegistryToken, refreshedToken; got != want {
+	if got, want := transport.bearer[0].RegistryToken, refreshedToken; got != want {
 		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
 	}
 
 	// Pass RegistryToken directly
-	transport.bearer = authn.AuthConfig{RegistryToken: initialToken}
+	transport.bearer = []authn.AuthConfig{{RegistryToken: initialToken}}
 	transport.basic = &authn.Bearer{Token: refreshedToken}
 	client = http.Client{Transport: transport}
 
@@ -209,7 +211,7 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
 	}
-	if got, want := transport.bearer.RegistryToken, refreshedToken; got != want {
+	if got, want := transport.bearer[0].RegistryToken, refreshedToken; got != want {
 		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
 	}
 }
@@ -271,7 +273,7 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
 	}
-	if want, got := transport.bearer.RegistryToken, accessToken; want != got {
+	if want, got := transport.bearer[0].RegistryToken, accessToken; want != got {
 		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
 	}
 	basicAuthConfig, err := transport.basic.Authorization()
@@ -339,7 +341,7 @@ func TestBearerTransportOauth404Fallback(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
 	}
-	if got, want := transport.bearer.RegistryToken, accessToken; got != want {
+	if got, want := transport.bearer[0].RegistryToken, accessToken; got != want {
 		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
 	}
 }

@@ -17,9 +17,11 @@ package transport
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 )
 
 type basicTransport struct {
@@ -50,8 +52,6 @@ func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	}
 
 	for idx, auth := range auths {
-		last := idx == len(auths)-1
-
 		// http.Client handles redirects at a layer above the http.RoundTripper
 		// abstraction, so to avoid forwarding Authorization headers to places
 		// we are redirected, only set it when the authorization header matches
@@ -77,9 +77,11 @@ func (bt *basicTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		}
 
 		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-			if last {
+			if idx == len(auths)-1 {
 				return resp, nil
 			}
+			respBody, _ := ioutil.ReadAll(resp.Body)
+			logs.Debug.Printf("Basic Transport check error, the response is:%s", string(respBody))
 			continue
 		} else {
 			return resp, nil
