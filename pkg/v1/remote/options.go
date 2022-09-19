@@ -84,7 +84,7 @@ const (
 
 // DefaultTransport is based on http.DefaultTransport with modifications
 // documented inline below.
-var DefaultTransport = &http.Transport{
+var DefaultTransport http.RoundTripper = &http.Transport{
 	Proxy: http.ProxyFromEnvironment,
 	DialContext: (&net.Dialer{
 		// By default we wrap the transport in retries, so reduce the
