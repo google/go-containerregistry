@@ -70,7 +70,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 
 			options = append(options, crane.WithPlatform(platform.platform))
 
-			var rt http.RoundTripper = remote.DefaultTransport
+			rt := remote.DefaultTransport
 			if t, ok := remote.DefaultTransport.(interface {
 				Clone() *http.Transport
 			}); ok {
