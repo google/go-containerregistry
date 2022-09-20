@@ -70,15 +70,12 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 
 			options = append(options, crane.WithPlatform(platform.platform))
 
-			rt := remote.DefaultTransport
-			if t, ok := remote.DefaultTransport.(interface {
-				Clone() *http.Transport
-			}); ok {
-				t := t.Clone()
-				t.TLSClientConfig = &tls.Config{
-					InsecureSkipVerify: insecure, //nolint: gosec
-				}
+			transport := remote.DefaultTransport.(*http.Transport).Clone()
+			transport.TLSClientConfig = &tls.Config{
+				InsecureSkipVerify: insecure, //nolint: gosec
 			}
+
+			var rt http.RoundTripper = transport
 
 			// Add any http headers if they are set in the config file.
 			cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
