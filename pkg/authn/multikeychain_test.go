@@ -78,7 +78,7 @@ func TestMultiKeychain(t *testing.T) {
 			fixedKeychain{regOne: three, regTwo: two},
 			fixedKeychain{regOne: two},
 		),
-		want: one, // TODO: test that this actually has one,three,two internall and can return them all if asked.
+		want: one,
 	}}
 
 	for _, test := range tests {

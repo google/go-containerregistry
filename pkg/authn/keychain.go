@@ -45,6 +45,8 @@ type Keychain interface {
 }
 
 // KeychainMany is an interface for resolving an image reference to multiple credentials.
+// NOTE: This name might change before (or even after) we cut a release. Will be removed as soon
+// as we find a better name for it.
 type KeychainMany interface {
 	ResolveMany(Resource) ([]Authenticator, error)
 }
@@ -66,6 +68,7 @@ const (
 	DefaultAuthKey = "https://" + name.DefaultRegistry + "/v1/"
 )
 
+// Resolve implements Keychain.
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	auths, err := dk.ResolveMany(target)
 	if err != nil {
@@ -75,7 +78,7 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	return auths[0], nil
 }
 
-// ResolveMany implements MultiKeychain.
+// ResolveMany implements KeychainMany.
 func (dk *defaultKeychain) ResolveMany(target Resource) ([]Authenticator, error) {
 	dk.mu.Lock()
 	defer dk.mu.Unlock()

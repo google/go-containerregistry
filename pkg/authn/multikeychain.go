@@ -68,6 +68,17 @@ type multiAuthenticator struct {
 	auths []Authenticator
 }
 
+// FromConfigs returns an Authenticator that returns the given multiple AuthConfig.
+func FromConfigs(cfgs []AuthConfig) Authenticator {
+	multiAuth := multiAuthenticator{auths: []Authenticator{}}
+	for _, cfg := range cfgs {
+		auth := FromConfig(cfg)
+		multiAuth.auths = append(multiAuth.auths, auth)
+	}
+	return &multiAuth
+}
+
+// Authorization implements Authenticator.
 func (ma *multiAuthenticator) Authorization() (*AuthConfig, error) {
 	auths, err := ma.Authorizations()
 	if err != nil {
@@ -76,6 +87,7 @@ func (ma *multiAuthenticator) Authorization() (*AuthConfig, error) {
 	return &auths[0], nil
 }
 
+// Authorizations implements get multiple Authenticator.
 func (ma *multiAuthenticator) Authorizations() ([]AuthConfig, error) {
 	auths := []AuthConfig{}
 	for _, a := range ma.auths {

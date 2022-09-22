@@ -16,6 +16,7 @@ package transport
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -127,11 +128,10 @@ func TestBearerTransport(t *testing.T) {
 	}
 
 	client := http.Client{Transport: &bearerTransport{
-		inner:           &http.Transport{},
-		bearer:          []authn.AuthConfig{{RegistryToken: expectedToken}},
-		bearerTokenList: []string{expectedToken},
-		registry:        registry,
-		scheme:          "http",
+		inner:    &http.Transport{},
+		bearer:   []authn.AuthConfig{{RegistryToken: expectedToken}},
+		registry: registry,
+		scheme:   "http",
 	}}
 
 	_, err = client.Get(fmt.Sprintf("http://%s/v2/auth", u.Host))
@@ -178,7 +178,6 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
 		bearer:   []authn.AuthConfig{{RegistryToken: initialToken}},
-		bearerTokenList: []string{initialToken},
 		basic:    &authn.Basic{Username: "foo", Password: "bar"},
 		registry: registry,
 		realm:    server.URL,
@@ -559,5 +558,110 @@ func TestInsufficientScope(t *testing.T) {
 
 	if !passed {
 		t.Error("didn't refresh insufficient scope")
+	}
+}
+
+func TestMultiAuthBearerRequest(t *testing.T) {
+	rightUserName := "foo"
+	rightPassword := "bar"
+	token := "token_work"
+
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hdr := r.Header.Get("Authorization")
+			if hdr == "Bearer "+token {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			delimited := fmt.Sprintf("%s:%s", rightUserName, rightPassword)
+			rightAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte(delimited))
+			if rightAuth == hdr {
+				w.Write([]byte(fmt.Sprintf(`{"token": %q}`, token)))
+			}
+
+			w.Header().Set("WWW-Authenticate", "scope=foo")
+			w.WriteHeader(http.StatusUnauthorized)
+		}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Fatalf("Unexpected error during NewRegistry: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		brear []authn.AuthConfig
+		auths []authn.AuthConfig
+		works bool
+	}{
+		{
+			name:  "All authConfig not works",
+			brear: []authn.AuthConfig{},
+			auths: []authn.AuthConfig{
+				{Username: "foo1", Password: "bar1"},
+				{Username: "foo2", Password: "bar2"},
+			},
+			works: false,
+		},
+		{
+			name:  "The right authConfig is in second place",
+			brear: []authn.AuthConfig{},
+			auths: []authn.AuthConfig{
+				{Username: "foo1", Password: "bar1"},
+				{Username: rightUserName, Password: rightPassword},
+			},
+			works: true,
+		},
+		{
+			name:  "The right authConfig is in first place",
+			brear: []authn.AuthConfig{},
+			auths: []authn.AuthConfig{
+				{Username: rightUserName, Password: rightPassword},
+				{Username: "foo1", Password: "bar1"},
+			},
+			works: true,
+		},
+		{
+			name: "Test the expired token will be refreshed",
+			brear: []authn.AuthConfig{
+				{RegistryToken: "expired"},
+				{RegistryToken: ""}, // the second is wrong username/password, so it hasn't token
+			},
+			auths: []authn.AuthConfig{
+				{Username: rightUserName, Password: rightPassword},
+				{Username: "foo1", Password: "bar1"},
+			},
+			works: true,
+		},
+	}
+	for _, test := range tests {
+		transport := &bearerTransport{
+			inner:    http.DefaultTransport,
+			bearer:   test.brear,
+			basic:    authn.FromConfigs(test.auths),
+			registry: registry,
+			realm:    server.URL,
+			scheme:   "http",
+		}
+		client := http.Client{Transport: transport}
+
+		res, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
+		if (err == nil) != test.works {
+			t.Errorf("Unexpected error during client.Get: %v", err)
+			return
+		}
+		if (res != nil && res.StatusCode == http.StatusOK) != test.works {
+			t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
+		}
+
+		if (transport.bearer[0].RegistryToken == token || transport.bearer[1].RegistryToken == token) != test.works {
+			t.Errorf("Expected Bearer token to be refreshed, but not")
+		}
 	}
 }

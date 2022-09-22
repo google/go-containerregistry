@@ -177,6 +177,7 @@ type keyring struct {
 	creds map[string][]authn.AuthConfig
 }
 
+// Resolve implements Keychain.
 func (keyring *keyring) Resolve(target authn.Resource) (authn.Authenticator, error) {
 	auths, err := keyring.ResolveMany(target)
 	if err != nil {
@@ -186,6 +187,7 @@ func (keyring *keyring) Resolve(target authn.Resource) (authn.Authenticator, err
 	return auths[0], nil
 }
 
+// ResolveMany implements KeychainMany.
 func (keyring *keyring) ResolveMany(target authn.Resource) ([]authn.Authenticator, error) {
 	image := target.String()
 	auths := []authn.AuthConfig{}
@@ -279,6 +281,7 @@ func urlsMatch(globURL *url.URL, targetURL *url.URL) (bool, error) {
 	return true, nil
 }
 
+// toAuthenticators transform AuthConfig to Authenticator interface
 func toAuthenticators(configs []authn.AuthConfig) []authn.Authenticator {
 	auths := make([]authn.Authenticator, 0, len(configs))
 	for _, cfg := range configs {
