@@ -13,7 +13,7 @@ A collection of useful things you can do with `crane` is [here](recipes.md).
 Download [latest release](https://github.com/google/go-containerregistry/releases/latest):
 
 ```
-$ VERSION=TODO   # Latest, or other
+$ VERSION=TODO   # latest, or other
 $ OS=Linux       # or Darwin, Windows
 $ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x
 $ curl -sL "https://github.com/google/go-containerregistry/releases/download/v${VERSION}/go-containerregistry_${VERSION}_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
