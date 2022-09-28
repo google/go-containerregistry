@@ -1,0 +1,28 @@
+name: Create Debug Base Image Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ 'main']
+jobs:
+  build:
+    name: Release Debug Base OCI image
+    runs-on: ubuntu-latest
+
+    # https://docs.github.com/en/actions/reference/authentication-in-a-workflow
+    permissions:
+      id-token: write
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: imjasonh/setup-crane@v0.1
+      - id: apko
+        uses: chainguard-images/actions/apko-snapshot@main
+        with:
+          config: apko.yaml
+          image_refs: apko.images
+          base-tag: ghcr.io/${{ github.repository }}/debug-base
+          target-tag: latest
+          
