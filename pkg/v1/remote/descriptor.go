@@ -17,6 +17,8 @@ package remote
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -60,7 +62,7 @@ type Descriptor struct {
 	v1.Descriptor
 	Manifest []byte
 
-	// So we can share this implementation with Image..
+	// So we can share this implementation with Image.
 	platform v1.Platform
 }
 
@@ -237,6 +239,57 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 		Path:   fmt.Sprintf("/v2/%s/%s/%s", f.Ref.Context().RepositoryStr(), resource, identifier),
 	}
 }
+
+// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#referrers-tag-schema
+func fallbackTag(d name.Digest) name.Tag { return d.Context().Tag("sha256-" + d.DigestStr()) }
+
+func (f *fetcher) fetchReferrers(d name.Digest) (*v1.IndexManifest, error) {
+	u := f.url("referrers", d.String())
+	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", string(types.OCIImageIndex))
+
+	resp, err := f.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusNotFound, http.StatusBadRequest); err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusOK {
+		var im v1.IndexManifest
+		if err := json.NewDecoder(resp.Body).Decode(&im); err != nil {
+			return nil, err
+		}
+		return &im, nil
+	}
+
+	b, _, err := f.fetchManifest(fallbackTag(d), []types.MediaType{types.OCIImageIndex})
+	if err != nil {
+		return nil, err
+	}
+	var terr *transport.Error
+	if ok := errors.As(err, &terr); ok && terr.StatusCode == http.StatusNotFound {
+		// Not found just means there are no attachments yet. Start with an empty manifest.
+		return &v1.IndexManifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIImageIndex,
+			Manifests:     []v1.Descriptor{},
+		}, nil
+	}
+	// TODO: What am I supposed to do with a 400 here?
+	var im v1.IndexManifest
+	if err := json.Unmarshal(b, &im); err != nil {
+		return nil, err
+	}
+	return nil, errReferrersNotSupported
+}
+
+var errReferrersNotSupported = errors.New("referrers API not supported")
 
 func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
 	u := f.url("manifests", ref.Identifier())
