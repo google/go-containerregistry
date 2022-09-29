@@ -286,10 +286,8 @@ func (f *fetcher) fetchReferrers(d name.Digest) (*v1.IndexManifest, error) {
 	if err := json.Unmarshal(b, &im); err != nil {
 		return nil, err
 	}
-	return nil, errReferrersNotSupported
+	return &im, nil
 }
-
-var errReferrersNotSupported = errors.New("referrers API not supported")
 
 func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
 	u := f.url("manifests", ref.Identifier())
