@@ -116,22 +116,18 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 	return ConfigFile(base, cf)
 }
 
-// Annotations mutates the annotations on an annotatable image or index manifest.
+// Subject mutates the subject on an image or index manifest.
 //
-// The annotatable input is expected to be a v1.Image or v1.ImageIndex, and
+// The input is expected to be a v1.Image or v1.ImageIndex, and
 // returns the same type. You can type-assert the result like so:
 //
-//	img := Annotations(empty.Image, map[string]string{
-//	    "foo": "bar",
-//	}).(v1.Image)
+//	img := Subject(empty.Image, subj).(v1.Image)
 //
 // Or for an index:
 //
-//	idx := Annotations(empty.Index, map[string]string{
-//	    "foo": "bar",
-//	}).(v1.ImageIndex)
+//	idx := Subject(empty.Image, subj).(v1.ImageIndex)
 //
-// If the input Annotatable is not an Image or ImageIndex, the result will
+// If the input is not an Image or ImageIndex, the result will
 // attempt to lazily annotate the raw manifest.
 func Subject(f partial.WithRawManifest, subject v1.Descriptor) partial.WithRawManifest {
 	if img, ok := f.(v1.Image); ok {

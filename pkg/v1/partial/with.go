@@ -407,6 +407,7 @@ type WithReferrers interface {
 	Referrers() ([]v1.Descriptor, error)
 }
 
+// Referrers returns a list of descriptors that refer to this manifest.
 func Referrers(wr WithReferrers) ([]v1.Descriptor, error) {
 	return wr.Referrers()
 }
