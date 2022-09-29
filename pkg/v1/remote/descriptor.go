@@ -243,9 +243,10 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#referrers-tag-schema
 func fallbackTag(d name.Digest) name.Tag { return d.Context().Tag("sha256-" + d.DigestStr()) }
 
-func (f *fetcher) fetchReferrers(d name.Digest) (*v1.IndexManifest, error) {
+func (f *fetcher) fetchReferrers(ctx context.Context, d name.Digest) ([]v1.Descriptor, error) {
+	// Check the Referrers API endpoint first.
 	u := f.url("referrers", d.String())
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -265,9 +266,10 @@ func (f *fetcher) fetchReferrers(d name.Digest) (*v1.IndexManifest, error) {
 		if err := json.NewDecoder(resp.Body).Decode(&im); err != nil {
 			return nil, err
 		}
-		return &im, nil
+		return im.Manifests, nil
 	}
 
+	// The registry doesn't support the Referrers API endpoint, so we'll use the fallback tag scheme.
 	b, _, err := f.fetchManifest(fallbackTag(d), []types.MediaType{types.OCIImageIndex})
 	if err != nil {
 		return nil, err
@@ -275,18 +277,14 @@ func (f *fetcher) fetchReferrers(d name.Digest) (*v1.IndexManifest, error) {
 	var terr *transport.Error
 	if ok := errors.As(err, &terr); ok && terr.StatusCode == http.StatusNotFound {
 		// Not found just means there are no attachments yet. Start with an empty manifest.
-		return &v1.IndexManifest{
-			SchemaVersion: 2,
-			MediaType:     types.OCIImageIndex,
-			Manifests:     []v1.Descriptor{},
-		}, nil
+		return nil, nil
 	}
 	// TODO: What am I supposed to do with a 400 here?
 	var im v1.IndexManifest
 	if err := json.Unmarshal(b, &im); err != nil {
 		return nil, err
 	}
-	return &im, nil
+	return im.Manifests, nil
 }
 
 func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {

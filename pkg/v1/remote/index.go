@@ -181,6 +181,16 @@ func (r *remoteIndex) Manifests() ([]partial.Describable, error) {
 	return manifests, nil
 }
 
+func (r *remoteIndex) Referrers() ([]v1.Descriptor, error) {
+	descs, err := r.fetcher.fetchReferrers(r.context, r.Ref.Context().Digest(r.descriptor.Digest.String()))
+	if err != nil {
+		return nil, err
+	}
+	return descs, nil
+}
+
+// TODO: img.Subject()?
+
 func (r *remoteIndex) imageByPlatform(platform v1.Platform) (v1.Image, error) {
 	desc, err := r.childByPlatform(platform)
 	if err != nil {

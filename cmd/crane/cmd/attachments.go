@@ -23,11 +23,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewCmdAttachmemts creates a new cobra.Command for the attachments subcommand.
-func NewCmdAttachmemts(options *[]crane.Option) *cobra.Command {
-	attachmentsCmd := &cobra.Command{
-		Use:   "attachments",
-		Short: "List attachments on an image",
+// NewCmdReferrers creates a new cobra.Command for the referrers subcommand.
+func NewCmdReferrers(options *[]crane.Option) *cobra.Command {
+	referrersCmd := &cobra.Command{
+		Use:   "referrers",
+		Short: "List referrers of an image",
 		// TODO: Long
 		Args: cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -43,12 +43,13 @@ func NewCmdAttachmemts(options *[]crane.Option) *cobra.Command {
 			} else {
 				desc, err := remote.Head(ref) // TODO options
 				if err != nil {
+					// If you asked for a tag and it doesn't exist, we can't help you.
 					return err
 				}
 				dig = ref.Context().Digest(desc.Digest.String())
 			}
 
-			descs, err := remote.Attachments(dig) // TODO options
+			descs, err := remote.Referrers(dig) // TODO options
 			if err != nil {
 				return err
 			}
@@ -58,5 +59,5 @@ func NewCmdAttachmemts(options *[]crane.Option) *cobra.Command {
 			return nil
 		},
 	}
-	return attachmentsCmd
+	return referrersCmd
 }

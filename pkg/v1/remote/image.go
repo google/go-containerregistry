@@ -131,6 +131,16 @@ func (r *remoteImage) Descriptor() (*v1.Descriptor, error) {
 	return r.descriptor, err
 }
 
+func (r *remoteImage) Referrers() ([]v1.Descriptor, error) {
+	descs, err := r.fetcher.fetchReferrers(r.context, r.Ref.Context().Digest(r.descriptor.Digest.String()))
+	if err != nil {
+		return nil, err
+	}
+	return descs, nil
+}
+
+// TODO: img.Subject()?
+
 // remoteImageLayer implements partial.CompressedLayer
 type remoteImageLayer struct {
 	ri     *remoteImage

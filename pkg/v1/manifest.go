@@ -40,14 +40,15 @@ type IndexManifest struct {
 	Subject       *Descriptor       `json:"subject,omitempty"`
 }
 
+// TODO: Define ArtifactManifest and remote methods.
 // ArtifactManifest represents an OCI artifact in a structured way.
-type ArtifactManifest struct {
-	MediaType    types.MediaType   `json:"mediaType,omitempty"`
-	ArtifactType types.MediaType   `json:"artifactType,omitempty"`
-	Blobs        []Descriptor      `json:"blobs,omitempty"`
-	Annotations  map[string]string `json:"annotations,omitempty"`
-	Subject      *Descriptor       `json:"subject,omitempty"`
-}
+// type ArtifactManifest struct {
+// 	MediaType    types.MediaType   `json:"mediaType,omitempty"`
+// 	ArtifactType types.MediaType   `json:"artifactType,omitempty"`
+// 	Blobs        []Descriptor      `json:"blobs,omitempty"`
+// 	Annotations  map[string]string `json:"annotations,omitempty"`
+// 	Subject      *Descriptor       `json:"subject,omitempty"`
+// }
 
 // Descriptor holds a reference from the manifest to one of its constituent elements.
 type Descriptor struct {

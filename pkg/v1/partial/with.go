@@ -400,3 +400,13 @@ func unwrap(i interface{}) interface{} {
 	}
 	return i
 }
+
+// WithReferrers defines the subset of v1.Image and v1.ImageIndex used by these helper methods.
+type WithReferrers interface {
+	// Referrers returns a list of descriptors that refer to this manifest.
+	Referrers() ([]v1.Descriptor, error)
+}
+
+func Referrers(wr WithReferrers) ([]v1.Descriptor, error) {
+	return wr.Referrers()
+}
