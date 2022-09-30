@@ -18,6 +18,7 @@ import (
 	_ "crypto/sha256" // Recommended by go-digest.
 	"strings"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -46,6 +47,12 @@ func (d Digest) Identifier() string {
 // DigestStr returns the digest component of the Digest.
 func (d Digest) DigestStr() string {
 	return d.digest
+}
+
+// Digest returns the digest component of the Digest, parsed as a v1.Hash.
+func (d Digest) Digest() v1.Hash {
+	h, _ := v1.NewHash(d.digest)
+	return h
 }
 
 // Name returns the name from which the Digest was derived.

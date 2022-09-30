@@ -241,7 +241,9 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 }
 
 // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#referrers-tag-schema
-func fallbackTag(d name.Digest) name.Tag { return d.Context().Tag("sha256-" + d.DigestStr()) }
+func fallbackTag(d name.Digest) name.Tag {
+	return d.Context().Tag(fmt.Sprintf("%s-%s"+d.Digest().Algorithm, d.Digest().Hex))
+}
 
 func (f *fetcher) fetchReferrers(ctx context.Context, d name.Digest) ([]v1.Descriptor, error) {
 	// Check the Referrers API endpoint first.

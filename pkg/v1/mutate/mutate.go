@@ -125,7 +125,7 @@ func Config(base v1.Image, cfg v1.Config) (v1.Image, error) {
 //
 // Or for an index:
 //
-//	idx := Subject(empty.Image, subj).(v1.ImageIndex)
+//	idx := Subject(empty.Index, subj).(v1.ImageIndex)
 //
 // If the input is not an Image or ImageIndex, the result will
 // attempt to lazily annotate the raw manifest.
@@ -142,7 +142,7 @@ func Subject(f partial.WithRawManifest, subject v1.Descriptor) partial.WithRawMa
 			subject: &subject,
 		}
 	}
-	return arbitraryRawManifest{a: f, subject: subject}
+	return arbitraryRawManifest{a: f, subject: &subject}
 }
 
 // Annotations mutates the annotations on an annotatable image or index manifest.
@@ -181,7 +181,7 @@ func Annotations(f partial.WithRawManifest, anns map[string]string) partial.With
 type arbitraryRawManifest struct {
 	a       partial.WithRawManifest
 	anns    map[string]string
-	subject v1.Descriptor
+	subject *v1.Descriptor
 }
 
 func (a arbitraryRawManifest) RawManifest() ([]byte, error) {
@@ -203,6 +203,9 @@ func (a arbitraryRawManifest) RawManifest() ([]byte, error) {
 		}
 	} else {
 		m["annotations"] = a.anns
+	}
+	if a.subject != nil {
+		m["subject"] = a.subject
 	}
 	return json.Marshal(m)
 }
