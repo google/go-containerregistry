@@ -15,11 +15,9 @@
 package cmd
 
 import (
-	"log"
+	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
@@ -33,28 +31,14 @@ func NewCmdReferrers(options *[]crane.Option) *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			refstr := args[0]
 
-			var dig name.Digest
-			ref, err := name.ParseReference(refstr)
+			descs, err := crane.Referrers(refstr, *options...)
 			if err != nil {
 				return err
-			}
-			if digr, ok := ref.(name.Digest); ok {
-				dig = digr
-			} else {
-				desc, err := remote.Head(ref) // TODO options
-				if err != nil {
-					// If you asked for a tag and it doesn't exist, we can't help you.
-					return err
-				}
-				dig = ref.Context().Digest(desc.Digest.String())
 			}
 
-			descs, err := remote.Referrers(dig) // TODO options
-			if err != nil {
-				return err
-			}
+			// TODO: Format this better.
 			for _, d := range descs {
-				log.Println("-", d.Digest, d.MediaType) // TODO: format for real
+				fmt.Println("-", d.Digest, d.MediaType)
 			}
 			return nil
 		},

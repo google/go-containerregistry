@@ -603,6 +603,7 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 		// The registry supports Referrers API. The registry is responsible for updating the referrers list.
 		return nil
 	}
+
 	// The registry doesn't support Referrers API, we need to update the manifest tagged with the fallback tag.
 	// Make the request to GET the current manifest.
 	t := fallbackTag(sub)
@@ -641,6 +642,7 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 		for _, desc := range im.Manifests {
 			if desc.Digest == add.Digest {
 				// The digest is already attached, nothing to do.
+				logs.Progress.Printf("fallback tag %s already had referrer", t.Identifier())
 				return nil
 			}
 		}
@@ -652,7 +654,11 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 	sort.Slice(im.Manifests, func(i, j int) bool {
 		return im.Manifests[i].Digest.String() < im.Manifests[j].Digest.String()
 	})
-	return w.commitManifest(ctx, fallbackTaggable{im}, t)
+	if err := w.commitManifest(ctx, fallbackTaggable{im}, t); err != nil {
+		return err
+	}
+	logs.Progress.Printf("updated fallback tag %s with new referrer", t.Identifier())
+	return nil
 }
 
 type fallbackTaggable struct {
