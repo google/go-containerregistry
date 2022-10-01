@@ -583,13 +583,13 @@ func unpackTaggable(t Taggable) ([]byte, *v1.Descriptor, error) {
 // commitSubjectReferrers is responsible for updating the fallback tag manifest to track descriptors referring to a subject for registries that don't yet support the Referrers API.
 func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, add v1.Descriptor) error {
 	// Check if the registry supports Referrers API.
-	// TODO: This should be done once per registry, not once per new subject.
+	// TODO: This should be done once per registry, not once per subject.
 	u := w.url(fmt.Sprintf("/v2/%s/referrers/%s", w.repo.RepositoryStr(), sub.DigestStr()))
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", string(types.OCIImageIndex))
+	req.Header.Set("Accept", string(types.OCIImageIndex))
 	resp, err := w.client.Do(req.WithContext(ctx))
 	if err != nil {
 		return err
@@ -611,18 +611,17 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", string(types.OCIImageIndex))
+	req.Header.Set("Accept", string(types.OCIImageIndex))
 	resp, err = w.client.Do(req.WithContext(ctx))
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
+
+	var im v1.IndexManifest
 	if err := transport.CheckError(resp, http.StatusOK, http.StatusNotFound); err != nil {
 		return err
-	}
-	var terr *transport.Error
-	var im v1.IndexManifest
-	if ok := errors.As(err, &terr); ok && terr.StatusCode == http.StatusNotFound {
+	} else if resp.StatusCode == http.StatusNotFound {
 		// Not found just means there are no attachments. Start with an empty index.
 		im = v1.IndexManifest{
 			SchemaVersion: 2,
@@ -632,6 +631,12 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 	} else {
 		if err := json.NewDecoder(resp.Body).Decode(&im); err != nil {
 			return err
+		}
+		if im.SchemaVersion != 2 {
+			return fmt.Errorf("fallback tag manifest is not a schema version 2: %d", im.SchemaVersion)
+		}
+		if im.MediaType != types.OCIImageIndex {
+			return fmt.Errorf("fallback tag manifest is not an OCI image index: %s", im.MediaType)
 		}
 		for _, desc := range im.Manifests {
 			if desc.Digest == add.Digest {
@@ -647,12 +652,15 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 	sort.Slice(im.Manifests, func(i, j int) bool {
 		return im.Manifests[i].Digest.String() < im.Manifests[j].Digest.String()
 	})
-	return w.commitManifest(ctx, fallbackTaggable(im), t)
+	return w.commitManifest(ctx, fallbackTaggable{im}, t)
 }
 
-type fallbackTaggable v1.IndexManifest
+type fallbackTaggable struct {
+	im v1.IndexManifest
+}
 
-func (f fallbackTaggable) RawManifest() ([]byte, error) { return json.Marshal(f) }
+func (f fallbackTaggable) RawManifest() ([]byte, error)        { return json.Marshal(f.im) }
+func (f fallbackTaggable) MediaType() (types.MediaType, error) { return types.OCIImageIndex, nil }
 
 // commitManifest does a PUT of the image's manifest.
 func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Reference) error {
@@ -667,22 +675,6 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 	}
 	if err := json.Unmarshal(raw, &mf); err != nil {
 		return err
-	}
-	if mf.Subject != nil {
-		h, size, err := v1.SHA256(bytes.NewReader(raw))
-		if err != nil {
-			return err
-		}
-		desc := v1.Descriptor{
-			MediaType: mf.MediaType,
-			Digest:    h,
-			Size:      size,
-		}
-		if err := w.commitSubjectReferrers(ctx,
-			ref.Context().Digest(mf.Subject.Digest.String()),
-			desc); err != nil {
-			return err
-		}
 	}
 
 	tryUpload := func() error {
@@ -708,6 +700,25 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 
 		if err := transport.CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
 			return err
+		}
+
+		// If the manifest referred to a subject, we may need to update the fallback tag manifest.
+		// TODO: If this fails, we'll retry the whole upload. We should retry just this part.
+		if mf.Subject != nil {
+			h, size, err := v1.SHA256(bytes.NewReader(raw))
+			if err != nil {
+				return err
+			}
+			desc := v1.Descriptor{
+				MediaType: mf.MediaType,
+				Digest:    h,
+				Size:      size,
+			}
+			if err := w.commitSubjectReferrers(ctx,
+				ref.Context().Digest(mf.Subject.Digest.String()),
+				desc); err != nil {
+				return err
+			}
 		}
 
 		// The image was successfully pushed!

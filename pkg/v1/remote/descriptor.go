@@ -242,12 +242,12 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 
 // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#referrers-tag-schema
 func fallbackTag(d name.Digest) name.Tag {
-	return d.Context().Tag(fmt.Sprintf("%s-%s"+d.Digest().Algorithm, d.Digest().Hex))
+	return d.Context().Tag(fmt.Sprintf("%s-%s", d.Digest().Algorithm, d.Digest().Hex))
 }
 
 func (f *fetcher) fetchReferrers(ctx context.Context, d name.Digest) ([]v1.Descriptor, error) {
 	// Check the Referrers API endpoint first.
-	u := f.url("referrers", d.String())
+	u := f.url("referrers", d.DigestStr())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
