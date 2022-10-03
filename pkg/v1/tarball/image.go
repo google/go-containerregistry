@@ -227,6 +227,10 @@ func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
+	f, err = opener()
+	if err != nil {
+		return nil, err
+	}
 	if iscompressed {
 		f, err = gzip.UnzipReadCloser(f)
 		if err != nil {
