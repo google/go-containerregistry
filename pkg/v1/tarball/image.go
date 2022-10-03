@@ -223,7 +223,16 @@ func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, error) {
 			f.Close()
 		}
 	}()
-
+	iscompressed, err := gzip.Is(f)
+	if err != nil {
+		return nil, err
+	}
+	if iscompressed {
+		f, err = gzip.UnzipReadCloser(f)
+		if err != nil {
+			return nil, err
+		}
+	}
 	tf := tar.NewReader(f)
 	for {
 		hdr, err := tf.Next()
