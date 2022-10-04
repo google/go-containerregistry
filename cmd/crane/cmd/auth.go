@@ -39,7 +39,7 @@ func NewCmdAuth(options []crane.Option, argv ...string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Usage() },
 	}
-	cmd.AddCommand(NewCmdAuthGet(options, argv...), NewCmdAuthLogin(argv...))
+	cmd.AddCommand(NewCmdAuthGet(options, argv...), NewCmdAuthLogin(argv...), NewCmdAuthLogout(argv...))
 	return cmd
 }
 
@@ -161,6 +161,25 @@ func NewCmdAuthLogin(argv ...string) *cobra.Command {
 	return cmd
 }
 
+func NewCmdAuthLogout(argv ...string) *cobra.Command {
+	if len(argv) == 0 {
+		argv = []string{os.Args[0]}
+	}
+
+	eg := fmt.Sprintf(`  # Log out from reg.example.com
+  %s logout reg.example.com`, strings.Join(argv, " "))
+
+	return &cobra.Command{
+		Use:     "logout [SERVER]",
+		Short:   "Log out from a registry",
+		Example: eg,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return logout(args[0])
+		},
+	}
+}
+
 type loginOptions struct {
 	serverAddress string
 	user          string
@@ -201,5 +220,24 @@ func login(opts loginOptions) error {
 		return err
 	}
 	log.Printf("logged in via %s", cf.Filename)
+	return nil
+}
+
+func logout(server string) error {
+	cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
+	if err != nil {
+		return err
+	}
+	creds := cf.GetCredentialsStore(server)
+
+	err = creds.Erase(server)
+	if err != nil {
+		return err
+	}
+
+	if err := cf.Save(); err != nil {
+		return err
+	}
+	log.Printf("logged out from %s via %s", server, cf.Filename)
 	return nil
 }
