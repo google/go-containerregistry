@@ -41,6 +41,15 @@ func (r Registry) RegistryStr() string {
 	return r.registry
 }
 
+// SplitURL splits the registry into a hostname part and a path part
+func (r Registry) SplitURL() (string, string) {
+	parts := strings.SplitN(r.RegistryStr(), "/", 2)
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	return parts[0], parts[1]
+}
+
 // Name returns the name from which the Registry was derived.
 func (r Registry) Name() string {
 	return r.RegistryStr()
@@ -94,13 +103,31 @@ func (r Registry) Scheme() string {
 	return "https"
 }
 
-func checkRegistry(name string) error {
+// Repository construct a repository under the registry.
+func (r Registry) Repository(repository string) Repository {
+	return Repository{
+		Registry:   r,
+		repository: repository,
+	}
+}
+
+func isValidRegistry(name string) bool {
 	// Per RFC 3986, registries (authorities) are required to be prefixed with "//"
 	// url.Host == hostname[:port] == authority
-	if url, err := url.Parse("//" + name); err != nil || url.Host != name {
-		return newErrBadName("registries must be valid RFC 3986 URI authorities: %s", name)
+	url, err := url.Parse("//" + name)
+	if err != nil {
+		return false
 	}
-	return nil
+
+	if !strings.HasPrefix(name, url.Host) {
+		return false
+	}
+
+	if url.RawQuery != "" || url.Fragment != "" {
+		return false
+	}
+
+	return true
 }
 
 // NewRegistry returns a Registry based on the given name.
@@ -111,8 +138,8 @@ func NewRegistry(name string, opts ...Option) (Registry, error) {
 		return Registry{}, newErrBadName("strict validation requires the registry to be explicitly defined")
 	}
 
-	if err := checkRegistry(name); err != nil {
-		return Registry{}, err
+	if !isValidRegistry(name) {
+		return Registry{}, newErrBadName("registries must be valid RFC 3986 URI authorities: %s", name)
 	}
 
 	if name == "" {

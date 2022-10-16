@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -70,7 +71,7 @@ func TestGetSchema1(t *testing.T) {
 
 	want := `unsupported MediaType: "application/vnd.docker.distribution.manifest.v1+prettyjws", see https://github.com/google/go-containerregistry/issues/377`
 	// Should fail based on media type.
-	if _, err := desc.Image(); err != nil {
+	if _, err = desc.Image(); err != nil {
 		if errors.Is(err, &ErrSchema1{}) {
 			t.Errorf("Image() = %v, expected remote.ErrSchema1", err)
 		}
@@ -82,7 +83,7 @@ func TestGetSchema1(t *testing.T) {
 	}
 
 	// Should fail based on media type.
-	if _, err := desc.ImageIndex(); err != nil {
+	if _, err = desc.ImageIndex(); err != nil {
 		var s1err ErrSchema1
 		if errors.Is(err, &s1err) {
 			t.Errorf("ImageImage() = %v, expected remote.ErrSchema1", err)
@@ -125,7 +126,7 @@ func TestGetImageAsIndex(t *testing.T) {
 	}
 
 	// Should fail based on media type.
-	if _, err := desc.ImageIndex(); err == nil {
+	if _, err = desc.ImageIndex(); err == nil {
 		t.Errorf("ImageIndex() = %v, expected err", err)
 	}
 }
@@ -213,7 +214,7 @@ func TestHead_MissingHeaders(t *testing.T) {
 
 	for _, repo := range []string{missingType, missingLength, missingDigest} {
 		tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, repo))
-		if _, err := Head(tag); err == nil {
+		if _, err = Head(tag); err == nil {
 			t.Errorf("Head(%q): expected error, got nil", tag)
 		}
 	}
@@ -256,4 +257,66 @@ func (errTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}, nil
 	}
 	return nil, fmt.Errorf("error reaching %s", req.URL.String())
+}
+
+func TestGetRegistryWithPath(t *testing.T) {
+	registryPath := "/path/to/registry"
+	expectedRepo := "foo/bar"
+	fakeDigest := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case registryPath + "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case registryPath + manifestPath:
+			if r.Method != http.MethodGet {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			w.Header().Set("Content-Type", string(types.DockerManifestSchema1Signed))
+			w.Header().Set("Docker-Content-Digest", fakeDigest)
+			w.Write([]byte("doesn't matter"))
+		case "/v2/":
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	repository := mustNewRegistry(t, u.Host+registryPath).
+		Repository(expectedRepo)
+
+	t.Run("Build", func(tt *testing.T) {
+		tag := repository.Tag("latest")
+
+		// Get should succeed even for invalid json. We don't parse the response.
+		_, err = Get(tag)
+		if err != nil {
+			tt.Fatalf("Get(%s) = %v", tag, err)
+		}
+	})
+
+	t.Run("Replace", func(tt *testing.T) {
+		tag := mustNewTag(t, fmt.Sprintf("%s/%s/%s:latest", u.Host, registryPath, expectedRepo))
+		tag.Repository = repository
+
+		_, err = Get(tag)
+		if err != nil {
+			tt.Fatalf("Get(%s) = %v", tag, err)
+		}
+	})
+
+	t.Run("Default", func(tt *testing.T) {
+		// The "naive" construction of a tag assumes the registry is just the host.
+		tag := mustNewTag(t, fmt.Sprintf("%s%s/%s:latest", u.Host, registryPath, expectedRepo))
+		_, err = Get(tag)
+		if err == nil {
+			tt.Fatalf("Get(%s) should've failed", tag)
+		}
+	})
 }

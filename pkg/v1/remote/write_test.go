@@ -33,6 +33,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -46,6 +47,14 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
+
+func mustNewRegistry(t *testing.T, s string) name.Registry {
+	registry, err := name.NewRegistry(s, name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewTag(%v) = %v", s, err)
+	}
+	return registry
+}
 
 func mustNewTag(t *testing.T, s string) name.Tag {
 	tag, err := name.NewTag(s, name.WeakValidation)

@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
+
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -188,9 +189,10 @@ func (bt *bearerTransport) refresh(ctx context.Context) error {
 }
 
 func matchesHost(reg name.Registry, in *http.Request, scheme string) bool {
+	domain, _ := reg.SplitURL()
+	canonicalRegistryHost := canonicalAddress(domain, scheme)
 	canonicalHeaderHost := canonicalAddress(in.Host, scheme)
 	canonicalURLHost := canonicalAddress(in.URL.Host, scheme)
-	canonicalRegistryHost := canonicalAddress(reg.RegistryStr(), scheme)
 	return canonicalHeaderHost == canonicalRegistryHost || canonicalURLHost == canonicalRegistryHost
 }
 

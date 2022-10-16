@@ -24,6 +24,7 @@ var goodStrictValidationRegistryNames = []string{
 	"index.docker.io",
 	"us.gcr.io",
 	"example.text",
+	"example.com/path/to/registry",
 	"localhost",
 	"localhost:9090",
 }
@@ -35,6 +36,8 @@ var goodWeakValidationRegistryNames = []string{
 var badRegistryNames = []string{
 	"white space",
 	"gcr?com",
+	"example.com/path/to/registry#fragment",
+	"example.com/path/to/registry?value=something",
 }
 
 func TestNewRegistryStrictValidation(t *testing.T) {

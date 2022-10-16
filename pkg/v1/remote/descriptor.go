@@ -231,10 +231,12 @@ func makeFetcher(ref name.Reference, o *options) (*fetcher, error) {
 
 // url returns a url.Url for the specified path in the context of this remote image reference.
 func (f *fetcher) url(resource, identifier string) url.URL {
+	domain, pathPrefix := f.Ref.Context().SplitURL()
+	pathPrefix = pathPrefix + "/v2"
 	return url.URL{
 		Scheme: f.Ref.Context().Registry.Scheme(),
-		Host:   f.Ref.Context().RegistryStr(),
-		Path:   fmt.Sprintf("/v2/%s/%s/%s", f.Ref.Context().RepositoryStr(), resource, identifier),
+		Host:   domain,
+		Path:   fmt.Sprintf("%s/%s/%s/%s", pathPrefix, f.Ref.Context().RepositoryStr(), resource, identifier),
 	}
 }
 
