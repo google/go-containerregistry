@@ -407,6 +407,23 @@ func TestCalls(t *testing.T) {
 			Method:      "GET",
 			URL:         "/v2/foo/tags/list?n=1000",
 			Code:        http.StatusOK,
+			Want:        `{"name":"foo","tags":["latest","tag1"]}`,
+		},
+		{
+			Description: "limit tags",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo", "foo/manifests/tag1": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/tags/list?n=1",
+			Code:        http.StatusOK,
+			Want:        `{"name":"foo","tags":["latest"]}`,
+		},
+		{
+			Description: "offset tags",
+			Manifests:   map[string]string{"foo/manifests/latest": "foo", "foo/manifests/tag1": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/tags/list?last=latest",
+			Code:        http.StatusOK,
+			Want:        `{"name":"foo","tags":["tag1"]}`,
 		},
 		{
 			Description: "list non existing tags",
