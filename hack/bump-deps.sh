@@ -42,6 +42,11 @@ go get -u ./...
 go mod tidy -compat=1.18
 go mod download
 
+cd ${PROJECT_ROOT}/pkg/v1/daemon
+go get -u ./...
+go mod tidy -compat=1.17
+go mod download
+
 cd ${PROJECT_ROOT}
 
 ./hack/update-deps.sh

@@ -6,7 +6,6 @@ require (
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3
 	github.com/docker/cli v23.0.4+incompatible
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/docker/docker v23.0.4+incompatible
 	github.com/google/go-cmp v0.5.9
 	github.com/klauspost/compress v1.16.5
 	github.com/mitchellh/go-homedir v1.1.0
@@ -21,16 +20,11 @@ require (
 require (
 	cloud.google.com/go/compute v1.19.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
-	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/docker/docker v23.0.4+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
-	github.com/docker/go-connections v0.4.0 // indirect
-	github.com/docker/go-units v0.5.0 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/moby/term v0.0.0-20221205130635-1aeaba878587 // indirect
-	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
@@ -39,7 +33,6 @@ require (
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/net v0.9.0 // indirect
 	golang.org/x/sys v0.7.0 // indirect
-	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
