@@ -25,7 +25,9 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -65,7 +67,10 @@ func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.K
 	var pullSecrets []corev1.Secret
 	for _, name := range opt.ImagePullSecrets {
 		ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, name, metav1.GetOptions{})
-		if err != nil {
+		if k8serrors.IsNotFound(err) {
+			logs.Warn.Printf("secret %s/%s not found; ignoring", opt.Namespace, name)
+			continue
+		} else if err != nil {
 			return nil, err
 		}
 		pullSecrets = append(pullSecrets, *ps)
@@ -73,15 +78,22 @@ func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.K
 
 	// Second, fetch all of the pull secrets attached to our service account.
 	sa, err := client.CoreV1().ServiceAccounts(opt.Namespace).Get(ctx, opt.ServiceAccountName, metav1.GetOptions{})
-	if err != nil {
+	if k8serrors.IsNotFound(err) {
+		logs.Warn.Printf("serviceaccount %s/%s not found; ignoring", opt.Namespace, opt.ServiceAccountName)
+	} else if err != nil {
 		return nil, err
 	}
-	for _, localObj := range sa.ImagePullSecrets {
-		ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, localObj.Name, metav1.GetOptions{})
-		if err != nil {
-			return nil, err
+	if sa != nil {
+		for _, localObj := range sa.ImagePullSecrets {
+			ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, localObj.Name, metav1.GetOptions{})
+			if k8serrors.IsNotFound(err) {
+				logs.Warn.Printf("secret %s/%s not found; ignoring", opt.Namespace, localObj.Name)
+				continue
+			} else if err != nil {
+				return nil, err
+			}
+			pullSecrets = append(pullSecrets, *ps)
 		}
-		pullSecrets = append(pullSecrets, *ps)
 	}
 
 	return NewFromPullSecrets(ctx, pullSecrets)
@@ -236,8 +248,9 @@ func splitURL(url *url.URL) (parts []string, port string) {
 // glob wild cards in the host name.
 //
 // Examples:
-//    globURL=*.docker.io, targetURL=blah.docker.io => match
-//    globURL=*.docker.io, targetURL=not.right.io   => no match
+//
+//	globURL=*.docker.io, targetURL=blah.docker.io => match
+//	globURL=*.docker.io, targetURL=not.right.io   => no match
 //
 // Note that we don't support wildcards in ports and paths yet.
 func urlsMatch(globURL *url.URL, targetURL *url.URL) (bool, error) {
