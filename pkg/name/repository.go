@@ -64,7 +64,8 @@ func (r Repository) Scope(action string) string {
 	return fmt.Sprintf("repository:%s:%s", r.RepositoryStr(), action)
 }
 
-func checkRepository(repository string) error {
+// CheckRepository validates a repository matches character and length restrictions.
+func CheckRepository(repository string) error {
 	return checkElement("repository", repository, repositoryChars, 2, 255)
 }
 
@@ -86,7 +87,7 @@ func NewRepository(name string, opts ...Option) (Repository, error) {
 		repo = parts[1]
 	}
 
-	if err := checkRepository(repo); err != nil {
+	if err := CheckRepository(repo); err != nil {
 		return Repository{}, err
 	}
 

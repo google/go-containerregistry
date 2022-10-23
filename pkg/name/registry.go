@@ -94,7 +94,8 @@ func (r Registry) Scheme() string {
 	return "https"
 }
 
-func checkRegistry(name string) error {
+// CheckRegistry validates a registry name is compliant to the RFC 3986.
+func CheckRegistry(name string) error {
 	// Per RFC 3986, registries (authorities) are required to be prefixed with "//"
 	// url.Host == hostname[:port] == authority
 	if url, err := url.Parse("//" + name); err != nil || url.Host != name {
@@ -111,7 +112,7 @@ func NewRegistry(name string, opts ...Option) (Registry, error) {
 		return Registry{}, newErrBadName("strict validation requires the registry to be explicitly defined")
 	}
 
-	if err := checkRegistry(name); err != nil {
+	if err := CheckRegistry(name); err != nil {
 		return Registry{}, err
 	}
 
