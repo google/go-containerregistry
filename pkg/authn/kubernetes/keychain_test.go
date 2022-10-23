@@ -89,6 +89,41 @@ func TestAnonymousFallback(t *testing.T) {
 	testResolve(t, kc, registry(t, "fake.registry.io"), authn.Anonymous)
 }
 
+func TestSecretNotFound(t *testing.T) {
+	client := fakeclient.NewSimpleClientset(&corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: "default",
+		},
+	})
+
+	kc, err := New(context.Background(), client, Options{
+		ImagePullSecrets: []string{"not-found"},
+	})
+	if err != nil {
+		t.Errorf("New() = %v", err)
+	}
+
+	testResolve(t, kc, registry(t, "fake.registry.io"), authn.Anonymous)
+}
+
+func TestServiceAccountNotFound(t *testing.T) {
+	client := fakeclient.NewSimpleClientset(&corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: "default",
+		},
+	})
+	kc, err := New(context.Background(), client, Options{
+		ServiceAccountName: "not-found",
+	})
+	if err != nil {
+		t.Errorf("New() = %v", err)
+	}
+
+	testResolve(t, kc, registry(t, "fake.registry.io"), authn.Anonymous)
+}
+
 func TestAttachedServiceAccount(t *testing.T) {
 	username, password := "foo", "bar"
 	client := fakeclient.NewSimpleClientset(&corev1.ServiceAccount{
