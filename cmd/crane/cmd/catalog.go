@@ -24,7 +24,7 @@ import (
 // NewCmdCatalog creates a new cobra.Command for the repos subcommand.
 func NewCmdCatalog(options *[]crane.Option) *cobra.Command {
 	return &cobra.Command{
-		Use:   "catalog",
+		Use:   "catalog {REGISTRY}",
 		Short: "List the repos in a registry",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
