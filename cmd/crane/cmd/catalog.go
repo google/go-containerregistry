@@ -16,17 +16,31 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdCatalog creates a new cobra.Command for the repos subcommand.
-func NewCmdCatalog(options *[]crane.Option) *cobra.Command {
+func NewCmdCatalog(options *[]crane.Option, argv ...string) *cobra.Command {
+
+	if len(argv) == 0 {
+		argv = []string{os.Args[0]}
+	}
+
+	baseCmd := strings.Join(argv, " ")
+	eg := fmt.Sprintf(`  # list the repos for reg.example.com
+  $ echo "reg.example.com" | %s catalog
+  # or
+  $ %s catalog reg.example.com`, baseCmd, baseCmd)
+
 	return &cobra.Command{
-		Use:   "catalog {REGISTRY}",
-		Short: "List the repos in a registry",
-		Args:  cobra.ExactArgs(1),
+		Use:     "catalog [REGISTRY]",
+		Short:   "List the repos in a registry",
+		Example: eg,
+		Args:    cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			reg := args[0]
 			repos, err := crane.Catalog(reg, *options...)
