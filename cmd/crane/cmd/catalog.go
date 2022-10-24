@@ -25,7 +25,6 @@ import (
 
 // NewCmdCatalog creates a new cobra.Command for the repos subcommand.
 func NewCmdCatalog(options *[]crane.Option, argv ...string) *cobra.Command {
-
 	if len(argv) == 0 {
 		argv = []string{os.Args[0]}
 	}
