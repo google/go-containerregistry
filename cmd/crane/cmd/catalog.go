@@ -32,9 +32,7 @@ func NewCmdCatalog(options *[]crane.Option, argv ...string) *cobra.Command {
 
 	baseCmd := strings.Join(argv, " ")
 	eg := fmt.Sprintf(`  # list the repos for reg.example.com
-  $ echo "reg.example.com" | %s catalog
-  # or
-  $ %s catalog reg.example.com`, baseCmd, baseCmd)
+  $ %s catalog reg.example.com`, baseCmd)
 
 	return &cobra.Command{
 		Use:     "catalog [REGISTRY]",
