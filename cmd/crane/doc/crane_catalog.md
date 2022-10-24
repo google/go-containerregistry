@@ -3,7 +3,14 @@
 List the repos in a registry
 
 ```
-crane catalog [flags]
+crane catalog [REGISTRY] [flags]
+```
+
+### Examples
+
+```
+  # list the repos for reg.example.com
+  $ crane catalog reg.example.com
 ```
 
 ### Options
