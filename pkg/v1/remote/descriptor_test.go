@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -257,3 +258,71 @@ func (errTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	return nil, fmt.Errorf("error reaching %s", req.URL.String())
 }
+
+// TestFetchBlobVerifyContentLength tests that fetchBlob closes its response
+// body if the remote server returns an incorrect value for the Content-Length
+// header.
+func TestFetchBlobVerifyContentLength(t *testing.T) {
+	ctx := context.Background()
+	rc := &testReadCloser{Closed: false, r: strings.NewReader(" ")}
+	tr := &fakeTransport{
+		ContentLengthHeaderValue: "2",
+		Body:                     rc,
+	}
+	f := fetcher{
+		Ref: mustNewTag(t, "original.com/repo:latest"),
+		Client: &http.Client{
+			Transport: tr,
+		},
+		context: ctx,
+	}
+	h, err := v1.NewHash("sha256:0000000000000000000000000000000000000000000000000000000000000000")
+	if err != nil {
+		t.Fatal("NewHash:", err)
+	}
+	if _, err := f.fetchBlob(ctx, 1, h); err == nil {
+		t.Errorf("fetchBlob: expected error, got nil")
+	} else if !strings.Contains(err.Error(), "Content-Length header 0 does not match expected size 1") {
+		t.Errorf("fetchBlob: expected content-length mismatch error, got %v", err)
+	}
+	if !rc.Closed {
+		t.Errorf("fetchBlob: expected to close response body")
+	}
+}
+
+// fakeTransport returns a response with the given Content-Length header and body.
+type fakeTransport struct {
+	ContentLengthHeaderValue string
+	Body                     io.ReadCloser
+}
+
+func (t *fakeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header: http.Header{
+			http.CanonicalHeaderKey("content-length"): []string{t.ContentLengthHeaderValue},
+		},
+		Body: t.Body,
+	}, nil
+}
+
+var _ http.RoundTripper = (*fakeTransport)(nil)
+
+type testReadCloser struct {
+	Closed bool
+	r      io.Reader
+}
+
+func (rc *testReadCloser) Close() error {
+	rc.Closed = true
+	return nil
+}
+
+func (rc *testReadCloser) Read(p []byte) (n int, err error) {
+	if rc.Closed {
+		return 0, io.EOF
+	}
+	return rc.r.Read(p)
+}
+
+var _ io.ReadCloser = (*testReadCloser)(nil)
