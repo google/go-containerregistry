@@ -29,6 +29,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+// Attach attaches contents to an image reference with the given media type.
+//
+// These attached descriptors can be listed using crane.Referrers.
 func Attach(refstr string, b []byte, mediaType string, opt ...Option) error {
 	o := makeOptions(opt...)
 

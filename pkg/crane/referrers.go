@@ -20,6 +20,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
+// Referrers returns descriptors that refer to a given image reference.
+//
+// New attachments can be added with crane.Attach.
 func Referrers(refstr string, opt ...Option) ([]v1.Descriptor, error) {
 	o := makeOptions(opt...)
 
