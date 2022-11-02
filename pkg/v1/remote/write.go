@@ -654,10 +654,10 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 	sort.Slice(im.Manifests, func(i, j int) bool {
 		return im.Manifests[i].Digest.String() < im.Manifests[j].Digest.String()
 	})
+	logs.Progress.Printf("updating fallback tag %s with new referrer", t.Identifier())
 	if err := w.commitManifest(ctx, fallbackTaggable{im}, t); err != nil {
 		return err
 	}
-	logs.Progress.Printf("updated fallback tag %s with new referrer", t.Identifier())
 	return nil
 }
 
