@@ -65,7 +65,7 @@ func TestIs(t *testing.T) {
 }
 
 var (
-	errRead = fmt.Errorf("Read failed")
+	errRead = fmt.Errorf("read failed")
 )
 
 type failReader struct{}
@@ -81,8 +81,12 @@ func TestReadErrors(t *testing.T) {
 	}
 
 	frc := io.NopCloser(fr)
-	if _, err := UnzipReadCloser(frc); err != errRead {
-		t.Error("UnzipReadCloser: expected errRead, got", err)
+	if r, err := UnzipReadCloser(frc); err != errRead {
+		data := make([]byte, 100)
+		_, err := r.Read(data)
+		if err != errRead {
+			t.Error("UnzipReadCloser: expected errRead, got", err)
+		}
 	}
 
 	zr := ReadCloser(io.NopCloser(fr))
