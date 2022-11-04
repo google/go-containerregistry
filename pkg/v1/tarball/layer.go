@@ -25,8 +25,10 @@ import (
 
 	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/internal/and"
+	compress "github.com/google/go-containerregistry/internal/compression"
 	gestargz "github.com/google/go-containerregistry/internal/estargz"
 	ggzip "github.com/google/go-containerregistry/internal/gzip"
+	"github.com/google/go-containerregistry/internal/zstd"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -37,7 +39,8 @@ type layer struct {
 	size               int64
 	compressedopener   Opener
 	uncompressedopener Opener
-	compression        int
+	compression        compress.Compression
+	compressionLevel   int
 	annotations        map[string]string
 	estgzopts          []estargz.Option
 	mediaType          types.MediaType
@@ -92,9 +95,17 @@ type LayerOption func(*layer)
 
 // WithCompressionLevel is a functional option for overriding the default
 // compression level used for compressing uncompressed tarballs.
+func WithCompression(compression compress.Compression) LayerOption {
+	return func(l *layer) {
+		l.compression = compression
+	}
+}
+
+// WithCompressionLevel is a functional option for overriding the default
+// compression level used for compressing uncompressed tarballs.
 func WithCompressionLevel(level int) LayerOption {
 	return func(l *layer) {
-		l.compression = level
+		l.compressionLevel = level
 	}
 }
 
@@ -149,7 +160,7 @@ func WithEstargz(l *layer) {
 		if err != nil {
 			return nil, err
 		}
-		eopts := append(l.estgzopts, estargz.WithCompressionLevel(l.compression))
+		eopts := append(l.estgzopts, estargz.WithCompressionLevel(l.compressionLevel))
 		rc, h, err := gestargz.ReadCloser(crc, eopts...)
 		if err != nil {
 			return nil, err
@@ -188,6 +199,16 @@ func LayerFromFile(path string, opts ...LayerOption) (v1.Layer, error) {
 	return LayerFromOpener(opener, opts...)
 }
 
+func checkCompression(opener Opener, checker func(reader io.Reader) (bool, error)) (bool, error) {
+	rc, err := opener()
+	if err != nil {
+		return false, err
+	}
+	defer rc.Close()
+
+	return checker(rc)
+}
+
 // LayerFromOpener returns a v1.Layer given an Opener function.
 // The Opener may return either an uncompressed tarball (common),
 // or a compressed tarball (uncommon).
@@ -196,31 +217,28 @@ func LayerFromFile(path string, opts ...LayerOption) (v1.Layer, error) {
 // the uncompressed path may end up gzipping things multiple times:
 //  1. Compute the layer SHA256
 //  2. Upload the compressed layer.
+//
 // Since gzip can be expensive, we support an option to memoize the
 // compression that can be passed here: tarball.WithCompressedCaching
 func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
-	rc, err := opener()
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-
-	compressed, err := ggzip.Is(rc)
+	compression, err := compress.GetCompression(opener)
 	if err != nil {
 		return nil, err
 	}
 
 	layer := &layer{
-		compression: gzip.BestSpeed,
-		annotations: make(map[string]string, 1),
-		mediaType:   types.DockerLayer,
+		compression:      compress.GZip,
+		compressionLevel: gzip.BestSpeed,
+		annotations:      make(map[string]string, 1),
+		mediaType:        types.DockerLayer,
 	}
 
 	if estgz := os.Getenv("GGCR_EXPERIMENT_ESTARGZ"); estgz == "1" {
 		opts = append([]LayerOption{WithEstargz}, opts...)
 	}
 
-	if compressed {
+	switch compression {
+	case compress.GZip:
 		layer.compressedopener = opener
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
 			urc, err := opener()
@@ -229,14 +247,30 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			}
 			return ggzip.UnzipReadCloser(urc)
 		}
-	} else {
+		break
+	case compress.ZStd:
+		layer.compressedopener = opener
+		layer.uncompressedopener = func() (io.ReadCloser, error) {
+			urc, err := opener()
+			if err != nil {
+				return nil, err
+			}
+			return zstd.UnzipReadCloser(urc)
+		}
+		break
+	default:
 		layer.uncompressedopener = opener
 		layer.compressedopener = func() (io.ReadCloser, error) {
 			crc, err := opener()
 			if err != nil {
 				return nil, err
 			}
-			return ggzip.ReadCloserLevel(crc, layer.compression), nil
+
+			if layer.compression == compress.ZStd {
+				return zstd.ReadCloserLevel(crc, layer.compressionLevel), nil
+			} else {
+				return ggzip.ReadCloserLevel(crc, layer.compressionLevel), nil
+			}
 		}
 	}
 
