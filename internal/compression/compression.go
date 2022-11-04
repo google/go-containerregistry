@@ -19,30 +19,19 @@ const (
 
 type Opener = func() (io.ReadCloser, error)
 
-func CheckCompression(opener Opener, checker func(reader io.Reader) (bool, error)) (bool, error) {
+func GetCompression(opener Opener) (Compression, error) {
 	rc, err := opener()
 	if err != nil {
-		return false, err
+		return None, err
 	}
 	defer rc.Close()
 
-	return checker(rc)
-}
-
-func GetCompression(opener Opener) (Compression, error) {
-	if compressed, err := CheckCompression(opener, gzip.Is); err != nil {
+	compression, _, err := PeekCompression(rc)
+	if err != nil {
 		return None, err
-	} else if compressed {
-		return GZip, nil
 	}
 
-	if compressed, err := CheckCompression(opener, zstd.Is); err != nil {
-		return None, err
-	} else if compressed {
-		return ZStd, nil
-	}
-
-	return None, nil
+	return compression, nil
 }
 
 // PeekReader is an io.Reader that also implements Peek a la bufio.Reader.
