@@ -32,13 +32,22 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+type LayerCompression comp.Compression
+
+// The collection of known MediaType values.
+const (
+	None LayerCompression = "none"
+	GZip LayerCompression = "gzip"
+	ZStd LayerCompression = "zstd"
+)
+
 type layer struct {
 	digest             v1.Hash
 	diffID             v1.Hash
 	size               int64
 	compressedopener   Opener
 	uncompressedopener Opener
-	compression        comp.Compression
+	compression        LayerCompression
 	compressionLevel   int
 	annotations        map[string]string
 	estgzopts          []estargz.Option
@@ -96,9 +105,9 @@ type LayerOption func(*layer)
 // compression algorithm used for compressing uncompressed tarballs.
 // Also updates the mediaType to "application/vnd.oci.image.layer.v1.tar+zstd"
 // if zstd compression is selected.
-func WithCompression(compression comp.Compression) LayerOption {
+func WithCompression(compression LayerCompression) LayerOption {
 	return func(l *layer) {
-		if compression == comp.ZStd {
+		if compression == ZStd {
 			l.mediaType = types.OCILayerZStd
 		} else {
 			l.mediaType = types.DockerLayer
@@ -233,7 +242,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	}
 
 	layer := &layer{
-		compression:      comp.GZip,
+		compression:      GZip,
 		compressionLevel: gzip.BestSpeed,
 		annotations:      make(map[string]string, 1),
 		mediaType:        types.DockerLayer,
@@ -272,7 +281,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 				return nil, err
 			}
 
-			if layer.compression == comp.ZStd {
+			if layer.compression == ZStd {
 				return zstd.ReadCloserLevel(crc, layer.compressionLevel), nil
 			} else {
 				return ggzip.ReadCloserLevel(crc, layer.compressionLevel), nil
