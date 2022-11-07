@@ -282,7 +282,7 @@ func TestLayerFromReader(t *testing.T) {
 	}
 }
 
-// LayerCompression settings matter in order for the digest, size,
+// Compression settings matter in order for the digest, size,
 // compressed assertions to pass
 //
 // Since our gzip.GzipReadCloser uses gzip.BestSpeed

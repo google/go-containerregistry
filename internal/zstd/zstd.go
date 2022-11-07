@@ -12,7 +12,7 @@ var MagicHeader = []byte{'\x28', '\xb5', '\x2f', '\xfd'}
 
 // ReadCloser reads uncompressed input data from the io.ReadCloser and
 // returns an io.ReadCloser from which compressed data may be read.
-// This uses gzip.BestSpeed for the compression level.
+// This uses zstd level 1 for the compression.
 func ReadCloser(r io.ReadCloser) io.ReadCloser {
 	return ReadCloserLevel(r, 1)
 }
@@ -22,7 +22,7 @@ func ReadCloser(r io.ReadCloser) io.ReadCloser {
 func ReadCloserLevel(r io.ReadCloser, level int) io.ReadCloser {
 	pr, pw := io.Pipe()
 
-	// For highly compressible layers, gzip.Writer will output a very small
+	// For highly compressible layers, zstd.Writer will output a very small
 	// number of bytes per Write(). This is normally fine, but when pushing
 	// to a registry, we want to ensure that we're taking full advantage of
 	// the available bandwidth instead of sending tons of tiny writes over
@@ -45,7 +45,7 @@ func ReadCloserLevel(r io.ReadCloser, level int) io.ReadCloser {
 			return pw.CloseWithError(err)
 		}
 
-		// Close gzip writer to Flush it and write gzip trailers.
+		// Close zstd writer to Flush it and write zstd trailers.
 		if err := gw.Close(); err != nil {
 			return pw.CloseWithError(err)
 		}
