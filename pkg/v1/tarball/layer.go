@@ -215,16 +215,6 @@ func LayerFromFile(path string, opts ...LayerOption) (v1.Layer, error) {
 	return LayerFromOpener(opener, opts...)
 }
 
-func checkCompression(opener Opener, checker func(reader io.Reader) (bool, error)) (bool, error) {
-	rc, err := opener()
-	if err != nil {
-		return false, err
-	}
-	defer rc.Close()
-
-	return checker(rc)
-}
-
 // LayerFromOpener returns a v1.Layer given an Opener function.
 // The Opener may return either an uncompressed tarball (common),
 // or a compressed tarball (uncommon).
