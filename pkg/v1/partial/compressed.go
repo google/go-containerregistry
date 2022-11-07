@@ -18,7 +18,9 @@ import (
 	"io"
 
 	"github.com/google/go-containerregistry/internal/and"
+	"github.com/google/go-containerregistry/internal/compression"
 	"github.com/google/go-containerregistry/internal/gzip"
+	"github.com/google/go-containerregistry/internal/zstd"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -51,10 +53,10 @@ func (cle *compressedLayerExtender) Uncompressed() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	// Often, the "compressed" bytes are not actually gzip-compressed.
+	// Often, the "compressed" bytes are not actually-compressed.
 	// Peek at the first two bytes to determine whether or not it's correct to
-	// wrap this with gzip.UnzipReadCloser.
-	gzipped, pr, err := gzip.Peek(rc)
+	// wrap this with gzip.UnzipReadCloser or zstd.UnzipReadCloser.
+	cp, pr, err := compression.PeekCompression(rc)
 	if err != nil {
 		return nil, err
 	}
@@ -63,11 +65,14 @@ func (cle *compressedLayerExtender) Uncompressed() (io.ReadCloser, error) {
 		CloseFunc: rc.Close,
 	}
 
-	if !gzipped {
+	switch cp {
+	case compression.GZip:
+		return gzip.UnzipReadCloser(prc)
+	case compression.ZStd:
+		return zstd.UnzipReadCloser(prc)
+	default:
 		return prc, nil
 	}
-
-	return gzip.UnzipReadCloser(prc)
 }
 
 // DiffID implements v1.Layer
