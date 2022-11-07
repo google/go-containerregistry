@@ -32,6 +32,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+// LayerCompression is an enumeration of the supported compression algorithms for tarball layers
 type LayerCompression comp.Compression
 
 // The collection of known MediaType values.
@@ -281,9 +282,9 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 
 			if layer.compression == ZStd {
 				return zstd.ReadCloserLevel(crc, layer.compressionLevel), nil
-			} else {
-				return ggzip.ReadCloserLevel(crc, layer.compressionLevel), nil
 			}
+
+			return ggzip.ReadCloserLevel(crc, layer.compressionLevel), nil
 		}
 	}
 
