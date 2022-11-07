@@ -262,7 +262,6 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			}
 			return ggzip.UnzipReadCloser(urc)
 		}
-		break
 	case comp.ZStd:
 		layer.compressedopener = opener
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
@@ -272,7 +271,6 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			}
 			return zstd.UnzipReadCloser(urc)
 		}
-		break
 	default:
 		layer.uncompressedopener = opener
 		layer.compressedopener = func() (io.ReadCloser, error) {
