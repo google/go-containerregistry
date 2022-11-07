@@ -26,7 +26,6 @@ const (
 	OCILayer                       MediaType = "application/vnd.oci.image.layer.v1.tar+gzip"
 	OCILayerZStd                   MediaType = "application/vnd.oci.image.layer.v1.tar+zstd"
 	OCIRestrictedLayer             MediaType = "application/vnd.oci.image.layer.nondistributable.v1.tar+gzip"
-	OCIRestrictedLayerZStd         MediaType = "application/vnd.oci.image.layer.nondistributable.v1.tar+zstd"
 	OCIUncompressedLayer           MediaType = "application/vnd.oci.image.layer.v1.tar"
 	OCIUncompressedRestrictedLayer MediaType = "application/vnd.oci.image.layer.nondistributable.v1.tar"
 
