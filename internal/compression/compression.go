@@ -17,9 +17,10 @@ package compression
 import (
 	"bufio"
 	"bytes"
+	"io"
+
 	"github.com/google/go-containerregistry/internal/gzip"
 	"github.com/google/go-containerregistry/internal/zstd"
-	"io"
 )
 
 type Compression string

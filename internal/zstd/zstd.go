@@ -17,9 +17,10 @@ package zstd
 import (
 	"bufio"
 	"bytes"
+	"io"
+
 	"github.com/google/go-containerregistry/internal/and"
 	"github.com/klauspost/compress/zstd"
-	"io"
 )
 
 var MagicHeader = []byte{'\x28', '\xb5', '\x2f', '\xfd'}
