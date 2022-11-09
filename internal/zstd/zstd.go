@@ -47,21 +47,21 @@ func ReadCloserLevel(r io.ReadCloser, level int) io.ReadCloser {
 
 	// Returns err so we can pw.CloseWithError(err)
 	go func() error {
-		// TODO(go1.14): Just defer {pw,gw,r}.Close like you'd expect.
+		// TODO(go1.14): Just defer {pw,zw,r}.Close like you'd expect.
 		// Context: https://golang.org/issue/24283
-		gw, err := zstd.NewWriter(bw, zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(level)))
+		zw, err := zstd.NewWriter(bw, zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(level)))
 		if err != nil {
 			return pw.CloseWithError(err)
 		}
 
-		if _, err := io.Copy(gw, r); err != nil {
+		if _, err := io.Copy(zw, r); err != nil {
 			defer r.Close()
-			defer gw.Close()
+			defer zw.Close()
 			return pw.CloseWithError(err)
 		}
 
 		// Close zstd writer to Flush it and write zstd trailers.
-		if err := gw.Close(); err != nil {
+		if err := zw.Close(); err != nil {
 			return pw.CloseWithError(err)
 		}
 
