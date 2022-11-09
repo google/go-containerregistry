@@ -84,7 +84,7 @@ func ReadCloserLevel(r io.ReadCloser, level int) io.ReadCloser {
 }
 
 // UnzipReadCloser reads compressed input data from the io.ReadCloser and
-// returns an io.ReadCloser from which uncompessed data may be read.
+// returns an io.ReadCloser from which uncompressed data may be read.
 func UnzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
