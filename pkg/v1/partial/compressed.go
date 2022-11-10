@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-containerregistry/internal/compression"
 	"github.com/google/go-containerregistry/internal/gzip"
 	"github.com/google/go-containerregistry/internal/zstd"
+	comp "github.com/google/go-containerregistry/pkg/compression"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -54,21 +55,22 @@ func (cle *compressedLayerExtender) Uncompressed() (io.ReadCloser, error) {
 	}
 
 	// Often, the "compressed" bytes are not actually-compressed.
-	// Peek at the first two bytes to determine whether or not it's correct to
+	// Peek at the first two bytes to determine whether it's correct to
 	// wrap this with gzip.UnzipReadCloser or zstd.UnzipReadCloser.
 	cp, pr, err := compression.PeekCompression(rc)
 	if err != nil {
 		return nil, err
 	}
+
 	prc := &and.ReadCloser{
 		Reader:    pr,
 		CloseFunc: rc.Close,
 	}
 
 	switch cp {
-	case compression.GZip:
+	case comp.GZip:
 		return gzip.UnzipReadCloser(prc)
-	case compression.ZStd:
+	case comp.ZStd:
 		return zstd.UnzipReadCloser(prc)
 	default:
 		return prc, nil

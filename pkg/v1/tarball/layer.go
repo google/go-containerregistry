@@ -28,18 +28,10 @@ import (
 	gestargz "github.com/google/go-containerregistry/internal/estargz"
 	ggzip "github.com/google/go-containerregistry/internal/gzip"
 	"github.com/google/go-containerregistry/internal/zstd"
+	"github.com/google/go-containerregistry/pkg/compression"
+	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-)
-
-// LayerCompression is an enumeration of the supported compression algorithms for tarball layers
-type LayerCompression comp.Compression
-
-// The collection of known MediaType values.
-const (
-	None LayerCompression = "none"
-	GZip LayerCompression = "gzip"
-	ZStd LayerCompression = "zstd"
 )
 
 type layer struct {
@@ -48,7 +40,7 @@ type layer struct {
 	size               int64
 	compressedopener   Opener
 	uncompressedopener Opener
-	compression        LayerCompression
+	compression        compression.Compression
 	compressionLevel   int
 	annotations        map[string]string
 	estgzopts          []estargz.Option
@@ -104,16 +96,20 @@ type LayerOption func(*layer)
 
 // WithCompression is a functional option for overriding the default
 // compression algorithm used for compressing uncompressed tarballs.
-// Also updates the mediaType to "application/vnd.oci.image.layer.v1.tar+zstd"
+// Also sets the mediaType to "application/vnd.oci.image.layer.v1.tar+zstd"
 // if zstd compression is selected.
-func WithCompression(compression LayerCompression) LayerOption {
+func WithCompression(comp compression.Compression) LayerOption {
 	return func(l *layer) {
-		if compression == ZStd {
+		switch comp {
+		case compression.ZStd:
 			l.mediaType = types.OCILayerZStd
-		} else {
-			l.mediaType = types.DockerLayer
+		case compression.None:
+			logs.Warn.Printf("Compression type 'none' is not supported for tarball layers; using gzip compression.")
+		default:
+			logs.Warn.Printf("Unexpected compression type for WithCompression(): %s; using gzip compression instead.", comp)
 		}
-		l.compression = compression
+
+		l.compression = comp
 	}
 }
 
@@ -126,6 +122,7 @@ func WithCompressionLevel(level int) LayerOption {
 }
 
 // WithMediaType is a functional option for overriding the layer's media type.
+// Note that WithCompression overrides the mediaType if zstd compression is selected.
 func WithMediaType(mt types.MediaType) LayerOption {
 	return func(l *layer) {
 		l.mediaType = mt
@@ -227,13 +224,13 @@ func LayerFromFile(path string, opts ...LayerOption) (v1.Layer, error) {
 // Since gzip can be expensive, we support an option to memoize the
 // compression that can be passed here: tarball.WithCompressedCaching
 func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
-	compression, err := comp.GetCompression(opener)
+	comp, err := comp.GetCompression(opener)
 	if err != nil {
 		return nil, err
 	}
 
 	layer := &layer{
-		compression:      GZip,
+		compression:      compression.GZip,
 		compressionLevel: gzip.BestSpeed,
 		annotations:      make(map[string]string, 1),
 		mediaType:        types.DockerLayer,
@@ -243,8 +240,8 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 		opts = append([]LayerOption{WithEstargz}, opts...)
 	}
 
-	switch compression {
-	case comp.GZip:
+	switch comp {
+	case compression.GZip:
 		layer.compressedopener = opener
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
 			urc, err := opener()
@@ -253,7 +250,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			}
 			return ggzip.UnzipReadCloser(urc)
 		}
-	case comp.ZStd:
+	case compression.ZStd:
 		layer.compressedopener = opener
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
 			urc, err := opener()
@@ -270,7 +267,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 				return nil, err
 			}
 
-			if layer.compression == ZStd {
+			if layer.compression == compression.ZStd {
 				return zstd.ReadCloserLevel(crc, layer.compressionLevel), nil
 			}
 

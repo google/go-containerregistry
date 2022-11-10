@@ -21,32 +21,48 @@ import (
 
 	"github.com/google/go-containerregistry/internal/gzip"
 	"github.com/google/go-containerregistry/internal/zstd"
-)
-
-type Compression string
-
-// The collection of known MediaType values.
-const (
-	None Compression = "none"
-	GZip Compression = "gzip"
-	ZStd Compression = "zstd"
+	"github.com/google/go-containerregistry/pkg/compression"
 )
 
 type Opener = func() (io.ReadCloser, error)
 
-func GetCompression(opener Opener) (Compression, error) {
+// GetCompression detects whether an Opener is compressed and which algorithm is used.
+func GetCompression(opener Opener) (compression.Compression, error) {
 	rc, err := opener()
 	if err != nil {
-		return None, err
+		return compression.None, err
 	}
 	defer rc.Close()
 
-	compression, _, err := PeekCompression(rc)
+	cp, _, err := PeekCompression(rc)
 	if err != nil {
-		return None, err
+		return compression.None, err
 	}
 
-	return compression, nil
+	return cp, nil
+}
+
+// PeekCompression detects whether the input stream is compressed and which algorithm is used.
+//
+// If r implements Peek, we will use that directly, otherwise a small number
+// of bytes are buffered to Peek at the gzip/zstd header, and the returned
+// PeekReader can be used as a replacement for the consumed input io.Reader.
+func PeekCompression(r io.Reader) (compression.Compression, PeekReader, error) {
+	pr := intoPeekReader(r)
+
+	if isGZip, _, err := checkHeader(pr, gzip.MagicHeader); err != nil {
+		return compression.None, pr, err
+	} else if isGZip {
+		return compression.GZip, pr, nil
+	}
+
+	if isZStd, _, err := checkHeader(pr, zstd.MagicHeader); err != nil {
+		return compression.None, pr, err
+	} else if isZStd {
+		return compression.ZStd, pr, nil
+	}
+
+	return compression.None, pr, nil
 }
 
 // PeekReader is an io.Reader that also implements Peek a la bufio.Reader.
@@ -55,45 +71,25 @@ type PeekReader interface {
 	Peek(n int) ([]byte, error)
 }
 
-// PeekCompression detects whether the input stream is compressed and which algorithm is used.
-//
-// If r implements Peek, we will use that directly, otherwise a small number
-// of bytes are buffered to Peek at the gzip header, and the returned
-// PeekReader can be used as a replacement for the consumed input io.Reader.
-func PeekCompression(r io.Reader) (Compression, PeekReader, error) {
-	var pr PeekReader
+// IntoPeekReader creates a PeekReader from an io.Reader.
+// If the reader already has a Peek method, it will just return the passed reader.
+func intoPeekReader(r io.Reader) PeekReader {
 	if p, ok := r.(PeekReader); ok {
-		pr = p
+		return p
 	} else {
-		pr = bufio.NewReader(r)
+		return bufio.NewReader(r)
 	}
+}
 
-	var header []byte
-	var err error
-
-	if header, err = pr.Peek(2); err != nil {
+// CheckHeader checks whether the first bytes from a PeekReader match an expected header
+func checkHeader(pr PeekReader, expectedHeader []byte) (bool, PeekReader, error) {
+	header, err := pr.Peek(len(expectedHeader))
+	if err != nil {
 		// https://github.com/google/go-containerregistry/issues/367
 		if err == io.EOF {
-			return None, pr, nil
+			return false, pr, nil
 		}
-		return None, pr, err
+		return false, pr, err
 	}
-
-	if bytes.Equal(header, gzip.MagicHeader) {
-		return GZip, pr, nil
-	}
-
-	if header, err = pr.Peek(4); err != nil {
-		// https://github.com/google/go-containerregistry/issues/367
-		if err == io.EOF {
-			return None, pr, nil
-		}
-		return None, pr, err
-	}
-
-	if bytes.Equal(header, zstd.MagicHeader) {
-		return ZStd, pr, nil
-	}
-
-	return None, pr, nil
+	return bytes.Equal(header, expectedHeader), pr, nil
 }
