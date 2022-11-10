@@ -96,13 +96,12 @@ type LayerOption func(*layer)
 
 // WithCompression is a functional option for overriding the default
 // compression algorithm used for compressing uncompressed tarballs.
-// Also sets the mediaType to "application/vnd.oci.image.layer.v1.tar+zstd"
-// if zstd compression is selected.
+// Please note that WithCompression(compression.ZStd) should be used
+// in conjunction with WithMediaType(types.OCILayerZStd)
 func WithCompression(comp compression.Compression) LayerOption {
 	return func(l *layer) {
 		switch comp {
 		case compression.ZStd:
-			l.mediaType = types.OCILayerZStd
 			l.compression = compression.ZStd
 		case compression.GZip:
 			l.compression = compression.GZip
@@ -125,7 +124,6 @@ func WithCompressionLevel(level int) LayerOption {
 }
 
 // WithMediaType is a functional option for overriding the layer's media type.
-// Note that WithCompression overrides the mediaType if zstd compression is selected.
 func WithMediaType(mt types.MediaType) LayerOption {
 	return func(l *layer) {
 		l.mediaType = mt
@@ -280,6 +278,23 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 
 	for _, opt := range opts {
 		opt(layer)
+	}
+
+	// Warn if media type does not match compression
+	var mediaTypeMismatch = false
+	switch layer.compression {
+	case compression.GZip:
+		mediaTypeMismatch =
+			layer.mediaType != types.OCILayer &&
+				layer.mediaType != types.OCIRestrictedLayer &&
+				layer.mediaType != types.DockerLayer
+
+	case compression.ZStd:
+		mediaTypeMismatch = layer.mediaType != types.OCILayerZStd
+	}
+
+	if mediaTypeMismatch {
+		logs.Warn.Printf("Unexpected mediaType (%s) for selected compression in %s in LayerFromOpener().", layer.mediaType, layer.compression)
 	}
 
 	if layer.digest, layer.size, err = computeDigest(layer.compressedopener); err != nil {
