@@ -103,13 +103,16 @@ func WithCompression(comp compression.Compression) LayerOption {
 		switch comp {
 		case compression.ZStd:
 			l.mediaType = types.OCILayerZStd
+			l.compression = compression.ZStd
+		case compression.GZip:
+			l.compression = compression.GZip
 		case compression.None:
 			logs.Warn.Printf("Compression type 'none' is not supported for tarball layers; using gzip compression.")
+			l.compression = compression.GZip
 		default:
 			logs.Warn.Printf("Unexpected compression type for WithCompression(): %s; using gzip compression instead.", comp)
+			l.compression = compression.GZip
 		}
-
-		l.compression = comp
 	}
 }
 
