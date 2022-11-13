@@ -89,16 +89,23 @@ func TestAnonymousFallback(t *testing.T) {
 	testResolve(t, kc, registry(t, "fake.registry.io"), authn.Anonymous)
 }
 
-func TestSecretNotFound(t *testing.T) {
-	client := fakeclient.NewSimpleClientset(&corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: "default",
-		},
+func TestAnonymousFallbackNoServiceAccount(t *testing.T) {
+	kc, err := New(context.Background(), nil, Options{
+		ServiceAccountName: NoServiceAccount,
 	})
+	if err != nil {
+		t.Errorf("New() = %v", err)
+	}
+
+	testResolve(t, kc, registry(t, "fake.registry.io"), authn.Anonymous)
+}
+
+func TestSecretNotFound(t *testing.T) {
+	client := fakeclient.NewSimpleClientset()
 
 	kc, err := New(context.Background(), client, Options{
-		ImagePullSecrets: []string{"not-found"},
+		ServiceAccountName: NoServiceAccount,
+		ImagePullSecrets:   []string{"not-found"},
 	})
 	if err != nil {
 		t.Errorf("New() = %v", err)
