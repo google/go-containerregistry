@@ -85,7 +85,8 @@ builds:
   ignore:
     - goos: windows
       goarch: 386
-
+source:
+  enabled: true
 archives:
 - replacements:
     darwin: Darwin
