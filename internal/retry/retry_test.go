@@ -17,6 +17,8 @@ package retry
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"testing"
 )
 
@@ -54,6 +56,14 @@ func TestRetry(t *testing.T) {
 	}, {
 		predicate:   IsTemporary,
 		err:         context.DeadlineExceeded,
+		shouldRetry: false,
+	}, {
+		predicate: IsTemporary,
+		err: &url.Error{
+			Op:  http.MethodPost,
+			URL: "http://127.0.0.1:56520/v2/example/blobs/uploads/",
+			Err: context.DeadlineExceeded,
+		},
 		shouldRetry: false,
 	}} {
 		// Make sure we retry 5 times if we shouldRetry.

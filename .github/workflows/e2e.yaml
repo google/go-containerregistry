@@ -82,3 +82,13 @@ jobs:
         ./app/crane pull --platform=linux/arm64 --format=oci $remote $distroless
         ./app/crane push $distroless $local
         diff <(./app/crane manifest --platform linux/arm64 $remote) <(./app/crane manifest $local)
+                
+    - name: crane pull image, and export it from stdin to filesystem tar to stdout
+      shell: bash
+      run: |
+        set -euxo pipefail
+        
+        ./app/crane pull ubuntu ubuntu.tar
+        ./app/crane export - - < ubuntu.tar > filesystem.tar
+        ls -la *.tar
+        

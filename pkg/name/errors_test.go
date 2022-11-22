@@ -31,4 +31,7 @@ func TestBadName(t *testing.T) {
 	if err.Error() != "could not parse reference: @@" {
 		t.Errorf("Unexpected string: %v", err)
 	}
+	if !errors.Is(err, &ErrBadName{}) {
+		t.Errorf("Not an ErrBadName using errors.Is: %v", err)
+	}
 }

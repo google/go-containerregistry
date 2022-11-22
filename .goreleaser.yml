@@ -15,8 +15,10 @@ builds:
   flags:
   - -trimpath
   ldflags:
-  - "-s -w -X github.com/google/go-containerregistry/cmd/crane/cmd.Version={{.Version}}"
-  - "-s -w -X github.com/google/go-containerregistry/pkg/v1/remote/transport.Version={{.Version}}"
+    - -s
+    - -w
+    - -X github.com/google/go-containerregistry/cmd/crane/cmd.Version={{.Version}}
+    - -X github.com/google/go-containerregistry/pkg/v1/remote/transport.Version={{.Version}}
   goarch:
     - amd64
     - arm
@@ -39,8 +41,10 @@ builds:
   flags:
   - -trimpath
   ldflags:
-  - "-s -w -X github.com/google/go-containerregistry/cmd/crane/cmd.Version={{.Version}}"
-  - "-s -w -X github.com/google/go-containerregistry/pkg/v1/remote/transport.Version={{.Version}}"
+    - -s
+    - -w
+    - -X github.com/google/go-containerregistry/cmd/crane/cmd.Version={{.Version}}
+    - -X github.com/google/go-containerregistry/pkg/v1/remote/transport.Version={{.Version}}
   goarch:
     - amd64
     - arm
@@ -55,6 +59,34 @@ builds:
     - goos: windows
       goarch: 386
 
+- id: krane
+  env:
+  - CGO_ENABLED=0
+  main: ./main.go
+  dir: ./cmd/krane
+  binary: krane
+  flags:
+  - -trimpath
+  ldflags:
+    - -s
+    - -w
+    - -X github.com/google/go-containerregistry/cmd/crane/cmd.Version={{.Version}}
+    - -X github.com/google/go-containerregistry/pkg/v1/remote/transport.Version={{.Version}}
+  goarch:
+    - amd64
+    - arm
+    - arm64
+    - 386
+    - s390x
+  goos:
+    - linux
+    - darwin
+    - windows
+  ignore:
+    - goos: windows
+      goarch: 386
+source:
+  enabled: true
 archives:
 - replacements:
     darwin: Darwin
