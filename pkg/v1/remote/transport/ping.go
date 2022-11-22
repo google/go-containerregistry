@@ -138,6 +138,10 @@ func pickFromMultipleChallenges(challenges []authchallenge.Challenge) authchalle
 		currentScheme := strings.ToLower(wac.Scheme)
 		for _, allowed := range allowedSchemes {
 			if allowed == currentScheme {
+				v ,ok:= wac.Parameters["service"]
+				if ok && v == "harbor-registry" {
+					wac.Scheme = allowedSchemes[0]
+				}
 				return wac
 			}
 		}
