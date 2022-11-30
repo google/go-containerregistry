@@ -24,6 +24,7 @@ const (
 	OCIManifestSchema1             MediaType = "application/vnd.oci.image.manifest.v1+json"
 	OCIConfigJSON                  MediaType = "application/vnd.oci.image.config.v1+json"
 	OCILayer                       MediaType = "application/vnd.oci.image.layer.v1.tar+gzip"
+	OCILayerZStd                   MediaType = "application/vnd.oci.image.layer.v1.tar+zstd"
 	OCIRestrictedLayer             MediaType = "application/vnd.oci.image.layer.nondistributable.v1.tar+gzip"
 	OCIUncompressedLayer           MediaType = "application/vnd.oci.image.layer.v1.tar"
 	OCIUncompressedRestrictedLayer MediaType = "application/vnd.oci.image.layer.nondistributable.v1.tar"

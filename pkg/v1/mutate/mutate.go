@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"time"
@@ -126,15 +125,15 @@ type Annotatable interface {
 // The annotatable input is expected to be a v1.Image or v1.ImageIndex, and
 // returns the same type. You can type-assert the result like so:
 //
-//     img := Annotations(empty.Image, map[string]string{
-//         "foo": "bar",
-//     }).(v1.Image)
+//	img := Annotations(empty.Image, map[string]string{
+//	    "foo": "bar",
+//	}).(v1.Image)
 //
 // Or for an index:
 //
-//     idx := Annotations(empty.Index, map[string]string{
-//         "foo": "bar",
-//     }).(v1.ImageIndex)
+//	idx := Annotations(empty.Index, map[string]string{
+//	    "foo": "bar",
+//	}).(v1.ImageIndex)
 //
 // If the input Annotatable is not an Image or ImageIndex, the result will
 // attempt to lazily annotate the raw manifest.
@@ -430,7 +429,7 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 	b := w.Bytes()
 	// gzip the contents, then create the layer
 	opener := func() (io.ReadCloser, error) {
-		return gzip.ReadCloser(ioutil.NopCloser(bytes.NewReader(b))), nil
+		return gzip.ReadCloser(io.NopCloser(bytes.NewReader(b))), nil
 	}
 	layer, err = tarball.LayerFromOpener(opener)
 	if err != nil {

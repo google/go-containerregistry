@@ -27,7 +27,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/google/go-containerregistry/internal/gzip"
+	comp "github.com/google/go-containerregistry/internal/compression"
+	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -166,7 +167,13 @@ func (i *image) areLayersCompressed() (bool, error) {
 		return false, err
 	}
 	defer blob.Close()
-	return gzip.Is(blob)
+
+	cp, _, err := comp.PeekCompression(blob)
+	if err != nil {
+		return false, err
+	}
+
+	return cp != compression.None, nil
 }
 
 func (i *image) loadTarDescriptorAndConfig() error {
