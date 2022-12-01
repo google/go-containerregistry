@@ -186,7 +186,7 @@ func TestMultiWrite_Retry(t *testing.T) {
 		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
 		if err := MultiWrite(map[name.Reference]Taggable{
 			tag1: img1,
-		}); err != nil {
+		}, WithRetryBackoff(fastBackoff)); err != nil {
 			t.Error("Write:", err)
 		}
 	})

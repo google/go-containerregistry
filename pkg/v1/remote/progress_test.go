@@ -35,7 +35,7 @@ import (
 )
 
 func TestWriteLayer_Progress(t *testing.T) {
-	l, err := random.Layer(100000, types.OCIUncompressedLayer)
+	l, err := random.Layer(1000, types.OCIUncompressedLayer)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestWriteLayer_Progress_Exists(t *testing.T) {
 }
 
 func TestWrite_Progress(t *testing.T) {
-	img, err := random.Image(100000, 10)
+	img, err := random.Image(1000, 5)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -166,7 +166,7 @@ func TestWrite_Progress_DedupeLayers(t *testing.T) {
 }
 
 func TestWriteIndex_Progress(t *testing.T) {
-	idx, err := random.Index(100000, 3, 10)
+	idx, err := random.Index(1000, 3, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestWriteIndex_Progress(t *testing.T) {
 }
 
 func TestMultiWrite_Progress(t *testing.T) {
-	idx, err := random.Index(100000, 10, 10)
+	idx, err := random.Index(1000, 3, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -230,7 +230,7 @@ func TestMultiWrite_Progress(t *testing.T) {
 }
 
 func TestMultiWrite_Progress_Retry(t *testing.T) {
-	idx, err := random.Index(100000, 10, 10)
+	idx, err := random.Index(1000, 3, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestMultiWrite_Progress_Retry(t *testing.T) {
 	if err := MultiWrite(map[name.Reference]Taggable{
 		ref:  idx,
 		ref2: idx,
-	}, WithProgress(c)); err != nil {
+	}, WithProgress(c), WithRetryBackoff(fastBackoff)); err != nil {
 		t.Fatalf("MultiWrite: %v", err)
 	}
 
@@ -311,7 +311,7 @@ func TestWriteLayer_Progress_Retry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := WriteLayer(ref.Context(), l, WithProgress(c)); err != nil {
+	if err := WriteLayer(ref.Context(), l, WithProgress(c), WithRetryBackoff(fastBackoff)); err != nil {
 		t.Fatalf("WriteLayer: %v", err)
 	}
 
