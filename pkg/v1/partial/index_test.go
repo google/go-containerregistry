@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -75,14 +76,11 @@ func TestFindIndexes(t *testing.T) {
 		indexCount = 5
 		imageCount = 7
 	)
-	base, err := random.Index(0, 0, 0)
-	if err != nil {
-		t.Fatal("error creating random index:", err)
-	}
+	base := empty.Index
 	// we now have 5 indexes and 5 images, so wrap them into a single index
 	adds := []mutate.IndexAddendum{}
 	for i := 0; i < indexCount; i++ {
-		ii, err := random.Index(100, 5, 6)
+		ii, err := random.Index(100, 1, 1)
 		if err != nil {
 			t.Fatalf("%d: unable to create random index: %v", i, err)
 		}
@@ -94,7 +92,7 @@ func TestFindIndexes(t *testing.T) {
 		})
 	}
 	for i := 0; i < imageCount; i++ {
-		img, err := random.Image(100, 5)
+		img, err := random.Image(100, 1)
 		if err != nil {
 			t.Fatalf("%d: unable to create random image: %v", i, err)
 		}

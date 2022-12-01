@@ -121,7 +121,7 @@ func TestLegacyWrite(t *testing.T) {
 	defer os.Remove(fp.Name())
 
 	// Make a random image + layer with Descriptor().
-	randImage, err := random.Image(256, 8)
+	randImage, err := random.Image(256, 2)
 	if err != nil {
 		t.Fatalf("Error creating random image: %v", err)
 	}
