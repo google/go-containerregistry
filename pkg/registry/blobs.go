@@ -155,6 +155,7 @@ type blobs struct {
 	// Each upload gets a unique id that writes occur to until finalized.
 	uploads map[string][]byte
 	lock    sync.Mutex
+	log     *log.Logger
 }
 
 func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
