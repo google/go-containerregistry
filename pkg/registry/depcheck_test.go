@@ -21,6 +21,9 @@ import (
 )
 
 func TestDeps(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow depcheck")
+	}
 	depcheck.AssertOnlyDependencies(t, map[string][]string{
 		"github.com/google/go-containerregistry/pkg/registry": append(
 			depcheck.StdlibPackages(),
