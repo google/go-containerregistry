@@ -17,7 +17,9 @@ package cmd
 import (
 	"bytes"
 	"io/ioutil"
-	"log"
+	"net/http/httptest"
+	"net/url"
+	"path"
 	"strings"
 	"testing"
 
@@ -26,24 +28,30 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/random"
 )
 
-func TestEditConfig(t *testing.T) {
-	src := "gcr.io/crane/edit/config"
-	reg, err := registry.TLS("gcr.io")
+func mustRegistry(t *testing.T) (*httptest.Server, string) {
+	t.Helper()
+	s := httptest.NewServer(registry.New())
+	u, err := url.Parse(s.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return s, u.Host
+}
+
+func TestEditConfig(t *testing.T) {
+	reg, host := mustRegistry(t)
 	defer reg.Close()
-	opt := []crane.Option{crane.WithTransport(reg.Client().Transport)}
+	src := path.Join(host, "crane/edit/config")
 
 	img, err := random.Image(1024, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := crane.Push(img, src, opt...); err != nil {
-		log.Fatal(err)
+	if err := crane.Push(img, src); err != nil {
+		t.Fatal(err)
 	}
 
-	cmd := NewCmdEditConfig(&opt)
+	cmd := NewCmdEditConfig(&[]crane.Option{})
 	cmd.SetArgs([]string{src})
 	cmd.SetIn(strings.NewReader("{}"))
 
@@ -53,23 +61,19 @@ func TestEditConfig(t *testing.T) {
 }
 
 func TestEditManifest(t *testing.T) {
-	src := "gcr.io/crane/edit/manifest"
-	reg, err := registry.TLS("gcr.io")
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg, host := mustRegistry(t)
 	defer reg.Close()
-	opt := []crane.Option{crane.WithTransport(reg.Client().Transport)}
+	src := path.Join(host, "crane/edit/manifest")
 
 	img, err := random.Image(1024, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := crane.Push(img, src, opt...); err != nil {
-		log.Fatal(err)
+	if err := crane.Push(img, src); err != nil {
+		t.Fatal(err)
 	}
 
-	cmd := NewCmdEditManifest(&opt)
+	cmd := NewCmdEditManifest(&[]crane.Option{})
 	cmd.SetArgs([]string{src})
 	cmd.SetIn(strings.NewReader("{}"))
 	if err := cmd.Execute(); err != nil {
@@ -78,23 +82,19 @@ func TestEditManifest(t *testing.T) {
 }
 
 func TestEditFilesystem(t *testing.T) {
-	src := "gcr.io/crane/edit/config"
-	reg, err := registry.TLS("gcr.io")
-	if err != nil {
-		t.Fatal(err)
-	}
+	reg, host := mustRegistry(t)
 	defer reg.Close()
-	opt := []crane.Option{crane.WithTransport(reg.Client().Transport)}
+	src := path.Join(host, "crane/edit/fs")
 
 	img, err := random.Image(1024, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := crane.Push(img, src, opt...); err != nil {
-		log.Fatal(err)
+	if err := crane.Push(img, src); err != nil {
+		t.Fatal(err)
 	}
 
-	cmd := NewCmdEditFs(&opt)
+	cmd := NewCmdEditFs(&[]crane.Option{})
 	cmd.SetArgs([]string{src})
 	cmd.Flags().Set("filename", "/foo/bar")
 	cmd.SetIn(strings.NewReader("baz"))
@@ -102,7 +102,7 @@ func TestEditFilesystem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	img, err = crane.Pull(src, opt...)
+	img, err = crane.Pull(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestEditFilesystem(t *testing.T) {
 	}
 
 	// Edit the same file to make sure we can edit existing files.
-	cmd = NewCmdEditFs(&opt)
+	cmd = NewCmdEditFs(&[]crane.Option{})
 	cmd.SetArgs([]string{src})
 	cmd.Flags().Set("filename", "/foo/bar")
 	cmd.SetIn(strings.NewReader("quux"))
@@ -130,7 +130,7 @@ func TestEditFilesystem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	img, err = crane.Pull(src, opt...)
+	img, err = crane.Pull(src)
 	if err != nil {
 		t.Fatal(err)
 	}
