@@ -74,6 +74,14 @@ var defaultRetryBackoff = Backoff{
 	Steps:    3,
 }
 
+// Useful for tests
+var fastBackoff = Backoff{
+	Duration: 1.0 * time.Millisecond,
+	Factor:   3.0,
+	Jitter:   0.1,
+	Steps:    3,
+}
+
 const (
 	defaultJobs = 4
 

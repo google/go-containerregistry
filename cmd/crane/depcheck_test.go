@@ -21,6 +21,9 @@ import (
 )
 
 func TestDeps(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping slow depcheck")
+	}
 	depcheck.AssertNoDependency(t, map[string][]string{
 		"github.com/google/go-containerregistry/cmd/crane": {
 			"github.com/google/go-containerregistry/pkg/v1/daemon",
