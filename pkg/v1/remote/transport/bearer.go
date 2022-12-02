@@ -268,7 +268,9 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if err := CheckError(resp, http.StatusOK); err != nil {
-		logs.Warn.Printf("No matching credentials were found for %q", bt.registry)
+		if bt.basic == authn.Anonymous {
+			logs.Warn.Printf("No matching credentials were found for %q", bt.registry)
+		}
 		return nil, err
 	}
 
@@ -308,7 +310,9 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if err := CheckError(resp, http.StatusOK); err != nil {
-		logs.Warn.Printf("No matching credentials were found for %q", bt.registry)
+		if bt.basic == authn.Anonymous {
+			logs.Warn.Printf("No matching credentials were found for %q", bt.registry)
+		}
 		return nil, err
 	}
 
