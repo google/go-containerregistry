@@ -82,6 +82,14 @@ var fastBackoff = Backoff{
 	Steps:    3,
 }
 
+var retryableStatusCodes = []int{
+	http.StatusRequestTimeout,
+	http.StatusInternalServerError,
+	http.StatusBadGateway,
+	http.StatusServiceUnavailable,
+	http.StatusGatewayTimeout,
+}
+
 const (
 	defaultJobs = 4
 
@@ -151,7 +159,7 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 		}
 
 		// Wrap the transport in something that can retry network flakes.
-		o.transport = transport.NewRetry(o.transport)
+		o.transport = transport.NewRetry(o.transport, transport.WithRetryPredicate(defaultRetryPredicate), transport.WithRetryStatusCodes(retryableStatusCodes...))
 
 		// Wrap this last to prevent transport.New from double-wrapping.
 		if o.userAgent != "" {
