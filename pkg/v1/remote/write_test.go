@@ -169,7 +169,6 @@ func setupWriterWithServer(server *httptest.Server, repo string) (*writer, close
 	return &writer{
 		repo:      tag.Context(),
 		client:    http.DefaultClient,
-		context:   context.Background(),
 		predicate: defaultRetryPredicate,
 		backoff:   defaultRetryBackoff,
 	}, server, nil
@@ -217,7 +216,7 @@ func TestCheckExistingBlob(t *testing.T) {
 			}
 			defer closer.Close()
 
-			existing, err := w.checkExistingBlob(h)
+			existing, err := w.checkExistingBlob(context.Background(), h)
 			if test.existing != existing {
 				t.Errorf("checkExistingBlob() = %v, want %v", existing, test.existing)
 			}
@@ -257,7 +256,7 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload("baz/bar", h.String(), "")
+	_, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -295,7 +294,7 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload("baz/bar", h.String(), "")
+	location, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -334,7 +333,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload("baz/bar", h.String(), "")
+	location, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err == nil {
 		t.Errorf("intiateUpload() = %v, %v; wanted error", location, mounted)
 	}
@@ -367,7 +366,7 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload("baz/bar", h.String(), "")
+	_, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -407,7 +406,7 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String(), "")
+	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -449,7 +448,7 @@ func TestInitiateUploadMountsWithOrigin(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String(), "fakeOrigin")
+	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "fakeOrigin")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -499,7 +498,7 @@ func TestInitiateUploadMountsWithOriginFallback(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String(), "fakeOrigin")
+	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "fakeOrigin")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -721,7 +720,7 @@ func TestCommitBlob(t *testing.T) {
 
 	commitLocation := w.url(expectedPath)
 
-	if err := w.commitBlob(commitLocation.String(), h.String()); err != nil {
+	if err := w.commitBlob(context.Background(), commitLocation.String(), h.String()); err != nil {
 		t.Errorf("commitBlob() = %v", err)
 	}
 }
@@ -1264,7 +1263,7 @@ func TestCheckExistingManifest(t *testing.T) {
 			}
 			defer closer.Close()
 
-			existing, err := w.checkExistingManifest(h, mt)
+			existing, err := w.checkExistingManifest(context.Background(), h, mt)
 			if test.existing != existing {
 				t.Errorf("checkExistingManifest() = %v, want %v", existing, test.existing)
 			}

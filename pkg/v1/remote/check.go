@@ -35,11 +35,10 @@ func CheckPushPermission(ref name.Reference, kc authn.Keychain, t http.RoundTrip
 	// authorize a push. Figure out how to return early here when we can,
 	// to avoid a roundtrip for spec-compliant registries.
 	w := writer{
-		repo:    ref.Context(),
-		client:  &http.Client{Transport: tr},
-		context: context.Background(),
+		repo:   ref.Context(),
+		client: &http.Client{Transport: tr},
 	}
-	loc, _, err := w.initiateUpload("", "", "")
+	loc, _, err := w.initiateUpload(context.Background(), "", "", "")
 	if loc != "" {
 		// Since we're only initiating the upload to check whether we
 		// can, we should attempt to cancel it, in case initiating
