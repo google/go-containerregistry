@@ -93,7 +93,7 @@ docker-tag-latest:
     refs:
       - main
   image:
-    name: gcr.io/go-containerregistry/crane:latest
+    name: gcr.io/go-containerregistry/crane:debug
     entrypoint: [""]
   script:
     - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
