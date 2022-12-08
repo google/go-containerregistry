@@ -83,7 +83,7 @@ docker run --rm -it --entrypoint "/busybox/sh" gcr.io/go-containerregistry/crane
 
 Tagged debug images are available at `gcr.io/go-containerregistry/crane/debug:[tag]`.
 
-The debug image contains a shell. The non-debug image doesn't. Presumably the gitlab script requires a shell, which is why it's failing.
+The debug image contains a shell. The non-debug images don't. Presumably, the Gitlab script requires a shell, which is why it fails when used in [Gitlab](https://about.gitlab.com/).
 
 ### Using with GitLab
 
