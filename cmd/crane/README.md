@@ -12,7 +12,7 @@ A collection of useful things you can do with `crane` is [here](recipes.md).
 ### Install from Releases
 Download [latest release](https://github.com/google/go-containerregistry/releases/latest):
 
-```
+```sh
 $ VERSION=TODO   # Latest, or other
 $ OS=Linux       # or Darwin, Windows
 $ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x
@@ -21,7 +21,7 @@ $ curl -sL "https://github.com/google/go-containerregistry/releases/download/v${
 
 We generate [SLSA 3 provenance](https://slsa.dev) using the OpenSSF's [slsa-framework/slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator). To verify our release, install the verification tool from [slsa-framework/slsa-verifier#installation](https://github.com/slsa-framework/slsa-verifier#installation) and verify as follows:
 
-```
+```sh
 $ curl -sL https://github.com/google/go-containerregistry/releases/download/v${VERSION}/attestation.intoto.jsonl > provenance.intoto.jsonl
 $ slsa-verifier -artifact-path go-containerregistry.tar.gz -provenance provenance.intoto.jsonl -source github.com/google/go-containerregistry -tag "v${VERSION}"
   PASSED: Verified SLSA provenance
@@ -30,7 +30,7 @@ $ slsa-verifier -artifact-path go-containerregistry.tar.gz -provenance provenanc
 ### Install manually
 Install manually:
 
-```
+```sh
 go install github.com/google/go-containerregistry/cmd/crane@latest
 ```
 
@@ -58,7 +58,7 @@ You can use the [`setup-crane`](https://github.com/imjasonh/setup-crane) action
 to install `crane` and setup auth to [GitHub Container
 Registry](https://github.com/features/packages) in a GitHub Action workflow:
 
-```
+```yaml
 steps:
 - uses: imjasonh/setup-crane@v0.1
 ```
@@ -82,6 +82,8 @@ docker run --rm -it --entrypoint "/busybox/sh" gcr.io/go-containerregistry/crane
 ```
 
 Tagged debug images are available at `gcr.io/go-containerregistry/crane/debug:[tag]`.
+
+The debug image contains a shell. The non-debug image doesn't. Presumably the gitlab script requires a shell, which is why it's failing.
 
 ### Using with GitLab
 
