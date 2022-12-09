@@ -37,7 +37,6 @@ func testPeekCompression(t *testing.T,
 
 	compressed := compress(io.NopCloser(contentBuf))
 	compressionDetected, pr, err := PeekCompression(compressed)
-
 	if err != nil {
 		t.Error("PeekCompression() =", err)
 	}
@@ -47,6 +46,9 @@ func testPeekCompression(t *testing.T,
 	}
 
 	decompressed, err := decompress(withCloser(pr, compressed))
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	b, err := io.ReadAll(decompressed)
 	if err != nil {
