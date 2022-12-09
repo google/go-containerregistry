@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package compression abstracts over gzip and zstd.
 package compression
 
 import (
@@ -24,6 +25,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/compression"
 )
 
+// Opener represents e.g. opening a file.
 type Opener = func() (io.ReadCloser, error)
 
 // GetCompression detects whether an Opener is compressed and which algorithm is used.
@@ -76,9 +78,9 @@ type PeekReader interface {
 func intoPeekReader(r io.Reader) PeekReader {
 	if p, ok := r.(PeekReader); ok {
 		return p
-	} else {
-		return bufio.NewReader(r)
 	}
+
+	return bufio.NewReader(r)
 }
 
 // CheckHeader checks whether the first bytes from a PeekReader match an expected header

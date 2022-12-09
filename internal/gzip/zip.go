@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-containerregistry/internal/and"
 )
 
+// MagicHeader is the start of gzip files.
 var MagicHeader = []byte{'\x1f', '\x8b'}
 
 // ReadCloser reads uncompressed input data from the io.ReadCloser and
