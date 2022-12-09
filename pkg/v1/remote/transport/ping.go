@@ -161,7 +161,7 @@ func (m multierrs) Error() string {
 	return b.String()
 }
 
-func (m multierrs) As(target interface{}) bool {
+func (m multierrs) As(target any) bool {
 	for _, err := range m {
 		if errors.As(err, target) {
 			return true

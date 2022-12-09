@@ -143,7 +143,7 @@ type FakeImage struct {
 		result1 int64
 		result2 error
 	}
-	invocations      map[string][][]interface{}
+	invocations      map[string][][]any
 	invocationsMutex sync.RWMutex
 }
 
@@ -154,7 +154,7 @@ func (fake *FakeImage) ConfigFile() (*v1.ConfigFile, error) {
 	}{})
 	stub := fake.ConfigFileStub
 	fakeReturns := fake.configFileReturns
-	fake.recordInvocation("ConfigFile", []interface{}{})
+	fake.recordInvocation("ConfigFile", []any{})
 	fake.configFileMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -210,7 +210,7 @@ func (fake *FakeImage) ConfigName() (v1.Hash, error) {
 	}{})
 	stub := fake.ConfigNameStub
 	fakeReturns := fake.configNameReturns
-	fake.recordInvocation("ConfigName", []interface{}{})
+	fake.recordInvocation("ConfigName", []any{})
 	fake.configNameMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -266,7 +266,7 @@ func (fake *FakeImage) Digest() (v1.Hash, error) {
 	}{})
 	stub := fake.DigestStub
 	fakeReturns := fake.digestReturns
-	fake.recordInvocation("Digest", []interface{}{})
+	fake.recordInvocation("Digest", []any{})
 	fake.digestMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -323,7 +323,7 @@ func (fake *FakeImage) LayerByDiffID(arg1 v1.Hash) (v1.Layer, error) {
 	}{arg1})
 	stub := fake.LayerByDiffIDStub
 	fakeReturns := fake.layerByDiffIDReturns
-	fake.recordInvocation("LayerByDiffID", []interface{}{arg1})
+	fake.recordInvocation("LayerByDiffID", []any{arg1})
 	fake.layerByDiffIDMutex.Unlock()
 	if stub != nil {
 		return stub(arg1)
@@ -387,7 +387,7 @@ func (fake *FakeImage) LayerByDigest(arg1 v1.Hash) (v1.Layer, error) {
 	}{arg1})
 	stub := fake.LayerByDigestStub
 	fakeReturns := fake.layerByDigestReturns
-	fake.recordInvocation("LayerByDigest", []interface{}{arg1})
+	fake.recordInvocation("LayerByDigest", []any{arg1})
 	fake.layerByDigestMutex.Unlock()
 	if stub != nil {
 		return stub(arg1)
@@ -450,7 +450,7 @@ func (fake *FakeImage) Layers() ([]v1.Layer, error) {
 	}{})
 	stub := fake.LayersStub
 	fakeReturns := fake.layersReturns
-	fake.recordInvocation("Layers", []interface{}{})
+	fake.recordInvocation("Layers", []any{})
 	fake.layersMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -506,7 +506,7 @@ func (fake *FakeImage) Manifest() (*v1.Manifest, error) {
 	}{})
 	stub := fake.ManifestStub
 	fakeReturns := fake.manifestReturns
-	fake.recordInvocation("Manifest", []interface{}{})
+	fake.recordInvocation("Manifest", []any{})
 	fake.manifestMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -562,7 +562,7 @@ func (fake *FakeImage) MediaType() (types.MediaType, error) {
 	}{})
 	stub := fake.MediaTypeStub
 	fakeReturns := fake.mediaTypeReturns
-	fake.recordInvocation("MediaType", []interface{}{})
+	fake.recordInvocation("MediaType", []any{})
 	fake.mediaTypeMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -618,7 +618,7 @@ func (fake *FakeImage) RawConfigFile() ([]byte, error) {
 	}{})
 	stub := fake.RawConfigFileStub
 	fakeReturns := fake.rawConfigFileReturns
-	fake.recordInvocation("RawConfigFile", []interface{}{})
+	fake.recordInvocation("RawConfigFile", []any{})
 	fake.rawConfigFileMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -674,7 +674,7 @@ func (fake *FakeImage) RawManifest() ([]byte, error) {
 	}{})
 	stub := fake.RawManifestStub
 	fakeReturns := fake.rawManifestReturns
-	fake.recordInvocation("RawManifest", []interface{}{})
+	fake.recordInvocation("RawManifest", []any{})
 	fake.rawManifestMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -730,7 +730,7 @@ func (fake *FakeImage) Size() (int64, error) {
 	}{})
 	stub := fake.SizeStub
 	fakeReturns := fake.sizeReturns
-	fake.recordInvocation("Size", []interface{}{})
+	fake.recordInvocation("Size", []any{})
 	fake.sizeMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -779,7 +779,7 @@ func (fake *FakeImage) SizeReturnsOnCall(i int, result1 int64, result2 error) {
 	}{result1, result2}
 }
 
-func (fake *FakeImage) Invocations() map[string][][]interface{} {
+func (fake *FakeImage) Invocations() map[string][][]any {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
 	fake.configFileMutex.RLock()
@@ -804,21 +804,21 @@ func (fake *FakeImage) Invocations() map[string][][]interface{} {
 	defer fake.rawManifestMutex.RUnlock()
 	fake.sizeMutex.RLock()
 	defer fake.sizeMutex.RUnlock()
-	copiedInvocations := map[string][][]interface{}{}
+	copiedInvocations := map[string][][]any{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
 	}
 	return copiedInvocations
 }
 
-func (fake *FakeImage) recordInvocation(key string, args []interface{}) {
+func (fake *FakeImage) recordInvocation(key string, args []any) {
 	fake.invocationsMutex.Lock()
 	defer fake.invocationsMutex.Unlock()
 	if fake.invocations == nil {
-		fake.invocations = map[string][][]interface{}{}
+		fake.invocations = map[string][][]any{}
 	}
 	if fake.invocations[key] == nil {
-		fake.invocations[key] = [][]interface{}{}
+		fake.invocations[key] = [][]any{}
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }

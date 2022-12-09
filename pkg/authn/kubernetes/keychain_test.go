@@ -365,7 +365,7 @@ func testResolve(t *testing.T, kc authn.Keychain, target authn.Resource, expecte
 	}
 }
 
-func toJSON(t *testing.T, obj interface{}) []byte {
+func toJSON(t *testing.T, obj any) []byte {
 	t.Helper()
 
 	bites, err := json.Marshal(obj)

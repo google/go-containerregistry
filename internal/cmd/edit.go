@@ -139,7 +139,7 @@ func interactive(in io.Reader, out io.Writer) bool {
 	return interactiveFile(in) && interactiveFile(out)
 }
 
-func interactiveFile(i interface{}) bool {
+func interactiveFile(i any) bool {
 	f, ok := i.(*os.File)
 	if !ok {
 		return false

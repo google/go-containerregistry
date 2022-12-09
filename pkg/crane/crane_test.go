@@ -532,7 +532,7 @@ func TestBadInputs(t *testing.T) {
 
 	// e drops the first parameter so we can use the result of a function
 	// that returns two values as an expression above. This is a bit of a go quirk.
-	e := func(_ interface{}, err error) error {
+	e := func(_ any, err error) error {
 		return err
 	}
 

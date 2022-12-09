@@ -385,7 +385,7 @@ func Exists(l v1.Layer) (bool, error) {
 
 // Recursively unwrap our wrappers so that we can check for the original implementation.
 // We might want to expose this?
-func unwrap(i interface{}) interface{} {
+func unwrap(i any) any {
 	if ule, ok := i.(*uncompressedLayerExtender); ok {
 		return unwrap(ule.UncompressedLayer)
 	}

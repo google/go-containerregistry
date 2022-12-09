@@ -88,7 +88,7 @@ func (e *Error) Temporary() bool {
 type Diagnostic struct {
 	Code    ErrorCode   `json:"code"`
 	Message string      `json:"message,omitempty"`
-	Detail  interface{} `json:"detail,omitempty"`
+	Detail  any `json:"detail,omitempty"`
 }
 
 // String stringifies the Diagnostic in the form: $Code: $Message[; $Detail]

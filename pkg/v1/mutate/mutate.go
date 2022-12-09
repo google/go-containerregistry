@@ -163,7 +163,7 @@ func (a arbitraryRawManifest) RawManifest() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var m map[string]interface{}
+	var m map[string]any
 	if err := json.Unmarshal(b, &m); err != nil {
 		return nil, err
 	}
