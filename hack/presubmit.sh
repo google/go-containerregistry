@@ -26,14 +26,12 @@ export PATH="${PATH}:${TMP_DIR}/bin"
 export GOPATH="${TMP_DIR}"
 pushd ${TMP_DIR}
 trap popd EXIT
-go install golang.org/x/lint/golint@v0.0.0-20210508222113-6edffad5e616
-go install honnef.co/go/tools/cmd/staticcheck@v0.3.2
+go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
 popd
 
 pushd ${PROJECT_ROOT}
 trap popd EXIT
 
-golint -set_exit_status ./pkg/...
 staticcheck ./pkg/...
 
 # Verify that all source files are correctly formatted.
