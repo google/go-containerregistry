@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package zstd provides helper functions for interacting with zstd streams.
 package zstd
 
 import (
@@ -23,6 +24,7 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
+// MagicHeader is the start of zstd files.
 var MagicHeader = []byte{'\x28', '\xb5', '\x2f', '\xfd'}
 
 // ReadCloser reads uncompressed input data from the io.ReadCloser and

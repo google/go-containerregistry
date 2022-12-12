@@ -18,7 +18,6 @@ import (
 	"archive/tar"
 	"errors"
 	"io"
-	"io/ioutil"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -98,7 +97,7 @@ func TestLayer(t *testing.T) {
 					t.Errorf("found %q, not in original map", th.Name)
 					continue
 				}
-				got, err := ioutil.ReadAll(tr)
+				got, err := io.ReadAll(tr)
 				if err != nil {
 					t.Fatalf("ReadAll(%q): %v", th.Name, err)
 				}

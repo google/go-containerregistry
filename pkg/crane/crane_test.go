@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -345,7 +344,7 @@ func TestWithPlatform(t *testing.T) {
 func TestCraneTarball(t *testing.T) {
 	t.Parallel()
 	// Write an image as a tarball.
-	tmp, err := ioutil.TempFile("", "")
+	tmp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -383,7 +382,7 @@ func TestCraneTarball(t *testing.T) {
 func TestCraneSaveLegacy(t *testing.T) {
 	t.Parallel()
 	// Write an image as a legacy tarball.
-	tmp, err := ioutil.TempFile("", "")
+	tmp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -402,7 +401,7 @@ func TestCraneSaveLegacy(t *testing.T) {
 func TestCraneSaveOCI(t *testing.T) {
 	t.Parallel()
 	// Write an image as an OCI image layout.
-	tmp, err := ioutil.TempDir("", "")
+	tmp, err := os.MkdirTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,7 +418,7 @@ func TestCraneSaveOCI(t *testing.T) {
 
 func TestCraneFilesystem(t *testing.T) {
 	t.Parallel()
-	tmp, err := ioutil.TempFile("", "")
+	tmp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -463,7 +462,7 @@ func TestCraneFilesystem(t *testing.T) {
 			t.Fatal(err)
 		}
 		if header.Name == name {
-			b, err := ioutil.ReadAll(tr)
+			b, err := io.ReadAll(tr)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -488,7 +487,7 @@ func TestStreamingAppend(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmp, err := ioutil.TempFile("", "crane-append")
+	tmp, err := os.CreateTemp("", "crane-append")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,7 +531,7 @@ func TestBadInputs(t *testing.T) {
 
 	// e drops the first parameter so we can use the result of a function
 	// that returns two values as an expression above. This is a bit of a go quirk.
-	e := func(_ interface{}, err error) error {
+	e := func(_ any, err error) error {
 		return err
 	}
 

@@ -1,6 +1,6 @@
 module github.com/google/go-containerregistry/cmd/krane
 
-go 1.17
+go 1.18
 
 replace github.com/google/go-containerregistry => ../../
 

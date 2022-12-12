@@ -17,10 +17,10 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
 
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
 	gcmd "github.com/google/go-containerregistry/cmd/gcrane/cmd"
-	"github.com/google/go-containerregistry/internal/signal"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/gcrane"
 	"github.com/google/go-containerregistry/pkg/logs"

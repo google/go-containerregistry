@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -274,7 +274,7 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 // https://docs.docker.com/registry/spec/auth/token/
@@ -316,5 +316,5 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }

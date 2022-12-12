@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +37,7 @@ import (
 
 func TestWrite(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}
@@ -91,7 +90,7 @@ func TestWrite(t *testing.T) {
 
 func TestMultiWriteSameImage(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}
@@ -154,7 +153,7 @@ func TestMultiWriteSameImage(t *testing.T) {
 
 func TestMultiWriteDifferentImages(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file: %v", err)
 	}
@@ -229,7 +228,7 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 
 func TestWriteForeignLayers(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file: %v", err)
 	}
@@ -307,7 +306,7 @@ func TestMultiWriteNoHistory(t *testing.T) {
 		t.Fatalf("Error creating test tag: %v", err)
 	}
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file: %v", err)
 	}
@@ -354,7 +353,7 @@ func TestMultiWriteHistoryEmptyLayers(t *testing.T) {
 		t.Fatalf("Error creating test tag: %v", err)
 	}
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file: %v", err)
 	}
@@ -397,7 +396,7 @@ func TestMultiWriteMismatchedHistory(t *testing.T) {
 		t.Fatalf("Error creating test tag: %v", err)
 	}
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file: %v", err)
 	}
@@ -453,7 +452,7 @@ func TestUncompressedSize(t *testing.T) {
 		t.Fatalf("Error creating test tag: %v", err)
 	}
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file: %v", err)
 	}
@@ -472,7 +471,7 @@ func TestUncompressedSize(t *testing.T) {
 // share some layers only writes those shared layers once.
 func TestWriteSharedLayers(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file: %v", err)
 	}

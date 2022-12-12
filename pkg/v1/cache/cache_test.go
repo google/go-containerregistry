@@ -17,7 +17,6 @@ package cache
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -89,7 +88,7 @@ func TestLayersLazy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("layer.Uncompressed: %v", err)
 	}
-	io.Copy(ioutil.Discard, rc)
+	io.Copy(io.Discard, rc)
 
 	if got, expected := len(m.m), 1; got != expected {
 		t.Errorf("expected %v layers in cache after reading, got %v", expected, got)

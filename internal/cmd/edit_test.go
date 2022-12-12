@@ -16,7 +16,7 @@ package cmd
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http/httptest"
 	"net/url"
 	"path"
@@ -112,7 +112,7 @@ func TestEditFilesystem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := ioutil.ReadAll(r)
+	got, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestEditFilesystem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err = ioutil.ReadAll(r)
+	got, err = io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestFindFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
 	}

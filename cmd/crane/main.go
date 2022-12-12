@@ -17,9 +17,9 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
 
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
-	"github.com/google/go-containerregistry/internal/signal"
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 

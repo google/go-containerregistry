@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -95,7 +94,7 @@ func ping(ctx context.Context, reg name.Registry, t http.RoundTripper) (*pingRes
 		defer func() {
 			// By draining the body, make sure to reuse the connection made by
 			// the ping for the following access to the registry
-			io.Copy(ioutil.Discard, resp.Body)
+			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
 		}()
 
@@ -161,7 +160,7 @@ func (m multierrs) Error() string {
 	return b.String()
 }
 
-func (m multierrs) As(target interface{}) bool {
+func (m multierrs) As(target any) bool {
 	for _, err := range m {
 		if errors.As(err, target) {
 			return true

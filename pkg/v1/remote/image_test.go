@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -701,7 +700,7 @@ func TestData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lb, err := ioutil.ReadAll(rc)
+	lb, err := io.ReadAll(rc)
 	if err != nil {
 		t.Fatal(err)
 	}

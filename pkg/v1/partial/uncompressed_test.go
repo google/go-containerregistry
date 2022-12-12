@@ -16,7 +16,6 @@ package partial_test
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -112,7 +111,7 @@ func TestUncompressedLayer(t *testing.T) {
 // This is cribbed from pkg/legacy/tarball just to get intra-package coverage.
 func TestLegacyWrite(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}

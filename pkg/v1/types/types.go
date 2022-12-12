@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package types holds common OCI media types.
 package types
 
 // MediaType is an enumeration of the supported mime types that an element of an image might have.

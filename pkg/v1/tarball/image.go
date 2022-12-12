@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -202,7 +201,7 @@ func (i *image) loadTarDescriptorAndConfig() error {
 	}
 	defer cfg.Close()
 
-	i.config, err = ioutil.ReadAll(cfg)
+	i.config, err = io.ReadAll(cfg)
 	if err != nil {
 		return err
 	}

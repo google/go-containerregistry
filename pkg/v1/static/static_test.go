@@ -15,7 +15,7 @@
 package static
 
 import (
-	"io/ioutil"
+	"io"
 	"strings"
 	"testing"
 
@@ -73,7 +73,7 @@ func TestNewLayer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := ioutil.ReadAll(r)
+	got, err := io.ReadAll(r)
 	if err != nil {
 		t.Fatal(err)
 	}

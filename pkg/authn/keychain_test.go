@@ -18,7 +18,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -39,7 +38,7 @@ var (
 func TestMain(m *testing.M) {
 	// Set $HOME to a temp empty dir, to ensure $HOME/.docker/config.json
 	// isn't unexpectedly found.
-	tmp, err := ioutil.TempDir("", "keychain_test_home")
+	tmp, err := os.MkdirTemp("", "keychain_test_home")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +54,7 @@ func setupConfigDir(t *testing.T) string {
 	tmpdir := os.Getenv("TEST_TMPDIR")
 	if tmpdir == "" {
 		var err error
-		tmpdir, err = ioutil.TempDir("", "keychain_test")
+		tmpdir, err = os.MkdirTemp("", "keychain_test")
 		if err != nil {
 			t.Fatalf("creating temp dir: %v", err)
 		}
@@ -74,7 +73,7 @@ func setupConfigDir(t *testing.T) string {
 func setupConfigFile(t *testing.T, content string) string {
 	cd := setupConfigDir(t)
 	p := filepath.Join(cd, "config.json")
-	if err := ioutil.WriteFile(p, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(p, []byte(content), 0600); err != nil {
 		t.Fatalf("write %q: %v", p, err)
 	}
 
@@ -100,7 +99,7 @@ func TestPodmanConfig(t *testing.T) {
 	tmpdir := os.Getenv("TEST_TMPDIR")
 	if tmpdir == "" {
 		var err error
-		tmpdir, err = ioutil.TempDir("", "keychain_test")
+		tmpdir, err = os.MkdirTemp("", "keychain_test")
 		if err != nil {
 			t.Fatalf("creating temp dir: %v", err)
 		}
@@ -114,7 +113,7 @@ func TestPodmanConfig(t *testing.T) {
 	}
 	cfg := filepath.Join(p, "containers/auth.json")
 	content := fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("foo", "bar"))
-	if err := ioutil.WriteFile(cfg, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(cfg, []byte(content), 0600); err != nil {
 		t.Fatalf("write %q: %v", cfg, err)
 	}
 
@@ -144,7 +143,7 @@ func TestPodmanConfig(t *testing.T) {
 	}
 	cfg = filepath.Join(os.Getenv("HOME"), ".docker/config.json")
 	content = fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("home-foo", "home-bar"))
-	if err := ioutil.WriteFile(cfg, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(cfg, []byte(content), 0600); err != nil {
 		t.Fatalf("write %q: %v", cfg, err)
 	}
 	defer func() { os.Remove(cfg) }()
