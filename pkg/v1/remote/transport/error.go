@@ -86,9 +86,9 @@ func (e *Error) Temporary() bool {
 
 // Diagnostic represents a single error returned by a Docker registry interaction.
 type Diagnostic struct {
-	Code    ErrorCode   `json:"code"`
-	Message string      `json:"message,omitempty"`
-	Detail  any `json:"detail,omitempty"`
+	Code    ErrorCode `json:"code"`
+	Message string    `json:"message,omitempty"`
+	Detail  any       `json:"detail,omitempty"`
 }
 
 // String stringifies the Diagnostic in the form: $Code: $Message[; $Detail]
