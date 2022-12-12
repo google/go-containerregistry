@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package compression abstracts over gzip and zstd.
 package compression
 
 // Compression is an enumeration of the supported compression algorithms
