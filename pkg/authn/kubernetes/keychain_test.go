@@ -445,7 +445,7 @@ func TestKubernetesAuth(t *testing.T) {
 	// From https://github.com/knative/serving/issues/12761#issuecomment-1097441770
 	// All of these should work with K8s' docker auth parsing.
 	for k, ss := range map[string][]string{
-		"registry.gitlab.com/dprotaso/test/nginx": []string{
+		"registry.gitlab.com/dprotaso/test/nginx": {
 			"registry.gitlab.com",
 			"http://registry.gitlab.com",
 			"https://registry.gitlab.com",
@@ -459,7 +459,7 @@ func TestKubernetesAuth(t *testing.T) {
 			"http://registry.gitlab.com/dprotaso/test/nginx",
 			"https://registry.gitlab.com/dprotaso/test/nginx",
 		},
-		"dtestcontainer.azurecr.io/dave/nginx": []string{
+		"dtestcontainer.azurecr.io/dave/nginx": {
 			"dtestcontainer.azurecr.io",
 			"http://dtestcontainer.azurecr.io",
 			"https://dtestcontainer.azurecr.io",
