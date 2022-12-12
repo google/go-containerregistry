@@ -24,22 +24,22 @@ pushd ${PROJECT_ROOT}
 trap popd EXIT
 
 go get -u ./...
-go mod tidy -compat=1.17
+go mod tidy -compat=1.18
 go mod vendor
 
 cd ${PROJECT_ROOT}/pkg/authn/k8schain
 go get -u ./...
-go mod tidy -compat=1.17
+go mod tidy -compat=1.18
 go mod download
 
 cd ${PROJECT_ROOT}/pkg/authn/kubernetes
 go get -u ./...
-go mod tidy -compat=1.17
+go mod tidy -compat=1.18
 go mod download
 
 cd ${PROJECT_ROOT}/cmd/krane
 go get -u ./...
-go mod tidy -compat=1.17
+go mod tidy -compat=1.18
 go mod download
 
 cd ${PROJECT_ROOT}
