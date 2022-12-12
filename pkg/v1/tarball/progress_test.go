@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -29,7 +28,7 @@ func ExampleWithProgress() {
 	// buffered channel to make the example test easier
 	c := make(chan v1.Update, 200)
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		fmt.Printf("error creating temp file: %v\n", err)
 		return

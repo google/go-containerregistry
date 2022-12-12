@@ -15,7 +15,7 @@
 package tarball
 
 import (
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -119,7 +119,7 @@ func TestLayerLink(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bs, err := ioutil.ReadAll(rc)
+	bs, err := io.ReadAll(rc)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,7 +17,6 @@ package static
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -53,11 +52,11 @@ func (l *staticLayer) DiffID() (v1.Hash, error) {
 }
 
 func (l *staticLayer) Compressed() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewReader(l.b)), nil
+	return io.NopCloser(bytes.NewReader(l.b)), nil
 }
 
 func (l *staticLayer) Uncompressed() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewReader(l.b)), nil
+	return io.NopCloser(bytes.NewReader(l.b)), nil
 }
 
 func (l *staticLayer) Size() (int64, error) {

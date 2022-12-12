@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -67,12 +66,12 @@ func (cl *configLayer) DiffID() (v1.Hash, error) {
 
 // Uncompressed implements v1.Layer
 func (cl *configLayer) Uncompressed() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewBuffer(cl.content)), nil
+	return io.NopCloser(bytes.NewBuffer(cl.content)), nil
 }
 
 // Compressed implements v1.Layer
 func (cl *configLayer) Compressed() (io.ReadCloser, error) {
-	return ioutil.NopCloser(bytes.NewBuffer(cl.content)), nil
+	return io.NopCloser(bytes.NewBuffer(cl.content)), nil
 }
 
 // Size implements v1.Layer
@@ -355,7 +354,7 @@ func UncompressedSize(l v1.Layer) (int64, error) {
 	}
 	defer rc.Close()
 
-	return io.Copy(ioutil.Discard, rc)
+	return io.Copy(io.Discard, rc)
 }
 
 type withExists interface {

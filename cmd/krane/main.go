@@ -16,7 +16,7 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/signal"
 
@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	amazonKeychain authn.Keychain = authn.NewKeychainFromHelper(ecr.NewECRHelper(ecr.WithLogger(ioutil.Discard)))
+	amazonKeychain authn.Keychain = authn.NewKeychainFromHelper(ecr.NewECRHelper(ecr.WithLogger(io.Discard)))
 	azureKeychain  authn.Keychain = authn.NewKeychainFromHelper(credhelper.NewACRCredentialsHelper())
 )
 

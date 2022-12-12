@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -46,7 +45,7 @@ func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ bool) (types.
 		return types.ImageLoadResponse{}, fmt.Errorf("ImageLoad: wrong context")
 	}
 
-	_, _ = io.Copy(ioutil.Discard, r)
+	_, _ = io.Copy(io.Discard, r)
 	return types.ImageLoadResponse{
 		Body: m.loadBody,
 	}, m.loadErr
@@ -71,20 +70,20 @@ func TestWriteImage(t *testing.T) {
 	}{{
 		name: "success",
 		client: &MockClient{
-			loadBody: ioutil.NopCloser(strings.NewReader("Loaded")),
+			loadBody: io.NopCloser(strings.NewReader("Loaded")),
 		},
 		wantResponse: "Loaded",
 	}, {
 		name: "load err",
 		client: &MockClient{
-			loadBody: ioutil.NopCloser(strings.NewReader("Loaded")),
+			loadBody: io.NopCloser(strings.NewReader("Loaded")),
 			loadErr:  fmt.Errorf("locked and loaded"),
 		},
 		wantErr: "locked and loaded",
 	}, {
 		name: "read err",
 		client: &MockClient{
-			loadBody: ioutil.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
+			loadBody: io.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
 		},
 		wantErr: "goodbye, world",
 	}} {
@@ -147,7 +146,7 @@ func TestWriteDefaultClient(t *testing.T) {
 	ctx := context.TODO()
 	defaultClient = func() (Client, error) {
 		return &MockClient{
-			loadBody: ioutil.NopCloser(strings.NewReader("Loaded")),
+			loadBody: io.NopCloser(strings.NewReader("Loaded")),
 			wantCtx:  ctx,
 		}, nil
 	}

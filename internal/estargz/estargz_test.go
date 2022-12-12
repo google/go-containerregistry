@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -42,7 +41,7 @@ func TestReader(t *testing.T) {
 	}
 	tw.Close()
 
-	zipped, _, err := ReadCloser(ioutil.NopCloser(buf))
+	zipped, _, err := ReadCloser(io.NopCloser(buf))
 	if err != nil {
 		t.Fatal("ReadCloser() =", err)
 	}
@@ -68,7 +67,7 @@ func TestReader(t *testing.T) {
 		}
 		found = true
 
-		b, err := ioutil.ReadAll(r)
+		b, err := io.ReadAll(r)
 		if err != nil {
 			t.Error("ReadAll() =", err)
 		}
@@ -98,12 +97,12 @@ func (f failReader) Read(_ []byte) (int, error) {
 func TestReadErrors(t *testing.T) {
 	fr := failReader{}
 
-	if _, _, err := ReadCloser(ioutil.NopCloser(fr)); err != errRead {
+	if _, _, err := ReadCloser(io.NopCloser(fr)); err != errRead {
 		t.Error("ReadCloser: expected errRead, got", err)
 	}
 
 	buf := bytes.NewBufferString("not a tarball")
-	if _, _, err := ReadCloser(ioutil.NopCloser(buf)); !strings.Contains(err.Error(), "failed to parse tar file") {
+	if _, _, err := ReadCloser(io.NopCloser(buf)); !strings.Contains(err.Error(), "failed to parse tar file") {
 		t.Error(`ReadCloser: expected "failed to parse tar file", got`, err)
 	}
 }

@@ -17,7 +17,7 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -153,7 +153,7 @@ func CheckError(resp *http.Response, codes ...int) error {
 			return nil
 		}
 	}
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}

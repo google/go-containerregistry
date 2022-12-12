@@ -2,7 +2,7 @@ package partial
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"testing"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -68,11 +68,11 @@ func TestConfigLayer(t *testing.T) {
 			t.Fatalf("Error getting compressed layer: %v", err)
 		}
 
-		cfgLayerBytes, err := ioutil.ReadAll(lr)
+		cfgLayerBytes, err := io.ReadAll(lr)
 		if err != nil {
 			t.Fatalf("Error reading config layer bytes: %v", err)
 		}
-		zcfgLayerBytes, err := ioutil.ReadAll(zr)
+		zcfgLayerBytes, err := io.ReadAll(zr)
 		if err != nil {
 			t.Fatalf("Error reading config layer bytes: %v", err)
 		}

@@ -18,7 +18,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -460,7 +460,7 @@ func TestCalls(t *testing.T) {
 				req := &http.Request{
 					Method: "PUT",
 					URL:    u,
-					Body:   ioutil.NopCloser(strings.NewReader(contents)),
+					Body:   io.NopCloser(strings.NewReader(contents)),
 				}
 				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
@@ -468,7 +468,7 @@ func TestCalls(t *testing.T) {
 					t.Fatalf("Error uploading manifest: %v", err)
 				}
 				if resp.StatusCode != http.StatusCreated {
-					body, _ := ioutil.ReadAll(resp.Body)
+					body, _ := io.ReadAll(resp.Body)
 					t.Fatalf("Error uploading manifest got status: %d %s", resp.StatusCode, body)
 				}
 				t.Logf("created manifest with digest %v", resp.Header.Get("Docker-Content-Digest"))
@@ -482,7 +482,7 @@ func TestCalls(t *testing.T) {
 				req := &http.Request{
 					Method: "PUT",
 					URL:    u,
-					Body:   ioutil.NopCloser(strings.NewReader(contents)),
+					Body:   io.NopCloser(strings.NewReader(contents)),
 				}
 				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
@@ -490,7 +490,7 @@ func TestCalls(t *testing.T) {
 					t.Fatalf("Error uploading digest: %v", err)
 				}
 				if resp.StatusCode != http.StatusCreated {
-					body, _ := ioutil.ReadAll(resp.Body)
+					body, _ := io.ReadAll(resp.Body)
 					t.Fatalf("Error uploading digest got status: %d %s", resp.StatusCode, body)
 				}
 			}
@@ -503,7 +503,7 @@ func TestCalls(t *testing.T) {
 				req := &http.Request{
 					Method: "PATCH",
 					URL:    u,
-					Body:   ioutil.NopCloser(strings.NewReader(contents)),
+					Body:   io.NopCloser(strings.NewReader(contents)),
 				}
 				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
@@ -511,7 +511,7 @@ func TestCalls(t *testing.T) {
 					t.Fatalf("Error streaming blob: %v", err)
 				}
 				if resp.StatusCode != http.StatusNoContent {
-					body, _ := ioutil.ReadAll(resp.Body)
+					body, _ := io.ReadAll(resp.Body)
 					t.Fatalf("Error streaming blob: %d %s", resp.StatusCode, body)
 				}
 
@@ -524,7 +524,7 @@ func TestCalls(t *testing.T) {
 			req := &http.Request{
 				Method: tc.Method,
 				URL:    u,
-				Body:   ioutil.NopCloser(strings.NewReader(tc.Body)),
+				Body:   io.NopCloser(strings.NewReader(tc.Body)),
 				Header: map[string][]string{},
 			}
 			for k, v := range tc.RequestHeader {
@@ -536,7 +536,7 @@ func TestCalls(t *testing.T) {
 				t.Fatalf("Error getting %q: %v", tc.URL, err)
 			}
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Errorf("Reading response body: %v", err)
 			}
@@ -556,7 +556,7 @@ func TestCalls(t *testing.T) {
 			}
 		}
 		t.Run(tc.Description, testf)
-		logger = log.New(ioutil.Discard, "", log.Ldate)
+		logger = log.New(io.Discard, "", log.Ldate)
 		t.Run(tc.Description+" - custom log", testf)
 	}
 }
