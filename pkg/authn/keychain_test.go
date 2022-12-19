@@ -195,11 +195,12 @@ func encode(user, pass string) string {
 
 func TestVariousPaths(t *testing.T) {
 	tests := []struct {
-		desc    string
-		content string
-		wantErr bool
-		target  Resource
-		cfg     *AuthConfig
+		desc      string
+		content   string
+		wantErr   bool
+		target    Resource
+		cfg       *AuthConfig
+		anonymous bool
 	}{{
 		desc:    "invalid config file",
 		target:  testRegistry,
@@ -264,6 +265,17 @@ func TestVariousPaths(t *testing.T) {
 			Username: "foo",
 			Password: "bar",
 		},
+	}, {
+		desc:   "ignore unrelated repo",
+		target: testRepo,
+		content: fmt.Sprintf(`{
+  "auths": {
+    "test.io/another-repo": {"auth": %q},
+	"test.io": {}
+  }
+}`, encode("bar", "baz")),
+		cfg:       &AuthConfig{},
+		anonymous: true,
 	}}
 
 	for _, test := range tests {
@@ -291,6 +303,10 @@ func TestVariousPaths(t *testing.T) {
 
 			if !reflect.DeepEqual(cfg, test.cfg) {
 				t.Errorf("got %+v, want %+v", cfg, test.cfg)
+			}
+
+			if test.anonymous != (auth == Anonymous) {
+				t.Fatalf("unexpected anonymous authenticator")
 			}
 		})
 	}
