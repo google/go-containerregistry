@@ -18,7 +18,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"errors"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"io"
 	"os"
 	"path/filepath"
@@ -28,6 +27,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
