@@ -332,6 +332,13 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 	return false
 }
 
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // Time sets all timestamps in an image to the given timestamp.
 func Time(img v1.Image, t time.Time) (v1.Image, error) {
 	newImage := empty.Image
@@ -341,24 +348,43 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 		return nil, fmt.Errorf("getting image layers: %w", err)
 	}
 
-	// Strip away all timestamps from layers
-	newLayers := make([]v1.Layer, len(layers))
-	for idx, layer := range layers {
-		newLayer, err := layerTime(layer, t)
-		if err != nil {
-			return nil, fmt.Errorf("setting layer times: %w", err)
-		}
-		newLayers[idx] = newLayer
-	}
-
-	newImage, err = AppendLayers(newImage, newLayers...)
-	if err != nil {
-		return nil, fmt.Errorf("appending layers: %w", err)
-	}
-
 	ocf, err := img.ConfigFile()
 	if err != nil {
 		return nil, fmt.Errorf("getting original config file: %w", err)
+	}
+
+	addendums := make([]Addendum, max(len(ocf.History), len(layers)))
+	var historyIdx, addendumIdx int
+	for layerIdx := 0; layerIdx < len(layers); addendumIdx, layerIdx = addendumIdx+1, layerIdx+1 {
+		newLayer, err := layerTime(layers[layerIdx], t)
+		if err != nil {
+			return nil, fmt.Errorf("setting layer times: %w", err)
+		}
+
+		// try to search for the history entry that corresponds to this layer
+		for ; historyIdx < len(ocf.History); historyIdx++ {
+			addendums[addendumIdx].History = ocf.History[historyIdx]
+			// if it's an EmptyLayer, do not set the Layer and have the Addendum with just the History
+			// and move on to the next History entry
+			if ocf.History[historyIdx].EmptyLayer {
+				addendumIdx++
+				continue
+			}
+			// otherwise, we can set the Layer and exit from the cycle
+			addendums[addendumIdx].Layer = newLayer
+			historyIdx++
+			break
+		}
+	}
+
+	// add all leftover History entries
+	for ; historyIdx < len(ocf.History); historyIdx, addendumIdx = historyIdx+1, addendumIdx+1 {
+		addendums[addendumIdx].History = ocf.History[historyIdx]
+	}
+
+	newImage, err = Append(newImage, addendums...)
+	if err != nil {
+		return nil, fmt.Errorf("appending layers: %w", err)
 	}
 
 	cf, err := newImage.ConfigFile()
@@ -383,6 +409,7 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 		h.Comment = ocf.History[i].Comment
 		h.EmptyLayer = ocf.History[i].EmptyLayer
 		// Explicitly ignore Author field; which hinders reproducibility
+		h.Author = ""
 		cfg.History[i] = h
 	}
 
