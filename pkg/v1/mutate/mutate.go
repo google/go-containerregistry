@@ -370,11 +370,11 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 				addendumIdx++
 				continue
 			}
-			// otherwise, we can set the Layer and exit from the cycle
-			addendums[addendumIdx].Layer = newLayer
+			// otherwise, we can exit from the cycle
 			historyIdx++
 			break
 		}
+		addendums[addendumIdx].Layer = newLayer
 	}
 
 	// add all leftover History entries
