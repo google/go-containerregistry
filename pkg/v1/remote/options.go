@@ -103,10 +103,7 @@ const (
 var DefaultTransport http.RoundTripper = &http.Transport{
 	Proxy: http.ProxyFromEnvironment,
 	DialContext: (&net.Dialer{
-		// By default we wrap the transport in retries, so reduce the
-		// default dial timeout to 5s to avoid 5x 30s of connection
-		// timeouts when doing the "ping" on certain http registries.
-		Timeout:   5 * time.Second,
+		Timeout:   30 * time.Second,
 		KeepAlive: 30 * time.Second,
 	}).DialContext,
 	ForceAttemptHTTP2:     true,
