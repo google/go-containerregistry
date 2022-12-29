@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
@@ -324,20 +325,47 @@ func TestMutateCreatedAt(t *testing.T) {
 }
 
 func TestMutateTime(t *testing.T) {
-	source := sourceImage(t)
-	want := time.Time{}
-	result, err := mutate.Time(source, want)
-	if err != nil {
-		t.Fatalf("failed to mutate a config: %v", err)
-	}
+	for _, tc := range []struct {
+		name   string
+		source v1.Image
+	}{
+		{
+			name:   "image with matching history and layers",
+			source: sourceImage(t),
+		},
+		{
+			name:   "image with empty_layer history entries",
+			source: sourceImagePath(t, "testdata/source_image_with_empty_layer_history.tar"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			want := time.Time{}
+			result, err := mutate.Time(tc.source, want)
+			if err != nil {
+				t.Fatalf("failed to mutate a config: %v", err)
+			}
 
-	if configDigestsAreEqual(t, source, result) {
-		t.Fatal("mutating the created time MUST mutate the config digest")
-	}
+			if configDigestsAreEqual(t, tc.source, result) {
+				t.Fatal("mutating the created time MUST mutate the config digest")
+			}
 
-	got := getConfigFile(t, result).Created.Time
-	if got != want {
-		t.Fatalf("mutating the created time MUST mutate the time from %v to %v", got, want)
+			mutatedOriginalConfig := getConfigFile(t, tc.source).DeepCopy()
+			gotConfig := getConfigFile(t, result)
+
+			// manually change the fields we expect to be changed by mutate.Time
+			mutatedOriginalConfig.Author = ""
+			mutatedOriginalConfig.Created = v1.Time{Time: want}
+			for i := range mutatedOriginalConfig.History {
+				mutatedOriginalConfig.History[i].Created = v1.Time{Time: want}
+				mutatedOriginalConfig.History[i].Author = ""
+			}
+
+			if diff := cmp.Diff(mutatedOriginalConfig, gotConfig,
+				cmpopts.IgnoreFields(v1.RootFS{}, "DiffIDs"),
+			); diff != "" {
+				t.Errorf("configFile() mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
 
@@ -636,9 +664,13 @@ func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {
 }
 
 func sourceImage(t *testing.T) v1.Image {
+	return sourceImagePath(t, "testdata/source_image.tar")
+}
+
+func sourceImagePath(t *testing.T, tarPath string) v1.Image {
 	t.Helper()
 
-	image, err := tarball.ImageFromPath("testdata/source_image.tar", nil)
+	image, err := tarball.ImageFromPath(tarPath, nil)
 	if err != nil {
 		t.Fatalf("Error loading image: %v", err)
 	}
