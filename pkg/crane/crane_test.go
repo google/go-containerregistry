@@ -401,11 +401,7 @@ func TestCraneSaveLegacy(t *testing.T) {
 func TestCraneSaveOCI(t *testing.T) {
 	t.Parallel()
 	// Write an image as an OCI image layout.
-	tmp, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	img, err := random.Image(1024, 5)
 	if err != nil {
