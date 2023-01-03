@@ -27,11 +27,7 @@ import (
 )
 
 func TestFilesystemCache(t *testing.T) {
-	dir, err := os.MkdirTemp("", "ggcr-cache")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	numLayers := 5
 	img, err := random.Image(10, int64(numLayers))
@@ -155,11 +151,7 @@ func TestFilesystemCache(t *testing.T) {
 }
 
 func TestErrNotFound(t *testing.T) {
-	dir, err := os.MkdirTemp("", "ggcr-cache")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	os.RemoveAll(dir) // Remove the tempdir.
+	dir := t.TempDir()
 
 	c := NewFilesystemCache(dir)
 	h := v1.Hash{Algorithm: "fake", Hex: "not-found"}
@@ -172,11 +164,7 @@ func TestErrNotFound(t *testing.T) {
 }
 
 func TestErrUnexpectedEOF(t *testing.T) {
-	dir, err := os.MkdirTemp("", "ggcr-cache")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer os.RemoveAll(dir) // Remove the tempdir.
+	dir := t.TempDir()
 
 	// create a random layer
 	l, err := random.Layer(10, types.DockerLayer)

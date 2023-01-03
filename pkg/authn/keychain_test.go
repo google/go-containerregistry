@@ -53,11 +53,7 @@ func TestMain(m *testing.M) {
 func setupConfigDir(t *testing.T) string {
 	tmpdir := os.Getenv("TEST_TMPDIR")
 	if tmpdir == "" {
-		var err error
-		tmpdir, err = os.MkdirTemp("", "keychain_test")
-		if err != nil {
-			t.Fatalf("creating temp dir: %v", err)
-		}
+		tmpdir = t.TempDir()
 	}
 
 	fresh++
@@ -98,11 +94,7 @@ func TestNoConfig(t *testing.T) {
 func TestPodmanConfig(t *testing.T) {
 	tmpdir := os.Getenv("TEST_TMPDIR")
 	if tmpdir == "" {
-		var err error
-		tmpdir, err = os.MkdirTemp("", "keychain_test")
-		if err != nil {
-			t.Fatalf("creating temp dir: %v", err)
-		}
+		tmpdir = t.TempDir()
 	}
 	fresh++
 	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
