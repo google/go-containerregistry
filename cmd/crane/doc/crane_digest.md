@@ -9,6 +9,7 @@ crane digest IMAGE [flags]
 ### Options
 
 ```
+      --full-ref         (Optional) if true, print the full image reference by digest
   -h, --help             help for digest
       --tarball string   (Optional) path to tarball containing the image
 ```

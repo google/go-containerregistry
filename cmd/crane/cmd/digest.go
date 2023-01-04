@@ -26,7 +26,7 @@ import (
 // NewCmdDigest creates a new cobra.Command for the digest subcommand.
 func NewCmdDigest(options *[]crane.Option) *cobra.Command {
 	var tarball string
-	var full bool
+	var fullRef bool
 	cmd := &cobra.Command{
 		Use:   "digest IMAGE",
 		Short: "Get the digest of an image",
@@ -38,15 +38,15 @@ func NewCmdDigest(options *[]crane.Option) *cobra.Command {
 				}
 				return errors.New("image reference required without --tarball")
 			}
-			if full && tarball != "" {
-				return errors.New("cannot specify --full with --tarball")
+			if fullRef && tarball != "" {
+				return errors.New("cannot specify --full-ref with --tarball")
 			}
 
 			digest, err := getDigest(tarball, args, options)
 			if err != nil {
 				return err
 			}
-			if full {
+			if fullRef {
 				ref, err := name.ParseReference(args[0])
 				if err != nil {
 					return err
@@ -60,7 +60,7 @@ func NewCmdDigest(options *[]crane.Option) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&tarball, "tarball", "", "(Optional) path to tarball containing the image")
-	cmd.Flags().BoolVar(&full, "full", false, "(Optional) if true, print the full image reference by digest")
+	cmd.Flags().BoolVar(&fullRef, "full-ref", false, "(Optional) if true, print the full image reference by digest")
 
 	return cmd
 }
