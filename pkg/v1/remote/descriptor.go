@@ -209,6 +209,28 @@ func (d *Descriptor) remoteIndex() *remoteIndex {
 	}
 }
 
+// https://github.com/docker/hub-feedback/issues/2107#issuecomment-1371293316
+//
+// DockerHub supports plugins, which look like normal manifests, but will
+// return a 401 with an incorrect challenge if you attempt to fetch them.
+//
+// They require you send, e.g.:
+// 'repository(plugin):vieux/sshfs:pull' not 'repository:vieux/sshfs:pull'.
+//
+// Hack around this by always including the plugin-ified version in the initial
+// scopes. The request will succeed with the correct subset, so it is safe to
+// have extraneous scopes here.
+func fixPluginScopes(ref name.Reference, scopes []string) []string {
+	if ref.Context().Registry.String() == name.DefaultRegistry {
+		for _, scope := range scopes {
+			if strings.HasPrefix(scope, "repository") {
+				scopes = append(scopes, strings.Replace(scope, "repository", "repository(plugin)", 1))
+			}
+		}
+	}
+	return scopes
+}
+
 // fetcher implements methods for reading from a registry.
 type fetcher struct {
 	Ref     name.Reference
@@ -217,7 +239,10 @@ type fetcher struct {
 }
 
 func makeFetcher(ref name.Reference, o *options) (*fetcher, error) {
-	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, []string{ref.Scope(transport.PullScope)})
+	scopes := []string{ref.Scope(transport.PullScope)}
+	scopes = fixPluginScopes(ref, scopes)
+
+	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
 	if err != nil {
 		return nil, err
 	}
