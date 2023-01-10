@@ -9,7 +9,8 @@ crane ls REPO [flags]
 ### Options
 
 ```
-  -h, --help   help for ls
+      --full-ref   (Optional) if true, print the full image reference
+  -h, --help       help for ls
 ```
 
 ### Options inherited from parent commands
