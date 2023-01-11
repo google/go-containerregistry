@@ -9,8 +9,9 @@ crane ls REPO [flags]
 ### Options
 
 ```
-      --full-ref   (Optional) if true, print the full image reference
-  -h, --help       help for ls
+      --full-ref           (Optional) if true, print the full image reference
+  -h, --help               help for ls
+      --omit-digest-tags   (Optional), if true, omit digest tags (e.g., ':sha256-...')
 ```
 
 ### Options inherited from parent commands
