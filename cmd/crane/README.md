@@ -11,12 +11,18 @@ A collection of useful things you can do with `crane` is [here](recipes.md).
 
 ### Install from Releases
 Download [latest release](https://github.com/google/go-containerregistry/releases/latest):
-
 ```
-$ VERSION=TODO   # Latest, or other
 $ OS=Linux       # or Darwin, Windows
 $ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x
-$ curl -sL "https://github.com/google/go-containerregistry/releases/download/v${VERSION}/go-containerregistry_${VERSION}_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
+$ curl -sL "https://github.com/google/go-containerregistry/releases/latest/download/go-containerregistry_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
+```
+
+Download a specific version:
+```
+$ VERSION=TODO   # Version number without leading v
+$ OS=Linux       # or Darwin, Windows
+$ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x
+$ curl -sL "https://github.com/google/go-containerregistry/releases/download/v${VERSION}/go-containerregistry_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
 ```
 
 We generate [SLSA 3 provenance](https://slsa.dev) using the OpenSSF's [slsa-framework/slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator). To verify our release, install the verification tool from [slsa-framework/slsa-verifier#installation](https://github.com/slsa-framework/slsa-verifier#installation) and verify as follows:
