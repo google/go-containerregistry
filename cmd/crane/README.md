@@ -19,7 +19,7 @@ $ curl -sL "https://github.com/google/go-containerregistry/releases/latest/downl
 
 Download a specific version:
 ```
-$ VERSION=TODO   # Version number without leading v 
+$ VERSION=TODO   # Version number without leading v
 $ OS=Linux       # or Darwin, Windows
 $ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x
 $ curl -sL "https://github.com/google/go-containerregistry/releases/download/v${VERSION}/go-containerregistry_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
