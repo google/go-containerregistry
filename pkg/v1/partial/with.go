@@ -336,7 +336,8 @@ func Descriptor(d Describable) (*v1.Descriptor, error) {
 		if wrm, ok := d.(WithRawManifest); ok && desc.MediaType.IsImage() {
 			mf, err := Manifest(wrm)
 			if err != nil {
-				// this is fine.
+				// Failing to parse as a manifest should just be ignored.
+				// The manifest might not be valid, and that's okay.
 			}
 			if !mf.Config.MediaType.IsConfig() {
 				desc.ArtifactType = string(mf.Config.MediaType)

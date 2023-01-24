@@ -44,7 +44,6 @@ type remoteImage struct {
 	config       []byte
 	mediaType    types.MediaType
 	descriptor   *v1.Descriptor
-	artifactType string
 }
 
 func (r *remoteImage) ArtifactType() (string, error) {
