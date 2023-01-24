@@ -15,8 +15,7 @@
 package registry_test
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -27,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 const (
@@ -47,8 +47,8 @@ const (
 )
 
 func sha256String(s string) string {
-	h := sha256.Sum256([]byte(s))
-	return hex.EncodeToString(h[:])
+	h, _, _ := v1.SHA256(bytes.NewReader([]byte(s)))
+	return h.Hex
 }
 
 func TestCalls(t *testing.T) {

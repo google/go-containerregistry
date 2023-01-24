@@ -17,7 +17,7 @@ package remote
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
+	"crypto"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -659,7 +659,7 @@ func TestStreamLayer(t *testing.T) {
 			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
 		}
 
-		h := sha256.New()
+		h := crypto.SHA256.New()
 		s, err := io.Copy(h, r.Body)
 		if err != nil {
 			t.Errorf("Reading body: %v", err)
