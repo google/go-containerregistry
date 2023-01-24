@@ -283,6 +283,16 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), f.Ref)
 		}
 	}
+
+	var artifactType string
+	mf, err := v1.ParseManifest(bytes.NewReader(manifest))
+	if err != nil {
+		// Failing to parse as a manifest should just be ignored.
+		// The manifest might not be valid, and that's okay.
+	} else if !mf.Config.MediaType.IsConfig() {
+		artifactType = string(mf.Config.MediaType)
+	}
+
 	// Do nothing for tags; I give up.
 	//
 	// We'd like to validate that the "Docker-Content-Digest" header matches what is returned by the registry,
@@ -293,9 +303,10 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 
 	// Return all this info since we have to calculate it anyway.
 	desc := v1.Descriptor{
-		Digest:    digest,
-		Size:      size,
-		MediaType: mediaType,
+		Digest:       digest,
+		Size:         size,
+		MediaType:    mediaType,
+		ArtifactType: artifactType,
 	}
 
 	return manifest, &desc, nil

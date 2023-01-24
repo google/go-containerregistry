@@ -500,6 +500,8 @@ func MediaType(img v1.Image, mt types.MediaType) v1.Image {
 }
 
 // ConfigMediaType modifies the MediaType() of the given image's Config.
+//
+// If !mt.IsConfig(), this will be the image's artifactType in any indexes it's a part of.
 func ConfigMediaType(img v1.Image, mt types.MediaType) v1.Image {
 	return &image{
 		base:            img,
