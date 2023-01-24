@@ -285,11 +285,10 @@ func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType
 	}
 
 	var artifactType string
-	mf, err := v1.ParseManifest(bytes.NewReader(manifest))
-	if err != nil {
-		// Failing to parse as a manifest should just be ignored.
-		// The manifest might not be valid, and that's okay.
-	} else if !mf.Config.MediaType.IsConfig() {
+	mf, _ := v1.ParseManifest(bytes.NewReader(manifest))
+	// Failing to parse as a manifest should just be ignored.
+	// The manifest might not be valid, and that's okay.
+	if !mf.Config.MediaType.IsConfig() {
 		artifactType = string(mf.Config.MediaType)
 	}
 
