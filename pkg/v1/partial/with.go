@@ -418,6 +418,10 @@ func unwrap(i any) any {
 	return i
 }
 
+// ArtifactType returns the artifact type for the given manifest.
+//
+// If the manifest reports its own artifact type, that's returned, otherwise
+// the manifest is parsed and, if successful, its config.mediaType is returned.
 func ArtifactType(w WithManifest) (string, error) {
 	if wat, ok := w.(withArtifactType); ok {
 		return wat.ArtifactType()
