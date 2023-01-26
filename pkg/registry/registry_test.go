@@ -15,7 +15,6 @@
 package registry_test
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -47,7 +46,7 @@ const (
 )
 
 func sha256String(s string) string {
-	h, _, _ := v1.SHA256(bytes.NewReader([]byte(s)))
+	h, _, _ := v1.SHA256(strings.NewReader(s))
 	return h.Hex
 }
 
