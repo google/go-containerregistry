@@ -32,3 +32,9 @@ linters:
 
   disable:
   - errcheck
+
+linters-settings:
+  depguard:
+    include-go-root: true
+    packages-with-error-message:
+    - crypto/sha256: "use crypto.SHA256 instead"
