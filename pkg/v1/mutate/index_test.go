@@ -23,6 +23,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
@@ -179,4 +180,56 @@ func TestIndexImmutability(t *testing.T) {
 			t.Errorf("IndexManifest changed! %s", cmp.Diff(got, want))
 		}
 	})
+}
+
+// TestAppend_ArtifactType tests that appending an image manifest that has a
+// non-standard config.mediaType to an index, results in the image's
+// config.mediaType being hoisted into the descriptor inside the index,
+// as artifactType.
+func TestAppend_ArtifactType(t *testing.T) {
+	for _, c := range []struct {
+		desc, configMediaType, wantArtifactType string
+	}{{
+		desc:             "standard config.mediaType, no artifactType",
+		configMediaType:  string(types.DockerConfigJSON),
+		wantArtifactType: "",
+	}, {
+		desc:             "non-standard config.mediaType, want artifactType",
+		configMediaType:  "application/vnd.custom.something",
+		wantArtifactType: "application/vnd.custom.something",
+	}} {
+		t.Run(c.desc, func(t *testing.T) {
+			img, err := random.Image(1, 1)
+			if err != nil {
+				t.Fatalf("random.Image: %v", err)
+			}
+			img = mutate.ConfigMediaType(img, types.MediaType(c.configMediaType))
+			idx := mutate.AppendManifests(empty.Index, mutate.IndexAddendum{
+				Add: img,
+			})
+			mf, err := idx.IndexManifest()
+			if err != nil {
+				t.Fatalf("IndexManifest: %v", err)
+			}
+			if got := mf.Manifests[0].ArtifactType; got != c.wantArtifactType {
+				t.Errorf("manifest artifactType: got %q, want %q", got, c.wantArtifactType)
+			}
+
+			desc, err := partial.Descriptor(img)
+			if err != nil {
+				t.Fatalf("partial.Descriptor: %v", err)
+			}
+			if got := desc.ArtifactType; got != c.wantArtifactType {
+				t.Errorf("descriptor artifactType: got %q, want %q", got, c.wantArtifactType)
+			}
+
+			gotAT, err := partial.ArtifactType(img)
+			if err != nil {
+				t.Fatalf("partial.ArtifactType: %v", err)
+			}
+			if gotAT != c.wantArtifactType {
+				t.Errorf("partial.ArtifactType: got %q, want %q", gotAT, c.wantArtifactType)
+			}
+		})
+	}
 }
