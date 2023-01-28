@@ -17,6 +17,7 @@ package cmd
 import (
 	"archive/tar"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -30,6 +31,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/static"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/spf13/cobra"
@@ -158,6 +160,15 @@ func editConfig(in io.Reader, out io.Writer, src, dst string, options ...crane.O
 		return nil, err
 	}
 
+	m, err := img.Manifest()
+	if err != nil {
+		return nil, err
+	}
+	mt, err := img.MediaType()
+	if err != nil {
+		return nil, err
+	}
+
 	var edited []byte
 	if interactive(in, out) {
 		rcf, err := img.RawConfigFile()
@@ -176,20 +187,24 @@ func editConfig(in io.Reader, out io.Writer, src, dst string, options ...crane.O
 		edited = b
 	}
 
-	cf, err := v1.ParseConfigFile(bytes.NewReader(edited))
+	l := static.NewLayer(edited, m.Config.MediaType)
+	layerDigest, err := l.Digest()
 	if err != nil {
 		return nil, err
 	}
 
-	img, err = mutate.ConfigFile(img, cf)
+	m.Config.Digest = layerDigest
+	m.Config.Size = int64(len(edited))
+	b, err := json.Marshal(m)
 	if err != nil {
 		return nil, err
+	}
+	rm := &rawManifest{
+		body:      b,
+		mediaType: mt,
 	}
 
-	digest, err := img.Digest()
-	if err != nil {
-		return nil, err
-	}
+	digest, _, _ := v1.SHA256(bytes.NewReader(b))
 
 	if dst == "" {
 		dst = src
@@ -207,7 +222,11 @@ func editConfig(in io.Reader, out io.Writer, src, dst string, options ...crane.O
 		return nil, err
 	}
 
-	if err := crane.Push(img, dst, options...); err != nil {
+	if err := remote.WriteLayer(dstRef.Context(), l, o.Remote...); err != nil {
+		return nil, err
+	}
+
+	if err := remote.Put(dstRef, rm, o.Remote...); err != nil {
 		return nil, err
 	}
 
