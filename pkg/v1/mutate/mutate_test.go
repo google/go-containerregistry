@@ -32,6 +32,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -279,7 +280,7 @@ func TestAnnotations(t *testing.T) {
 
 	for _, c := range []struct {
 		desc string
-		in   mutate.Annotatable
+		in   partial.WithRawManifest
 		want string
 	}{{
 		desc: "image",

@@ -17,6 +17,8 @@ package remote
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,7 +61,7 @@ type Descriptor struct {
 	v1.Descriptor
 	Manifest []byte
 
-	// So we can share this implementation with Image..
+	// So we can share this implementation with Image.
 	platform v1.Platform
 }
 
@@ -235,6 +237,45 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 		Host:   f.Ref.Context().RegistryStr(),
 		Path:   fmt.Sprintf("/v2/%s/%s/%s", f.Ref.Context().RepositoryStr(), resource, identifier),
 	}
+}
+
+// https://github.com/opencontainers/distribution-spec/blob/main/spec.md#referrers-tag-schema
+func fallbackTag(d name.Digest) name.Tag {
+	return d.Context().Tag(strings.Replace(d.DigestStr(), ":", "-", 1))
+}
+
+func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, d name.Digest) (*v1.IndexManifest, error) {
+	// Assume the registry doesn't support the Referrers API endpoint, so we'll use the fallback tag scheme.
+	b, _, err := f.fetchManifest(fallbackTag(d), []types.MediaType{types.OCIImageIndex})
+	if err != nil {
+		return nil, err
+	}
+	var terr *transport.Error
+	if ok := errors.As(err, &terr); ok && terr.StatusCode == http.StatusNotFound {
+		// Not found just means there are no attachments yet. Start with an empty manifest.
+		return &v1.IndexManifest{MediaType: types.OCIImageIndex}, nil
+	}
+
+	var im v1.IndexManifest
+	if err := json.Unmarshal(b, &im); err != nil {
+		return nil, err
+	}
+
+	// If filter applied, filter out by artifactType and add annotation
+	// See https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers
+	if filter != nil {
+		if v, ok := filter["artifactType"]; ok {
+			tmp := []v1.Descriptor{}
+			for _, desc := range im.Manifests {
+				if desc.ArtifactType == v {
+					tmp = append(tmp, desc)
+				}
+			}
+			im.Manifests = tmp
+		}
+	}
+
+	return &im, nil
 }
 
 func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
