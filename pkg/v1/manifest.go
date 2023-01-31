@@ -28,6 +28,7 @@ type Manifest struct {
 	Config        Descriptor        `json:"config"`
 	Layers        []Descriptor      `json:"layers"`
 	Annotations   map[string]string `json:"annotations,omitempty"`
+	Subject       *Descriptor       `json:"subject,omitempty"`
 }
 
 // IndexManifest represents an OCI image index in a structured way.
@@ -36,6 +37,7 @@ type IndexManifest struct {
 	MediaType     types.MediaType   `json:"mediaType,omitempty"`
 	Manifests     []Descriptor      `json:"manifests"`
 	Annotations   map[string]string `json:"annotations,omitempty"`
+	Subject       *Descriptor       `json:"subject,omitempty"`
 }
 
 // Descriptor holds a reference from the manifest to one of its constituent elements.
