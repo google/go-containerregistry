@@ -84,18 +84,18 @@ func NewCmdEditConfig(options *[]crane.Option) *cobra.Command {
 
 // NewCmdManifest creates a new cobra.Command for the manifest subcommand.
 func NewCmdEditManifest(options *[]crane.Option) *cobra.Command {
-	var dst string
+	var (
+		dst string
+		mt  string
+	)
 	cmd := &cobra.Command{
 		Use:   "manifest",
 		Short: "Edit an image's manifest.",
-		Example: `  # Edit ubuntu's config file
-  crane edit config ubuntu
-
-  # Overwrite ubuntu's config file with '{}'
-  echo '{}' | crane edit config ubuntu`,
+		Example: `  # Edit ubuntu's manifest
+  crane edit manifest ubuntu`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ref, err := editManifest(cmd.InOrStdin(), cmd.OutOrStdout(), args[0], dst, *options...)
+			ref, err := editManifest(cmd.InOrStdin(), cmd.OutOrStdout(), args[0], dst, mt, *options...)
 			if err != nil {
 				return fmt.Errorf("editing manifest: %w", err)
 			}
@@ -104,6 +104,7 @@ func NewCmdEditManifest(options *[]crane.Option) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&dst, "tag", "t", "", "New tag reference to apply to mutated image. If not provided, uses original tag or pushes a new digest.")
+	cmd.Flags().StringVarP(&mt, "media-type", "m", "", "Override the mediaType used as the Content-Type for PUT")
 
 	return cmd
 }
@@ -233,7 +234,7 @@ func editConfig(in io.Reader, out io.Writer, src, dst string, options ...crane.O
 	return dstRef, nil
 }
 
-func editManifest(in io.Reader, out io.Writer, src string, dst string, options ...crane.Option) (name.Reference, error) {
+func editManifest(in io.Reader, out io.Writer, src string, dst string, mt string, options ...crane.Option) (name.Reference, error) {
 	o := crane.GetOptions(options...)
 
 	ref, err := name.ParseReference(src, o.Name...)
@@ -276,9 +277,22 @@ func editManifest(in io.Reader, out io.Writer, src string, dst string, options .
 		return nil, err
 	}
 
+	if mt == "" {
+		// If --media-type is unset, use Content-Type by default.
+		mt = string(desc.MediaType)
+
+		// If document contains mediaType, default to that.
+		wmt := withMediaType{}
+		if err := json.Unmarshal(edited, &wmt); err == nil {
+			if wmt.MediaType != "" {
+				mt = wmt.MediaType
+			}
+		}
+	}
+
 	rm := &rawManifest{
 		body:      edited,
-		mediaType: desc.MediaType,
+		mediaType: types.MediaType(mt),
 	}
 
 	if err := remote.Put(dstRef, rm, o.Remote...); err != nil {
@@ -419,6 +433,10 @@ func blankHeader(name string) *tar.Header {
 
 func normalize(name string) string {
 	return filepath.Clean("/" + name)
+}
+
+type withMediaType struct {
+	MediaType string `json:"mediaType,omitempty"`
 }
 
 type rawManifest struct {
