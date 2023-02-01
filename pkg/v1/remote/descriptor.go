@@ -245,7 +245,33 @@ func fallbackTag(d name.Digest) name.Tag {
 }
 
 func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, d name.Digest) (*v1.IndexManifest, error) {
-	// Assume the registry doesn't support the Referrers API endpoint, so we'll use the fallback tag scheme.
+	// Check the Referrers API endpoint first.
+	u := f.url("referrers", d.DigestStr())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", string(types.OCIImageIndex))
+
+	resp, err := f.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusNotFound, http.StatusBadRequest); err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusOK {
+		var im v1.IndexManifest
+		if err := json.NewDecoder(resp.Body).Decode(&im); err != nil {
+			return nil, err
+		}
+		applyFilterToReferrersResponse(filter, &im)
+		return &im, nil
+	}
+
+	// The registry doesn't support the Referrers API endpoint, so we'll use the fallback tag scheme.
 	b, _, err := f.fetchManifest(fallbackTag(d), []types.MediaType{types.OCIImageIndex})
 	if err != nil {
 		return nil, err
@@ -261,20 +287,7 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 		return nil, err
 	}
 
-	// If filter applied, filter out by artifactType and add annotation
-	// See https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers
-	if filter != nil {
-		if v, ok := filter["artifactType"]; ok {
-			tmp := []v1.Descriptor{}
-			for _, desc := range im.Manifests {
-				if desc.ArtifactType == v {
-					tmp = append(tmp, desc)
-				}
-			}
-			im.Manifests = tmp
-		}
-	}
-
+	applyFilterToReferrersResponse(filter, &im)
 	return &im, nil
 }
 
@@ -478,4 +491,21 @@ func (f *fetcher) blobExists(h v1.Hash) (bool, error) {
 	}
 
 	return resp.StatusCode == http.StatusOK, nil
+}
+
+// If filter applied, filter out by artifactType.
+// See https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers
+func applyFilterToReferrersResponse(filter map[string]string, im *v1.IndexManifest) {
+	if filter == nil {
+		return
+	}
+	if v, ok := filter["artifactType"]; ok {
+		tmp := []v1.Descriptor{}
+		for _, desc := range im.Manifests {
+			if desc.ArtifactType == v {
+				tmp = append(tmp, desc)
+			}
+		}
+		im.Manifests = tmp
+	}
 }
