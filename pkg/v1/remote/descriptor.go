@@ -267,8 +267,7 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 		if err := json.NewDecoder(resp.Body).Decode(&im); err != nil {
 			return nil, err
 		}
-		applyFilterToReferrersResponse(filter, &im)
-		return &im, nil
+		return filterReferrersResponse(filter, &im), nil
 	}
 
 	// The registry doesn't support the Referrers API endpoint, so we'll use the fallback tag scheme.
@@ -287,8 +286,7 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 		return nil, err
 	}
 
-	applyFilterToReferrersResponse(filter, &im)
-	return &im, nil
+	return filterReferrersResponse(filter, &im), nil
 }
 
 func (f *fetcher) fetchManifest(ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
@@ -495,17 +493,19 @@ func (f *fetcher) blobExists(h v1.Hash) (bool, error) {
 
 // If filter applied, filter out by artifactType.
 // See https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers
-func applyFilterToReferrersResponse(filter map[string]string, im *v1.IndexManifest) {
+func filterReferrersResponse(filter map[string]string, origIndex *v1.IndexManifest) *v1.IndexManifest {
+	newIndex := origIndex
 	if filter == nil {
-		return
+		return newIndex
 	}
 	if v, ok := filter["artifactType"]; ok {
 		tmp := []v1.Descriptor{}
-		for _, desc := range im.Manifests {
+		for _, desc := range newIndex.Manifests {
 			if desc.ArtifactType == v {
 				tmp = append(tmp, desc)
 			}
 		}
-		im.Manifests = tmp
+		newIndex.Manifests = tmp
 	}
+	return newIndex
 }
