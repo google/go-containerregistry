@@ -79,6 +79,16 @@ func isCatalog(req *http.Request) bool {
 	return elems[len(elems)-1] == "_catalog"
 }
 
+// Returns whether this url should be handled by the referrers handler
+func isReferrers(req *http.Request) bool {
+	elems := strings.Split(req.URL.Path, "/")
+	elems = elems[1:]
+	if len(elems) < 4 {
+		return false
+	}
+	return elems[len(elems)-2] == "referrers"
+}
+
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pulling-an-image-manifest
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-an-image
 func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regError {
@@ -327,6 +337,71 @@ func (m *manifests) handleCatalog(resp http.ResponseWriter, req *http.Request) *
 		}
 
 		msg, _ := json.Marshal(repositoriesToList)
+		resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
+		resp.WriteHeader(http.StatusOK)
+		io.Copy(resp, bytes.NewReader([]byte(msg)))
+		return nil
+	}
+
+	return &regError{
+		Status:  http.StatusBadRequest,
+		Code:    "METHOD_UNKNOWN",
+		Message: "We don't understand your method + url",
+	}
+}
+
+// TODO: implement handling of artifactType querystring
+func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request) *regError {
+	elem := strings.Split(req.URL.Path, "/")
+	elem = elem[1:]
+	repo := strings.Join(elem[1:len(elem)-2], "/")
+	fmt.Println(elem, repo)
+
+	if req.Method == "GET" {
+		m.lock.Lock()
+		defer m.lock.Unlock()
+
+		im := v1.IndexManifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIImageIndex,
+			Manifests:     []v1.Descriptor{},
+		}
+
+		// loop thorugh manifests and check for subject field
+		seen := map[string]bool{}
+		for _, manifest := range m.manifests[repo] {
+			h, _, _ := v1.SHA256(bytes.NewReader(manifest.blob))
+			digest := h.String()
+			if _, ok := seen[digest]; ok {
+				continue
+			}
+			seen[digest] = true
+			var refPointer struct {
+				Subject *v1.Descriptor `json:"subject"`
+			}
+			json.Unmarshal(manifest.blob, &refPointer)
+			if refPointer.Subject != nil {
+				referenceDigest := refPointer.Subject.Digest
+				if referenceDigest.String() != "" {
+					referenceManifest := m.manifests[repo][referenceDigest.String()]
+					var referenceDescriptor struct {
+						MediaType types.MediaType `json:"mediaType"`
+						Config    struct {
+							MediaType string `json:"mediaType"`
+						} `json:"config"`
+					}
+					json.Unmarshal(referenceManifest.blob, &referenceDescriptor)
+					im.Manifests = append(im.Manifests, v1.Descriptor{
+						MediaType:    referenceDescriptor.MediaType,
+						Size:         int64(len(referenceManifest.blob)),
+						Digest:       referenceDigest,
+						ArtifactType: referenceDescriptor.Config.MediaType,
+					})
+				}
+			}
+		}
+
+		msg, _ := json.Marshal(&im)
 		resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
 		resp.WriteHeader(http.StatusOK)
 		io.Copy(resp, bytes.NewReader([]byte(msg)))
