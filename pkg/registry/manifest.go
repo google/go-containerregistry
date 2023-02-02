@@ -354,53 +354,47 @@ func (m *manifests) handleCatalog(resp http.ResponseWriter, req *http.Request) *
 func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request) *regError {
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
+	target := elem[len(elem)-1]
 	repo := strings.Join(elem[1:len(elem)-2], "/")
-	fmt.Println(elem, repo)
 
 	if req.Method == "GET" {
 		m.lock.Lock()
 		defer m.lock.Unlock()
-
 		im := v1.IndexManifest{
 			SchemaVersion: 2,
 			MediaType:     types.OCIImageIndex,
 			Manifests:     []v1.Descriptor{},
 		}
-
-		// loop thorugh manifests and check for subject field
-		seen := map[string]bool{}
-		for _, manifest := range m.manifests[repo] {
-			h, _, _ := v1.SHA256(bytes.NewReader(manifest.blob))
-			digest := h.String()
-			if _, ok := seen[digest]; ok {
+		for digest, manifest := range m.manifests[repo] {
+			h, err := v1.NewHash(digest)
+			if err != nil {
 				continue
 			}
-			seen[digest] = true
 			var refPointer struct {
 				Subject *v1.Descriptor `json:"subject"`
 			}
 			json.Unmarshal(manifest.blob, &refPointer)
-			if refPointer.Subject != nil {
-				referenceDigest := refPointer.Subject.Digest
-				if referenceDigest.String() != "" {
-					referenceManifest := m.manifests[repo][referenceDigest.String()]
-					var referenceDescriptor struct {
-						MediaType types.MediaType `json:"mediaType"`
-						Config    struct {
-							MediaType string `json:"mediaType"`
-						} `json:"config"`
-					}
-					json.Unmarshal(referenceManifest.blob, &referenceDescriptor)
-					im.Manifests = append(im.Manifests, v1.Descriptor{
-						MediaType:    referenceDescriptor.MediaType,
-						Size:         int64(len(referenceManifest.blob)),
-						Digest:       referenceDigest,
-						ArtifactType: referenceDescriptor.Config.MediaType,
-					})
-				}
+			if refPointer.Subject == nil {
+				continue
 			}
+			referenceDigest := refPointer.Subject.Digest
+			if referenceDigest.String() != target {
+				continue
+			}
+			// At this point, we know the current digest references the target
+			var imageAsArtifact struct {
+				Config struct {
+					MediaType string `json:"mediaType"`
+				} `json:"config"`
+			}
+			json.Unmarshal(manifest.blob, &imageAsArtifact)
+			im.Manifests = append(im.Manifests, v1.Descriptor{
+				MediaType:    types.MediaType(manifest.contentType),
+				Size:         int64(len(manifest.blob)),
+				Digest:       h,
+				ArtifactType: imageAsArtifact.Config.MediaType,
+			})
 		}
-
 		msg, _ := json.Marshal(&im)
 		resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
 		resp.WriteHeader(http.StatusOK)

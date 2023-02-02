@@ -109,7 +109,7 @@ func Logger(l *log.Logger) Option {
 	}
 }
 
-// Logger overrides the logger used to record requests to the registry.
+// WithReferrersSupport enables the referrers API endpoint (OCI 1.1+)
 func WithReferrersSupport(enabled bool) Option {
 	return func(r *registry) {
 		r.referrersEnabled = enabled
