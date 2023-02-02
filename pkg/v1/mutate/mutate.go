@@ -465,6 +465,13 @@ func layerTime(layer v1.Layer, t time.Time) (v1.Layer, error) {
 		}
 
 		header.ModTime = t
+
+		//PAX and GNU Format support additional timestamps in the header
+		if header.Format == tar.FormatPAX || header.Format == tar.FormatGNU {
+			header.AccessTime = t
+			header.ChangeTime = t
+		}
+
 		if err := tarWriter.WriteHeader(header); err != nil {
 			return nil, fmt.Errorf("writing tar header: %w", err)
 		}
