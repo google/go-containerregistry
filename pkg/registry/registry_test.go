@@ -467,6 +467,12 @@ func TestCalls(t *testing.T) {
 			},
 		},
 		{
+			Description: "fetch references, missing repo",
+			Method:      "GET",
+			URL:         "/v2/does-not-exist/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusNotFound,
+		},
+		{
 			Description: "fetch references, bad target (tag vs. digest)",
 			Method:      "GET",
 			URL:         "/v2/foo/referrers/latest",

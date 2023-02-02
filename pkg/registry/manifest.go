@@ -377,12 +377,22 @@ func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request)
 
 	m.lock.Lock()
 	defer m.lock.Unlock()
+
+	digestToManifestMap, repoExists := m.manifests[repo]
+	if !repoExists {
+		return &regError{
+			Status:  http.StatusNotFound,
+			Code:    "NAME_UNKNOWN",
+			Message: "Unknown name",
+		}
+	}
+
 	im := v1.IndexManifest{
 		SchemaVersion: 2,
 		MediaType:     types.OCIImageIndex,
 		Manifests:     []v1.Descriptor{},
 	}
-	for digest, manifest := range m.manifests[repo] {
+	for digest, manifest := range digestToManifestMap {
 		h, err := v1.NewHash(digest)
 		if err != nil {
 			continue
