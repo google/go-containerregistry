@@ -352,59 +352,69 @@ func (m *manifests) handleCatalog(resp http.ResponseWriter, req *http.Request) *
 
 // TODO: implement handling of artifactType querystring
 func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request) *regError {
+	// Ensure this is a GET request
+	if req.Method != "GET" {
+		return &regError{
+			Status:  http.StatusBadRequest,
+			Code:    "METHOD_UNKNOWN",
+			Message: "We don't understand your method + url",
+		}
+	}
+
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
 	target := elem[len(elem)-1]
 	repo := strings.Join(elem[1:len(elem)-2], "/")
 
-	if req.Method == "GET" {
-		m.lock.Lock()
-		defer m.lock.Unlock()
-		im := v1.IndexManifest{
-			SchemaVersion: 2,
-			MediaType:     types.OCIImageIndex,
-			Manifests:     []v1.Descriptor{},
+	// Validate that incoming target is a valid digest
+	if _, err := v1.NewHash(target); err != nil {
+		return &regError{
+			Status:  http.StatusBadRequest,
+			Code:    "UNSUPPORTED",
+			Message: "Target must be a valid digest",
 		}
-		for digest, manifest := range m.manifests[repo] {
-			h, err := v1.NewHash(digest)
-			if err != nil {
-				continue
-			}
-			var refPointer struct {
-				Subject *v1.Descriptor `json:"subject"`
-			}
-			json.Unmarshal(manifest.blob, &refPointer)
-			if refPointer.Subject == nil {
-				continue
-			}
-			referenceDigest := refPointer.Subject.Digest
-			if referenceDigest.String() != target {
-				continue
-			}
-			// At this point, we know the current digest references the target
-			var imageAsArtifact struct {
-				Config struct {
-					MediaType string `json:"mediaType"`
-				} `json:"config"`
-			}
-			json.Unmarshal(manifest.blob, &imageAsArtifact)
-			im.Manifests = append(im.Manifests, v1.Descriptor{
-				MediaType:    types.MediaType(manifest.contentType),
-				Size:         int64(len(manifest.blob)),
-				Digest:       h,
-				ArtifactType: imageAsArtifact.Config.MediaType,
-			})
-		}
-		msg, _ := json.Marshal(&im)
-		resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
-		resp.WriteHeader(http.StatusOK)
-		io.Copy(resp, bytes.NewReader([]byte(msg)))
-		return nil
 	}
 
-	return &regError{
-		Status:  http.StatusBadRequest,
-		Code:    "METHOD_UNKNOWN",
-		Message: "We don't understand your method + url",
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	im := v1.IndexManifest{
+		SchemaVersion: 2,
+		MediaType:     types.OCIImageIndex,
+		Manifests:     []v1.Descriptor{},
 	}
+	for digest, manifest := range m.manifests[repo] {
+		h, err := v1.NewHash(digest)
+		if err != nil {
+			continue
+		}
+		var refPointer struct {
+			Subject *v1.Descriptor `json:"subject"`
+		}
+		json.Unmarshal(manifest.blob, &refPointer)
+		if refPointer.Subject == nil {
+			continue
+		}
+		referenceDigest := refPointer.Subject.Digest
+		if referenceDigest.String() != target {
+			continue
+		}
+		// At this point, we know the current digest references the target
+		var imageAsArtifact struct {
+			Config struct {
+				MediaType string `json:"mediaType"`
+			} `json:"config"`
+		}
+		json.Unmarshal(manifest.blob, &imageAsArtifact)
+		im.Manifests = append(im.Manifests, v1.Descriptor{
+			MediaType:    types.MediaType(manifest.contentType),
+			Size:         int64(len(manifest.blob)),
+			Digest:       h,
+			ArtifactType: imageAsArtifact.Config.MediaType,
+		})
+	}
+	msg, _ := json.Marshal(&im)
+	resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
+	resp.WriteHeader(http.StatusOK)
+	io.Copy(resp, bytes.NewReader([]byte(msg)))
+	return nil
 }

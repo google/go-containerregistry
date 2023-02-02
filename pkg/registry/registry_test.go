@@ -467,6 +467,12 @@ func TestCalls(t *testing.T) {
 			},
 		},
 		{
+			Description: "fetch references, bad target (tag vs. digest)",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/latest",
+			Code:        http.StatusBadRequest,
+		},
+		{
 			Description: "fetch references, bad method",
 			Method:      "POST",
 			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
