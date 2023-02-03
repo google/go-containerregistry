@@ -437,6 +437,53 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/_catalog?n=1000",
 			Code:        http.StatusOK,
 		},
+		{
+			Description: "fetch references",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusOK,
+			Manifests: map[string]string{
+				"foo/manifests/image":           "foo",
+				"foo/manifests/points-to-image": "{\"subject\": {\"digest\": \"sha256:" + sha256String("foo") + "\"}}",
+			},
+		},
+		{
+			Description: "fetch references, subject pointing elsewhere",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusOK,
+			Manifests: map[string]string{
+				"foo/manifests/image":           "foo",
+				"foo/manifests/points-to-image": "{\"subject\": {\"digest\": \"sha256:" + sha256String("nonexistant") + "\"}}",
+			},
+		},
+		{
+			Description: "fetch references, no results",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusOK,
+			Manifests: map[string]string{
+				"foo/manifests/image": "foo",
+			},
+		},
+		{
+			Description: "fetch references, missing repo",
+			Method:      "GET",
+			URL:         "/v2/does-not-exist/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "fetch references, bad target (tag vs. digest)",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/latest",
+			Code:        http.StatusBadRequest,
+		},
+		{
+			Description: "fetch references, bad method",
+			Method:      "POST",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusBadRequest,
+		},
 	}
 
 	for _, tc := range tcs {
@@ -444,10 +491,11 @@ func TestCalls(t *testing.T) {
 		var logger *log.Logger
 		testf := func(t *testing.T) {
 
-			r := registry.New()
+			opts := []registry.Option{registry.WithReferrersSupport(true)}
 			if logger != nil {
-				r = registry.New(registry.Logger(logger))
+				opts = append(opts, registry.Logger(logger))
 			}
+			r := registry.New(opts...)
 			s := httptest.NewServer(r)
 			defer s.Close()
 

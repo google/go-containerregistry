@@ -79,6 +79,16 @@ func isCatalog(req *http.Request) bool {
 	return elems[len(elems)-1] == "_catalog"
 }
 
+// Returns whether this url should be handled by the referrers handler
+func isReferrers(req *http.Request) bool {
+	elems := strings.Split(req.URL.Path, "/")
+	elems = elems[1:]
+	if len(elems) < 4 {
+		return false
+	}
+	return elems[len(elems)-2] == "referrers"
+}
+
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pulling-an-image-manifest
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-an-image
 func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regError {
@@ -338,4 +348,83 @@ func (m *manifests) handleCatalog(resp http.ResponseWriter, req *http.Request) *
 		Code:    "METHOD_UNKNOWN",
 		Message: "We don't understand your method + url",
 	}
+}
+
+// TODO: implement handling of artifactType querystring
+func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request) *regError {
+	// Ensure this is a GET request
+	if req.Method != "GET" {
+		return &regError{
+			Status:  http.StatusBadRequest,
+			Code:    "METHOD_UNKNOWN",
+			Message: "We don't understand your method + url",
+		}
+	}
+
+	elem := strings.Split(req.URL.Path, "/")
+	elem = elem[1:]
+	target := elem[len(elem)-1]
+	repo := strings.Join(elem[1:len(elem)-2], "/")
+
+	// Validate that incoming target is a valid digest
+	if _, err := v1.NewHash(target); err != nil {
+		return &regError{
+			Status:  http.StatusBadRequest,
+			Code:    "UNSUPPORTED",
+			Message: "Target must be a valid digest",
+		}
+	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	digestToManifestMap, repoExists := m.manifests[repo]
+	if !repoExists {
+		return &regError{
+			Status:  http.StatusNotFound,
+			Code:    "NAME_UNKNOWN",
+			Message: "Unknown name",
+		}
+	}
+
+	im := v1.IndexManifest{
+		SchemaVersion: 2,
+		MediaType:     types.OCIImageIndex,
+		Manifests:     []v1.Descriptor{},
+	}
+	for digest, manifest := range digestToManifestMap {
+		h, err := v1.NewHash(digest)
+		if err != nil {
+			continue
+		}
+		var refPointer struct {
+			Subject *v1.Descriptor `json:"subject"`
+		}
+		json.Unmarshal(manifest.blob, &refPointer)
+		if refPointer.Subject == nil {
+			continue
+		}
+		referenceDigest := refPointer.Subject.Digest
+		if referenceDigest.String() != target {
+			continue
+		}
+		// At this point, we know the current digest references the target
+		var imageAsArtifact struct {
+			Config struct {
+				MediaType string `json:"mediaType"`
+			} `json:"config"`
+		}
+		json.Unmarshal(manifest.blob, &imageAsArtifact)
+		im.Manifests = append(im.Manifests, v1.Descriptor{
+			MediaType:    types.MediaType(manifest.contentType),
+			Size:         int64(len(manifest.blob)),
+			Digest:       h,
+			ArtifactType: imageAsArtifact.Config.MediaType,
+		})
+	}
+	msg, _ := json.Marshal(&im)
+	resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
+	resp.WriteHeader(http.StatusOK)
+	io.Copy(resp, bytes.NewReader([]byte(msg)))
+	return nil
 }
