@@ -222,6 +222,11 @@ func (in *IndexManifest) DeepCopyInto(out *IndexManifest) {
 			(*out)[key] = val
 		}
 	}
+	if in.Subject != nil {
+		in, out := &in.Subject, &out.Subject
+		*out = new(Descriptor)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -252,6 +257,11 @@ func (in *Manifest) DeepCopyInto(out *Manifest) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.Subject != nil {
+		in, out := &in.Subject, &out.Subject
+		*out = new(Descriptor)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }

@@ -95,7 +95,7 @@ type FakeImageIndex struct {
 		result1 int64
 		result2 error
 	}
-	invocations      map[string][][]any
+	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
 }
 
@@ -106,7 +106,7 @@ func (fake *FakeImageIndex) Digest() (v1.Hash, error) {
 	}{})
 	stub := fake.DigestStub
 	fakeReturns := fake.digestReturns
-	fake.recordInvocation("Digest", []any{})
+	fake.recordInvocation("Digest", []interface{}{})
 	fake.digestMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -163,7 +163,7 @@ func (fake *FakeImageIndex) Image(arg1 v1.Hash) (v1.Image, error) {
 	}{arg1})
 	stub := fake.ImageStub
 	fakeReturns := fake.imageReturns
-	fake.recordInvocation("Image", []any{arg1})
+	fake.recordInvocation("Image", []interface{}{arg1})
 	fake.imageMutex.Unlock()
 	if stub != nil {
 		return stub(arg1)
@@ -227,7 +227,7 @@ func (fake *FakeImageIndex) ImageIndex(arg1 v1.Hash) (v1.ImageIndex, error) {
 	}{arg1})
 	stub := fake.ImageIndexStub
 	fakeReturns := fake.imageIndexReturns
-	fake.recordInvocation("ImageIndex", []any{arg1})
+	fake.recordInvocation("ImageIndex", []interface{}{arg1})
 	fake.imageIndexMutex.Unlock()
 	if stub != nil {
 		return stub(arg1)
@@ -290,7 +290,7 @@ func (fake *FakeImageIndex) IndexManifest() (*v1.IndexManifest, error) {
 	}{})
 	stub := fake.IndexManifestStub
 	fakeReturns := fake.indexManifestReturns
-	fake.recordInvocation("IndexManifest", []any{})
+	fake.recordInvocation("IndexManifest", []interface{}{})
 	fake.indexManifestMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -346,7 +346,7 @@ func (fake *FakeImageIndex) MediaType() (types.MediaType, error) {
 	}{})
 	stub := fake.MediaTypeStub
 	fakeReturns := fake.mediaTypeReturns
-	fake.recordInvocation("MediaType", []any{})
+	fake.recordInvocation("MediaType", []interface{}{})
 	fake.mediaTypeMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -402,7 +402,7 @@ func (fake *FakeImageIndex) RawManifest() ([]byte, error) {
 	}{})
 	stub := fake.RawManifestStub
 	fakeReturns := fake.rawManifestReturns
-	fake.recordInvocation("RawManifest", []any{})
+	fake.recordInvocation("RawManifest", []interface{}{})
 	fake.rawManifestMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -458,7 +458,7 @@ func (fake *FakeImageIndex) Size() (int64, error) {
 	}{})
 	stub := fake.SizeStub
 	fakeReturns := fake.sizeReturns
-	fake.recordInvocation("Size", []any{})
+	fake.recordInvocation("Size", []interface{}{})
 	fake.sizeMutex.Unlock()
 	if stub != nil {
 		return stub()
@@ -507,7 +507,7 @@ func (fake *FakeImageIndex) SizeReturnsOnCall(i int, result1 int64, result2 erro
 	}{result1, result2}
 }
 
-func (fake *FakeImageIndex) Invocations() map[string][][]any {
+func (fake *FakeImageIndex) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
 	fake.digestMutex.RLock()
@@ -524,21 +524,21 @@ func (fake *FakeImageIndex) Invocations() map[string][][]any {
 	defer fake.rawManifestMutex.RUnlock()
 	fake.sizeMutex.RLock()
 	defer fake.sizeMutex.RUnlock()
-	copiedInvocations := map[string][][]any{}
+	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
 	}
 	return copiedInvocations
 }
 
-func (fake *FakeImageIndex) recordInvocation(key string, args []any) {
+func (fake *FakeImageIndex) recordInvocation(key string, args []interface{}) {
 	fake.invocationsMutex.Lock()
 	defer fake.invocationsMutex.Unlock()
 	if fake.invocations == nil {
-		fake.invocations = map[string][][]any{}
+		fake.invocations = map[string][][]interface{}{}
 	}
 	if fake.invocations[key] == nil {
-		fake.invocations[key] = [][]any{}
+		fake.invocations[key] = [][]interface{}{}
 	}
 	fake.invocations[key] = append(fake.invocations[key], args)
 }
