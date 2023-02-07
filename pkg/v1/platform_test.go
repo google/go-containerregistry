@@ -149,3 +149,87 @@ func TestPlatformEquals(t *testing.T) {
 		}
 	}
 }
+
+func TestPlatformSatisfies(t *testing.T) {
+	tests := []struct {
+		have, spec v1.Platform
+		sat        bool
+	}{{
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		v1.Platform{Architecture: "arm64", OS: "linux"},
+		false,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		v1.Platform{Architecture: "amd64", OS: "darwin"},
+		false,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", OSVersion: "5.0"},
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", OSVersion: "5.0"},
+		v1.Platform{Architecture: "amd64", OS: "linux", OSVersion: "3.6"},
+		false,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", Variant: "pios"},
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", Variant: "pios"},
+		v1.Platform{Architecture: "amd64", OS: "linux", Variant: "ubuntu"},
+		false,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", Variant: "pios"},
+		v1.Platform{Architecture: "amd64", OS: "linux", Variant: "pios"},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		v1.Platform{Architecture: "amd64", OS: "linux", OSFeatures: []string{"a", "b"}},
+		false,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", OSFeatures: []string{"a", "b"}},
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", OSFeatures: []string{"a", "b"}},
+		v1.Platform{Architecture: "amd64", OS: "linux", OSFeatures: []string{"a", "b"}},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", OSFeatures: []string{"a", "b"}},
+		v1.Platform{Architecture: "amd64", OS: "linux", OSFeatures: []string{"ac", "bd"}},
+		false,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", OSFeatures: []string{"a", "b"}},
+		v1.Platform{Architecture: "amd64", OS: "linux", OSFeatures: []string{"b", "a"}},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		v1.Platform{Architecture: "amd64", OS: "linux", Features: []string{"a", "b"}},
+		false,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", Features: []string{"a", "b"}},
+		v1.Platform{Architecture: "amd64", OS: "linux"},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", Features: []string{"a", "b"}},
+		v1.Platform{Architecture: "amd64", OS: "linux", Features: []string{"a", "b"}},
+		true,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", Features: []string{"a", "b"}},
+		v1.Platform{Architecture: "amd64", OS: "linux", Features: []string{"ac", "bd"}},
+		false,
+	}, {
+		v1.Platform{Architecture: "amd64", OS: "linux", Features: []string{"a", "b"}},
+		v1.Platform{Architecture: "amd64", OS: "linux", Features: []string{"b", "a"}},
+		true,
+	}}
+	for i, tt := range tests {
+		if sat := tt.have.Satisfies(tt.spec); sat != tt.sat {
+			t.Errorf("%d: mismatched was %v expected %v; original (-want +got) %s", i, sat, tt.sat, cmp.Diff(tt.have, tt.spec))
+		}
+	}
+}
