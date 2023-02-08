@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	fakeclient "k8s.io/client-go/kubernetes/fake"
 )
 
@@ -131,7 +132,7 @@ func TestServiceAccountNotFound(t *testing.T) {
 	testResolve(t, kc, registry(t, "fake.registry.io"), authn.Anonymous)
 }
 
-func TestAttachedServiceAccount(t *testing.T) {
+func TestImagePullSecretAttachedServiceAccount(t *testing.T) {
 	username, password := "foo", "bar"
 	client := fakeclient.NewSimpleClientset(&corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
@@ -158,6 +159,73 @@ func TestAttachedServiceAccount(t *testing.T) {
 
 	testResolve(t, kc, registry(t, "fake.registry.io"),
 		&authn.Basic{Username: username, Password: password})
+}
+
+func TestSecretAttachedServiceAccount(t *testing.T) {
+	username, password := "foo", "bar"
+
+	cases := []struct {
+		name            string
+		createSecret    bool
+		useMountSecrets bool
+		expected        authn.Authenticator
+	}{
+		{
+			name:            "resolved successfully",
+			createSecret:    true,
+			useMountSecrets: true,
+			expected:        &authn.Basic{Username: username, Password: password},
+		},
+		{
+			name:            "missing secret skipped",
+			createSecret:    false,
+			useMountSecrets: true,
+			expected:        &authn.Basic{},
+		},
+		{
+			name:            "skip option",
+			createSecret:    true,
+			useMountSecrets: false,
+			expected:        &authn.Basic{},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+
+			objs := []runtime.Object{
+				&corev1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "svcacct",
+						Namespace: "ns",
+					},
+					Secrets: []corev1.ObjectReference{{
+						Name: "secret",
+					}},
+				},
+			}
+			if c.createSecret {
+				objs = append(objs, dockerCfgSecretType.Create(
+					t, "ns", "secret", "fake.registry.io", authn.AuthConfig{
+						Username: username,
+						Password: password,
+					}))
+			}
+			client := fakeclient.NewSimpleClientset(objs...)
+
+			kc, err := New(context.Background(), client, Options{
+				Namespace:          "ns",
+				ServiceAccountName: "svcacct",
+				UseMountSecrets:    c.useMountSecrets,
+			})
+			if err != nil {
+				t.Fatalf("New() = %v", err)
+			}
+
+			testResolve(t, kc, registry(t, "fake.registry.io"), c.expected)
+		})
+	}
+
 }
 
 // Prioritze picking the first secret
