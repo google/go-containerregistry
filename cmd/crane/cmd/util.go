@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -75,14 +74,7 @@ func platformToString(p *v1.Platform) string {
 	if p == nil {
 		return "all"
 	}
-	platform := ""
-	if p.OS != "" && p.Architecture != "" {
-		platform = p.OS + "/" + p.Architecture
-	}
-	if p.Variant != "" {
-		platform += "/" + p.Variant
-	}
-	return platform
+	return p.String()
 }
 
 func parsePlatform(platform string) (*v1.Platform, error) {
@@ -90,26 +82,5 @@ func parsePlatform(platform string) (*v1.Platform, error) {
 		return nil, nil
 	}
 
-	p := &v1.Platform{}
-
-	parts := strings.SplitN(platform, ":", 2)
-	if len(parts) == 2 {
-		p.OSVersion = parts[1]
-	}
-
-	parts = strings.Split(parts[0], "/")
-
-	if len(parts) > 3 {
-		return nil, fmt.Errorf("failed to parse platform '%s': too many slashes", platform)
-	}
-
-	p.OS = parts[0]
-	if len(parts) > 1 {
-		p.Architecture = parts[1]
-	}
-	if len(parts) > 2 {
-		p.Variant = parts[2]
-	}
-
-	return p, nil
+	return v1.ParsePlatform(platform)
 }
