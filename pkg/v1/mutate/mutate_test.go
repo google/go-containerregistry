@@ -289,7 +289,7 @@ func TestAnnotations(t *testing.T) {
 	}, {
 		desc: "index",
 		in:   empty.Index,
-		want: `{"schemaVersion":2,"manifests":null,"annotations":{"foo":"bar"}}`,
+		want: `{"schemaVersion":2,"mediaType":"application/vnd.oci.image.index.v1+json","manifests":null,"annotations":{"foo":"bar"}}`,
 	}, {
 		desc: "arbitrary",
 		in:   arbitrary{},
