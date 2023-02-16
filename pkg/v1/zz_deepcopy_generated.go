@@ -99,6 +99,11 @@ func (in *ConfigFile) DeepCopyInto(out *ConfigFile) {
 	}
 	in.RootFS.DeepCopyInto(&out.RootFS)
 	in.Config.DeepCopyInto(&out.Config)
+	if in.OSFeatures != nil {
+		in, out := &in.OSFeatures, &out.OSFeatures
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
