@@ -91,23 +91,34 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	// If neither are found, fallback to Anonymous.
 	var cf *configfile.ConfigFile
 	if foundDockerConfig {
-		cf, err = config.Load(os.Getenv("DOCKER_CONFIG"))
-		if err != nil {
-			return nil, err
-		}
+		cf, err = loadDockerConfig(os.Getenv("DOCKER_CONFIG"))
 	} else {
-		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
-		if err != nil {
-			return Anonymous, nil
-		}
-		defer f.Close()
-		cf, err = config.LoadFromReader(f)
-		if err != nil {
-			return nil, err
-		}
+		cf, err = loadPodmanConfig(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if cf == nil {
+		return Anonymous, nil
 	}
 
 	return getAuthenticator(cf, target)
+}
+
+func loadDockerConfig(dir string) (*configfile.ConfigFile, error) {
+	return config.Load(dir)
+}
+
+func loadPodmanConfig(file string) (*configfile.ConfigFile, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, nil
+	}
+	defer f.Close()
+
+	return config.LoadFromReader(f)
 }
 
 func getAuthenticator(cf *configfile.ConfigFile, target Resource) (Authenticator, error) {

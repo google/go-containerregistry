@@ -15,7 +15,6 @@
 package authn
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -99,22 +98,13 @@ func (mk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 
 	// Check for Docker config file first, then for Podman auth file
 	if fileExists(filepath.Join(dir, config.ConfigFileName)) {
-		cf, err = config.Load(dir)
-		if err != nil {
-			return nil, err
-		}
+		cf, err = loadDockerConfig(dir)
 	} else if podmanAuthFile := filepath.Join(dir, "auth.json"); fileExists(podmanAuthFile) {
-		cf, err = config.Load(dir)
-		f, err := os.Open(podmanAuthFile)
-		if err != nil {
-			return nil, err
-		}
-		defer f.Close()
+		cf, err = loadPodmanConfig(podmanAuthFile)
+	}
 
-		cf, err = config.LoadFromReader(f)
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	if cf == nil {
