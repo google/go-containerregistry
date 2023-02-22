@@ -40,7 +40,7 @@ func (ap AuthPairs) Has(target Resource) bool {
 	return ok
 }
 
-func (ap AuthPairs) GetDockerConfig(target Resource) string {
+func (ap AuthPairs) Dir(target Resource) string {
 	if ap == nil {
 		return ""
 	}
@@ -90,7 +90,7 @@ func (mk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 		return DefaultKeychain.Resolve(target)
 	}
 
-	dc := mk.authPairs.GetDockerConfig(target)
+	dc := mk.authPairs.Dir(target)
 
 	var (
 		cf  *configfile.ConfigFile
