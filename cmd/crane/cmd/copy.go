@@ -32,7 +32,7 @@ func NewCmdCopy(options *[]crane.Option) *cobra.Command {
 		RunE: func(_ *cobra.Command, args []string) error {
 			src, dst := args[0], args[1]
 
-			*options = append(*options, crane.WithAuthFromKeychain(authn.NewAuthPairsKeychain(authn.WithAuthPairs(authPairs.authPairs))))
+			*options = append(*options, crane.WithAuthFromKeychain(authn.NewAuthPairsKeychain(authPairs.authPairs)))
 
 			return crane.Copy(src, dst, *options...)
 		},

@@ -68,27 +68,10 @@ type authPairsKeychain struct {
 
 var _ Keychain = (*authPairsKeychain)(nil)
 
-type authPairsKeychainOptions struct {
-	AuthPairs map[string]string
-}
-
-type AuthPairsKeychainOption func(options *authPairsKeychainOptions)
-
-func WithAuthPairs(ap map[string]string) AuthPairsKeychainOption {
-	return func(o *authPairsKeychainOptions) {
-		o.AuthPairs = ap
-	}
-}
-
-func NewAuthPairsKeychain(opts ...AuthPairsKeychainOption) Keychain {
-	o := &authPairsKeychainOptions{}
-	for _, opt := range opts {
-		opt(o)
-	}
-
+func NewAuthPairsKeychain(authPairs AuthPairs) Keychain {
 	return &authPairsKeychain{
 		cache:     make(map[string]Authenticator),
-		authPairs: o.AuthPairs,
+		authPairs: authPairs,
 	}
 }
 

@@ -33,10 +33,10 @@ func TestAuthPairsKeychainResolvesWithAuthPairs(t *testing.T) {
 		_   = setupConfigDir(t)
 	)
 
-	kc := NewAuthPairsKeychain(WithAuthPairs(map[string]string{
+	kc := NewAuthPairsKeychain(map[string]string{
 		repo1.String(): cd1,
 		repo2.String(): cd2,
-	}))
+	})
 
 	checkResolveRepo := func(t *testing.T, repo name.Repository, want string) {
 		t.Helper()
