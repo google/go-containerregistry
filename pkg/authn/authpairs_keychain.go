@@ -107,11 +107,14 @@ func (apk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 		return nil, err
 	}
 
+	var auth Authenticator
+
 	if cf == nil {
-		return Anonymous, nil
+		auth, err = DefaultKeychain.Resolve(target)
+	} else {
+		auth, err = getAuthenticator(cf, target)
 	}
 
-	auth, err := getAuthenticator(cf, target)
 	if err != nil {
 		return nil, err
 	}
