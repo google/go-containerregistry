@@ -77,19 +77,19 @@ func NewAuthPairsKeychain(authPairs AuthPairs) Keychain {
 	}
 }
 
-func (mk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
-	mk.mu.Lock()
-	defer mk.mu.Unlock()
+func (apk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
+	apk.mu.Lock()
+	defer apk.mu.Unlock()
 
-	if authenticator, ok := mk.cache[target.String()]; ok {
+	if authenticator, ok := apk.cache[target.String()]; ok {
 		return authenticator, nil
 	}
 
-	if !mk.authPairs.Has(target) {
+	if !apk.authPairs.Has(target) {
 		return DefaultKeychain.Resolve(target)
 	}
 
-	dir := mk.authPairs.Dir(target)
+	dir := apk.authPairs.Dir(target)
 
 	var (
 		cf  *configfile.ConfigFile
@@ -116,7 +116,7 @@ func (mk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 		return nil, err
 	}
 
-	mk.cache[target.String()] = auth
+	apk.cache[target.String()] = auth
 
 	return auth, nil
 }
