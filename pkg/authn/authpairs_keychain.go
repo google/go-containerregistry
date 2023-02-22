@@ -90,7 +90,7 @@ func (mk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 		return DefaultKeychain.Resolve(target)
 	}
 
-	dc := mk.authPairs.Dir(target)
+	dir := mk.authPairs.Dir(target)
 
 	var (
 		cf  *configfile.ConfigFile
@@ -98,13 +98,13 @@ func (mk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 	)
 
 	// Check for Docker config file first, then for Podman auth file
-	if fileExists(filepath.Join(dc, config.ConfigFileName)) {
-		cf, err = config.Load(dc)
+	if fileExists(filepath.Join(dir, config.ConfigFileName)) {
+		cf, err = config.Load(dir)
 		if err != nil {
 			return nil, err
 		}
-	} else if podmanAuthFile := filepath.Join(dc, "auth.json"); fileExists(podmanAuthFile) {
-		cf, err = config.Load(dc)
+	} else if podmanAuthFile := filepath.Join(dir, "auth.json"); fileExists(podmanAuthFile) {
+		cf, err = config.Load(dir)
 		f, err := os.Open(podmanAuthFile)
 		if err != nil {
 			return nil, err
