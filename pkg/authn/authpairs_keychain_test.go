@@ -27,10 +27,13 @@ func TestAuthPairsKeychainResolvesWithAuthPairs(t *testing.T) {
 		repo2, _ = name.NewRepository("test.io/my-repo2", name.WeakValidation)
 		repo3, _ = name.NewRepository("test.io/my-repo3", name.WeakValidation)
 
-		// Set up the default docker config dir last, so DOCKER_CONFIG env var is set to an empty dir
 		cd1 = setupConfigFile(t, fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("user1", "pass1")))
-		cd2 = setupConfigFile(t, fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("user2", "pass2")))
-		_   = setupConfigDir(t)
+		cd2 = setupPodmanFile(t, fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("user2", "pass2"))) + "/containers"
+
+		// Set up the Docker and Podman dirs again.
+		// This way DOCKER_CONFIG and XDG_RUNTIME_DIR env vars are set to empty dirs
+		_ = setupConfigDir(t)
+		_ = setupPodmanDir(t)
 	)
 
 	kc := NewAuthPairsKeychain(map[string]string{

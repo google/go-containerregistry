@@ -77,6 +77,32 @@ func setupConfigFile(t *testing.T, content string) string {
 	return cd
 }
 
+func setupPodmanDir(t *testing.T) string {
+	tmpdir := os.Getenv("TEST_TMPDIR")
+	if tmpdir == "" {
+		tmpdir = t.TempDir()
+	}
+
+	fresh++
+	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
+	t.Logf("XDG_RUNTIME_DIR=%s", p)
+	t.Setenv("XDG_RUNTIME_DIR", p)
+	if err := os.MkdirAll(filepath.Join(p, "containers"), 0777); err != nil {
+		t.Fatalf("mkdir %s/containers: %v", p, err)
+	}
+	return p
+}
+
+func setupPodmanFile(t *testing.T, content string) string {
+	cd := setupPodmanDir(t)
+	p := filepath.Join(cd, "containers/auth.json")
+	if err := os.WriteFile(p, []byte(content), 0600); err != nil {
+		t.Fatalf("write %q: %v", p, err)
+	}
+
+	return cd
+}
+
 func TestNoConfig(t *testing.T) {
 	cd := setupConfigDir(t)
 	defer os.RemoveAll(filepath.Dir(cd))

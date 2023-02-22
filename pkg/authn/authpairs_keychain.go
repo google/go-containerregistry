@@ -15,10 +15,13 @@
 package authn
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/docker/cli/cli/config"
+	"github.com/docker/cli/cli/config/configfile"
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
@@ -87,9 +90,35 @@ func (mk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 		return DefaultKeychain.Resolve(target)
 	}
 
-	cf, err := config.Load(mk.authPairs.GetDockerConfig(target))
-	if err != nil {
-		return nil, err
+	dc := mk.authPairs.GetDockerConfig(target)
+
+	var (
+		cf  *configfile.ConfigFile
+		err error
+	)
+
+	// Check for Docker config file first, then for Podman auth file
+	if fileExists(filepath.Join(dc, config.ConfigFileName)) {
+		cf, err = config.Load(dc)
+		if err != nil {
+			return nil, err
+		}
+	} else if podmanAuthFile := filepath.Join(dc, "auth.json"); fileExists(podmanAuthFile) {
+		cf, err = config.Load(dc)
+		f, err := os.Open(podmanAuthFile)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+
+		cf, err = config.LoadFromReader(f)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if cf == nil {
+		return Anonymous, nil
 	}
 
 	auth, err := getAuthenticator(cf, target)
