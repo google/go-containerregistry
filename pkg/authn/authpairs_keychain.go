@@ -62,9 +62,26 @@ func ParseAuthPair(authPairs AuthPairs, authPair string) (AuthPairs, error) {
 	return authPairs, nil
 }
 
+type TargetAuthCache map[string]Authenticator
+
+func (cache TargetAuthCache) Get(target Resource) (Authenticator, bool) {
+	if cache == nil {
+		return nil, false
+	}
+	auth, ok := cache[target.String()]
+	return auth, ok
+}
+
+func (cache TargetAuthCache) Store(target Resource, auth Authenticator) {
+	if cache == nil {
+		return
+	}
+	cache[target.String()] = auth
+}
+
 type authPairsKeychain struct {
 	mu        sync.Mutex
-	cache     map[string]Authenticator
+	cache     TargetAuthCache
 	authPairs AuthPairs
 }
 
@@ -81,12 +98,19 @@ func (apk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 	apk.mu.Lock()
 	defer apk.mu.Unlock()
 
-	if authenticator, ok := apk.cache[target.String()]; ok {
-		return authenticator, nil
+	if auth, ok := apk.cache.Get(target); ok {
+		return auth, nil
 	}
 
 	if !apk.authPairs.Has(target) {
-		return DefaultKeychain.Resolve(target)
+		auth, err := DefaultKeychain.Resolve(target)
+		if err != nil {
+			return nil, err
+		}
+
+		apk.cache.Store(target, auth)
+
+		return auth, nil
 	}
 
 	dir := apk.authPairs.Dir(target)
@@ -119,7 +143,7 @@ func (apk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
 		return nil, err
 	}
 
-	apk.cache[target.String()] = auth
+	apk.cache.Store(target, auth)
 
 	return auth, nil
 }
