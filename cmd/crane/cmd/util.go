@@ -15,8 +15,10 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/authn"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
@@ -83,4 +85,25 @@ func parsePlatform(platform string) (*v1.Platform, error) {
 	}
 
 	return v1.ParsePlatform(platform)
+}
+
+type authPairsValue struct {
+	authPairs authn.AuthPairs
+}
+
+func (apv *authPairsValue) Set(authPair string) (err error) {
+	apv.authPairs, err = authn.ParseAuthPair(apv.authPairs, authPair)
+	return
+}
+
+func (apv *authPairsValue) String() string {
+	ss := make([]string, 0, len(apv.authPairs))
+	for k, v := range apv.authPairs {
+		ss = append(ss, fmt.Sprintf("%s:%s", k, v))
+	}
+	return strings.Join(ss, ",")
+}
+
+func (apv *authPairsValue) Type() string {
+	return "auth-pair(s)"
 }

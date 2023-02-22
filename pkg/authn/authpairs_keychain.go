@@ -1,0 +1,120 @@
+// Copyright 2018 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package authn
+
+import (
+	"strings"
+	"sync"
+
+	"github.com/docker/cli/cli/config"
+	"github.com/google/go-containerregistry/pkg/name"
+)
+
+// AuthPairs is a key-value map in the form TARGET-REPO:TARGET-DOCKER-CONFIG.
+//
+// Example:
+// gcr.io/one/repo/name:/path/to/docker/config1
+// gcr.io/two/repo/name:/path/to/docker/config2
+type AuthPairs map[string]string
+
+func (ap AuthPairs) Has(target Resource) bool {
+	if ap == nil {
+		return false
+	}
+	_, ok := ap[target.String()]
+	return ok
+}
+
+func (ap AuthPairs) GetDockerConfig(target Resource) string {
+	if ap == nil {
+		return ""
+	}
+	return ap[target.String()]
+}
+
+func ParseAuthPair(authPairs AuthPairs, authPair string) (AuthPairs, error) {
+	if authPairs == nil {
+		authPairs = make(map[string]string)
+	}
+
+	parts := strings.SplitN(authPair, ":", 2)
+	ref, err := name.ParseReference(parts[0])
+	if err != nil {
+		return authPairs, err
+	}
+
+	authPairs[ref.Context().String()] = parts[1]
+
+	return authPairs, nil
+}
+
+type authPairsKeychain struct {
+	mu        sync.Mutex
+	cache     map[string]Authenticator
+	authPairs AuthPairs
+}
+
+var _ Keychain = (*authPairsKeychain)(nil)
+
+type authPairsKeychainOptions struct {
+	AuthPairs map[string]string
+}
+
+type AuthPairsKeychainOption func(options *authPairsKeychainOptions)
+
+func WithAuthPairs(ap map[string]string) AuthPairsKeychainOption {
+	return func(o *authPairsKeychainOptions) {
+		o.AuthPairs = ap
+	}
+}
+
+func NewAuthPairsKeychain(opts ...AuthPairsKeychainOption) Keychain {
+	o := &authPairsKeychainOptions{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	return &authPairsKeychain{
+		cache:     make(map[string]Authenticator),
+		authPairs: o.AuthPairs,
+	}
+}
+
+func (mk *authPairsKeychain) Resolve(target Resource) (Authenticator, error) {
+	mk.mu.Lock()
+	defer mk.mu.Unlock()
+
+	if authenticator, ok := mk.cache[target.String()]; ok {
+		return authenticator, nil
+	}
+
+	if !mk.authPairs.Has(target) {
+		return DefaultKeychain.Resolve(target)
+	}
+
+	cf, err := config.Load(mk.authPairs.GetDockerConfig(target))
+	if err != nil {
+		return nil, err
+	}
+
+	auth, err := getAuthenticator(cf, target)
+	if err != nil {
+		return nil, err
+	}
+
+	mk.cache[target.String()] = auth
+
+	return auth, nil
+}

@@ -15,20 +15,30 @@
 package cmd
 
 import (
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/spf13/cobra"
 )
 
 // NewCmdCopy creates a new cobra.Command for the copy subcommand.
 func NewCmdCopy(options *[]crane.Option) *cobra.Command {
-	return &cobra.Command{
+	authPairs := &authPairsValue{}
+
+	cmd := &cobra.Command{
 		Use:     "copy SRC DST",
 		Aliases: []string{"cp"},
 		Short:   "Efficiently copy a remote image from src to dst while retaining the digest value",
 		Args:    cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			src, dst := args[0], args[1]
+
+			*options = append(*options, crane.WithAuthFromKeychain(authn.NewAuthPairsKeychain(authn.WithAuthPairs(authPairs.authPairs))))
+
 			return crane.Copy(src, dst, *options...)
 		},
 	}
+
+	cmd.Flags().Var(authPairs, "auth-pair", "Authentication pairs in the form REMOTE:DOCKER_CONFIG. Example: acme.io/path/to/image:/tmp/acme-io-docker-config-dir")
+
+	return cmd
 }
