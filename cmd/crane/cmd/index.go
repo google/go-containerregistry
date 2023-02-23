@@ -260,7 +260,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 	cmd.Flags().StringVarP(&newTag, "tag", "t", "", "Tag to apply to resulting image")
 	cmd.Flags().StringSliceVarP(&newManifests, "manifest", "m", []string{}, "References to manifests to append to the base index")
 	cmd.Flags().BoolVar(&dockerEmptyBase, "docker-empty-base", false, "If true, empty base index will have Docker media types instead of OCI")
-	cmd.Flags().BoolVar(&flatten, "flatten", false, "If true, appending an index will append each of its children rather than the index itself")
+	cmd.Flags().BoolVar(&flatten, "flatten", true, "If true, appending an index will append each of its children rather than the index itself")
 
 	return cmd
 }
