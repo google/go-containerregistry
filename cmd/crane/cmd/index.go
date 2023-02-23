@@ -112,7 +112,7 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 func NewCmdIndexAppend(options *[]crane.Option) *cobra.Command {
 	var baseRef, newTag string
 	var newManifests []string
-	var dockerEmptyBase bool
+	var dockerEmptyBase, flatten bool
 
 	cmd := &cobra.Command{
 		Use:   "append",
@@ -194,9 +194,40 @@ The platform for appended manifests is inferred from the config file or omitted 
 					if err != nil {
 						return err
 					}
-					adds = append(adds, mutate.IndexAddendum{
-						Add: idx,
-					})
+					if flatten {
+						im, err := idx.IndexManifest()
+						if err != nil {
+							return err
+						}
+						for _, child := range im.Manifests {
+							switch {
+							case child.MediaType.IsImage():
+								img, err := idx.Image(child.Digest)
+								if err != nil {
+									return err
+								}
+								adds = append(adds, mutate.IndexAddendum{
+									Add:        img,
+									Descriptor: child,
+								})
+							case child.MediaType.IsIndex():
+								idx, err := idx.ImageIndex(child.Digest)
+								if err != nil {
+									return err
+								}
+								adds = append(adds, mutate.IndexAddendum{
+									Add:        idx,
+									Descriptor: child,
+								})
+							default:
+								return fmt.Errorf("unexpected child %q with media type %q", child.Digest, child.MediaType)
+							}
+						}
+					} else {
+						adds = append(adds, mutate.IndexAddendum{
+							Add: idx,
+						})
+					}
 				} else {
 					return fmt.Errorf("saw unexpected MediaType %q for %q", desc.MediaType, m)
 				}
@@ -229,6 +260,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 	cmd.Flags().StringVarP(&newTag, "tag", "t", "", "Tag to apply to resulting image")
 	cmd.Flags().StringSliceVarP(&newManifests, "manifest", "m", []string{}, "References to manifests to append to the base index")
 	cmd.Flags().BoolVar(&dockerEmptyBase, "docker-empty-base", false, "If true, empty base index will have Docker media types instead of OCI")
+	cmd.Flags().BoolVar(&flatten, "flatten", true, "If true, appending an index will append each of its children rather than the index itself")
 
 	return cmd
 }
