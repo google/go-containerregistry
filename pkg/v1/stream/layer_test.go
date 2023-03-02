@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -32,7 +31,7 @@ import (
 
 func TestStreamVsBuffer(t *testing.T) {
 	var n, wantSize int64 = 10000, 49
-	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
+	newBlob := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
 	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
 	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
 
@@ -41,7 +40,7 @@ func TestStreamVsBuffer(t *testing.T) {
 	if c, err := l.Compressed(); err != nil {
 		t.Errorf("Compressed: %v", err)
 	} else {
-		if _, err := io.Copy(ioutil.Discard, c); err != nil {
+		if _, err := io.Copy(io.Discard, c); err != nil {
 			t.Errorf("error reading Compressed: %v", err)
 		}
 		if err := c.Close(); err != nil {
@@ -92,7 +91,7 @@ func TestStreamVsBuffer(t *testing.T) {
 	if c, err := l2.Compressed(); err != nil {
 		t.Errorf("Compressed: %v", err)
 	} else {
-		if _, err := io.Copy(ioutil.Discard, c); err != nil {
+		if _, err := io.Copy(io.Discard, c); err != nil {
 			t.Errorf("error reading Compressed: %v", err)
 		}
 		if err := c.Close(); err != nil {
@@ -108,12 +107,12 @@ func TestStreamVsBuffer(t *testing.T) {
 
 func TestLargeStream(t *testing.T) {
 	var n, wantSize int64 = 10000000, 10000788 // "Compressing" n random bytes results in this many bytes.
-	sl := NewLayer(ioutil.NopCloser(io.LimitReader(rand.Reader, n)))
+	sl := NewLayer(io.NopCloser(io.LimitReader(rand.Reader, n)))
 	rc, err := sl.Compressed()
 	if err != nil {
 		t.Fatalf("Uncompressed: %v", err)
 	}
-	if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+	if _, err := io.Copy(io.Discard, rc); err != nil {
 		t.Fatalf("Reading layer: %v", err)
 	}
 	if err := rc.Close(); err != nil {
@@ -170,7 +169,7 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compressed: %v", err)
 	}
-	if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+	if _, err := io.Copy(io.Discard, rc); err != nil {
 		t.Fatalf("Copy: %v", err)
 	}
 	if err := rc.Close(); err != nil {
@@ -188,7 +187,7 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 // TestNotComputed tests that Digest/DiffID/Size return ErrNotComputed before
 // the stream has been consumed.
 func TestNotComputed(t *testing.T) {
-	l := NewLayer(ioutil.NopCloser(bytes.NewBufferString("hi")))
+	l := NewLayer(io.NopCloser(bytes.NewBufferString("hi")))
 
 	// All methods should return ErrNotComputed until the stream has been
 	// consumed and closed.
@@ -206,12 +205,12 @@ func TestNotComputed(t *testing.T) {
 // TestConsumed tests that Compressed returns ErrConsumed when the stream has
 // already been consumed.
 func TestConsumed(t *testing.T) {
-	l := NewLayer(ioutil.NopCloser(strings.NewReader("hello")))
+	l := NewLayer(io.NopCloser(strings.NewReader("hello")))
 	rc, err := l.Compressed()
 	if err != nil {
 		t.Errorf("Compressed: %v", err)
 	}
-	if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+	if _, err := io.Copy(io.Discard, rc); err != nil {
 		t.Errorf("Error reading contents: %v", err)
 	}
 	if err := rc.Close(); err != nil {
@@ -225,7 +224,7 @@ func TestConsumed(t *testing.T) {
 
 func TestCloseTextStreamBeforeConsume(t *testing.T) {
 	// Create stream layer from tar pipe
-	l := NewLayer(ioutil.NopCloser(strings.NewReader("hello")))
+	l := NewLayer(io.NopCloser(strings.NewReader("hello")))
 	rc, err := l.Compressed()
 	if err != nil {
 		t.Fatalf("Compressed: %v", err)
@@ -273,7 +272,7 @@ func TestCloseTarStreamBeforeConsume(t *testing.T) {
 }
 
 func TestMediaType(t *testing.T) {
-	l := NewLayer(ioutil.NopCloser(strings.NewReader("hello")))
+	l := NewLayer(io.NopCloser(strings.NewReader("hello")))
 	mediaType, err := l.MediaType()
 
 	if err != nil {
@@ -286,7 +285,7 @@ func TestMediaType(t *testing.T) {
 }
 
 func TestMediaTypeOption(t *testing.T) {
-	l := NewLayer(ioutil.NopCloser(strings.NewReader("hello")), WithMediaType(types.OCILayer))
+	l := NewLayer(io.NopCloser(strings.NewReader("hello")), WithMediaType(types.OCILayer))
 	mediaType, err := l.MediaType()
 
 	if err != nil {

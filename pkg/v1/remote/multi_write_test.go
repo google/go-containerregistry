@@ -17,7 +17,6 @@ package remote
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -186,7 +185,7 @@ func TestMultiWrite_Retry(t *testing.T) {
 		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
 		if err := MultiWrite(map[name.Reference]Taggable{
 			tag1: img1,
-		}); err != nil {
+		}, WithRetryBackoff(fastBackoff)); err != nil {
 			t.Error("Write:", err)
 		}
 	})
@@ -311,7 +310,7 @@ func TestMultiWrite_Deep(t *testing.T) {
 	}
 
 	// Set up a fake registry (with NOP logger to avoid spamming test logs).
-	nopLog := log.New(ioutil.Discard, "", 0)
+	nopLog := log.New(io.Discard, "", 0)
 	s := httptest.NewServer(registry.New(registry.Logger(nopLog)))
 	defer s.Close()
 	u, err := url.Parse(s.URL)

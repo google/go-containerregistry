@@ -16,8 +16,8 @@ package cache_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 
 	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -28,7 +28,7 @@ func ExampleImage() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		log.Fatal(err)
 	}

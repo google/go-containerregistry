@@ -17,7 +17,6 @@ package cache
 import (
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -28,11 +27,7 @@ import (
 )
 
 func TestFilesystemCache(t *testing.T) {
-	dir, err := ioutil.TempDir("", "ggcr-cache")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer os.RemoveAll(dir)
+	dir := t.TempDir()
 
 	numLayers := 5
 	img, err := random.Image(10, int64(numLayers))
@@ -52,21 +47,25 @@ func TestFilesystemCache(t *testing.T) {
 		if err != nil {
 			t.Fatalf("layer[%d].Compressed: %v", i, err)
 		}
-		if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+		if _, err := io.Copy(io.Discard, rc); err != nil {
 			t.Fatalf("Error reading contents: %v", err)
 		}
 		rc.Close()
 	}
 
 	// Check that layers exist in the fs cache.
-	files, err := ioutil.ReadDir(dir)
+	dirEntries, err := os.ReadDir(dir)
 	if err != nil {
 		t.Fatalf("ReadDir: %v", err)
 	}
-	if got, want := len(files), numLayers; got != want {
+	if got, want := len(dirEntries), numLayers; got != want {
 		t.Errorf("Got %d cached files, want %d", got, want)
 	}
-	for _, fi := range files {
+	for _, de := range dirEntries {
+		fi, err := de.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if fi.Size() == 0 {
 			t.Errorf("Cached file %q is empty", fi.Name())
 		}
@@ -78,7 +77,7 @@ func TestFilesystemCache(t *testing.T) {
 		if err != nil {
 			t.Fatalf("layer[%d].Compressed: %v", i, err)
 		}
-		if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+		if _, err := io.Copy(io.Discard, rc); err != nil {
 			t.Fatalf("Error reading contents: %v", err)
 		}
 		rc.Close()
@@ -86,14 +85,18 @@ func TestFilesystemCache(t *testing.T) {
 
 	// Check that double the layers are present now, both compressed and
 	// uncompressed.
-	files, err = ioutil.ReadDir(dir)
+	dirEntries, err = os.ReadDir(dir)
 	if err != nil {
 		t.Fatalf("ReadDir: %v", err)
 	}
-	if got, want := len(files), numLayers*2; got != want {
+	if got, want := len(dirEntries), numLayers*2; got != want {
 		t.Errorf("Got %d cached files, want %d", got, want)
 	}
-	for _, fi := range files {
+	for _, de := range dirEntries {
+		fi, err := de.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if fi.Size() == 0 {
 			t.Errorf("Cached file %q is empty", fi.Name())
 		}
@@ -108,11 +111,11 @@ func TestFilesystemCache(t *testing.T) {
 	if err := c.Delete(h); err != nil {
 		t.Errorf("cache.Delete: %v", err)
 	}
-	files, err = ioutil.ReadDir(dir)
+	dirEntries, err = os.ReadDir(dir)
 	if err != nil {
 		t.Fatalf("ReadDir: %v", err)
 	}
-	if got, want := len(files), numLayers*2-1; got != want {
+	if got, want := len(dirEntries), numLayers*2-1; got != want {
 		t.Errorf("Got %d cached files, want %d", got, want)
 	}
 
@@ -122,21 +125,25 @@ func TestFilesystemCache(t *testing.T) {
 		if err != nil {
 			t.Fatalf("layer[%d].Compressed: %v", i, err)
 		}
-		if _, err := io.Copy(ioutil.Discard, rc); err != nil {
+		if _, err := io.Copy(io.Discard, rc); err != nil {
 			t.Fatalf("Error reading contents: %v", err)
 		}
 		rc.Close()
 	}
 
 	// Check that layers exist in the fs cache.
-	files, err = ioutil.ReadDir(dir)
+	dirEntries, err = os.ReadDir(dir)
 	if err != nil {
 		t.Fatalf("ReadDir: %v", err)
 	}
-	if got, want := len(files), numLayers*2; got != want {
+	if got, want := len(dirEntries), numLayers*2; got != want {
 		t.Errorf("Got %d cached files, want %d", got, want)
 	}
-	for _, fi := range files {
+	for _, de := range dirEntries {
+		fi, err := de.Info()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if fi.Size() == 0 {
 			t.Errorf("Cached file %q is empty", fi.Name())
 		}
@@ -144,11 +151,7 @@ func TestFilesystemCache(t *testing.T) {
 }
 
 func TestErrNotFound(t *testing.T) {
-	dir, err := ioutil.TempDir("", "ggcr-cache")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	os.RemoveAll(dir) // Remove the tempdir.
+	dir := t.TempDir()
 
 	c := NewFilesystemCache(dir)
 	h := v1.Hash{Algorithm: "fake", Hex: "not-found"}
@@ -161,11 +164,7 @@ func TestErrNotFound(t *testing.T) {
 }
 
 func TestErrUnexpectedEOF(t *testing.T) {
-	dir, err := ioutil.TempDir("", "ggcr-cache")
-	if err != nil {
-		t.Fatalf("TempDir: %v", err)
-	}
-	defer os.RemoveAll(dir) // Remove the tempdir.
+	dir := t.TempDir()
 
 	// create a random layer
 	l, err := random.Layer(10, types.DockerLayer)
@@ -190,8 +189,8 @@ func TestErrUnexpectedEOF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Read(buf): %v", err)
 	}
-	if err := ioutil.WriteFile(p, buf[:n], 0644); err != nil {
-		t.Fatalf("ioutil.WriteFile(%s, buf[:%d]): %v", p, n, err)
+	if err := os.WriteFile(p, buf[:n], 0644); err != nil {
+		t.Fatalf("os.WriteFile(%s, buf[:%d]): %v", p, n, err)
 	}
 
 	c := NewFilesystemCache(dir)

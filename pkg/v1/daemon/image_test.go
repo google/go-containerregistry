@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -84,14 +83,14 @@ func TestImage(t *testing.T) {
 	}, {
 		name: "save err",
 		client: &MockClient{
-			saveBody: ioutil.NopCloser(strings.NewReader("Loaded")),
+			saveBody: io.NopCloser(strings.NewReader("Loaded")),
 			saveErr:  fmt.Errorf("locked and loaded"),
 		},
 		wantErr: "locked and loaded",
 	}, {
 		name: "read err",
 		client: &MockClient{
-			saveBody: ioutil.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
+			saveBody: io.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
 		},
 		wantErr: "goodbye, world",
 	}} {

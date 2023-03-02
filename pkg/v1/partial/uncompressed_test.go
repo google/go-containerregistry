@@ -16,7 +16,6 @@ package partial_test
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -112,7 +111,7 @@ func TestUncompressedLayer(t *testing.T) {
 // This is cribbed from pkg/legacy/tarball just to get intra-package coverage.
 func TestLegacyWrite(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}
@@ -121,7 +120,7 @@ func TestLegacyWrite(t *testing.T) {
 	defer os.Remove(fp.Name())
 
 	// Make a random image + layer with Descriptor().
-	randImage, err := random.Image(256, 8)
+	randImage, err := random.Image(256, 2)
 	if err != nil {
 		t.Fatalf("Error creating random image: %v", err)
 	}

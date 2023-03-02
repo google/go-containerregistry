@@ -58,6 +58,12 @@ type Options struct {
 	// ImagePullSecrets holds the names of the Kubernetes secrets (scoped to
 	// Namespace) containing credential data to use for the image pull.
 	ImagePullSecrets []string
+
+	// UseMountSecrets determines whether or not mount secrets in the ServiceAccount
+	// should be considered. Mount secrets are those listed under the `.secrets`
+	// attribute of the ServiceAccount resource. Ignored if ServiceAccountName is set
+	// to NoServiceAccount.
+	UseMountSecrets bool
 }
 
 // New returns a new authn.Keychain suitable for resolving image references as
@@ -110,6 +116,19 @@ func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.K
 					return nil, err
 				}
 				pullSecrets = append(pullSecrets, *ps)
+			}
+
+			if opt.UseMountSecrets {
+				for _, obj := range sa.Secrets {
+					s, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, obj.Name, metav1.GetOptions{})
+					if k8serrors.IsNotFound(err) {
+						logs.Warn.Printf("secret %s/%s not found; ignoring", opt.Namespace, obj.Name)
+						continue
+					} else if err != nil {
+						return nil, err
+					}
+					pullSecrets = append(pullSecrets, *s)
+				}
 			}
 		}
 	}

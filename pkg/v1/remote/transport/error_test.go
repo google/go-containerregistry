@@ -17,7 +17,7 @@ package transport
 import (
 	"bytes"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"testing"
@@ -145,7 +145,7 @@ func TestCheckErrorNotError(t *testing.T) {
 	for _, test := range tests {
 		resp := &http.Response{
 			StatusCode: test.code,
-			Body:       ioutil.NopCloser(bytes.NewBufferString(test.body)),
+			Body:       io.NopCloser(bytes.NewBufferString(test.body)),
 			Request:    test.request,
 		}
 
@@ -195,7 +195,7 @@ func TestCheckErrorWithError(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			resp := &http.Response{
 				StatusCode: test.code,
-				Body:       ioutil.NopCloser(bytes.NewBuffer([]byte(test.errorBody))),
+				Body:       io.NopCloser(bytes.NewBuffer([]byte(test.errorBody))),
 			}
 
 			var terr *Error

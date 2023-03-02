@@ -16,6 +16,9 @@ package partial_test
 
 import (
 	"io"
+	"net/http/httptest"
+	"net/url"
+	"path"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -32,26 +35,29 @@ import (
 
 // Remote leverages a lot of compressed partials.
 func TestRemote(t *testing.T) {
+	// Set up a fake registry.
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	rnd, err := random.Image(1024, 3)
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := registry.TLS("gcr.io")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tr := s.Client().Transport
 
-	src := "gcr.io/test/compressed"
+	src := path.Join(u.Host, "test/compressed")
 	ref, err := name.ParseReference(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := remote.Write(ref, rnd, remote.WithTransport(tr)); err != nil {
+	if err := remote.Write(ref, rnd); err != nil {
 		t.Fatal(err)
 	}
 
-	img, err := remote.Image(ref, remote.WithTransport(tr))
+	img, err := remote.Image(ref)
 	if err != nil {
 		t.Fatal(err)
 	}

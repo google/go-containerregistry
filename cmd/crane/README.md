@@ -10,27 +10,50 @@ A collection of useful things you can do with `crane` is [here](recipes.md).
 ## Installation
 
 ### Install from Releases
-Download [latest release](https://github.com/google/go-containerregistry/releases/latest):
 
-```
-$ VERSION=TODO   # Latest, or other
-$ OS=Linux       # or Darwin, Windows
-$ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x
-$ curl -sL "https://github.com/google/go-containerregistry/releases/download/v${VERSION}/go-containerregistry_${VERSION}_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
-```
+1. Get the [latest release](https://github.com/google/go-containerregistry/releases/latest) version.
 
-We generate [SLSA 3 provenance](https://slsa.dev) using the OpenSSF's [slsa-framework/slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator). To verify our release, install the verification tool from [slsa-framework/slsa-verifier#installation](https://github.com/slsa-framework/slsa-verifier#installation) and verify as follows:
+   ```sh
+   $ VERSION=$(curl -s "https://api.github.com/repos/google/go-containerregistry/releases/latest" | jq -r '.tag_name')
+   ```
 
-```
-$ curl -sL https://github.com/google/go-containerregistry/releases/download/v${VERSION}/attestation.intoto.jsonl > provenance.intoto.jsonl
-$ slsa-verifier -artifact-path go-containerregistry.tar.gz -provenance provenance.intoto.jsonl -source github.com/google/go-containerregistry -tag "v${VERSION}"
-  PASSED: Verified SLSA provenance
-```
+   or set a specific version:
+
+   ```sh
+   $ VERSION=vX.Y.Z   # Version number with a leading v
+   ```
+
+1. Download the release.
+
+   ```sh
+   $ OS=Linux       # or Darwin, Windows
+   $ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x
+   $ curl -sL "https://github.com/google/go-containerregistry/releases/download/${VERSION}/go-containerregistry_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
+   ```
+
+1. Verify the signature. We generate [SLSA 3 provenance](https://slsa.dev) using
+   the OpenSSF's [slsa-framework/slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator).
+   To verify our release, install the verification tool from [slsa-framework/slsa-verifier#installation](https://github.com/slsa-framework/slsa-verifier#installation)
+   and verify as follows:
+
+   ```sh
+   $ curl -sL https://github.com/google/go-containerregistry/releases/download/${VERSION}/multiple.intoto.jsonl > provenance.intoto.jsonl
+   $ # NOTE: You may be using a different architecture.
+   $ slsa-verifier-linux-amd64 verify-artifact go-containerregistry.tar.gz --provenance-path provenance.intoto.jsonl --source-uri github.com/google/go-containerregistry --source-tag "${VERSION}"
+     PASSED: Verified SLSA provenance
+   ```
+
+1. Unpack it in the PATH.
+
+   ```sh
+   $ tar -zxvf go-containerregistry.tar.gz -C /usr/local/bin/ crane
+   ```
 
 ### Install manually
+
 Install manually:
 
-```
+```sh
 go install github.com/google/go-containerregistry/cmd/crane@latest
 ```
 
@@ -42,14 +65,12 @@ If you're macOS user and using [Homebrew](https://brew.sh/), you can install via
 $ brew install crane
 ```
 
-### Install on arch
+### Install on Arch Linux
 
-If you're arch linux user and use [some AUR
-helper](https://wiki.archlinux.org/index.php/AUR_helpers) you can install it with one of
-your favourite command:
+If you're an Arch Linux user you can install via pacman command:
 
 ```sh
-$ yay -S go-crane-bin
+$ pacman -S crane
 ```
 
 ### Setup on GitHub Actions

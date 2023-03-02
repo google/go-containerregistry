@@ -79,3 +79,27 @@ crane manifest gcr.io/buildpacks/builder:v1 | jq '.config.size + ([.layers[].siz
 ```
 
 For image indexes, you can pass the `--platform` flag to `crane` to get a platform-specific image.
+
+### Filter irrelevant platforms from a multi-platform image
+
+Perhaps you use a base image that supports a wide variety of exotic platforms, but you only care about linux/amd64 and linux/arm64.
+If you want to copy that base image into a different registry, you will end up with a bunch of images you don't use.
+You can filter the base to include only platforms that are relevant to you.
+
+```
+crane index filter ubuntu --platform linux/amd64 --platform linux/arm64 -t ${IMAGE}
+```
+
+Note that this will obviously modify the digest of the multi-platform image you're using, so this may invalidate other artifacts that reference it, e.g. signatures.
+
+### Create a multi-platform image from scratch
+
+If you have a bunch of platform-specific images that you want to turn into a multi-platform image, `crane index append` can do that:
+
+```
+crane index append -t ${IMAGE} \
+  -m ubuntu@sha256:c985bc3f77946b8e92c9a3648c6f31751a7dd972e06604785e47303f4ad47c4c \
+  -m ubuntu@sha256:61bd0b97000996232eb07b8d0e9375d14197f78aa850c2506417ef995a7199a7
+```
+
+Note that this is less flexible than [`manifest-tool`](https://github.com/estesp/manifest-tool) because it derives the platform from each image's config file, but it should work in most cases.

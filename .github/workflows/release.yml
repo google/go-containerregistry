@@ -15,9 +15,9 @@ jobs:
         run: git fetch --prune --unshallow
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.18
           check-latest: true
-      - uses: goreleaser/goreleaser-action@v3.2.0
+      - uses: goreleaser/goreleaser-action@v4.2.0
         id: run-goreleaser
         with:
           version: latest
@@ -40,7 +40,7 @@ jobs:
       actions: read # To read the workflow path.
       id-token: write # To sign the provenance.
       contents: write # To add assets to a release.
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.2.2
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.5.0
     with:
       base64-subjects: "${{ needs.goreleaser.outputs.hashes }}"
       upload-assets: true # upload to a new release
@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "*.tar.gz"
-          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "attestation.intoto.jsonl"
+          gh -R "$GITHUB_REPOSITORY" release download "$GITHUB_REF_NAME" -p "multiple.intoto.jsonl"
       - name: Verify assets
         env:
           CHECKSUMS: ${{ needs.goreleaser.outputs.hashes }}

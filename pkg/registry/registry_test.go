@@ -15,10 +15,8 @@
 package registry_test
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -27,6 +25,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 const (
@@ -47,8 +46,8 @@ const (
 )
 
 func sha256String(s string) string {
-	h := sha256.Sum256([]byte(s))
-	return hex.EncodeToString(h[:])
+	h, _, _ := v1.SHA256(strings.NewReader(s))
+	return h.Hex
 }
 
 func TestCalls(t *testing.T) {
@@ -438,6 +437,53 @@ func TestCalls(t *testing.T) {
 			URL:         "/v2/_catalog?n=1000",
 			Code:        http.StatusOK,
 		},
+		{
+			Description: "fetch references",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusOK,
+			Manifests: map[string]string{
+				"foo/manifests/image":           "foo",
+				"foo/manifests/points-to-image": "{\"subject\": {\"digest\": \"sha256:" + sha256String("foo") + "\"}}",
+			},
+		},
+		{
+			Description: "fetch references, subject pointing elsewhere",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusOK,
+			Manifests: map[string]string{
+				"foo/manifests/image":           "foo",
+				"foo/manifests/points-to-image": "{\"subject\": {\"digest\": \"sha256:" + sha256String("nonexistant") + "\"}}",
+			},
+		},
+		{
+			Description: "fetch references, no results",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusOK,
+			Manifests: map[string]string{
+				"foo/manifests/image": "foo",
+			},
+		},
+		{
+			Description: "fetch references, missing repo",
+			Method:      "GET",
+			URL:         "/v2/does-not-exist/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusNotFound,
+		},
+		{
+			Description: "fetch references, bad target (tag vs. digest)",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/latest",
+			Code:        http.StatusBadRequest,
+		},
+		{
+			Description: "fetch references, bad method",
+			Method:      "POST",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusBadRequest,
+		},
 	}
 
 	for _, tc := range tcs {
@@ -445,10 +491,11 @@ func TestCalls(t *testing.T) {
 		var logger *log.Logger
 		testf := func(t *testing.T) {
 
-			r := registry.New()
+			opts := []registry.Option{registry.WithReferrersSupport(true)}
 			if logger != nil {
-				r = registry.New(registry.Logger(logger))
+				opts = append(opts, registry.Logger(logger))
 			}
+			r := registry.New(opts...)
 			s := httptest.NewServer(r)
 			defer s.Close()
 
@@ -460,7 +507,7 @@ func TestCalls(t *testing.T) {
 				req := &http.Request{
 					Method: "PUT",
 					URL:    u,
-					Body:   ioutil.NopCloser(strings.NewReader(contents)),
+					Body:   io.NopCloser(strings.NewReader(contents)),
 				}
 				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
@@ -468,7 +515,7 @@ func TestCalls(t *testing.T) {
 					t.Fatalf("Error uploading manifest: %v", err)
 				}
 				if resp.StatusCode != http.StatusCreated {
-					body, _ := ioutil.ReadAll(resp.Body)
+					body, _ := io.ReadAll(resp.Body)
 					t.Fatalf("Error uploading manifest got status: %d %s", resp.StatusCode, body)
 				}
 				t.Logf("created manifest with digest %v", resp.Header.Get("Docker-Content-Digest"))
@@ -482,7 +529,7 @@ func TestCalls(t *testing.T) {
 				req := &http.Request{
 					Method: "PUT",
 					URL:    u,
-					Body:   ioutil.NopCloser(strings.NewReader(contents)),
+					Body:   io.NopCloser(strings.NewReader(contents)),
 				}
 				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
@@ -490,7 +537,7 @@ func TestCalls(t *testing.T) {
 					t.Fatalf("Error uploading digest: %v", err)
 				}
 				if resp.StatusCode != http.StatusCreated {
-					body, _ := ioutil.ReadAll(resp.Body)
+					body, _ := io.ReadAll(resp.Body)
 					t.Fatalf("Error uploading digest got status: %d %s", resp.StatusCode, body)
 				}
 			}
@@ -503,7 +550,7 @@ func TestCalls(t *testing.T) {
 				req := &http.Request{
 					Method: "PATCH",
 					URL:    u,
-					Body:   ioutil.NopCloser(strings.NewReader(contents)),
+					Body:   io.NopCloser(strings.NewReader(contents)),
 				}
 				t.Log(req.Method, req.URL)
 				resp, err := s.Client().Do(req)
@@ -511,7 +558,7 @@ func TestCalls(t *testing.T) {
 					t.Fatalf("Error streaming blob: %v", err)
 				}
 				if resp.StatusCode != http.StatusNoContent {
-					body, _ := ioutil.ReadAll(resp.Body)
+					body, _ := io.ReadAll(resp.Body)
 					t.Fatalf("Error streaming blob: %d %s", resp.StatusCode, body)
 				}
 
@@ -524,7 +571,7 @@ func TestCalls(t *testing.T) {
 			req := &http.Request{
 				Method: tc.Method,
 				URL:    u,
-				Body:   ioutil.NopCloser(strings.NewReader(tc.Body)),
+				Body:   io.NopCloser(strings.NewReader(tc.Body)),
 				Header: map[string][]string{},
 			}
 			for k, v := range tc.RequestHeader {
@@ -536,7 +583,7 @@ func TestCalls(t *testing.T) {
 				t.Fatalf("Error getting %q: %v", tc.URL, err)
 			}
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			if err != nil {
 				t.Errorf("Reading response body: %v", err)
 			}
@@ -556,7 +603,7 @@ func TestCalls(t *testing.T) {
 			}
 		}
 		t.Run(tc.Description, testf)
-		logger = log.New(ioutil.Discard, "", log.Ldate)
+		logger = log.New(io.Discard, "", log.Ldate)
 		t.Run(tc.Description+" - custom log", testf)
 	}
 }

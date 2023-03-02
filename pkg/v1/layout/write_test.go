@@ -18,7 +18,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -36,12 +35,7 @@ import (
 )
 
 func TestWrite(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "write-index-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	original, err := ImageIndexFromPath(testPath)
 	if err != nil {
@@ -79,12 +73,7 @@ func TestWriteErrors(t *testing.T) {
 }
 
 func TestAppendDescriptorInitializesIndex(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "write-index-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 	temp, err := Write(tmp, empty.Index)
 	if err != nil {
 		t.Fatal(err)
@@ -116,12 +105,7 @@ func TestAppendDescriptorInitializesIndex(t *testing.T) {
 }
 
 func TestRoundtrip(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "write-index-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	original, err := ImageIndexFromPath(testPath)
 	if err != nil {
@@ -151,10 +135,7 @@ func TestRoundtrip(t *testing.T) {
 }
 
 func TestOptions(t *testing.T) {
-	tmp, err := ioutil.TempDir("", "write-index-test")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tmp := t.TempDir()
 	temp, err := Write(tmp, empty.Index)
 	if err != nil {
 		t.Fatal(err)
@@ -219,23 +200,18 @@ func TestDeduplicatedWrites(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	if err := lp.WriteBlob(configDigest, ioutil.NopCloser(bytes.NewBuffer(buf.Bytes()))); err != nil {
+	if err := lp.WriteBlob(configDigest, io.NopCloser(bytes.NewBuffer(buf.Bytes()))); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := lp.WriteBlob(configDigest, ioutil.NopCloser(bytes.NewBuffer(buf.Bytes()))); err != nil {
+	if err := lp.WriteBlob(configDigest, io.NopCloser(bytes.NewBuffer(buf.Bytes()))); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestRemoveDescriptor(t *testing.T) {
 	// need to set up a basic path
-	tmp, err := ioutil.TempDir("", "remove-descriptor-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	var ii v1.ImageIndex
 	ii = empty.Index
@@ -291,12 +267,7 @@ func TestRemoveDescriptor(t *testing.T) {
 
 func TestReplaceIndex(t *testing.T) {
 	// need to set up a basic path
-	tmp, err := ioutil.TempDir("", "replace-index-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	var ii v1.ImageIndex
 	ii = empty.Index
@@ -366,12 +337,7 @@ func TestReplaceIndex(t *testing.T) {
 
 func TestReplaceImage(t *testing.T) {
 	// need to set up a basic path
-	tmp, err := ioutil.TempDir("", "replace-image-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	var ii v1.ImageIndex
 	ii = empty.Index
@@ -441,12 +407,7 @@ func TestReplaceImage(t *testing.T) {
 
 func TestRemoveBlob(t *testing.T) {
 	// need to set up a basic path
-	tmp, err := ioutil.TempDir("", "remove-blob-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	var ii v1.ImageIndex = empty.Index
 	l, err := Write(tmp, ii)
@@ -461,7 +422,7 @@ func TestRemoveBlob(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := l.WriteBlob(hash, ioutil.NopCloser(bytes.NewReader(b))); err != nil {
+	if err := l.WriteBlob(hash, io.NopCloser(bytes.NewReader(b))); err != nil {
 		t.Fatal(err)
 	}
 	// make sure it exists
@@ -484,12 +445,7 @@ func TestRemoveBlob(t *testing.T) {
 
 func TestStreamingWriteLayer(t *testing.T) {
 	// need to set up a basic path
-	tmp, err := ioutil.TempDir("", "streaming-write-layer-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	var ii v1.ImageIndex = empty.Index
 	l, err := Write(tmp, ii)
@@ -547,12 +503,7 @@ func TestStreamingWriteLayer(t *testing.T) {
 
 func TestOverwriteWithWriteLayer(t *testing.T) {
 	// need to set up a basic path
-	tmp, err := ioutil.TempDir("", "overwrite-with-write-layer-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	var ii v1.ImageIndex = empty.Index
 	l, err := Write(tmp, ii)
@@ -599,8 +550,8 @@ func TestOverwriteWithWriteLayer(t *testing.T) {
 	truncatedLayerBytes := completeLayerBytes[:512]
 
 	path := l.path("blobs", layerDigest.Algorithm, layerDigest.Hex)
-	if err := ioutil.WriteFile(path, truncatedLayerBytes, os.ModePerm); err != nil {
-		t.Fatalf("ioutil.WriteFile(layerPath, truncated) = %v", err)
+	if err := os.WriteFile(path, truncatedLayerBytes, os.ModePerm); err != nil {
+		t.Fatalf("os.WriteFile(layerPath, truncated) = %v", err)
 	}
 
 	// ensure validation fails
@@ -613,7 +564,7 @@ func TestOverwriteWithWriteLayer(t *testing.T) {
 	}
 
 	// try writing expected contents with WriteBlob
-	if err := l.WriteBlob(layerDigest, ioutil.NopCloser(bytes.NewBuffer(completeLayerBytes))); err != nil {
+	if err := l.WriteBlob(layerDigest, io.NopCloser(bytes.NewBuffer(completeLayerBytes))); err != nil {
 		t.Fatalf("error attempting to overwrite truncated layer with valid layer; (Path).WriteBlob = %v", err)
 	}
 
@@ -643,12 +594,7 @@ func TestOverwriteWithWriteLayer(t *testing.T) {
 
 func TestOverwriteWithReplaceImage(t *testing.T) {
 	// need to set up a basic path
-	tmp, err := ioutil.TempDir("", "overwrite-with-replace-image-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	var ii v1.ImageIndex = empty.Index
 	l, err := Write(tmp, ii)
@@ -695,8 +641,8 @@ func TestOverwriteWithReplaceImage(t *testing.T) {
 	truncatedLayerBytes := completeLayerBytes[:512]
 
 	path := l.path("blobs", layerDigest.Algorithm, layerDigest.Hex)
-	if err := ioutil.WriteFile(path, truncatedLayerBytes, os.ModePerm); err != nil {
-		t.Fatalf("ioutil.WriteFile(layerPath, truncated) = %v", err)
+	if err := os.WriteFile(path, truncatedLayerBytes, os.ModePerm); err != nil {
+		t.Fatalf("os.WriteFile(layerPath, truncated) = %v", err)
 	}
 
 	// ensure validation fails

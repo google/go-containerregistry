@@ -30,9 +30,10 @@ import (
 )
 
 type registry struct {
-	log       *log.Logger
-	blobs     blobs
-	manifests manifests
+	log              *log.Logger
+	blobs            blobs
+	manifests        manifests
+	referrersEnabled bool
 }
 
 // https://docs.docker.com/registry/spec/api/#api-version-check
@@ -49,6 +50,9 @@ func (r *registry) v2(resp http.ResponseWriter, req *http.Request) *regError {
 	}
 	if isCatalog(req) {
 		return r.manifests.handleCatalog(resp, req)
+	}
+	if r.referrersEnabled && isReferrers(req) {
+		return r.manifests.handleReferrers(resp, req)
 	}
 	resp.Header().Set("Docker-Distribution-API-Version", "registry/2.0")
 	if req.URL.Path != "/v2/" && req.URL.Path != "/v2" {
@@ -79,6 +83,7 @@ func New(opts ...Option) http.Handler {
 		blobs: blobs{
 			blobHandler: &memHandler{m: map[string][]byte{}},
 			uploads:     map[string][]byte{},
+			log:         log.New(os.Stderr, "", log.LstdFlags),
 		},
 		manifests: manifests{
 			manifests: map[string]map[string]manifest{},
@@ -100,5 +105,13 @@ func Logger(l *log.Logger) Option {
 	return func(r *registry) {
 		r.log = l
 		r.manifests.log = l
+		r.blobs.log = l
+	}
+}
+
+// WithReferrersSupport enables the referrers API endpoint (OCI 1.1+)
+func WithReferrersSupport(enabled bool) Option {
+	return func(r *registry) {
+		r.referrersEnabled = enabled
 	}
 }

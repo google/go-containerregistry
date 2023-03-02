@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -38,7 +37,7 @@ import (
 
 func TestWrite(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}
@@ -88,7 +87,7 @@ func TestWrite(t *testing.T) {
 
 func TestMultiWriteSameImage(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}
@@ -147,7 +146,7 @@ func TestMultiWriteSameImage(t *testing.T) {
 
 func TestMultiWriteDifferentImages(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}
@@ -218,7 +217,7 @@ func TestMultiWriteDifferentImages(t *testing.T) {
 
 func TestWriteForeignLayers(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}
@@ -276,7 +275,7 @@ func TestWriteForeignLayers(t *testing.T) {
 
 func TestWriteSharedLayers(t *testing.T) {
 	// Make a tempfile for tarball writes.
-	fp, err := ioutil.TempFile("", "")
+	fp, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatalf("Error creating temp file.")
 	}

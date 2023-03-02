@@ -1,3 +1,5 @@
+// Copyright 2019 Google LLC All Rights Reserved.
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -104,6 +106,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 		cmd.NewCmdEdit(&options),
 		NewCmdExport(&options),
 		NewCmdFlatten(&options),
+		NewCmdIndex(&options),
 		NewCmdList(&options),
 		NewCmdManifest(&options),
 		NewCmdMutate(&options),

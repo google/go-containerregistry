@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -528,21 +527,24 @@ func TestValidate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tag, err := name.NewTag("gcr.io/foo/bar")
+
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	reg, err := registry.TLS("gcr.io")
+	tag, err := name.NewTag(u.Host + "/foo/bar")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := Write(tag, img, WithTransport(reg.Client().Transport)); err != nil {
+	if err := Write(tag, img); err != nil {
 		t.Fatal(err)
 	}
 
-	img, err = Image(tag, WithTransport(reg.Client().Transport))
+	img, err = Image(tag)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -698,7 +700,7 @@ func TestData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lb, err := ioutil.ReadAll(rc)
+	lb, err := io.ReadAll(rc)
 	if err != nil {
 		t.Fatal(err)
 	}

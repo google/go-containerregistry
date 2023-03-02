@@ -18,12 +18,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/internal/compare"
+	"github.com/google/go-containerregistry/pkg/compression"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
@@ -42,7 +43,16 @@ func TestLayerFromFile(t *testing.T) {
 		t.Fatalf("Unable to create layer from compressed tar file: %v", err)
 	}
 
+	tarZstdLayer, err := LayerFromFile("zstd_content.tar.zst")
+	if err != nil {
+		t.Fatalf("Unable to create layer from compressed tar file: %v", err)
+	}
+
 	if err := compare.Layers(tarLayer, tarGzLayer); err != nil {
+		t.Errorf("compare.Layers: %v", err)
+	}
+
+	if err := compare.Layers(tarLayer, tarZstdLayer); err != nil {
 		t.Errorf("compare.Layers: %v", err)
 	}
 
@@ -54,27 +64,38 @@ func TestLayerFromFile(t *testing.T) {
 		t.Errorf("validate.Layer(tarGzLayer): %v", err)
 	}
 
-	tarLayerDefaultCompression, err := LayerFromFile("testdata/content.tar", WithCompressionLevel(gzip.DefaultCompression))
-	if err != nil {
-		t.Fatalf("Unable to create layer with 'Default' compression from tar file: %v", err)
+	if err := validate.Layer(tarZstdLayer); err != nil {
+		t.Errorf("validate.Layer(tarZstdLayer): %v", err)
 	}
 
-	defaultDigest, err := tarLayerDefaultCompression.Digest()
-	if err != nil {
-		t.Fatal("Unable to generate digest with 'Default' compression", err)
+	getTestDigest := func(testName string, opts ...LayerOption) v1.Hash {
+		layer, err := LayerFromFile("testdata/content.tar", opts...)
+		if err != nil {
+			t.Fatalf("Unable to create layer with '%s' compression from tar file: %v", testName, err)
+		}
+
+		digest, err := layer.Digest()
+		if err != nil {
+			t.Fatalf("Unable to generate digest with '%s' compression: %v", testName, err)
+		}
+
+		return digest
 	}
 
-	tarLayerSpeedCompression, err := LayerFromFile("testdata/content.tar", WithCompressionLevel(gzip.BestSpeed))
-	if err != nil {
-		t.Fatalf("Unable to create layer with 'BestSpeed' compression from tar file: %v", err)
-	}
-
-	speedDigest, err := tarLayerSpeedCompression.Digest()
-	if err != nil {
-		t.Fatal("Unable to generate digest with 'BestSpeed' compression", err)
-	}
+	defaultDigest := getTestDigest("Gzip Default", WithCompressionLevel(gzip.DefaultCompression))
+	speedDigest := getTestDigest("Gzip BestSpeed", WithCompressionLevel(gzip.BestSpeed))
+	zstdDigest := getTestDigest("Zstd Default", WithCompression(compression.ZStd))
+	zstdDigest1 := getTestDigest("Zstd BestSpeed", WithCompression(compression.ZStd), WithCompressionLevel(1))
 
 	if defaultDigest.String() == speedDigest.String() {
+		t.Errorf("expected digests to differ: %s", defaultDigest.String())
+	}
+
+	if defaultDigest.String() == zstdDigest.String() {
+		t.Errorf("expected digests to differ: %s", defaultDigest.String())
+	}
+
+	if defaultDigest.String() == zstdDigest1.String() {
 		t.Errorf("expected digests to differ: %s", defaultDigest.String())
 	}
 }
@@ -172,14 +193,14 @@ func TestLayerFromOpenerReader(t *testing.T) {
 	setupFixtures(t)
 	defer teardownFixtures(t)
 
-	ucBytes, err := ioutil.ReadFile("testdata/content.tar")
+	ucBytes, err := os.ReadFile("testdata/content.tar")
 	if err != nil {
 		t.Fatalf("Unable to read tar file: %v", err)
 	}
 	count := 0
 	ucOpener := func() (io.ReadCloser, error) {
 		count++
-		return ioutil.NopCloser(bytes.NewReader(ucBytes)), nil
+		return io.NopCloser(bytes.NewReader(ucBytes)), nil
 	}
 	tarLayer, err := LayerFromOpener(ucOpener, WithCompressedCaching)
 	if err != nil {
@@ -209,12 +230,12 @@ func TestLayerFromOpenerReader(t *testing.T) {
 		t.Errorf("count = %d, wanted %d", count, cachedCount+10)
 	}
 
-	gzBytes, err := ioutil.ReadFile("gzip_content.tgz")
+	gzBytes, err := os.ReadFile("gzip_content.tgz")
 	if err != nil {
 		t.Fatalf("Unable to read tar file: %v", err)
 	}
 	gzOpener := func() (io.ReadCloser, error) {
-		return ioutil.NopCloser(bytes.NewReader(gzBytes)), nil
+		return io.NopCloser(bytes.NewReader(gzBytes)), nil
 	}
 	tarGzLayer, err := LayerFromOpener(gzOpener)
 	if err != nil {
@@ -222,6 +243,22 @@ func TestLayerFromOpenerReader(t *testing.T) {
 	}
 
 	if err := compare.Layers(tarLayer, tarGzLayer); err != nil {
+		t.Errorf("compare.Layers: %v", err)
+	}
+
+	zstdBytes, err := os.ReadFile("zstd_content.tar.zst")
+	if err != nil {
+		t.Fatalf("Unable to read tar file: %v", err)
+	}
+	zstdOpener := func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(zstdBytes)), nil
+	}
+	tarZstdLayer, err := LayerFromOpener(zstdOpener)
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+
+	if err := compare.Layers(tarLayer, tarZstdLayer); err != nil {
 		t.Errorf("compare.Layers: %v", err)
 	}
 }
@@ -259,7 +296,7 @@ func TestLayerFromReader(t *testing.T) {
 	setupFixtures(t)
 	defer teardownFixtures(t)
 
-	ucBytes, err := ioutil.ReadFile("testdata/content.tar")
+	ucBytes, err := os.ReadFile("testdata/content.tar")
 	if err != nil {
 		t.Fatalf("Unable to read tar file: %v", err)
 	}
@@ -268,7 +305,7 @@ func TestLayerFromReader(t *testing.T) {
 		t.Fatalf("Unable to create layer from tar file: %v", err)
 	}
 
-	gzBytes, err := ioutil.ReadFile("gzip_content.tgz")
+	gzBytes, err := os.ReadFile("gzip_content.tgz")
 	if err != nil {
 		t.Fatalf("Unable to read tar file: %v", err)
 	}
@@ -278,6 +315,19 @@ func TestLayerFromReader(t *testing.T) {
 	}
 
 	if err := compare.Layers(tarLayer, tarGzLayer); err != nil {
+		t.Errorf("compare.Layers: %v", err)
+	}
+
+	zstdBytes, err := os.ReadFile("zstd_content.tar.zst")
+	if err != nil {
+		t.Fatalf("Unable to read tar file: %v", err)
+	}
+	tarZstdLayer, err := LayerFromReader(bytes.NewReader(zstdBytes))
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+
+	if err := compare.Layers(tarLayer, tarZstdLayer); err != nil {
 		t.Errorf("compare.Layers: %v", err)
 	}
 }
@@ -291,6 +341,12 @@ func TestLayerFromReader(t *testing.T) {
 func setupFixtures(t *testing.T) {
 	t.Helper()
 
+	setupCompressedTar(t, "gzip_content.tgz")
+	setupCompressedTar(t, "zstd_content.tar.zst")
+}
+
+func setupCompressedTar(t *testing.T, fileName string) {
+	t.Helper()
 	in, err := os.Open("testdata/content.tar")
 	if err != nil {
 		t.Errorf("Error setting up fixtures: %v", err)
@@ -298,7 +354,7 @@ func setupFixtures(t *testing.T) {
 
 	defer in.Close()
 
-	out, err := os.Create("gzip_content.tgz")
+	out, err := os.Create(fileName)
 	if err != nil {
 		t.Errorf("Error setting up fixtures: %v", err)
 	}
@@ -315,7 +371,11 @@ func setupFixtures(t *testing.T) {
 }
 
 func teardownFixtures(t *testing.T) {
+	t.Helper()
 	if err := os.Remove("gzip_content.tgz"); err != nil {
+		t.Errorf("Error tearing down fixtures: %v", err)
+	}
+	if err := os.Remove("zstd_content.tar.zst"); err != nil {
 		t.Errorf("Error tearing down fixtures: %v", err)
 	}
 }

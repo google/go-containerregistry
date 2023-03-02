@@ -17,12 +17,11 @@ package remote
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
+	"crypto"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -169,7 +168,6 @@ func setupWriterWithServer(server *httptest.Server, repo string) (*writer, close
 	return &writer{
 		repo:      tag.Context(),
 		client:    http.DefaultClient,
-		context:   context.Background(),
 		predicate: defaultRetryPredicate,
 		backoff:   defaultRetryBackoff,
 	}, server, nil
@@ -217,7 +215,7 @@ func TestCheckExistingBlob(t *testing.T) {
 			}
 			defer closer.Close()
 
-			existing, err := w.checkExistingBlob(h)
+			existing, err := w.checkExistingBlob(context.Background(), h)
 			if test.existing != existing {
 				t.Errorf("checkExistingBlob() = %v, want %v", existing, test.existing)
 			}
@@ -257,7 +255,7 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload("baz/bar", h.String(), "")
+	_, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -295,7 +293,7 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload("baz/bar", h.String(), "")
+	location, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -334,7 +332,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 	}
 	defer closer.Close()
 
-	location, mounted, err := w.initiateUpload("baz/bar", h.String(), "")
+	location, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err == nil {
 		t.Errorf("intiateUpload() = %v, %v; wanted error", location, mounted)
 	}
@@ -367,7 +365,7 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload("baz/bar", h.String(), "")
+	_, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -407,7 +405,7 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String(), "")
+	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -449,7 +447,7 @@ func TestInitiateUploadMountsWithOrigin(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String(), "fakeOrigin")
+	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "fakeOrigin")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -499,7 +497,7 @@ func TestInitiateUploadMountsWithOriginFallback(t *testing.T) {
 	}
 	defer closer.Close()
 
-	_, mounted, err := w.initiateUpload(expectedMountRepo, h.String(), "fakeOrigin")
+	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "fakeOrigin")
 	if err != nil {
 		t.Errorf("intiateUpload() = %v", err)
 	}
@@ -509,7 +507,7 @@ func TestInitiateUploadMountsWithOriginFallback(t *testing.T) {
 }
 
 func TestDedupeLayers(t *testing.T) {
-	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, 10000))) }
+	newBlob := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, 10000))) }
 
 	img, err := random.Image(1024, 3)
 	if err != nil {
@@ -611,7 +609,7 @@ func TestStreamBlob(t *testing.T) {
 		if r.URL.Path != expectedPath {
 			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
 		}
-		got, err := ioutil.ReadAll(r.Body)
+		got, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("ReadAll(Body) = %v", err)
 		}
@@ -648,7 +646,7 @@ func TestStreamBlob(t *testing.T) {
 
 func TestStreamLayer(t *testing.T) {
 	var n, wantSize int64 = 10000, 49
-	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
+	newBlob := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
 	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
 
 	expectedPath := "/vWhatever/I/decide"
@@ -661,7 +659,7 @@ func TestStreamLayer(t *testing.T) {
 			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
 		}
 
-		h := sha256.New()
+		h := crypto.SHA256.New()
 		s, err := io.Copy(h, r.Body)
 		if err != nil {
 			t.Errorf("Reading body: %v", err)
@@ -721,7 +719,7 @@ func TestCommitBlob(t *testing.T) {
 
 	commitLocation := w.url(expectedPath)
 
-	if err := w.commitBlob(commitLocation.String(), h.String()); err != nil {
+	if err := w.commitBlob(context.Background(), commitLocation.String(), h.String()); err != nil {
 		t.Errorf("commitBlob() = %v", err)
 	}
 }
@@ -757,7 +755,7 @@ func TestUploadOne(t *testing.T) {
 			if r.Method != http.MethodPatch {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPatch)
 			}
-			got, err := ioutil.ReadAll(r.Body)
+			got, err := io.ReadAll(r.Body)
 			if err != nil {
 				t.Errorf("ReadAll(Body) = %v", err)
 			}
@@ -839,7 +837,7 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 	defer closer.Close()
 
 	var n, wantSize int64 = 10000, 49
-	newBlob := func() io.ReadCloser { return ioutil.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
+	newBlob := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
 	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
 	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
 	l := stream.NewLayer(newBlob())
@@ -878,7 +876,7 @@ func TestCommitImage(t *testing.T) {
 		if r.URL.Path != expectedPath {
 			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
 		}
-		got, err := ioutil.ReadAll(r.Body)
+		got, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf("ReadAll(Body) = %v", err)
 		}
@@ -1264,7 +1262,7 @@ func TestCheckExistingManifest(t *testing.T) {
 			}
 			defer closer.Close()
 
-			existing, err := w.checkExistingManifest(h, mt)
+			existing, err := w.checkExistingManifest(context.Background(), h, mt)
 			if test.existing != existing {
 				t.Errorf("checkExistingManifest() = %v, want %v", existing, test.existing)
 			}
