@@ -22,17 +22,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/phayes/freeport"
 	"github.com/spf13/cobra"
 
 	"github.com/google/go-containerregistry/pkg/registry"
 )
 
 func NewCmdServe() *cobra.Command {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
 	return &cobra.Command{
 		Use:   "serve",
 		Short: "Serve an in-memory registry implementation",
@@ -44,6 +40,16 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
+
+			port := os.Getenv("PORT")
+			if port == "" {
+				porti, err := freeport.GetFreePort()
+				if err != nil {
+					return err
+				}
+				port = fmt.Sprintf("%d", porti)
+			}
+
 			s := &http.Server{
 				Addr:              fmt.Sprintf(":%s", port),
 				ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter

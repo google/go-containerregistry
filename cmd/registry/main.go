@@ -21,12 +21,23 @@ import (
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/registry"
+	"github.com/phayes/freeport"
 )
 
 var port = flag.Int("port", 1338, "port to run registry on")
 
 func main() {
 	flag.Parse()
+
+	if *port == 0 {
+		porti, err := freeport.GetFreePort()
+		if err != nil {
+			log.Fatal(err)
+		}
+		*port = porti
+	}
+
+	log.Printf("serving on port %d", *port)
 	s := &http.Server{
 		Addr:    fmt.Sprintf(":%d", *port),
 		Handler: registry.New(),
