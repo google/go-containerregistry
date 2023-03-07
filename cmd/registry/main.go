@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/registry"
 	"github.com/phayes/freeport"
@@ -39,8 +40,9 @@ func main() {
 
 	log.Printf("serving on port %d", *port)
 	s := &http.Server{
-		Addr:    fmt.Sprintf(":%d", *port),
-		Handler: registry.New(),
+		Addr:              fmt.Sprintf(":%d", *port),
+		ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
+		Handler:           registry.New(),
 	}
 	log.Fatal(s.ListenAndServe())
 }

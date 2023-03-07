@@ -14,7 +14,6 @@ issues:
 linters:
   enable:
   - asciicheck
-  - deadcode
   - depguard
   - errorlint
   - gofmt
@@ -28,6 +27,7 @@ linters:
   - tparallel
   - unconvert
   - unparam
+  - unused
   - whitespace
 
   disable:
