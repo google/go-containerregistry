@@ -18,11 +18,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
 
-	"github.com/phayes/freeport"
 	"github.com/spf13/cobra"
 
 	"github.com/google/go-containerregistry/pkg/registry"
@@ -43,22 +43,23 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 
 			port := os.Getenv("PORT")
 			if port == "" {
-				porti, err := freeport.GetFreePort()
-				if err != nil {
-					return err
-				}
-				port = fmt.Sprintf("%d", porti)
+				port = "0"
 			}
+			listener, err := net.Listen("tcp", "localhost:"+port)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			porti := listener.Addr().(*net.TCPAddr).Port
+			port = fmt.Sprintf("%d", porti)
 
 			s := &http.Server{
-				Addr:              fmt.Sprintf(":%s", port),
 				ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
 				Handler:           registry.New(),
 			}
 			log.Printf("serving on port %s", port)
 
 			errCh := make(chan error)
-			go func() { errCh <- s.ListenAndServe() }()
+			go func() { errCh <- s.Serve(listener) }()
 
 			<-ctx.Done()
 			log.Println("shutting down...")
