@@ -18,7 +18,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/registry"
 )
@@ -27,9 +29,16 @@ var port = flag.Int("port", 1338, "port to run registry on")
 
 func main() {
 	flag.Parse()
-	s := &http.Server{
-		Addr:    fmt.Sprintf(":%d", *port),
-		Handler: registry.New(),
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
+	if err != nil {
+		log.Fatal(err)
 	}
-	log.Fatal(s.ListenAndServe())
+	porti := listener.Addr().(*net.TCPAddr).Port
+	log.Printf("serving on port %d", porti)
+	s := &http.Server{
+		ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
+		Handler:           registry.New(),
+	}
+	log.Fatal(s.Serve(listener))
 }
