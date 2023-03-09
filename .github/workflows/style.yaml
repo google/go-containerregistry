@@ -30,7 +30,7 @@ jobs:
 
       - uses: golangci/golangci-lint-action@v3.4.0
         with:
-          version: v1.45.2
+          version: v1.51.2
 
       - uses: reviewdog/action-misspell@v1
         if: ${{ always() }}
