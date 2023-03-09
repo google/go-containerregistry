@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.19
           check-latest: true
       - uses: actions/checkout@v3
       - uses: chainguard-dev/actions/goimports@5e21cb47971231c078a677dfe89a348371cb880c # main
@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.19
           check-latest: true
 
       - uses: golangci/golangci-lint-action@v3.4.0
