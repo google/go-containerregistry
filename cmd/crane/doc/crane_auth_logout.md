@@ -1,15 +1,22 @@
-## crane auth
+## crane auth logout
 
-Log in or access credentials
+Log out of a registry
 
 ```
-crane auth [flags]
+crane auth logout [SERVER] [flags]
+```
+
+### Examples
+
+```
+  # Log out of reg.example.com
+  crane auth logout reg.example.com
 ```
 
 ### Options
 
 ```
-  -h, --help   help for auth
+  -h, --help   help for logout
 ```
 
 ### Options inherited from parent commands
@@ -23,8 +30,5 @@ crane auth [flags]
 
 ### SEE ALSO
 
-* [crane](crane.md)	 - Crane is a tool for managing container images
-* [crane auth get](crane_auth_get.md)	 - Implements a credential helper
-* [crane auth login](crane_auth_login.md)	 - Log in to a registry
-* [crane auth logout](crane_auth_logout.md)	 - Log out of a registry
+* [crane auth](crane_auth.md)	 - Log in or access credentials
 
