@@ -1,4 +1,4 @@
-## crane serve
+## crane registry serve
 
 Serve an in-memory registry implementation
 
@@ -11,7 +11,7 @@ The command blocks while the server accepts pushes and pulls.
 Contents are only stored in memory, and when the process exits, pushed data is lost.
 
 ```
-crane serve [flags]
+crane registry serve [flags]
 ```
 
 ### Options
@@ -31,5 +31,5 @@ crane serve [flags]
 
 ### SEE ALSO
 
-* [crane](crane.md)	 - Crane is a tool for managing container images
+* [crane registry](crane_registry.md)	 - 
 

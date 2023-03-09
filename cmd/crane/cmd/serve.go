@@ -28,7 +28,15 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 )
 
-func NewCmdServe() *cobra.Command {
+func newCmdRegistry() *cobra.Command {
+	cmd := &cobra.Command{
+		Use: "registry",
+	}
+	cmd.AddCommand(newCmdServe())
+	return cmd
+}
+
+func newCmdServe() *cobra.Command {
 	return &cobra.Command{
 		Use:   "serve",
 		Short: "Serve an in-memory registry implementation",
