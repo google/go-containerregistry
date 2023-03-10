@@ -19,7 +19,7 @@ jobs:
     - uses: actions/checkout@v3
     - uses: actions/setup-go@v3
       with:
-        go-version: 1.18
+        go-version: 1.19
         check-latest: true
 
     - name: crane append to an image, set the entrypoint, run it locally, roundtrip it
