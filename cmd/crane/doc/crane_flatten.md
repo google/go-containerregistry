@@ -4,9 +4,12 @@ Flatten an image's layers into a single layer
 
 Here's an example. If an image had three layers:
 
+```
 layer 1 (bottom): file at /tmp/foo containing the text "foo"
 layer 2 (middle): file at /tmp/bar containing the text "bar"
 layer 3 (top): file at /tmp/foo containing the text "blah"
+```
+
 Flattening this image would produce an image with one layer:
 
 layer: file at /tmp/foo containing the text "blah", file at /tmp/bar containing the text "bar"
