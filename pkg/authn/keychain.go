@@ -54,7 +54,20 @@ type defaultKeychain struct {
 }
 
 var (
-	// DefaultKeychain implements Keychain by interpreting the docker config file.
+	// DefaultKeychain implements Keychain by interpreting the Docker config file.
+	// This matches the behavior of tools like `docker` and `podman`.
+	//
+	// This keychain looks for credentials configured in a few places, in order:
+	//
+	// 1. $HOME/.docker/config.json
+	// 2. $DOCKER_CONFIG/config.json
+	// 3. $XDG_RUNTIME_DIR/containers/auth.json (for compatibility with Podman)
+	//
+	// If a config file is found and can be parsed, Resolve will return credentials
+	// configured by the file for the given registry.
+	//
+	// If no config file is found, Resolve returns Anonymous.
+	// If a config file is found but can't be parsed, Resolve returns an error.
 	DefaultKeychain = RefreshingKeychain(&defaultKeychain{}, 5*time.Minute)
 )
 
@@ -64,6 +77,11 @@ const (
 	DefaultAuthKey = "https://" + name.DefaultRegistry + "/v1/"
 )
 
+// NewConfigKeychain implements Keychain by interpreting the Docker config file
+// at the specified file path.
+//
+// It acts like DefaultKeychain except that the exact path of the file can be specified,
+// instead of being dependent on environment variables and conventional file names.
 func NewConfigKeychain(filename string) Keychain {
 	return &defaultKeychain{configFilePath: filename}
 }
@@ -112,7 +130,6 @@ func getDefaultConfigFile() (*configfile.ConfigFile, error) {
 	return cf, nil
 }
 
-// Resolve implements Keychain.
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	dk.mu.Lock()
 	defer dk.mu.Unlock()
