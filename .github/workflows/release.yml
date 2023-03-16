@@ -50,8 +50,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions: read-all
     steps:
-      # Note: this will be replaced with the GHA in the future.
-      # See https://github.com/slsa-framework/slsa-verifier/issues/95
       - name: Install SLSA verifier
         uses: slsa-framework/slsa-verifier/actions/installer@v2.0.1
       - name: Download assets
@@ -71,8 +69,8 @@ jobs:
           while read -r line; do
               fn=$(echo $line | cut -d ' ' -f2)
               echo "Verifying $fn"
-              ./slsa-verifier-linux-amd64 -artifact-path "$fn" \
-                                      -provenance "$PROVENANCE" \
-                                      -source "github.com/$GITHUB_REPOSITORY" \
-                                      -tag "$GITHUB_REF_NAME"
+              slsa-verifier verify-artifact "$fn" \
+                            --provenance-path "$PROVENANCE" \
+                            --source-uri "github.com/$GITHUB_REPOSITORY" \
+                            --source-tag "$GITHUB_REF_NAME"
           done <<<"$checksums"
