@@ -181,6 +181,39 @@ func TestPodmanConfig(t *testing.T) {
 	}
 }
 
+func TestAuthConfigPath(t *testing.T) {
+	tmpdir := os.Getenv("TEST_TMPDIR")
+	if tmpdir == "" {
+		tmpdir = t.TempDir()
+	}
+	fresh++
+	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
+	if err := os.MkdirAll(filepath.Join(p, "custom"), 0777); err != nil {
+		t.Fatalf("mkdir %s/custom: %v", p, err)
+	}
+	cfg := filepath.Join(p, "cfg.xml")
+	content := fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("foo", "bar"))
+	if err := os.WriteFile(cfg, []byte(content), 0600); err != nil {
+		t.Fatalf("write %q: %v", cfg, err)
+	}
+
+	auth, err := NewConfigKeychain(cfg).Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err := auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &AuthConfig{
+		Username: "foo",
+		Password: "bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
 func encode(user, pass string) string {
 	delimited := fmt.Sprintf("%s:%s", user, pass)
 	return base64.StdEncoding.EncodeToString([]byte(delimited))
