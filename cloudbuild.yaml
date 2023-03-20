@@ -19,34 +19,34 @@ steps:
     ln -s $$PWD $$shadow || stat $$shadow
 
     # Install ko from release.
-    curl -L -o ko.tar.gz https://github.com/google/ko/releases/download/v0.8.2/ko_0.8.2_Linux_i386.tar.gz
+    curl -L -o ko.tar.gz https://github.com/google/ko/releases/download/v0.13.0/ko_0.13.0_Linux_i386.tar.gz
     tar xvfz ko.tar.gz
     chmod +x ko
     alias ko=$${PWD}/ko
 
     # Use the ko binary to build the crane-ish builder images.
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    ko build --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    ko build --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
     # ./cmd/krane is a separate module, so switch directories.
     cd ./cmd/krane
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/krane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    ko build --platform=all -B github.com/google/go-containerregistry/cmd/krane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
     cd ../../
 
     # Use the ko binary to build the crane-ish builder *debug* images.
     export KO_CONFIG_PATH=$(pwd)/.ko/debug/
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t "debug"
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t "debug"
+    ko build --platform=all -B github.com/google/go-containerregistry/cmd/crane  -t "debug"
+    ko build --platform=all -B github.com/google/go-containerregistry/cmd/gcrane -t "debug"
     # ./cmd/krane is a separate module, so switch directories.
     cd ./cmd/krane
-    ko publish --platform=all -B github.com/google/go-containerregistry/cmd/krane -t "debug"
+    ko build --platform=all -B github.com/google/go-containerregistry/cmd/krane -t "debug"
     cd ../../
 
     # Tag-specific debug images are pushed to gcr.io/go-containerregistry/TOOL/debug:...
-    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/crane/debug  ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
-    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/gcrane/debug ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/crane/debug  ko build --platform=all --bare github.com/google/go-containerregistry/cmd/crane  -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/gcrane/debug ko build --platform=all --bare github.com/google/go-containerregistry/cmd/gcrane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
     # ./cmd/krane is a separate module, so switch directories.
     cd ./cmd/krane
-    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/krane/debug ko publish --platform=all --bare github.com/google/go-containerregistry/cmd/krane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
+    KO_DOCKER_REPO=gcr.io/$PROJECT_ID/krane/debug ko build --platform=all --bare github.com/google/go-containerregistry/cmd/krane -t latest -t "$COMMIT_SHA" -t "$TAG_NAME"
     cd ../../
 
 # Use the crane builder to get the digest for crane-ish.
