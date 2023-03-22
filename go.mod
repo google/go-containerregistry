@@ -3,6 +3,7 @@ module github.com/google/go-containerregistry
 go 1.18
 
 require (
+	github.com/Masterminds/semver v1.5.0
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3
 	github.com/docker/cli v23.0.1+incompatible
 	github.com/docker/distribution v2.8.1+incompatible
