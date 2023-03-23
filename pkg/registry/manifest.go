@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math/rand"
 	"net/http"
 	"sort"
 	"strconv"
@@ -90,21 +89,9 @@ func isReferrers(req *http.Request) bool {
 	return elems[len(elems)-2] == "referrers"
 }
 
-var msgs = []string{
-	"This image is deprecated and will be removed in 17 days.",
-	"This image has 3 critical CVEs -- consider upgrading to :v1.2.5 as soon as possible",
-	"Your auth token will expire in 30 seconds.",
-	"Did you know: The woolly mammoth was still around when the pyramids were being built.",
-}
-
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pulling-an-image-manifest
 // https://github.com/opencontainers/distribution-spec/blob/master/spec.md#pushing-an-image
 func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regError {
-
-	if rand.Intn(5) == 1 {
-		resp.Header().Set("Warning", msgs[rand.Intn(len(msgs))])
-	}
-
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
 	target := elem[len(elem)-1]
