@@ -208,6 +208,7 @@ func (wt *warnTransport) Report() {
 		prefix = "[WARNING]:"
 	}
 	for _, w := range warns {
+		// TODO: Consider using logs.Warn here if we move this out of crane.
 		fmt.Fprintln(os.Stderr, prefix, w)
 	}
 }
