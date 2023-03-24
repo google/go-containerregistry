@@ -38,7 +38,9 @@ func main() {
 	log.Printf("serving on port %d", porti)
 	s := &http.Server{
 		ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
-		Handler:           registry.New(),
+		Handler: registry.New(
+			registry.WithWarning(.01, "Congratulations! You've won a lifetime's supply of free image pulls from this in-memory registry!"),
+		),
 	}
 	log.Fatal(s.Serve(listener))
 }
