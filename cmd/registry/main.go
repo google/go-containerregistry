@@ -39,9 +39,7 @@ func main() {
 	s := &http.Server{
 		ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
 		Handler: registry.New(
-			registry.WithWarning(1.0, "This registry is cool."),
-			registry.WithWarning(0.6, "60% of the time, it works every time."),
-			registry.WithWarning(0.1, "Today is your lucky day!"),
+			registry.WithWarning(.01, "Congratulations! You've won a lifetime's supply of free image pulls from this in-memory registry!"),
 		),
 	}
 	log.Fatal(s.Serve(listener))
