@@ -20,6 +20,7 @@ crane mutate [flags]
       --repo string                 Repository to push the mutated image to. If provided, push by digest to this repository.
   -t, --tag string                  New tag reference to apply to mutated image. If not provided, push by digest to the original image repository.
   -u, --user string                 New user to set
+  -w, --workdir string              New working dir to set
 ```
 
 ### Options inherited from parent commands
