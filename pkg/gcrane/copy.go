@@ -41,15 +41,15 @@ var Keychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
 //
 // These numbers are based on GCR's posted quotas:
 // https://cloud.google.com/container-registry/quotas
-// -  30k requests per 10 minutes.
-// - 500k requests per 24 hours.
+// - 50k requests per 10 minutes.
+// -  1M requests per 24 hours.
 //
 // On error, we will wait for:
 // - 6 seconds (in case of very short term 429s from GCS), then
 // - 1 minute (in case of temporary network issues), then
 // - 10 minutes (to get around GCR 10 minute quotas), then fail.
 //
-// TODO: In theory, we could keep retrying until the next day to get around the 500k limit.
+// TODO: In theory, we could keep retrying until the next day to get around the 1M limit.
 func GCRBackoff() retry.Backoff {
 	return retry.Backoff{
 		Duration: 6 * time.Second,
