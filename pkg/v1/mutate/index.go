@@ -17,6 +17,7 @@ package mutate
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -71,6 +72,8 @@ type index struct {
 	indexMap    map[v1.Hash]v1.ImageIndex
 	layerMap    map[v1.Hash]v1.Layer
 	subject     *v1.Descriptor
+
+	sync.Mutex
 }
 
 var _ v1.ImageIndex = (*index)(nil)
@@ -85,6 +88,9 @@ func (i *index) MediaType() (types.MediaType, error) {
 func (i *index) Size() (int64, error) { return partial.Size(i) }
 
 func (i *index) compute() error {
+	i.Lock()
+	defer i.Unlock()
+
 	// Don't re-compute if already computed.
 	if i.computed {
 		return nil
