@@ -45,41 +45,30 @@ type Taggable interface {
 
 // Write pushes the provided img to the specified image reference.
 func Write(ref name.Reference, img v1.Image, options ...Option) (rerr error) {
-	o, err := makeOptions(ref.Context(), options...)
+	o, err := makeOptions(options...)
 	if err != nil {
 		return err
 	}
 
-	var p *progress
-	if o.updates != nil {
-		p = &progress{updates: o.updates}
-		p.lastUpdate = &v1.Update{}
-		p.lastUpdate.Total, err = countImage(img, o.allowNondistributableArtifacts)
+	if o.progress != nil {
+		o.progress.lastUpdate.Total, err = countImage(img, o.allowNondistributableArtifacts)
 		if err != nil {
 			return err
 		}
-		defer close(o.updates)
-		defer func() { _ = p.err(rerr) }()
+		defer func() { o.progress.Close(rerr) }()
 	}
-	return writeImage(o.context, ref, img, o, p)
+	return writeImage(o.context, ref, img, o)
 }
 
-func writeImage(ctx context.Context, ref name.Reference, img v1.Image, o *options, progress *progress) error {
+func writeImage(ctx context.Context, ref name.Reference, img v1.Image, o *options) error {
 	ls, err := img.Layers()
 	if err != nil {
 		return err
 	}
-	scopes := scopesForUploadingImage(ref.Context(), ls)
-	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
+
+	w, err := makeWriter(ctx, ref.Context(), ls, o)
 	if err != nil {
 		return err
-	}
-	w := writer{
-		repo:      ref.Context(),
-		client:    &http.Client{Transport: tr},
-		progress:  progress,
-		backoff:   o.retryBackoff,
-		predicate: o.retryPredicate,
 	}
 
 	// Upload individual blobs and collect any errors.
@@ -176,6 +165,29 @@ type writer struct {
 	progress  *progress
 	backoff   Backoff
 	predicate retry.Predicate
+}
+
+func makeWriter(ctx context.Context, repo name.Repository, ls []v1.Layer, o *options) (*writer, error) {
+	auth := o.auth
+	if o.keychain != nil {
+		kauth, err := o.keychain.Resolve(repo)
+		if err != nil {
+			return nil, err
+		}
+		auth = kauth
+	}
+	scopes := scopesForUploadingImage(repo, ls)
+	tr, err := transport.NewWithContext(ctx, repo.Registry, auth, o.transport, scopes)
+	if err != nil {
+		return nil, err
+	}
+	return &writer{
+		repo:      repo,
+		client:    &http.Client{Transport: tr},
+		progress:  o.progress,
+		backoff:   o.retryBackoff,
+		predicate: o.retryPredicate,
+	}, nil
 }
 
 // url returns a url.Url for the specified path in the context of this remote image reference.
@@ -478,13 +490,8 @@ type withLayer interface {
 	Layer(v1.Hash) (v1.Layer, error)
 }
 
-func (w *writer) writeIndex(ctx context.Context, ref name.Reference, ii v1.ImageIndex, options ...Option) error {
+func (w *writer) writeIndex(ctx context.Context, ref name.Reference, ii v1.ImageIndex, o *options) error {
 	index, err := ii.IndexManifest()
-	if err != nil {
-		return err
-	}
-
-	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
@@ -507,7 +514,7 @@ func (w *writer) writeIndex(ctx context.Context, ref name.Reference, ii v1.Image
 			if err != nil {
 				return err
 			}
-			if err := w.writeIndex(ctx, ref, ii, options...); err != nil {
+			if err := w.writeIndex(ctx, ref, ii, o); err != nil {
 				return err
 			}
 		case types.OCIManifestSchema1, types.DockerManifestSchema2:
@@ -515,7 +522,7 @@ func (w *writer) writeIndex(ctx context.Context, ref name.Reference, ii v1.Image
 			if err != nil {
 				return err
 			}
-			if err := writeImage(ctx, ref, img, o, w.progress); err != nil {
+			if err := writeImage(ctx, ref, img, o); err != nil {
 				return err
 			}
 		default:
@@ -770,29 +777,17 @@ func scopesForUploadingImage(repo name.Repository, layers []v1.Layer) []string {
 // WriteIndex will attempt to push all of the referenced manifests before
 // attempting to push the ImageIndex, to retain referential integrity.
 func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) (rerr error) {
-	o, err := makeOptions(ref.Context(), options...)
+	o, err := makeOptions(options...)
 	if err != nil {
 		return err
 	}
 
-	scopes := []string{ref.Scope(transport.PushScope)}
-	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
+	w, err := makeWriter(o.context, ref.Context(), nil, o)
 	if err != nil {
 		return err
 	}
-	w := writer{
-		repo:      ref.Context(),
-		client:    &http.Client{Transport: tr},
-		backoff:   o.retryBackoff,
-		predicate: o.retryPredicate,
-	}
-
-	if o.updates != nil {
-		w.progress = &progress{updates: o.updates}
-		w.progress.lastUpdate = &v1.Update{}
-
-		defer close(o.updates)
-		defer func() { w.progress.err(rerr) }()
+	if w.progress != nil {
+		defer func() { w.progress.Close(rerr) }()
 
 		w.progress.lastUpdate.Total, err = countIndex(ii, o.allowNondistributableArtifacts)
 		if err != nil {
@@ -800,7 +795,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) (rerr e
 		}
 	}
 
-	return w.writeIndex(o.context, ref, ii, options...)
+	return w.writeIndex(o.context, ref, ii, o)
 }
 
 // countImage counts the total size of all layers + config blob + manifest for
@@ -913,28 +908,17 @@ func countIndex(idx v1.ImageIndex, allowNondistributableArtifacts bool) (int64, 
 
 // WriteLayer uploads the provided Layer to the specified repo.
 func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) (rerr error) {
-	o, err := makeOptions(repo, options...)
+	o, err := makeOptions(options...)
 	if err != nil {
 		return err
 	}
-	scopes := scopesForUploadingImage(repo, []v1.Layer{layer})
-	tr, err := transport.NewWithContext(o.context, repo.Registry, o.auth, o.transport, scopes)
+	w, err := makeWriter(o.context, repo, []v1.Layer{layer}, o)
 	if err != nil {
 		return err
 	}
-	w := writer{
-		repo:      repo,
-		client:    &http.Client{Transport: tr},
-		backoff:   o.retryBackoff,
-		predicate: o.retryPredicate,
-	}
 
-	if o.updates != nil {
-		w.progress = &progress{updates: o.updates}
-		w.progress.lastUpdate = &v1.Update{}
-
-		defer close(o.updates)
-		defer func() { w.progress.err(rerr) }()
+	if w.progress != nil {
+		defer func() { w.progress.Close(rerr) }()
 
 		// TODO: support streaming layers which update the total count as they write.
 		if _, ok := layer.(*stream.Layer); ok {
@@ -976,27 +960,14 @@ func Tag(tag name.Tag, t Taggable, options ...Option) error {
 // should ensure that all blobs or manifests that are referenced by t exist
 // in the target registry.
 func Put(ref name.Reference, t Taggable, options ...Option) error {
-	o, err := makeOptions(ref.Context(), options...)
+	repo := ref.Context()
+	o, err := makeOptions(options...)
 	if err != nil {
 		return err
 	}
-	scopes := []string{ref.Scope(transport.PushScope)}
-
-	// TODO: This *always* does a token exchange. For some registries,
-	// that's pretty slow. Some ideas;
-	// * Tag could take a list of tags.
-	// * Allow callers to pass in a transport.Transport, typecheck
-	//   it to allow them to reuse the transport across multiple calls.
-	// * WithTag option to do multiple manifest PUTs in commitManifest.
-	tr, err := transport.NewWithContext(o.context, ref.Context().Registry, o.auth, o.transport, scopes)
+	w, err := makeWriter(o.context, repo, nil, o)
 	if err != nil {
 		return err
-	}
-	w := writer{
-		repo:      ref.Context(),
-		client:    &http.Client{Transport: tr},
-		backoff:   o.retryBackoff,
-		predicate: o.retryPredicate,
 	}
 
 	return w.commitManifest(o.context, t, ref)
