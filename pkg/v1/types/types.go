@@ -80,3 +80,11 @@ func (m MediaType) IsConfig() bool {
 	}
 	return false
 }
+
+func (m MediaType) IsSchema1() bool {
+	switch m {
+	case DockerManifestSchema1, DockerManifestSchema1Signed:
+		return true
+	}
+	return false
+}

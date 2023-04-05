@@ -36,6 +36,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+var allManifestMediaTypes = append(append([]types.MediaType{
+	types.DockerManifestSchema1,
+	types.DockerManifestSchema1Signed,
+}, acceptableImageMediaTypes...), acceptableIndexMediaTypes...)
+
 // ErrSchema1 indicates that we received a schema1 manifest from the registry.
 // This library doesn't have plans to support this legacy image format:
 // https://github.com/google/go-containerregistry/issues/377
@@ -79,14 +84,7 @@ func (d *Descriptor) RawManifest() ([]byte, error) {
 //
 // See Head if you don't need the response body.
 func Get(ref name.Reference, options ...Option) (*Descriptor, error) {
-	acceptable := []types.MediaType{
-		// Just to look at them.
-		types.DockerManifestSchema1,
-		types.DockerManifestSchema1Signed,
-	}
-	acceptable = append(acceptable, acceptableImageMediaTypes...)
-	acceptable = append(acceptable, acceptableIndexMediaTypes...)
-	return get(ref, acceptable, options...)
+	return get(ref, allManifestMediaTypes, options...)
 }
 
 // Head returns a v1.Descriptor for the given reference by issuing a HEAD
@@ -95,14 +93,6 @@ func Get(ref name.Reference, options ...Option) (*Descriptor, error) {
 // Note that the server response will not have a body, so any errors encountered
 // should be retried with Get to get more details.
 func Head(ref name.Reference, options ...Option) (*v1.Descriptor, error) {
-	acceptable := []types.MediaType{
-		// Just to look at them.
-		types.DockerManifestSchema1,
-		types.DockerManifestSchema1Signed,
-	}
-	acceptable = append(acceptable, acceptableImageMediaTypes...)
-	acceptable = append(acceptable, acceptableIndexMediaTypes...)
-
 	o, err := makeOptions(options...)
 	if err != nil {
 		return nil, err
@@ -113,7 +103,7 @@ func Head(ref name.Reference, options ...Option) (*v1.Descriptor, error) {
 		return nil, err
 	}
 
-	return f.headManifest(o.context, ref, acceptable)
+	return f.headManifest(o.context, ref, allManifestMediaTypes)
 }
 
 // Handle options and fetch the manifest with the acceptable MediaTypes in the
@@ -173,6 +163,26 @@ func (d *Descriptor) Image() (v1.Image, error) {
 	}
 	return &mountableImage{
 		Image:     imgCore,
+		Reference: d.ref,
+	}, nil
+}
+
+// Schema1 converts the Descriptor into a v1.Image for v2 schema 1 media types.
+//
+// The v1.Image returned by this method does not implement the entire interface because it would be inefficient.
+// This exists mostly to make it easier to copy schema 1 images around or look at their filesystems.
+// This is separate from Image() to avoid a backward incompatible change for callers expecting ErrSchema1.
+func (d *Descriptor) Schema1() (v1.Image, error) {
+	i := &schema1{
+		fetcher:    d.fetcher,
+		ref:        d.ref,
+		manifest:   d.Manifest,
+		mediaType:  d.MediaType,
+		descriptor: &d.Descriptor,
+	}
+
+	return &mountableImage{
+		Image:     i,
 		Reference: d.ref,
 	}, nil
 }
