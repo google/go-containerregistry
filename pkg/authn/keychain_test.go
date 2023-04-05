@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
 )
@@ -388,5 +389,57 @@ func TestConfigFileIsADir(t *testing.T) {
 	}
 	if auth != Anonymous {
 		t.Errorf("expected Anonymous, got %v", auth)
+	}
+}
+
+type fakeKeychain struct {
+	auth Authenticator
+	err  error
+
+	count int
+}
+
+func (k *fakeKeychain) Resolve(target Resource) (Authenticator, error) {
+	k.count++
+	return k.auth, k.err
+}
+
+func TestRefreshingAuth(t *testing.T) {
+	repo := name.MustParseReference("example.com/my/repo").Context()
+	last := time.Now()
+
+	// Increments by 1 minute each invocation.
+	clock := func() time.Time {
+		last = last.Add(1 * time.Minute)
+		return last
+	}
+
+	want := AuthConfig{
+		Username: "foo",
+		Password: "secret",
+	}
+
+	keychain := &fakeKeychain{FromConfig(want), nil, 0}
+	rk := RefreshingKeychain(keychain, 5*time.Minute)
+	rk.(*refreshingKeychain).clock = clock
+
+	auth, err := rk.Resolve(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := 0; i < 10; i++ {
+		got, err := auth.Authorization()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if *got != want {
+			t.Errorf("got %+v, want %+v", got, want)
+		}
+	}
+
+	if got, want := keychain.count, 2; got != want {
+		t.Errorf("refreshed %d times, wanted %d", got, want)
 	}
 }
