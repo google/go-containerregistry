@@ -152,6 +152,14 @@ func flattenIndex(old v1.ImageIndex, repo name.Repository, use string, o crane.O
 			return nil, err
 		}
 
+		// Drop attestations (for now).
+		// https://github.com/google/go-containerregistry/issues/1622
+		if p := desc.Platform; p != nil {
+			if p.OS == "unknown" && p.Architecture == "unknown" {
+				continue
+			}
+		}
+
 		flattened, err := flattenChild(m, repo, use, o)
 		if err != nil {
 			return nil, err
