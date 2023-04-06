@@ -25,9 +25,11 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/internal/retry"
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -51,11 +53,11 @@ func Write(ref name.Reference, img v1.Image, options ...Option) (rerr error) {
 	}
 
 	if o.progress != nil {
+		defer func() { o.progress.Close(rerr) }()
 		o.progress.lastUpdate.Total, err = countImage(img, o.allowNondistributableArtifacts)
 		if err != nil {
 			return err
 		}
-		defer func() { o.progress.Close(rerr) }()
 	}
 	return writeImage(o.context, ref, img, o)
 }
@@ -159,12 +161,19 @@ func writeImage(ctx context.Context, ref name.Reference, img v1.Image, o *option
 
 // writer writes the elements of an image to a remote image reference.
 type writer struct {
-	repo   name.Repository
-	client *http.Client
+	repo      name.Repository
+	auth      authn.Authenticator
+	transport http.RoundTripper
+	client    *http.Client
 
 	progress  *progress
 	backoff   Backoff
 	predicate retry.Predicate
+
+	scopeLock sync.Mutex
+	// Keep track of scopes that we have already requested.
+	scopeSet map[string]struct{}
+	scopes   []string
 }
 
 func makeWriter(ctx context.Context, repo name.Repository, ls []v1.Layer, o *options) (*writer, error) {
@@ -181,12 +190,21 @@ func makeWriter(ctx context.Context, repo name.Repository, ls []v1.Layer, o *opt
 	if err != nil {
 		return nil, err
 	}
+
+	scopeSet := map[string]struct{}{}
+	for _, scope := range scopes {
+		scopeSet[scope] = struct{}{}
+	}
 	return &writer{
 		repo:      repo,
 		client:    &http.Client{Transport: tr},
+		auth:      auth,
+		transport: o.transport,
 		progress:  o.progress,
 		backoff:   o.retryBackoff,
 		predicate: o.retryPredicate,
+		scopes:    scopes,
+		scopeSet:  scopeSet,
 	}, nil
 }
 
@@ -197,6 +215,34 @@ func (w *writer) url(path string) url.URL {
 		Host:   w.repo.RegistryStr(),
 		Path:   path,
 	}
+}
+
+func (w *writer) maybeUpdateScopes(ctx context.Context, ml *MountableLayer) error {
+	if ml.Reference.Context().String() == w.repo.String() {
+		return nil
+	}
+	if ml.Reference.Context().Registry.String() != w.repo.Registry.String() {
+		return nil
+	}
+
+	scope := ml.Reference.Scope(transport.PullScope)
+
+	w.scopeLock.Lock()
+	defer w.scopeLock.Unlock()
+
+	if _, ok := w.scopeSet[scope]; !ok {
+		w.scopeSet[scope] = struct{}{}
+		w.scopes = append(w.scopes, scope)
+
+		logs.Debug.Printf("Refreshing token to add scope %q", scope)
+		wt, err := transport.NewWithContext(ctx, w.repo.Registry, w.auth, w.transport, w.scopes)
+		if err != nil {
+			return err
+		}
+		w.client = &http.Client{Transport: wt}
+	}
+
+	return nil
 }
 
 // nextLocation extracts the fully-qualified URL to which we should send the next request in an upload sequence.
@@ -433,6 +479,9 @@ func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 			mount = h.String()
 		}
 		if ml, ok := l.(*MountableLayer); ok {
+			if err := w.maybeUpdateScopes(ctx, ml); err != nil {
+				return err
+			}
 			from = ml.Reference.Context().RepositoryStr()
 			origin = ml.Reference.Context().RegistryStr()
 		}
