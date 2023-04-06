@@ -3,20 +3,14 @@
 List the repos in a registry
 
 ```
-crane catalog [REGISTRY] [flags]
-```
-
-### Examples
-
-```
-  # list the repos for reg.example.com
-  $ crane catalog reg.example.com
+crane catalog REGISTRY [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for catalog
+      --full-ref   (Optional) if true, print the full image reference
+  -h, --help       help for catalog
 ```
 
 ### Options inherited from parent commands
