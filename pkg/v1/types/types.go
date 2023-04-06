@@ -88,3 +88,11 @@ func (m MediaType) IsSchema1() bool {
 	}
 	return false
 }
+
+func (m MediaType) IsLayer() bool {
+	switch m {
+	case DockerLayer, DockerUncompressedLayer, OCILayer, OCILayerZStd, OCIUncompressedLayer, DockerForeignLayer, OCIRestrictedLayer, OCIUncompressedRestrictedLayer:
+		return true
+	}
+	return false
+}
