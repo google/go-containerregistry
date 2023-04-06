@@ -89,6 +89,7 @@ var retryableStatusCodes = []int{
 	http.StatusBadGateway,
 	http.StatusServiceUnavailable,
 	http.StatusGatewayTimeout,
+	http.StatusTooManyRequests,
 	499,
 }
 
@@ -158,7 +159,7 @@ func makeOptions(target authn.Resource, opts ...Option) (*options, error) {
 		}
 
 		// Wrap the transport in something that can retry network flakes.
-		o.transport = transport.NewRetry(o.transport, transport.WithRetryPredicate(defaultRetryPredicate), transport.WithRetryStatusCodes(retryableStatusCodes...))
+		o.transport = transport.NewRetry(o.transport, transport.WithRetryBackoff(o.retryBackoff), transport.WithRetryPredicate(o.retryPredicate), transport.WithRetryStatusCodes(retryableStatusCodes...))
 
 		// Wrap this last to prevent transport.New from double-wrapping.
 		if o.userAgent != "" {
