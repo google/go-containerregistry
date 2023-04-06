@@ -140,6 +140,21 @@ func (r *remoteImage) Descriptor() (*v1.Descriptor, error) {
 	return r.descriptor, err
 }
 
+func (r *remoteImage) ConfigLayer() (v1.Layer, error) {
+	if _, err := r.RawManifest(); err != nil {
+		return nil, err
+	}
+	m, err := partial.Manifest(r)
+	if err != nil {
+		return nil, err
+	}
+
+	return partial.CompressedToLayer(&remoteImageLayer{
+		ri:     r,
+		digest: m.Config.Digest,
+	})
+}
+
 // remoteImageLayer implements partial.CompressedLayer
 type remoteImageLayer struct {
 	ri     *remoteImage
