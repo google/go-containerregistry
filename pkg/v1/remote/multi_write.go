@@ -17,12 +17,10 @@ package remote
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
-	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
 )
@@ -46,7 +44,7 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) (rerr error) {
 		}
 	}
 
-	o, err := makeOptions(repo, options...)
+	o, err := makeOptions(options...)
 	if err != nil {
 		return err
 	}
@@ -81,24 +79,15 @@ func MultiWrite(m map[name.Reference]Taggable, options ...Option) (rerr error) {
 	for _, l := range blobs {
 		ls = append(ls, l)
 	}
-	scopes := scopesForUploadingImage(repo, ls)
-	tr, err := transport.NewWithContext(o.context, repo.Registry, o.auth, o.transport, scopes)
+	w, err := makeWriter(o.context, repo, ls, o)
 	if err != nil {
 		return err
 	}
-	w := writer{
-		repo:      repo,
-		client:    &http.Client{Transport: tr},
-		backoff:   o.retryBackoff,
-		predicate: o.retryPredicate,
-	}
 
 	// Collect the total size of blobs and manifests we're about to write.
-	if o.updates != nil {
-		w.progress = &progress{updates: o.updates}
-		w.progress.lastUpdate = &v1.Update{}
-		defer close(o.updates)
-		defer func() { _ = w.progress.err(rerr) }()
+	if w.progress != nil {
+		defer func() { w.progress.Close(rerr) }()
+
 		for _, b := range blobs {
 			size, err := b.Size()
 			if err != nil {

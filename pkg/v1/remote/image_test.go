@@ -178,9 +178,10 @@ func TestRawManifestDigests(t *testing.T) {
 			}
 
 			rmt := remoteImage{
+				ref: ref,
 				fetcher: fetcher{
-					Ref:     ref,
-					Client:  http.DefaultClient,
+					target:  ref.Context(),
+					client:  http.DefaultClient,
 					context: context.Background(),
 				},
 			}
@@ -212,10 +213,12 @@ func TestRawManifestNotFound(t *testing.T) {
 		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
 	}
 
+	ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 	img := remoteImage{
+		ref: ref,
 		fetcher: fetcher{
-			Ref:     mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			Client:  http.DefaultClient,
+			target:  ref.Context(),
+			client:  http.DefaultClient,
 			context: context.Background(),
 		},
 	}
@@ -252,10 +255,12 @@ func TestRawConfigFileNotFound(t *testing.T) {
 		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
 	}
 
+	ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 	rmt := remoteImage{
+		ref: ref,
 		fetcher: fetcher{
-			Ref:     mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			Client:  http.DefaultClient,
+			target:  ref.Context(),
+			client:  http.DefaultClient,
 			context: context.Background(),
 		},
 	}
@@ -292,11 +297,12 @@ func TestAcceptHeaders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
 	}
-
+	ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 	rmt := &remoteImage{
+		ref: ref,
 		fetcher: fetcher{
-			Ref:     mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo)),
-			Client:  http.DefaultClient,
+			target:  ref.Context(),
+			client:  http.DefaultClient,
 			context: context.Background(),
 		},
 	}
