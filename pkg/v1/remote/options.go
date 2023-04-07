@@ -89,7 +89,6 @@ var retryableStatusCodes = []int{
 	http.StatusBadGateway,
 	http.StatusServiceUnavailable,
 	http.StatusGatewayTimeout,
-	http.StatusTooManyRequests,
 	499,
 }
 
