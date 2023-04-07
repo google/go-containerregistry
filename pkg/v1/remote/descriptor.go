@@ -73,6 +73,10 @@ type Descriptor struct {
 	platform v1.Platform
 }
 
+func (d *Descriptor) toDesc() v1.Descriptor {
+	return d.Descriptor
+}
+
 // RawManifest exists to satisfy the Taggable interface.
 func (d *Descriptor) RawManifest() ([]byte, error) {
 	return d.Manifest, nil
@@ -117,7 +121,11 @@ func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*
 	if err != nil {
 		return nil, err
 	}
-	b, desc, err := f.fetchManifest(o.context, ref, acceptable)
+	return f.get(o.context, ref, acceptable)
+}
+
+func (f *fetcher) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType) (*Descriptor, error) {
+	b, desc, err := f.fetchManifest(ctx, ref, acceptable)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +134,7 @@ func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*
 		ref:        ref,
 		Manifest:   b,
 		Descriptor: *desc,
-		platform:   o.platform,
+		platform:   f.platform,
 	}, nil
 }
 
@@ -237,9 +245,10 @@ type resource interface {
 
 // fetcher implements methods for reading from a registry.
 type fetcher struct {
-	target  resource
-	client  *http.Client
-	context context.Context
+	target   resource
+	client   *http.Client
+	context  context.Context
+	platform v1.Platform
 }
 
 func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, error) {
@@ -266,9 +275,10 @@ func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, er
 		return nil, err
 	}
 	return &fetcher{
-		target:  target,
-		client:  &http.Client{Transport: tr},
-		context: ctx,
+		target:   target,
+		client:   &http.Client{Transport: tr},
+		context:  ctx,
+		platform: o.platform,
 	}, nil
 }
 
