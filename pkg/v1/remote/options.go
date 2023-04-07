@@ -46,6 +46,7 @@ type options struct {
 	pageSize                       int
 	retryBackoff                   Backoff
 	retryPredicate                 retry.Predicate
+	retryStatusCodes               []int
 	filter                         map[string]string
 }
 
@@ -83,7 +84,7 @@ var fastBackoff = Backoff{
 	Steps:    3,
 }
 
-var retryableStatusCodes = []int{
+var defaultRetryStatusCodes = []int{
 	http.StatusRequestTimeout,
 	http.StatusInternalServerError,
 	http.StatusBadGateway,
@@ -119,13 +120,14 @@ var DefaultTransport http.RoundTripper = &http.Transport{
 
 func makeOptions(opts ...Option) (*options, error) {
 	o := &options{
-		transport:      DefaultTransport,
-		platform:       defaultPlatform,
-		context:        context.Background(),
-		jobs:           defaultJobs,
-		pageSize:       defaultPageSize,
-		retryPredicate: defaultRetryPredicate,
-		retryBackoff:   defaultRetryBackoff,
+		transport:        DefaultTransport,
+		platform:         defaultPlatform,
+		context:          context.Background(),
+		jobs:             defaultJobs,
+		pageSize:         defaultPageSize,
+		retryPredicate:   defaultRetryPredicate,
+		retryBackoff:     defaultRetryBackoff,
+		retryStatusCodes: defaultRetryStatusCodes,
 	}
 
 	for _, option := range opts {
@@ -154,7 +156,7 @@ func makeOptions(opts ...Option) (*options, error) {
 		}
 
 		// Wrap the transport in something that can retry network flakes.
-		o.transport = transport.NewRetry(o.transport, transport.WithRetryPredicate(defaultRetryPredicate), transport.WithRetryStatusCodes(retryableStatusCodes...))
+		o.transport = transport.NewRetry(o.transport, transport.WithRetryPredicate(defaultRetryPredicate), transport.WithRetryStatusCodes(o.retryStatusCodes...))
 
 		// Wrap this last to prevent transport.New from double-wrapping.
 		if o.userAgent != "" {
@@ -299,6 +301,14 @@ func WithRetryBackoff(backoff Backoff) Option {
 func WithRetryPredicate(predicate retry.Predicate) Option {
 	return func(o *options) error {
 		o.retryPredicate = predicate
+		return nil
+	}
+}
+
+// WithRetryStatusCodes sets which http response codes will be retried.
+func WithRetryStatusCodes(codes ...int) Option {
+	return func(o *options) error {
+		o.retryStatusCodes = codes
 		return nil
 	}
 }
