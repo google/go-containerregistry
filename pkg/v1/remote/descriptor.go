@@ -237,6 +237,7 @@ func (d *Descriptor) remoteIndex() *remoteIndex {
 }
 
 type resource interface {
+	Name() string
 	Scheme() string
 	RegistryStr() string
 	Scope(string) string
@@ -262,16 +263,7 @@ func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, er
 		auth = kauth
 	}
 
-	reg, ok := target.(name.Registry)
-	if !ok {
-		repo, ok := target.(name.Repository)
-		if !ok {
-			return nil, fmt.Errorf("unexpected resource: %T", target)
-		}
-		reg = repo.Registry
-	}
-
-	tr, err := transport.NewWithContext(ctx, reg, auth, o.transport, []string{target.Scope(transport.PullScope)})
+	tr, err := transport.NewTransport(ctx, target, auth, o.transport, []string{target.Scope(transport.PullScope)})
 	if err != nil {
 		return nil, err
 	}

@@ -16,12 +16,27 @@ package transport
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 )
+
+var credCache cache
+
+func init() {
+	cache, err := getCache()
+	if err != nil {
+		logs.Debug.Printf("failed to create cache: %v", err)
+	}
+	if cache != nil {
+		credCache = cache
+	}
+}
 
 // New returns a new RoundTripper based on the provided RoundTripper that has been
 // setup to authenticate with the remote registry "reg", in the capacity
@@ -45,6 +60,7 @@ func NewWithContext(ctx context.Context, reg name.Registry, auth authn.Authentic
 	case *Wrapper:
 		return t, nil
 	}
+
 	// The handshake:
 	//  1. Use "t" to ping() the registry for the authentication challenge.
 	//
@@ -71,21 +87,21 @@ func NewWithContext(ctx context.Context, reg name.Registry, auth authn.Authentic
 
 	// Wrap t in a transport that selects the appropriate scheme based on the ping response.
 	t = &schemeTransport{
-		scheme:   pr.scheme,
+		scheme:   pr.Scheme,
 		registry: reg,
 		inner:    t,
 	}
 
-	switch pr.challenge.Canonical() {
+	switch pr.Challenge.Canonical() {
 	case anonymous, basic:
 		return &Wrapper{&basicTransport{inner: t, auth: auth, target: reg.RegistryStr()}}, nil
 	case bearer:
 		// We require the realm, which tells us where to send our Basic auth to turn it into Bearer auth.
-		realm, ok := pr.parameters["realm"]
+		realm, ok := pr.Parameters["realm"]
 		if !ok {
-			return nil, fmt.Errorf("malformed www-authenticate, missing realm: %v", pr.parameters)
+			return nil, fmt.Errorf("malformed www-authenticate, missing realm: %v", pr.Parameters)
 		}
-		service := pr.parameters["service"]
+		service := pr.Parameters["service"]
 		bt := &bearerTransport{
 			inner:    t,
 			basic:    auth,
@@ -93,14 +109,93 @@ func NewWithContext(ctx context.Context, reg name.Registry, auth authn.Authentic
 			registry: reg,
 			service:  service,
 			scopes:   scopes,
-			scheme:   pr.scheme,
+			scheme:   pr.Scheme,
 		}
 		if err := bt.refresh(ctx); err != nil {
 			return nil, err
 		}
 		return &Wrapper{bt}, nil
 	default:
-		return nil, fmt.Errorf("unrecognized challenge: %s", pr.challenge)
+		return nil, fmt.Errorf("unrecognized challenge: %s", pr.Challenge)
+	}
+}
+
+type cache interface {
+	Get(string) ([]byte, error)
+	Put(string, []byte) error
+}
+
+type resource interface {
+	Scheme() string
+	RegistryStr() string
+	Name() string
+	Scope(string) string
+
+	authn.Resource
+}
+
+func NewTransport(ctx context.Context, target resource, auth authn.Authenticator, t http.RoundTripper, scopes []string) (http.RoundTripper, error) {
+	// When the transport provided is of the type Wrapper this function assumes that the caller already
+	// executed the necessary login and check.
+	switch t.(type) {
+	case *Wrapper:
+		return t, nil
+	}
+
+	// The handshake:
+	//  1. Use "t" to ping() the registry for the authentication challenge.
+	//
+	//  2a. If we get back a 200, then simply use "t".
+	//
+	//  2b. If we get back a 401 with a Basic challenge, then use a transport
+	//     that just attachs auth each roundtrip.
+	//
+	//  2c. If we get back a 401 with a Bearer challenge, then use a transport
+	//     that attaches a bearer token to each request, and refreshes is on 401s.
+	//     Perform an initial refresh to seed the bearer token.
+
+	// First we ping the registry to determine the parameters of the authentication handshake
+	// (if one is even necessary).
+	pr, err := ping(ctx, target, t)
+	if err != nil {
+		return nil, err
+	}
+
+	if credCache != nil {
+		b, err := json.Marshal(pr)
+		if err != nil {
+			logs.Debug.Printf("Marshaling PingResponse: %v", err)
+		} else {
+			key := fmt.Sprintf("ping/%s", url.QueryEscape(target.RegistryStr()))
+			if err := credCache.Put(key, b); err != nil {
+				logs.Debug.Printf("Transport.credCache.Put(%q) = %v", key, err)
+			}
+		}
+	}
+
+	// Wrap t with a useragent transport unless we already have one.
+	if _, ok := t.(*userAgentTransport); !ok {
+		t = NewUserAgent(t, "")
+	}
+
+	// Wrap t in a transport that selects the appropriate scheme based on the ping response.
+	t = &schemeTransport{
+		scheme:   pr.Scheme,
+		registry: target,
+		inner:    t,
+	}
+
+	switch pr.Challenge.Canonical() {
+	case anonymous, basic:
+		return &Wrapper{&basicTransport{inner: t, auth: auth, target: target.RegistryStr()}}, nil
+	case bearer:
+		bt, err := newBearer(ctx, pr, target, auth, t, scopes)
+		if err != nil {
+			return nil, err
+		}
+		return &Wrapper{bt}, nil
+	default:
+		return nil, fmt.Errorf("unrecognized challenge: %s", pr.Challenge)
 	}
 }
 

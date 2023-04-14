@@ -47,11 +47,11 @@ func TestPingNoChallenge(t *testing.T) {
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != anonymous {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, anonymous)
+	if pr.Challenge != anonymous {
+		t.Errorf("ping(); got %v, want %v", pr.Challenge, anonymous)
 	}
-	if pr.scheme != "http" {
-		t.Errorf("ping(); got %v, want %v", pr.scheme, "http")
+	if pr.Scheme != "http" {
+		t.Errorf("ping(); got %v, want %v", pr.Scheme, "http")
 	}
 }
 
@@ -72,10 +72,10 @@ func TestPingBasicChallengeNoParams(t *testing.T) {
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != basic {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, basic)
+	if pr.Challenge != basic {
+		t.Errorf("ping(); got %v, want %v", pr.Challenge, basic)
 	}
-	if got, want := len(pr.parameters), 0; got != want {
+	if got, want := len(pr.Parameters), 0; got != want {
 		t.Errorf("ping(); got %v, want %v", got, want)
 	}
 }
@@ -97,10 +97,10 @@ func TestPingBearerChallengeWithParams(t *testing.T) {
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != bearer {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, bearer)
+	if pr.Challenge != bearer {
+		t.Errorf("ping(); got %v, want %v", pr.Challenge, bearer)
 	}
-	if got, want := len(pr.parameters), 1; got != want {
+	if got, want := len(pr.Parameters), 1; got != want {
 		t.Errorf("ping(); got %v, want %v", got, want)
 	}
 }
@@ -123,10 +123,10 @@ func TestPingMultipleChallenges(t *testing.T) {
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != basic {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, basic)
+	if pr.Challenge != basic {
+		t.Errorf("ping(); got %v, want %v", pr.Challenge, basic)
 	}
-	if got, want := len(pr.parameters), 1; got != want {
+	if got, want := len(pr.Parameters), 1; got != want {
 		t.Errorf("ping(); got %v, want %v", got, want)
 	}
 }
@@ -149,8 +149,8 @@ func TestPingMultipleNotSupportedChallenges(t *testing.T) {
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != "negotiate" {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, "negotiate")
+	if pr.Challenge != "negotiate" {
+		t.Errorf("ping(); got %v, want %v", pr.Challenge, "negotiate")
 	}
 }
 

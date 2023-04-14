@@ -16,8 +16,6 @@ package transport
 
 import (
 	"net/http"
-
-	"github.com/google/go-containerregistry/pkg/name"
 )
 
 type schemeTransport struct {
@@ -25,7 +23,7 @@ type schemeTransport struct {
 	scheme string
 
 	// Registry we're talking to.
-	registry name.Registry
+	registry resource
 
 	// Wrapped by schemeTransport.
 	inner http.RoundTripper
@@ -37,7 +35,7 @@ func (st *schemeTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	// based on which scheme was successful. That is only valid for the
 	// registry server and not e.g. a separate token server or blob storage,
 	// so we should only override the scheme if the host is the registry.
-	if matchesHost(st.registry, in, st.scheme) {
+	if matchesHost(st.registry.RegistryStr(), in, st.scheme) {
 		in.URL.Scheme = st.scheme
 	}
 	return st.inner.RoundTrip(in)

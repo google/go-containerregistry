@@ -186,7 +186,8 @@ func makeWriter(ctx context.Context, repo name.Repository, ls []v1.Layer, o *opt
 		auth = kauth
 	}
 	scopes := scopesForUploadingImage(repo, ls)
-	tr, err := transport.NewWithContext(ctx, repo.Registry, auth, o.transport, scopes)
+
+	tr, err := transport.NewTransport(ctx, repo, auth, o.transport, scopes)
 	if err != nil {
 		return nil, err
 	}

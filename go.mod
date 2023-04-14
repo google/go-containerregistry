@@ -8,6 +8,7 @@ require (
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/docker/docker v23.0.4+incompatible
 	github.com/google/go-cmp v0.5.9
+	github.com/google/renameio v1.0.1
 	github.com/klauspost/compress v1.16.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/opencontainers/go-digest v1.0.0
