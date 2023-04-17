@@ -100,7 +100,11 @@ func TestReferrers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if numManifests := len(index.Manifests); numManifests != 0 {
+		m, err := index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if numManifests := len(m.Manifests); numManifests != 0 {
 			t.Fatalf("expected index to contain 0 manifests, but had %d", numManifests)
 		}
 
@@ -126,7 +130,12 @@ func TestReferrers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if d := cmp.Diff([]v1.Descriptor{leafDesc}, index.Manifests); d != "" {
+		m2, err := index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := cmp.Diff([]v1.Descriptor{leafDesc}, m2.Manifests); d != "" {
+			t.Logf("m2.Manifests: %v", m2.Manifests)
 			t.Fatalf("referrers diff (-want,+got): %s", d)
 		}
 
@@ -144,7 +153,11 @@ func TestReferrers(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if d := cmp.Diff(index.Manifests, mf.Manifests); d != "" {
+			m2, err := index.IndexManifest()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if d := cmp.Diff(m2.Manifests, mf.Manifests); d != "" {
 				t.Fatalf("fallback tag diff (-want,+got): %s", d)
 			}
 		}
@@ -166,7 +179,11 @@ func TestReferrers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if d := cmp.Diff([]v1.Descriptor{leafDesc}, index.Manifests); d != "" {
+		m3, err := index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := cmp.Diff([]v1.Descriptor{leafDesc}, m3.Manifests); d != "" {
 			t.Fatalf("referrers diff after second push (-want,+got): %s", d)
 		}
 
@@ -176,7 +193,11 @@ func TestReferrers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if numManifests := len(index.Manifests); numManifests == 0 {
+		m4, err := index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if numManifests := len(m4.Manifests); numManifests == 0 {
 			t.Fatal("index contained 0 manifests")
 		}
 
@@ -185,7 +206,11 @@ func TestReferrers(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if numManifests := len(index.Manifests); numManifests != 0 {
+		m5, err := index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if numManifests := len(m5.Manifests); numManifests != 0 {
 			t.Fatalf("expected index to contain 0 manifests, but had %d", numManifests)
 		}
 	}
