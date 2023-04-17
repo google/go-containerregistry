@@ -94,6 +94,16 @@ func TestReferrers(t *testing.T) {
 		rootDesc := descriptor(rootImg)
 		t.Logf("root image is %s", rootDesc.Digest)
 
+		// Before pushing referrers, try to get the referrers of the root image.
+		rootRefDigest := rootRef.Context().Digest(rootDesc.Digest.String())
+		index, err := remote.Referrers(rootRefDigest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if numManifests := len(index.Manifests); numManifests != 0 {
+			t.Fatalf("expected index to contain 0 manifests, but had %d", numManifests)
+		}
+
 		// Push an image that refers to the root image as its subject.
 		leafRef, err := name.ParseReference(fmt.Sprintf("%s/repo:leaf", u.Host))
 		if err != nil {
@@ -112,8 +122,7 @@ func TestReferrers(t *testing.T) {
 		t.Logf("leaf image is %s", leafDesc.Digest)
 
 		// Get the referrers of the root image, by digest.
-		rootRefDigest := rootRef.Context().Digest(rootDesc.Digest.String())
-		index, err := remote.Referrers(rootRefDigest)
+		index, err = remote.Referrers(rootRefDigest)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -330,12 +330,13 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 	// The registry doesn't support the Referrers API endpoint, so we'll use the fallback tag scheme.
 	b, _, err := f.fetchManifest(ctx, fallbackTag(d), []types.MediaType{types.OCIImageIndex})
 	if err != nil {
+		var terr *transport.Error
+		if ok := errors.As(err, &terr); ok && terr.StatusCode == http.StatusNotFound {
+			// Not found just means there are no attachments yet. Start with an empty manifest.
+			return &v1.IndexManifest{MediaType: types.OCIImageIndex}, nil
+		}
+
 		return nil, err
-	}
-	var terr *transport.Error
-	if ok := errors.As(err, &terr); ok && terr.StatusCode == http.StatusNotFound {
-		// Not found just means there are no attachments yet. Start with an empty manifest.
-		return &v1.IndexManifest{MediaType: types.OCIImageIndex}, nil
 	}
 
 	var im v1.IndexManifest
