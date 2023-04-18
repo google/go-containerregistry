@@ -48,8 +48,6 @@ type Keychain interface {
 // defaultKeychain implements Keychain with the semantics of the standard Docker
 // credential keychain.
 type defaultKeychain struct {
-	mu sync.Mutex
-
 	once sync.Once
 	cfg  types.AuthConfig
 
