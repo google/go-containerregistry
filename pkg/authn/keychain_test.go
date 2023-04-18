@@ -113,7 +113,7 @@ func TestPodmanConfig(t *testing.T) {
 	// At first, $DOCKER_CONFIG is unset and $HOME/.docker/config.json isn't
 	// found, but Podman auth is configured. This should return Podman's
 	// auth.
-	auth, err := DefaultKeychain.Resolve(testRegistry)
+	auth, err := NewConfigKeychain("").Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
 	}
@@ -140,7 +140,7 @@ func TestPodmanConfig(t *testing.T) {
 		t.Fatalf("write %q: %v", cfg, err)
 	}
 	defer func() { os.Remove(cfg) }()
-	auth, err = DefaultKeychain.Resolve(testRegistry)
+	auth, err = NewConfigKeychain("").Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
 	}
@@ -164,7 +164,7 @@ func TestPodmanConfig(t *testing.T) {
 	cd := setupConfigFile(t, content)
 	defer os.RemoveAll(filepath.Dir(cd))
 
-	auth, err = DefaultKeychain.Resolve(testRegistry)
+	auth, err = NewConfigKeychain("").Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
 	}
@@ -310,7 +310,7 @@ func TestVariousPaths(t *testing.T) {
 			// For some reason, these tempdirs don't get cleaned up.
 			defer os.RemoveAll(filepath.Dir(cd))
 
-			auth, err := DefaultKeychain.Resolve(test.target)
+			auth, err := NewConfigKeychain("").Resolve(test.target)
 			if test.wantErr {
 				if err == nil {
 					t.Fatal("wanted err, got nil")

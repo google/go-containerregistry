@@ -50,6 +50,9 @@ type Keychain interface {
 type defaultKeychain struct {
 	mu sync.Mutex
 
+	once sync.Once
+	cfg  types.AuthConfig
+
 	configFilePath string
 }
 
@@ -131,56 +134,61 @@ func getDefaultConfigFile() (*configfile.ConfigFile, error) {
 }
 
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
-	dk.mu.Lock()
-	defer dk.mu.Unlock()
+	var err error
+	var empty types.AuthConfig
+	dk.once.Do(func() {
+		var cf *configfile.ConfigFile
+		if dk.configFilePath == "" {
+			cf, err = getDefaultConfigFile()
+			if err != nil {
+				return
+			}
+			if cf == nil {
+				dk.cfg = empty
+				return
+			}
+		} else {
+			var f *os.File
+			f, err = os.Open(dk.configFilePath)
+			if err != nil {
+				return
+			}
+			defer f.Close()
+			cf, err = config.LoadFromReader(f)
+			if err != nil {
+				return
+			}
+		}
 
-	var cf *configfile.ConfigFile
-	if dk.configFilePath == "" {
-		var err error
-		cf, err = getDefaultConfigFile()
-		if err != nil {
-			return nil, err
+		// See:
+		// https://github.com/google/ko/issues/90
+		// https://github.com/moby/moby/blob/fc01c2b481097a6057bec3cd1ab2d7b4488c50c4/registry/config.go#L397-L404
+		for _, key := range []string{
+			target.String(),
+			target.RegistryStr(),
+		} {
+			if key == name.DefaultRegistry {
+				key = DefaultAuthKey
+			}
+
+			dk.cfg, err = cf.GetAuthConfig(key)
+			if err != nil {
+				return
+			}
+			// cf.GetAuthConfig automatically sets the ServerAddress attribute. Since
+			// we don't make use of it, clear the value for a proper "is-empty" test.
+			// See: https://github.com/google/go-containerregistry/issues/1510
+			dk.cfg.ServerAddress = ""
+			if dk.cfg != empty {
+				break
+			}
 		}
-		if cf == nil {
-			return Anonymous, nil
-		}
-	} else {
-		f, err := os.Open(dk.configFilePath)
-		if err != nil {
-			return Anonymous, nil
-		}
-		defer f.Close()
-		cf, err = config.LoadFromReader(f)
-		if err != nil {
-			return nil, err
-		}
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	// See:
-	// https://github.com/google/ko/issues/90
-	// https://github.com/moby/moby/blob/fc01c2b481097a6057bec3cd1ab2d7b4488c50c4/registry/config.go#L397-L404
-	var cfg, empty types.AuthConfig
-	for _, key := range []string{
-		target.String(),
-		target.RegistryStr(),
-	} {
-		if key == name.DefaultRegistry {
-			key = DefaultAuthKey
-		}
-
-		var err error
-		cfg, err = cf.GetAuthConfig(key)
-		if err != nil {
-			return nil, err
-		}
-		// cf.GetAuthConfig automatically sets the ServerAddress attribute. Since
-		// we don't make use of it, clear the value for a proper "is-empty" test.
-		// See: https://github.com/google/go-containerregistry/issues/1510
-		cfg.ServerAddress = ""
-		if cfg != empty {
-			break
-		}
-	}
+	cfg := dk.cfg
 	if cfg == empty {
 		return Anonymous, nil
 	}
