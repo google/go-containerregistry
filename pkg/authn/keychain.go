@@ -48,11 +48,27 @@ type Keychain interface {
 // defaultKeychain implements Keychain with the semantics of the standard Docker
 // credential keychain.
 type defaultKeychain struct {
-	mu sync.Mutex
+	once sync.Once
+	cfg  types.AuthConfig
+
+	configFilePath string
 }
 
 var (
-	// DefaultKeychain implements Keychain by interpreting the docker config file.
+	// DefaultKeychain implements Keychain by interpreting the Docker config file.
+	// This matches the behavior of tools like `docker` and `podman`.
+	//
+	// This keychain looks for credentials configured in a few places, in order:
+	//
+	// 1. $HOME/.docker/config.json
+	// 2. $DOCKER_CONFIG/config.json
+	// 3. $XDG_RUNTIME_DIR/containers/auth.json (for compatibility with Podman)
+	//
+	// If a config file is found and can be parsed, Resolve will return credentials
+	// configured by the file for the given registry.
+	//
+	// If no config file is found, Resolve returns Anonymous.
+	// If a config file is found but can't be parsed, Resolve returns an error.
 	DefaultKeychain = RefreshingKeychain(&defaultKeychain{}, 5*time.Minute)
 )
 
@@ -62,11 +78,16 @@ const (
 	DefaultAuthKey = "https://" + name.DefaultRegistry + "/v1/"
 )
 
-// Resolve implements Keychain.
-func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
-	dk.mu.Lock()
-	defer dk.mu.Unlock()
+// NewConfigKeychain implements Keychain by interpreting the Docker config file
+// at the specified file path.
+//
+// It acts like DefaultKeychain except that the exact path of the file can be specified,
+// instead of being dependent on environment variables and conventional file names.
+func NewConfigKeychain(filename string) Keychain {
+	return &defaultKeychain{configFilePath: filename}
+}
 
+func getDefaultConfigFile() (*configfile.ConfigFile, error) {
 	// Podman users may have their container registry auth configured in a
 	// different location, that Docker packages aren't aware of.
 	// If the Docker config file isn't found, we'll fallback to look where
@@ -99,7 +120,7 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	} else {
 		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
 		if err != nil {
-			return Anonymous, nil
+			return nil, nil
 		}
 		defer f.Close()
 		cf, err = config.LoadFromReader(f)
@@ -107,31 +128,65 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 			return nil, err
 		}
 	}
+	return cf, nil
+}
 
-	// See:
-	// https://github.com/google/ko/issues/90
-	// https://github.com/moby/moby/blob/fc01c2b481097a6057bec3cd1ab2d7b4488c50c4/registry/config.go#L397-L404
-	var cfg, empty types.AuthConfig
-	for _, key := range []string{
-		target.String(),
-		target.RegistryStr(),
-	} {
-		if key == name.DefaultRegistry {
-			key = DefaultAuthKey
+func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
+	var err error
+	var empty types.AuthConfig
+	dk.once.Do(func() {
+		var cf *configfile.ConfigFile
+		if dk.configFilePath == "" {
+			cf, err = getDefaultConfigFile()
+			if err != nil {
+				return
+			}
+			if cf == nil {
+				dk.cfg = empty
+				return
+			}
+		} else {
+			var f *os.File
+			f, err = os.Open(dk.configFilePath)
+			if err != nil {
+				return
+			}
+			defer f.Close()
+			cf, err = config.LoadFromReader(f)
+			if err != nil {
+				return
+			}
 		}
 
-		cfg, err = cf.GetAuthConfig(key)
-		if err != nil {
-			return nil, err
+		// See:
+		// https://github.com/google/ko/issues/90
+		// https://github.com/moby/moby/blob/fc01c2b481097a6057bec3cd1ab2d7b4488c50c4/registry/config.go#L397-L404
+		for _, key := range []string{
+			target.String(),
+			target.RegistryStr(),
+		} {
+			if key == name.DefaultRegistry {
+				key = DefaultAuthKey
+			}
+
+			dk.cfg, err = cf.GetAuthConfig(key)
+			if err != nil {
+				return
+			}
+			// cf.GetAuthConfig automatically sets the ServerAddress attribute. Since
+			// we don't make use of it, clear the value for a proper "is-empty" test.
+			// See: https://github.com/google/go-containerregistry/issues/1510
+			dk.cfg.ServerAddress = ""
+			if dk.cfg != empty {
+				break
+			}
 		}
-		// cf.GetAuthConfig automatically sets the ServerAddress attribute. Since
-		// we don't make use of it, clear the value for a proper "is-empty" test.
-		// See: https://github.com/google/go-containerregistry/issues/1510
-		cfg.ServerAddress = ""
-		if cfg != empty {
-			break
-		}
+	})
+	if err != nil {
+		return nil, err
 	}
+
+	cfg := dk.cfg
 	if cfg == empty {
 		return Anonymous, nil
 	}
