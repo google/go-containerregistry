@@ -20,6 +20,8 @@ import (
 )
 
 // NewCmdOptimize creates a new cobra.Command for the optimize subcommand.
+//
+// Deprecated: This command is deprecated and will be removed in a future release.
 func NewCmdOptimize(options *[]crane.Option) *cobra.Command {
 	var files []string
 
@@ -27,7 +29,7 @@ func NewCmdOptimize(options *[]crane.Option) *cobra.Command {
 		Use:     "optimize SRC DST",
 		Hidden:  true,
 		Aliases: []string{"opt"},
-		Short:   "Optimize a remote container image from src to dst",
+		Short:   "[DEPRECATED] Optimize a remote container image from src to dst",
 		Args:    cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
 			src, dst := args[0], args[1]

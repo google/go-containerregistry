@@ -31,6 +31,8 @@ import (
 
 // Optimize optimizes a remote image or index from src to dst.
 // THIS API IS EXPERIMENTAL AND SUBJECT TO CHANGE WITHOUT WARNING.
+//
+// Deprecated: Optimize is deprecated, and will be removed in a future release.
 func Optimize(src, dst string, prioritize []string, opt ...Option) error {
 	pset := newStringSet(prioritize)
 	o := makeOptions(opt...)
@@ -119,8 +121,8 @@ func optimizeImage(img v1.Image, prioritize stringSet) (stringSet, v1.Image, err
 	for _, layer := range layers {
 		missingFromLayer := []string{}
 		olayer, err := tarball.LayerFromOpener(layer.Uncompressed,
-			tarball.WithEstargz,
-			tarball.WithEstargzOptions(
+			tarball.WithEstargz, // nolint:staticcheck
+			tarball.WithEstargzOptions( // nolint:staticcheck
 				estargz.WithPrioritizedFiles(prioritize.List()),
 				estargz.WithAllowPrioritizeNotFound(&missingFromLayer),
 			))
