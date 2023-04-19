@@ -549,9 +549,6 @@ func TestBadInputs(t *testing.T) {
 		{"Tag(invalid, invalid)", crane.Tag(invalid, invalid)},
 		{"Tag(404, invalid)", crane.Tag(valid404, invalid)},
 		{"Tag(404, 404)", crane.Tag(valid404, valid404)},
-		{"Optimize(invalid, invalid)", crane.Optimize(invalid, invalid, []string{})},
-		{"Optimize(404, invalid)", crane.Optimize(valid404, invalid, []string{})},
-		{"Optimize(404, 404)", crane.Optimize(valid404, valid404, []string{})},
 		// These return multiple values, which are hard to use as expressions.
 		{"Pull(invalid)", e(crane.Pull(invalid))},
 		{"Digest(invalid)", e(crane.Digest(invalid))},
