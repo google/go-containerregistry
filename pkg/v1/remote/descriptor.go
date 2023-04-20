@@ -250,6 +250,7 @@ type fetcher struct {
 	client   *http.Client
 	context  context.Context
 	platform v1.Platform
+	pageSize int
 }
 
 func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, error) {
@@ -280,6 +281,7 @@ func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, er
 		client:   &http.Client{Transport: tr},
 		context:  ctx,
 		platform: o.platform,
+		pageSize: o.pageSize,
 	}, nil
 }
 
