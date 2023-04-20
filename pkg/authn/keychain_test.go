@@ -113,7 +113,7 @@ func TestPodmanConfig(t *testing.T) {
 	// At first, $DOCKER_CONFIG is unset and $HOME/.docker/config.json isn't
 	// found, but Podman auth is configured. This should return Podman's
 	// auth.
-	auth, err := NewConfigKeychain("").Resolve(testRegistry)
+	auth, err := DefaultKeychain.Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
 	}
@@ -140,7 +140,7 @@ func TestPodmanConfig(t *testing.T) {
 		t.Fatalf("write %q: %v", cfg, err)
 	}
 	defer func() { os.Remove(cfg) }()
-	auth, err = NewConfigKeychain("").Resolve(testRegistry)
+	auth, err = DefaultKeychain.Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
 	}
@@ -164,7 +164,7 @@ func TestPodmanConfig(t *testing.T) {
 	cd := setupConfigFile(t, content)
 	defer os.RemoveAll(filepath.Dir(cd))
 
-	auth, err = NewConfigKeychain("").Resolve(testRegistry)
+	auth, err = DefaultKeychain.Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
 	}
@@ -175,39 +175,6 @@ func TestPodmanConfig(t *testing.T) {
 	want = &AuthConfig{
 		Username: "another-foo",
 		Password: "another-bar",
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %+v, want %+v", got, want)
-	}
-}
-
-func TestAuthConfigPath(t *testing.T) {
-	tmpdir := os.Getenv("TEST_TMPDIR")
-	if tmpdir == "" {
-		tmpdir = t.TempDir()
-	}
-	fresh++
-	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
-	if err := os.MkdirAll(filepath.Join(p, "custom"), 0777); err != nil {
-		t.Fatalf("mkdir %s/custom: %v", p, err)
-	}
-	cfg := filepath.Join(p, "cfg.xml")
-	content := fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("foo", "bar"))
-	if err := os.WriteFile(cfg, []byte(content), 0600); err != nil {
-		t.Fatalf("write %q: %v", cfg, err)
-	}
-
-	auth, err := NewConfigKeychain(cfg).Resolve(testRegistry)
-	if err != nil {
-		t.Fatalf("Resolve() = %v", err)
-	}
-	got, err := auth.Authorization()
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := &AuthConfig{
-		Username: "foo",
-		Password: "bar",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
@@ -310,7 +277,7 @@ func TestVariousPaths(t *testing.T) {
 			// For some reason, these tempdirs don't get cleaned up.
 			defer os.RemoveAll(filepath.Dir(cd))
 
-			auth, err := NewConfigKeychain("").Resolve(test.target)
+			auth, err := DefaultKeychain.Resolve(test.target)
 			if test.wantErr {
 				if err == nil {
 					t.Fatal("wanted err, got nil")
