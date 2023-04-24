@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -51,11 +52,12 @@ func (e *ErrSchema1) Error() string {
 // Descriptor provides access to metadata about remote artifact and accessors
 // for efficiently converting it into a v1.Image or v1.ImageIndex.
 type Descriptor struct {
-	fetcher
+	fetcher fetcher
 	v1.Descriptor
 
 	ref      name.Reference
 	Manifest []byte
+	ctx      context.Context
 
 	// So we can share this implementation with Image.
 	platform v1.Platform
@@ -100,7 +102,7 @@ func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*
 	if err != nil {
 		return nil, err
 	}
-	return newPuller(o).get(o.context, ref, acceptable)
+	return newPuller(o).get(o.context, ref, acceptable, o.platform)
 }
 
 // Image converts the Descriptor into a v1.Image.
@@ -147,8 +149,9 @@ func (d *Descriptor) Image() (v1.Image, error) {
 // This is separate from Image() to avoid a backward incompatible change for callers expecting ErrSchema1.
 func (d *Descriptor) Schema1() (v1.Image, error) {
 	i := &schema1{
-		fetcher:    d.fetcher,
 		ref:        d.ref,
+		fetcher:    d.fetcher,
+		ctx:        d.ctx,
 		manifest:   d.Manifest,
 		mediaType:  d.MediaType,
 		descriptor: &d.Descriptor,
@@ -182,8 +185,9 @@ func (d *Descriptor) ImageIndex() (v1.ImageIndex, error) {
 
 func (d *Descriptor) remoteImage() *remoteImage {
 	return &remoteImage{
-		fetcher:    d.fetcher,
 		ref:        d.ref,
+		ctx:        d.ctx,
+		fetcher:    d.fetcher,
 		manifest:   d.Manifest,
 		mediaType:  d.MediaType,
 		descriptor: &d.Descriptor,
@@ -192,8 +196,9 @@ func (d *Descriptor) remoteImage() *remoteImage {
 
 func (d *Descriptor) remoteIndex() *remoteIndex {
 	return &remoteIndex{
-		fetcher:    d.fetcher,
 		ref:        d.ref,
+		ctx:        d.ctx,
+		fetcher:    d.fetcher,
 		manifest:   d.Manifest,
 		mediaType:  d.MediaType,
 		descriptor: &d.Descriptor,

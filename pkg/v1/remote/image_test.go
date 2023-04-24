@@ -179,10 +179,10 @@ func TestRawManifestDigests(t *testing.T) {
 
 			rmt := remoteImage{
 				ref: ref,
+				ctx: context.Background(),
 				fetcher: fetcher{
-					target:  ref.Context(),
-					client:  http.DefaultClient,
-					context: context.Background(),
+					target: ref.Context(),
+					client: http.DefaultClient,
 				},
 			}
 
@@ -216,10 +216,10 @@ func TestRawManifestNotFound(t *testing.T) {
 	ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 	img := remoteImage{
 		ref: ref,
+		ctx: context.Background(),
 		fetcher: fetcher{
-			target:  ref.Context(),
-			client:  http.DefaultClient,
-			context: context.Background(),
+			target: ref.Context(),
+			client: http.DefaultClient,
 		},
 	}
 
@@ -258,10 +258,10 @@ func TestRawConfigFileNotFound(t *testing.T) {
 	ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 	rmt := remoteImage{
 		ref: ref,
+		ctx: context.Background(),
 		fetcher: fetcher{
-			target:  ref.Context(),
-			client:  http.DefaultClient,
-			context: context.Background(),
+			target: ref.Context(),
+			client: http.DefaultClient,
 		},
 	}
 
@@ -300,10 +300,10 @@ func TestAcceptHeaders(t *testing.T) {
 	ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
 	rmt := &remoteImage{
 		ref: ref,
+		ctx: context.Background(),
 		fetcher: fetcher{
-			target:  ref.Context(),
-			client:  http.DefaultClient,
-			context: context.Background(),
+			target: ref.Context(),
+			client: http.DefaultClient,
 		},
 	}
 	manifest, err := rmt.RawManifest()

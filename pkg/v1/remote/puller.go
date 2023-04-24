@@ -41,16 +41,23 @@ func NewPuller(options ...Option) (*Puller, error) {
 }
 
 func newPuller(o *options) *Puller {
+	if o.puller != nil {
+		return o.puller
+	}
 	return &Puller{
 		o: o,
 	}
 }
 
 type reader struct {
+	// in
 	target resource
 	o      *options
-	once   sync.Once
 
+	// f()
+	once sync.Once
+
+	// out
 	f   *fetcher
 	err error
 }
@@ -63,37 +70,56 @@ func (r *reader) init(ctx context.Context) error {
 	return r.err
 }
 
-func (p *Puller) reader(ctx context.Context, target resource) (*reader, error) {
+func (p *Puller) fetcher(ctx context.Context, target resource) (*fetcher, error) {
+	// If we are Reuse()ing a Pusher, we want to use that for token handshakes and scopes,
+	// but we want to do read requests via a fetcher{}.
+	//
+	// TODO(jonjohnsonjr): Unify fetcher, writer, and repoWriter.
+	if p.o.pusher != nil {
+		if repo, ok := target.(name.Repository); ok {
+			w, err := p.o.pusher.writer(ctx, repo, p.o)
+			if err != nil {
+				return nil, err
+			}
+			return fetcherFromWriter(w.w), nil
+		}
+	}
+
+	// Normal path for NewPuller.
 	v, _ := p.readers.LoadOrStore(target, &reader{
 		target: target,
 		o:      p.o,
 	})
 	rr := v.(*reader)
-	return rr, rr.init(ctx)
+	return rr.f, rr.init(ctx)
 }
 
 // Head is like remote.Head, but avoids re-authenticating when possible.
 func (p *Puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, error) {
-	r, err := p.reader(ctx, ref.Context())
+	f, err := p.fetcher(ctx, ref.Context())
 	if err != nil {
 		return nil, err
 	}
 
-	return r.f.headManifest(ctx, ref, allManifestMediaTypes)
+	return f.headManifest(ctx, ref, allManifestMediaTypes)
 }
 
 // Get is like remote.Get, but avoids re-authenticating when possible.
 func (p *Puller) Get(ctx context.Context, ref name.Reference) (*Descriptor, error) {
-	r, err := p.reader(ctx, ref.Context())
+	return p.get(ctx, ref, allManifestMediaTypes, p.o.platform)
+}
+
+func (p *Puller) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {
+	f, err := p.fetcher(ctx, ref.Context())
 	if err != nil {
 		return nil, err
 	}
-	return r.f.get(ctx, ref, allManifestMediaTypes)
+	return f.get(ctx, ref, acceptable, platform)
 }
 
 // Layer is like remote.Layer, but avoids re-authenticated when possible.
 func (p *Puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
-	r, err := p.reader(ctx, ref.Context())
+	f, err := p.fetcher(ctx, ref.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +129,8 @@ func (p *Puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
 		return nil, err
 	}
 	l, err := partial.CompressedToLayer(&remoteLayer{
-		fetcher: *r.f,
+		fetcher: *f,
+		ctx:     ctx,
 		digest:  h,
 	})
 	if err != nil {
@@ -136,25 +163,34 @@ func (p *Puller) List(ctx context.Context, repo name.Repository) ([]string, erro
 
 // Lister lists tags in a repo and returns a Lister for paginating through the results.
 func (p *Puller) Lister(ctx context.Context, repo name.Repository) (*Lister, error) {
-	r, err := p.reader(ctx, repo)
+	return p.lister(ctx, repo, p.o.pageSize)
+}
+
+func (p *Puller) lister(ctx context.Context, repo name.Repository, pageSize int) (*Lister, error) {
+	f, err := p.fetcher(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
-	page, err := r.f.listPage(ctx, repo, "")
+	page, err := f.listPage(ctx, repo, "", pageSize)
 	if err != nil {
 		return nil, err
 	}
 	return &Lister{
-		f:    r.f,
-		repo: repo,
-		page: page,
-		err:  err,
+		f:        f,
+		repo:     repo,
+		pageSize: pageSize,
+		page:     page,
+		err:      err,
 	}, nil
 }
 
 // Catalog lists repos in a registry and handles pagination, returning the full list of repos.
 func (p *Puller) Catalog(ctx context.Context, reg name.Registry) ([]string, error) {
-	catalogger, err := p.Catalogger(ctx, reg)
+	return p.catalog(ctx, reg, p.o.pageSize)
+}
+
+func (p *Puller) catalog(ctx context.Context, reg name.Registry, pageSize int) ([]string, error) {
+	catalogger, err := p.catalogger(ctx, reg, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -171,34 +207,31 @@ func (p *Puller) Catalog(ctx context.Context, reg name.Registry) ([]string, erro
 
 // Catalogger lists repos in a registry and returns a Catalogger for paginating through the results.
 func (p *Puller) Catalogger(ctx context.Context, reg name.Registry) (*Catalogger, error) {
-	r, err := p.reader(ctx, reg)
+	return p.catalogger(ctx, reg, p.o.pageSize)
+}
+
+func (p *Puller) catalogger(ctx context.Context, reg name.Registry, pageSize int) (*Catalogger, error) {
+	f, err := p.fetcher(ctx, reg)
 	if err != nil {
 		return nil, err
 	}
-	page, err := r.f.catalogPage(ctx, reg, "")
+	page, err := f.catalogPage(ctx, reg, "", pageSize)
 	if err != nil {
 		return nil, err
 	}
 	return &Catalogger{
-		f:    r.f,
-		reg:  reg,
-		page: page,
-		err:  err,
+		f:        f,
+		reg:      reg,
+		pageSize: pageSize,
+		page:     page,
+		err:      err,
 	}, nil
 }
 
-func (p *Puller) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType) (*Descriptor, error) {
-	r, err := p.reader(ctx, ref.Context())
-	if err != nil {
-		return nil, err
-	}
-	return r.f.get(ctx, ref, acceptable)
-}
-
 func (p *Puller) referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
-	r, err := p.reader(ctx, d.Context())
+	f, err := p.fetcher(ctx, d.Context())
 	if err != nil {
 		return nil, err
 	}
-	return r.f.fetchReferrers(ctx, filter, d)
+	return f.fetchReferrers(ctx, filter, d)
 }

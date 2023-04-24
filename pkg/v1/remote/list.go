@@ -49,15 +49,15 @@ type Tags struct {
 	Next string   `json:"next,omitempty"`
 }
 
-func (f *fetcher) listPage(ctx context.Context, repo name.Repository, next string) (*Tags, error) {
+func (f *fetcher) listPage(ctx context.Context, repo name.Repository, next string, pageSize int) (*Tags, error) {
 	if next == "" {
 		uri := &url.URL{
 			Scheme: repo.Scheme(),
 			Host:   repo.RegistryStr(),
 			Path:   fmt.Sprintf("/v2/%s/tags/list", repo.RepositoryStr()),
 		}
-		if f.pageSize > 0 {
-			uri.RawQuery = fmt.Sprintf("n=%d", f.pageSize)
+		if pageSize > 0 {
+			uri.RawQuery = fmt.Sprintf("n=%d", pageSize)
 		}
 		next = uri.String()
 	}
@@ -128,8 +128,9 @@ func getNextPageURL(resp *http.Response) (*url.URL, error) {
 }
 
 type Lister struct {
-	f    *fetcher
-	repo name.Repository
+	f        *fetcher
+	repo     name.Repository
+	pageSize int
 
 	page *Tags
 	err  error
@@ -139,7 +140,7 @@ type Lister struct {
 
 func (l *Lister) Next(ctx context.Context) (*Tags, error) {
 	if l.needMore {
-		l.page, l.err = l.f.listPage(ctx, l.repo, l.page.Next)
+		l.page, l.err = l.f.listPage(ctx, l.repo, l.page.Next, l.pageSize)
 	} else {
 		l.needMore = true
 	}

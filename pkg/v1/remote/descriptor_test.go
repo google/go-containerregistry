@@ -30,9 +30,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+var fakeDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
 func TestGetSchema1(t *testing.T) {
 	expectedRepo := "foo/bar"
-	fakeDigest := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -229,7 +230,6 @@ func TestRedactFetchBlob(t *testing.T) {
 		client: &http.Client{
 			Transport: errTransport{},
 		},
-		context: ctx,
 	}
 	h, err := v1.NewHash("sha256:0000000000000000000000000000000000000000000000000000000000000000")
 	if err != nil {

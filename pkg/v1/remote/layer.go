@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"context"
 	"io"
 
 	"github.com/google/go-containerregistry/internal/redact"
@@ -26,20 +27,21 @@ import (
 
 // remoteImagelayer implements partial.CompressedLayer
 type remoteLayer struct {
-	fetcher
-	digest v1.Hash
+	ctx     context.Context
+	fetcher fetcher
+	digest  v1.Hash
 }
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteLayer) Compressed() (io.ReadCloser, error) {
 	// We don't want to log binary layers -- this can break terminals.
-	ctx := redact.NewContext(rl.context, "omitting binary blobs from logs")
-	return rl.fetchBlob(ctx, verify.SizeUnknown, rl.digest)
+	ctx := redact.NewContext(rl.ctx, "omitting binary blobs from logs")
+	return rl.fetcher.fetchBlob(ctx, verify.SizeUnknown, rl.digest)
 }
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteLayer) Size() (int64, error) {
-	resp, err := rl.headBlob(rl.digest)
+	resp, err := rl.fetcher.headBlob(rl.ctx, rl.digest)
 	if err != nil {
 		return -1, err
 	}
@@ -59,7 +61,7 @@ func (rl *remoteLayer) MediaType() (types.MediaType, error) {
 
 // See partial.Exists.
 func (rl *remoteLayer) Exists() (bool, error) {
-	return rl.blobExists(rl.digest)
+	return rl.fetcher.blobExists(rl.ctx, rl.digest)
 }
 
 // Layer reads the given blob reference from a registry as a Layer. A blob

@@ -32,13 +32,17 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+func fetcherFromWriter(w *writer) *fetcher {
+	return &fetcher{
+		target: w.repo,
+		client: w.client,
+	}
+}
+
 // fetcher implements methods for reading from a registry.
 type fetcher struct {
-	target   resource
-	client   *http.Client
-	context  context.Context
-	platform v1.Platform
-	pageSize int
+	target resource
+	client *http.Client
 }
 
 func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, error) {
@@ -65,12 +69,13 @@ func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, er
 		return nil, err
 	}
 	return &fetcher{
-		target:   target,
-		client:   &http.Client{Transport: tr},
-		context:  ctx,
-		platform: o.platform,
-		pageSize: o.pageSize,
+		target: target,
+		client: &http.Client{Transport: tr},
 	}, nil
+}
+
+func (f *fetcher) Do(req *http.Request) (*http.Response, error) {
+	return f.client.Do(req)
 }
 
 type resource interface {
@@ -95,17 +100,18 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 	return u
 }
 
-func (f *fetcher) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType) (*Descriptor, error) {
+func (f *fetcher) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {
 	b, desc, err := f.fetchManifest(ctx, ref, acceptable)
 	if err != nil {
 		return nil, err
 	}
 	return &Descriptor{
-		fetcher:    *f,
 		ref:        ref,
+		ctx:        ctx,
+		fetcher:    *f,
 		Manifest:   b,
 		Descriptor: *desc,
-		platform:   f.platform,
+		platform:   platform,
 	}, nil
 }
 
@@ -271,14 +277,14 @@ func (f *fetcher) fetchBlob(ctx context.Context, size int64, h v1.Hash) (io.Read
 	return verify.ReadCloser(resp.Body, size, h)
 }
 
-func (f *fetcher) headBlob(h v1.Hash) (*http.Response, error) {
+func (f *fetcher) headBlob(ctx context.Context, h v1.Hash) (*http.Response, error) {
 	u := f.url("blobs", h.String())
 	req, err := http.NewRequest(http.MethodHead, u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := f.client.Do(req.WithContext(f.context))
+	resp, err := f.client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, redact.Error(err)
 	}
@@ -291,14 +297,14 @@ func (f *fetcher) headBlob(h v1.Hash) (*http.Response, error) {
 	return resp, nil
 }
 
-func (f *fetcher) blobExists(h v1.Hash) (bool, error) {
+func (f *fetcher) blobExists(ctx context.Context, h v1.Hash) (bool, error) {
 	u := f.url("blobs", h.String())
 	req, err := http.NewRequest(http.MethodHead, u.String(), nil)
 	if err != nil {
 		return false, err
 	}
 
-	resp, err := f.client.Do(req.WithContext(f.context))
+	resp, err := f.client.Do(req.WithContext(ctx))
 	if err != nil {
 		return false, redact.Error(err)
 	}

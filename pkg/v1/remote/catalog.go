@@ -37,7 +37,7 @@ func CatalogPage(target name.Registry, last string, n int, options ...Option) ([
 		return nil, err
 	}
 
-	r, err := newPuller(o).reader(o.context, target)
+	f, err := newPuller(o).fetcher(o.context, target)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func CatalogPage(target name.Registry, last string, n int, options ...Option) ([
 	if err != nil {
 		return nil, err
 	}
-	resp, err := r.f.client.Do(req.WithContext(o.context))
+	resp, err := f.client.Do(req.WithContext(o.context))
 	if err != nil {
 		return nil, err
 	}
@@ -83,18 +83,18 @@ func Catalog(ctx context.Context, target name.Registry, options ...Option) ([]st
 		ctx = o.context
 	}
 
-	return newPuller(o).Catalog(ctx, target)
+	return newPuller(o).catalog(ctx, target, o.pageSize)
 }
 
-func (f *fetcher) catalogPage(ctx context.Context, reg name.Registry, next string) (*Catalogs, error) {
+func (f *fetcher) catalogPage(ctx context.Context, reg name.Registry, next string, pageSize int) (*Catalogs, error) {
 	if next == "" {
 		uri := &url.URL{
 			Scheme: reg.Scheme(),
 			Host:   reg.RegistryStr(),
 			Path:   "/v2/_catalog",
 		}
-		if f.pageSize > 0 {
-			uri.RawQuery = fmt.Sprintf("n=%d", f.pageSize)
+		if pageSize > 0 {
+			uri.RawQuery = fmt.Sprintf("n=%d", pageSize)
 		}
 		next = uri.String()
 	}
@@ -135,8 +135,9 @@ func (f *fetcher) catalogPage(ctx context.Context, reg name.Registry, next strin
 }
 
 type Catalogger struct {
-	f   *fetcher
-	reg name.Registry
+	f        *fetcher
+	reg      name.Registry
+	pageSize int
 
 	page *Catalogs
 	err  error
@@ -146,7 +147,7 @@ type Catalogger struct {
 
 func (l *Catalogger) Next(ctx context.Context) (*Catalogs, error) {
 	if l.needMore {
-		l.page, l.err = l.f.catalogPage(ctx, l.reg, l.page.Next)
+		l.page, l.err = l.f.catalogPage(ctx, l.reg, l.page.Next, l.pageSize)
 	} else {
 		l.needMore = true
 	}
