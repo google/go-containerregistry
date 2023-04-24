@@ -50,6 +50,11 @@ func (r Registry) String() string {
 	return r.Name()
 }
 
+// Repo returns a Repository in the Registry with the given name.
+func (r Registry) Repo(repo string) Repository {
+	return Repository{Registry: r, repository: repo}
+}
+
 // Scope returns the scope required to access the registry.
 func (r Registry) Scope(string) string {
 	// The only resource under 'registry' is 'catalog'. http://goo.gl/N9cN9Z
