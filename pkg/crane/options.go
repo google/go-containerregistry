@@ -34,6 +34,7 @@ type Options struct {
 
 	transport http.RoundTripper
 	insecure  bool
+	ctx       context.Context
 }
 
 // GetOptions exposes the underlying []remote.Option, []name.Option, and
@@ -50,6 +51,7 @@ func makeOptions(opts ...Option) Options {
 			remote.WithAuthFromKeychain(authn.DefaultKeychain),
 		},
 		Keychain: authn.DefaultKeychain,
+		ctx:      context.Background(),
 	}
 
 	for _, o := range opts {
@@ -144,6 +146,7 @@ func WithNondistributable() Option {
 // WithContext is a functional option for setting the context.
 func WithContext(ctx context.Context) Option {
 	return func(o *Options) {
+		o.ctx = ctx
 		o.Remote = append(o.Remote, remote.WithContext(ctx))
 	}
 }
