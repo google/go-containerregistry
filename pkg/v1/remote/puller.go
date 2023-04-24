@@ -20,6 +20,8 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 type Puller struct {
@@ -61,10 +63,10 @@ func (r *reader) init(ctx context.Context) error {
 	return r.err
 }
 
-func (p *Puller) reader(ctx context.Context, target resource, o *options) (*reader, error) {
+func (p *Puller) reader(ctx context.Context, target resource) (*reader, error) {
 	v, _ := p.readers.LoadOrStore(target, &reader{
 		target: target,
-		o:      o,
+		o:      p.o,
 	})
 	rr := v.(*reader)
 	return rr, rr.init(ctx)
@@ -72,7 +74,7 @@ func (p *Puller) reader(ctx context.Context, target resource, o *options) (*read
 
 // Head is like remote.Head, but avoids re-authenticating when possible.
 func (p *Puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, error) {
-	r, err := p.reader(ctx, ref.Context(), p.o)
+	r, err := p.reader(ctx, ref.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -82,11 +84,35 @@ func (p *Puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, 
 
 // Get is like remote.Get, but avoids re-authenticating when possible.
 func (p *Puller) Get(ctx context.Context, ref name.Reference) (*Descriptor, error) {
-	r, err := p.reader(ctx, ref.Context(), p.o)
+	r, err := p.reader(ctx, ref.Context())
 	if err != nil {
 		return nil, err
 	}
 	return r.f.get(ctx, ref, allManifestMediaTypes)
+}
+
+// Layer is like remote.Layer, but avoids re-authenticated when possible.
+func (p *Puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
+	r, err := p.reader(ctx, ref.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	h, err := v1.NewHash(ref.Identifier())
+	if err != nil {
+		return nil, err
+	}
+	l, err := partial.CompressedToLayer(&remoteLayer{
+		fetcher: *r.f,
+		digest:  h,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &MountableLayer{
+		Layer:     l,
+		Reference: ref,
+	}, nil
 }
 
 // List lists tags in a repo and handles pagination, returning the full list of tags.
@@ -110,7 +136,7 @@ func (p *Puller) List(ctx context.Context, repo name.Repository) ([]string, erro
 
 // Lister lists tags in a repo and returns a Lister for paginating through the results.
 func (p *Puller) Lister(ctx context.Context, repo name.Repository) (*Lister, error) {
-	r, err := p.reader(ctx, repo, p.o)
+	r, err := p.reader(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +171,7 @@ func (p *Puller) Catalog(ctx context.Context, reg name.Registry) ([]string, erro
 
 // Catalogger lists repos in a registry and returns a Catalogger for paginating through the results.
 func (p *Puller) Catalogger(ctx context.Context, reg name.Registry) (*Catalogger, error) {
-	r, err := p.reader(ctx, reg, p.o)
+	r, err := p.reader(ctx, reg)
 	if err != nil {
 		return nil, err
 	}
@@ -159,4 +185,20 @@ func (p *Puller) Catalogger(ctx context.Context, reg name.Registry) (*Catalogger
 		page: page,
 		err:  err,
 	}, nil
+}
+
+func (p *Puller) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType) (*Descriptor, error) {
+	r, err := p.reader(ctx, ref.Context())
+	if err != nil {
+		return nil, err
+	}
+	return r.f.get(ctx, ref, acceptable)
+}
+
+func (p *Puller) referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
+	r, err := p.reader(ctx, d.Context())
+	if err != nil {
+		return nil, err
+	}
+	return r.f.fetchReferrers(ctx, filter, d)
 }

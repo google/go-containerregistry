@@ -21,7 +21,6 @@ import (
 	"github.com/google/go-containerregistry/internal/verify"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -72,23 +71,5 @@ func Layer(ref name.Digest, options ...Option) (v1.Layer, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := makeFetcher(o.context, ref.Context(), o)
-	if err != nil {
-		return nil, err
-	}
-	h, err := v1.NewHash(ref.Identifier())
-	if err != nil {
-		return nil, err
-	}
-	l, err := partial.CompressedToLayer(&remoteLayer{
-		fetcher: *f,
-		digest:  h,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return &MountableLayer{
-		Layer:     l,
-		Reference: ref,
-	}, nil
+	return newPuller(o).Layer(o.context, ref)
 }

@@ -38,11 +38,7 @@ func Referrers(d name.Digest, options ...Option) (v1.ImageIndex, error) {
 	if err != nil {
 		return nil, err
 	}
-	f, err := makeFetcher(o.context, d.Context(), o)
-	if err != nil {
-		return nil, err
-	}
-	return f.fetchReferrers(o.context, o.filter, d)
+	return newPuller(o).referrers(o.context, d, o.filter)
 }
 
 // https://github.com/opencontainers/distribution-spec/blob/main/spec.md#referrers-tag-schema

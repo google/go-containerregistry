@@ -36,7 +36,8 @@ func CatalogPage(target name.Registry, last string, n int, options ...Option) ([
 	if err != nil {
 		return nil, err
 	}
-	f, err := makeFetcher(o.context, target, o)
+
+	r, err := newPuller(o).reader(o.context, target)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,7 @@ func CatalogPage(target name.Registry, last string, n int, options ...Option) ([
 	if err != nil {
 		return nil, err
 	}
-	resp, err := f.client.Do(req.WithContext(o.context))
+	resp, err := r.f.client.Do(req.WithContext(o.context))
 	if err != nil {
 		return nil, err
 	}

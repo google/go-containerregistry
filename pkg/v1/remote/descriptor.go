@@ -90,12 +90,7 @@ func Head(ref name.Reference, options ...Option) (*v1.Descriptor, error) {
 		return nil, err
 	}
 
-	f, err := makeFetcher(o.context, ref.Context(), o)
-	if err != nil {
-		return nil, err
-	}
-
-	return f.headManifest(o.context, ref, allManifestMediaTypes)
+	return newPuller(o).Head(o.context, ref)
 }
 
 // Handle options and fetch the manifest with the acceptable MediaTypes in the
@@ -105,11 +100,7 @@ func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*
 	if err != nil {
 		return nil, err
 	}
-	f, err := makeFetcher(o.context, ref.Context(), o)
-	if err != nil {
-		return nil, err
-	}
-	return f.get(o.context, ref, acceptable)
+	return newPuller(o).get(o.context, ref, acceptable)
 }
 
 // Image converts the Descriptor into a v1.Image.
