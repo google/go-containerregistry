@@ -141,10 +141,10 @@ func TestIndexRawManifestDigests(t *testing.T) {
 
 			rmt := remoteIndex{
 				ref: ref,
+				ctx: context.Background(),
 				fetcher: fetcher{
-					target:  ref.Context(),
-					client:  http.DefaultClient,
-					context: context.Background(),
+					target: ref.Context(),
+					client: http.DefaultClient,
 				},
 			}
 

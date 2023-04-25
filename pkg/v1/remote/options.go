@@ -37,17 +37,23 @@ type options struct {
 	auth                           authn.Authenticator
 	keychain                       authn.Keychain
 	transport                      http.RoundTripper
-	platform                       v1.Platform
 	context                        context.Context
 	jobs                           int
 	userAgent                      string
 	allowNondistributableArtifacts bool
 	progress                       *progress
-	pageSize                       int
 	retryBackoff                   Backoff
 	retryPredicate                 retry.Predicate
 	retryStatusCodes               []int
-	filter                         map[string]string
+
+	// Only these options can overwrite Reuse()d options.
+	platform v1.Platform
+	pageSize int
+	filter   map[string]string
+
+	// Set by Reuse, we currently store one or the other.
+	puller *Puller
+	pusher *Pusher
 }
 
 var defaultPlatform = v1.Platform{
@@ -320,6 +326,23 @@ func WithFilter(key string, value string) Option {
 			o.filter = map[string]string{}
 		}
 		o.filter[key] = value
+		return nil
+	}
+}
+
+// Reuse takes a Puller or Pusher and reuses it for remote interactions
+// rather than starting from a clean slate. For example, it will reuse token exchanges
+// when possible and avoid sending redundant HEAD requests.
+//
+// Reuse will take precedence over other options passed to most remote functions because
+// most options deal with setting up auth and transports, which Reuse intetionally skips.
+func Reuse[I *Puller | *Pusher](i I) Option {
+	return func(o *options) error {
+		if puller, ok := any(i).(*Puller); ok {
+			o.puller = puller
+		} else if pusher, ok := any(i).(*Pusher); ok {
+			o.pusher = pusher
+		}
 		return nil
 	}
 }

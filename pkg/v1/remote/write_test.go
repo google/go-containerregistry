@@ -568,6 +568,12 @@ func TestDedupeLayers(t *testing.T) {
 		case commitPath:
 			http.Error(w, "Created", http.StatusCreated)
 		case manifestPath:
+			if r.Method == http.MethodHead {
+				w.Header().Set("Content-Type", string(types.DockerManifestSchema1Signed))
+				w.Header().Set("Docker-Content-Digest", fakeDigest)
+				w.Write([]byte("doesn't matter"))
+				return
+			}
 			if r.Method != http.MethodPut {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
 			}
@@ -927,6 +933,10 @@ func TestWrite(t *testing.T) {
 			}
 			http.Error(w, "Mounted", http.StatusCreated)
 		case manifestPath:
+			if r.Method == http.MethodHead {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 			if r.Method != http.MethodPut {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
 			}
@@ -955,6 +965,7 @@ func TestWriteWithErrors(t *testing.T) {
 	expectedRepo := "write/time"
 	headPathPrefix := fmt.Sprintf("/v2/%s/blobs/", expectedRepo)
 	initiatePath := fmt.Sprintf("/v2/%s/blobs/uploads/", expectedRepo)
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
 	errorBody := `{"errors":[{"code":"NAME_INVALID","message":"some explanation of how things were messed up."}],"StatusCode":400}`
 	expectedErrMsg, err := regexp.Compile(`POST .+ NAME_INVALID: some explanation of how things were messed up.`)
@@ -970,6 +981,8 @@ func TestWriteWithErrors(t *testing.T) {
 		switch r.URL.Path {
 		case "/v2/":
 			w.WriteHeader(http.StatusOK)
+		case manifestPath:
+			w.WriteHeader(http.StatusNotFound)
 		case initiatePath:
 			if r.Method != http.MethodPost {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
@@ -1216,65 +1229,6 @@ func TestScopesForUploadingImage(t *testing.T) {
 	}
 }
 
-func TestCheckExistingManifest(t *testing.T) {
-	tests := []struct {
-		name     string
-		status   int
-		existing bool
-		wantErr  bool
-	}{{
-		name:     "success",
-		status:   http.StatusOK,
-		existing: true,
-	}, {
-		name:     "not found",
-		status:   http.StatusNotFound,
-		existing: false,
-	}, {
-		name:     "error",
-		status:   http.StatusInternalServerError,
-		existing: false,
-		wantErr:  true,
-	}}
-
-	img := setupImage(t)
-	h := mustDigest(t, img)
-	mt := mustMediaType(t, img)
-	expectedRepo := "foo/bar"
-	expectedPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, h.String())
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != http.MethodHead {
-					t.Errorf("Method; got %v, want %v", r.Method, http.MethodHead)
-				}
-				if r.URL.Path != expectedPath {
-					t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
-				}
-				if got, want := r.Header.Get("Accept"), string(mt); got != want {
-					t.Errorf("r.Header['Accept']; got %v, want %v", got, want)
-				}
-				http.Error(w, http.StatusText(test.status), test.status)
-			}))
-			if err != nil {
-				t.Fatalf("setupWriter() = %v", err)
-			}
-			defer closer.Close()
-
-			existing, err := w.checkExistingManifest(context.Background(), h, mt)
-			if test.existing != existing {
-				t.Errorf("checkExistingManifest() = %v, want %v", existing, test.existing)
-			}
-			if err != nil && !test.wantErr {
-				t.Errorf("checkExistingManifest() = %v", err)
-			} else if err == nil && test.wantErr {
-				t.Error("checkExistingManifest() wanted err, got nil")
-			}
-		})
-	}
-}
-
 func TestWriteIndex(t *testing.T) {
 	idx := setupIndex(t, 2)
 	expectedRepo := "write/time"
@@ -1283,8 +1237,8 @@ func TestWriteIndex(t *testing.T) {
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 	childDigest := mustIndexManifest(t, idx).Manifests[0].Digest
 	childPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, childDigest)
-	existinChildDigest := mustIndexManifest(t, idx).Manifests[1].Digest
-	existingChildPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, existinChildDigest)
+	existingChildDigest := mustIndexManifest(t, idx).Manifests[1].Digest
+	existingChildPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, existingChildDigest)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead && strings.HasPrefix(r.URL.Path, headPathPrefix) && r.URL.Path != initiatePath {
@@ -1300,13 +1254,19 @@ func TestWriteIndex(t *testing.T) {
 			}
 			http.Error(w, "Mounted", http.StatusCreated)
 		case manifestPath:
+			if r.Method == http.MethodHead {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
 			if r.Method != http.MethodPut {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
 			}
 			http.Error(w, "Created", http.StatusCreated)
 		case existingChildPath:
 			if r.Method == http.MethodHead {
-				http.Error(w, http.StatusText(http.StatusOK), http.StatusOK)
+				w.Header().Set("Content-Type", string(types.DockerManifestSchema1))
+				w.Header().Set("Docker-Content-Digest", existingChildDigest.String())
+				w.Header().Set("Content-Length", "123")
 				return
 			}
 			t.Errorf("Unexpected method; got %v, want %v", r.Method, http.MethodHead)
@@ -1440,7 +1400,13 @@ func TestWriteForeignLayerIfOptionSet(t *testing.T) {
 		case commitPath:
 			http.Error(w, "Created", http.StatusCreated)
 		case manifestPath:
-			if r.Method != http.MethodPut {
+			if r.Method == http.MethodHead {
+				w.Header().Set("Content-Type", string(types.DockerManifestSchema1Signed))
+				w.Header().Set("Docker-Content-Digest", fakeDigest)
+				w.Header().Set("Content-Length", "123")
+				return
+			}
+			if r.Method != http.MethodPut && r.Method != http.MethodHead {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodPut)
 			}
 			http.Error(w, "Created", http.StatusCreated)
