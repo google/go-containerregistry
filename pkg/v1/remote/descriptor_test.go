@@ -134,7 +134,6 @@ func TestGetImageAsIndex(t *testing.T) {
 func TestHeadSchema1(t *testing.T) {
 	expectedRepo := "foo/bar"
 	mediaType := types.DockerManifestSchema1Signed
-	fakeDigest := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 	response := []byte("doesn't matter")
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
@@ -203,7 +202,7 @@ func TestHead_MissingHeaders(t *testing.T) {
 			w.Header().Set("Content-Length", "10")
 		}
 		if !strings.Contains(r.URL.Path, missingDigest) {
-			w.Header().Set("Docker-Content-Digest", "sha256:0000000000000000000000000000000000000000000000000000000000000000")
+			w.Header().Set("Docker-Content-Digest", fakeDigest)
 		}
 	}))
 	defer server.Close()
@@ -231,7 +230,7 @@ func TestRedactFetchBlob(t *testing.T) {
 			Transport: errTransport{},
 		},
 	}
-	h, err := v1.NewHash("sha256:0000000000000000000000000000000000000000000000000000000000000000")
+	h, err := v1.NewHash(fakeDigest)
 	if err != nil {
 		t.Fatal("NewHash:", err)
 	}

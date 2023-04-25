@@ -117,7 +117,7 @@ func (p *Puller) get(ctx context.Context, ref name.Reference, acceptable []types
 	return f.get(ctx, ref, acceptable, platform)
 }
 
-// Layer is like remote.Layer, but avoids re-authenticated when possible.
+// Layer is like remote.Layer, but avoids re-authenticating when possible.
 func (p *Puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
 	f, err := p.fetcher(ctx, ref.Context())
 	if err != nil {
