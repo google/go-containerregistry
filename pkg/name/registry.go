@@ -17,6 +17,7 @@ package name
 import (
 	"net"
 	"net/url"
+	"path"
 	"regexp"
 	"strings"
 )
@@ -51,8 +52,9 @@ func (r Registry) String() string {
 }
 
 // Repo returns a Repository in the Registry with the given name.
-func (r Registry) Repo(repo string) Repository {
-	return Repository{Registry: r, repository: repo}
+func (r Registry) Repo(repo ...string) Repository {
+	// TODO: Panic if repo is empty?
+	return Repository{Registry: r, repository: path.Join(repo...)}
 }
 
 // Scope returns the scope required to access the registry.
