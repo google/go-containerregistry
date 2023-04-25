@@ -18,6 +18,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
@@ -78,10 +79,10 @@ func (p *Puller) fetcher(ctx context.Context, target resource) (*fetcher, error)
 	if p.o.pusher != nil {
 		if repo, ok := target.(name.Repository); ok {
 			w, err := p.o.pusher.writer(ctx, repo, p.o)
-			if err != nil {
-				return nil, err
+			if err == nil {
+				return fetcherFromWriter(w.w), nil
 			}
-			return fetcherFromWriter(w.w), nil
+			logs.Debug.Printf("reusing Pusher failed: %v", err)
 		}
 	}
 
