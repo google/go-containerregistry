@@ -27,10 +27,23 @@ type options struct {
 }
 
 func getOptions(opts []Option) *options {
+	// get a random seed
+
+	// TODO in go 1.20 this is fine (it will be random)
+	seed := rand.Int63() //nolint:gosec
+	/*
+		// in prior go versions this needs to come from crypto/rand
+		var b [8]byte
+		_, err := crypto_rand.Read(b[:])
+		if err != nil {
+			panic("cryptographically secure random number generator is not working")
+		}
+		seed := int64(binary.LittleEndian.Int64(b[:]))
+	*/
+
 	// defaults
 	o := &options{
-		// TODO in go 1.20 this is fine (it will be random), but in prior versions this probably needs to come from crypto/rand
-		source: rand.NewSource(rand.Int63()), //nolint:gosec
+		source: rand.NewSource(seed),
 	}
 
 	for _, opt := range opts {

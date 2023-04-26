@@ -16,8 +16,10 @@ package random
 
 import (
 	"archive/tar"
+	"bytes"
 	"errors"
 	"io"
+	"math/rand"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -125,5 +127,45 @@ func TestRandomLayer(t *testing.T) {
 
 	if _, err := tr.Next(); !errors.Is(err, io.EOF) {
 		t.Errorf("Layer contained more files; got %v, want EOF", err)
+	}
+}
+
+func TestRandomLayerSource(t *testing.T) {
+	layerData := func(o ...Option) []byte {
+		l, err := Layer(1024, types.DockerLayer, o...)
+		if err != nil {
+			t.Fatalf("Layer: %v", err)
+		}
+
+		rc, err := l.Compressed()
+		if err != nil {
+			t.Fatalf("Compressed(): %v", err)
+		}
+		defer rc.Close()
+
+		data, err := io.ReadAll(rc)
+		if err != nil {
+			t.Fatalf("Read: %v", err)
+		}
+		return data
+	}
+
+	data0a := layerData(WithSource(rand.NewSource(0)))
+	data0b := layerData(WithSource(rand.NewSource(0)))
+	data1 := layerData(WithSource(rand.NewSource(1)))
+
+	if !bytes.Equal(data0a, data0b) {
+		t.Error("Expected the layer data to be the same with the same seed")
+	}
+
+	if bytes.Equal(data0a, data1) {
+		t.Error("Expected the layer data to be different with different seeds")
+	}
+
+	dataA := layerData()
+	dataB := layerData()
+
+	if bytes.Equal(dataA, dataB) {
+		t.Error("Expected the layer data to be different with different random seeds")
 	}
 }
