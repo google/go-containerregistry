@@ -18,11 +18,10 @@ import (
 	"archive/tar"
 	"bytes"
 	"crypto"
-	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"io"
-	mrand "math/rand"
+	"math/rand"
 	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -57,10 +56,10 @@ func (ul *uncompressedLayer) MediaType() (types.MediaType, error) {
 var _ partial.UncompressedLayer = (*uncompressedLayer)(nil)
 
 // Image returns a pseudo-randomly generated Image.
-func Image(byteSize, layers int64) (v1.Image, error) {
+func Image(byteSize, layers int64, options ...Option) (v1.Image, error) {
 	adds := make([]mutate.Addendum, 0, 5)
 	for i := int64(0); i < layers; i++ {
-		layer, err := Layer(byteSize, types.DockerLayer)
+		layer, err := Layer(byteSize, types.DockerLayer, options...)
 		if err != nil {
 			return nil, err
 		}
@@ -79,8 +78,11 @@ func Image(byteSize, layers int64) (v1.Image, error) {
 }
 
 // Layer returns a layer with pseudo-randomly generated content.
-func Layer(byteSize int64, mt types.MediaType) (v1.Layer, error) {
-	fileName := fmt.Sprintf("random_file_%d.txt", mrand.Int()) //nolint: gosec
+func Layer(byteSize int64, mt types.MediaType, options ...Option) (v1.Layer, error) {
+	o := getOptions(options)
+	rng := rand.New(o.source) //nolint:gosec
+
+	fileName := fmt.Sprintf("random_file_%d.txt", rng.Int())
 
 	// Hash the contents as we write it out to the buffer.
 	var b bytes.Buffer
@@ -96,7 +98,7 @@ func Layer(byteSize int64, mt types.MediaType) (v1.Layer, error) {
 	}); err != nil {
 		return nil, err
 	}
-	if _, err := io.CopyN(tw, rand.Reader, byteSize); err != nil {
+	if _, err := io.CopyN(tw, rng, byteSize); err != nil {
 		return nil, err
 	}
 	if err := tw.Close(); err != nil {
