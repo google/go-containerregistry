@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -69,7 +68,6 @@ func Image(byteSize, layers int64, options ...Option) (v1.Image, error) {
 				Author:    "random.Image",
 				Comment:   fmt.Sprintf("this is a random history %d of %d", i, layers),
 				CreatedBy: "random",
-				Created:   v1.Time{Time: time.Now()},
 			},
 		})
 	}

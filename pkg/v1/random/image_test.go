@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"testing"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
@@ -167,5 +168,39 @@ func TestRandomLayerSource(t *testing.T) {
 
 	if bytes.Equal(dataA, dataB) {
 		t.Error("Expected the layer data to be different with different random seeds")
+	}
+}
+
+func TestRandomImageSource(t *testing.T) {
+	imageDigest := func(o ...Option) v1.Hash {
+		img, err := Image(1024, 2, o...)
+		if err != nil {
+			t.Fatalf("Image: %v", err)
+		}
+
+		h, err := img.Digest()
+		if err != nil {
+			t.Fatalf("Digest(): %v", err)
+		}
+		return h
+	}
+
+	digest0a := imageDigest(WithSource(rand.NewSource(0)))
+	digest0b := imageDigest(WithSource(rand.NewSource(0)))
+	digest1 := imageDigest(WithSource(rand.NewSource(1)))
+
+	if digest0a != digest0b {
+		t.Error("Expected the image digest to be the same with the same seed")
+	}
+
+	if digest0a == digest1 {
+		t.Error("Expected the image digest to be different with different seeds")
+	}
+
+	digestA := imageDigest()
+	digestB := imageDigest()
+
+	if digestA == digestB {
+		t.Error("Expected the image digest to be different with different random seeds")
 	}
 }
