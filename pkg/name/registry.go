@@ -53,7 +53,6 @@ func (r Registry) String() string {
 
 // Repo returns a Repository in the Registry with the given name.
 func (r Registry) Repo(repo ...string) Repository {
-	// TODO: Panic if repo is empty?
 	return Repository{Registry: r, repository: path.Join(repo...)}
 }
 
