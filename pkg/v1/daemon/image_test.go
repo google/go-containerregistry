@@ -49,7 +49,7 @@ type MockClient struct {
 	saveBody io.ReadCloser
 }
 
-func (m *MockClient) NegotiateAPIVersion(ctx context.Context) {
+func (m *MockClient) NegotiateAPIVersion(_ context.Context) {
 	m.negotiated = true
 }
 

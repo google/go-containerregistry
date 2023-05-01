@@ -169,7 +169,7 @@ type recorder struct {
 	Errs []error
 }
 
-func (r *recorder) walk(repo name.Repository, tags *Tags, err error) error {
+func (r *recorder) walk(_ name.Repository, tags *Tags, err error) error {
 	r.Tags = append(r.Tags, tags)
 	r.Errs = append(r.Errs, err)
 

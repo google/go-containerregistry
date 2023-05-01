@@ -531,10 +531,7 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 		return im.Manifests[i].Digest.String() < im.Manifests[j].Digest.String()
 	})
 	logs.Progress.Printf("updating fallback tag %s with new referrer", t.Identifier())
-	if err := w.commitManifest(ctx, fallbackTaggable{im}, t); err != nil {
-		return err
-	}
-	return nil
+	return w.commitManifest(ctx, fallbackTaggable{im}, t)
 }
 
 type fallbackTaggable struct {

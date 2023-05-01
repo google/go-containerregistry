@@ -26,7 +26,7 @@ import (
 )
 
 // NewCmdCatalog creates a new cobra.Command for the catalog subcommand.
-func NewCmdCatalog(options *[]crane.Option, argv ...string) *cobra.Command {
+func NewCmdCatalog(options *[]crane.Option, _ ...string) *cobra.Command {
 	var fullRef bool
 	cmd := &cobra.Command{
 		Use:   "catalog REGISTRY",
