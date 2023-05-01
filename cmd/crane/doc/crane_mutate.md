@@ -13,7 +13,7 @@ crane mutate [flags]
       --append strings              Path to tarball to append to image
       --cmd strings                 New cmd to set
       --entrypoint strings          New entrypoint to set
-  -e, --env stringToString          New envvar to add (default [])
+  -e, --env keyToValue              New envvar to add
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
   -o, --output string               Path to new tarball of resulting image
