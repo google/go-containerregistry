@@ -33,7 +33,7 @@ type errReader struct {
 	err error
 }
 
-func (r *errReader) Read(p []byte) (int, error) {
+func (r *errReader) Read(_ []byte) (int, error) {
 	return 0, r.err
 }
 
@@ -51,7 +51,7 @@ func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ bool) (types.
 	}, m.loadErr
 }
 
-func (m *MockClient) ImageTag(ctx context.Context, source, target string) error {
+func (m *MockClient) ImageTag(ctx context.Context, _, _ string) error {
 	if !m.negotiated {
 		return errors.New("you forgot to call NegotiateAPIVersion before calling ImageTag")
 	}

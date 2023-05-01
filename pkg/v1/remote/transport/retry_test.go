@@ -33,7 +33,7 @@ type mockTransport struct {
 	count int
 }
 
-func (t *mockTransport) RoundTrip(in *http.Request) (out *http.Response, err error) {
+func (t *mockTransport) RoundTrip(_ *http.Request) (out *http.Response, err error) {
 	defer func() { t.count++ }()
 	if t.count < len(t.resps) {
 		out = t.resps[t.count]
