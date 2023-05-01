@@ -32,8 +32,11 @@ type Options struct {
 	Platform *v1.Platform
 	Keychain authn.Keychain
 
+	auth      authn.Authenticator
 	transport http.RoundTripper
 	insecure  bool
+	jobs      int
+	noclobber bool
 	ctx       context.Context
 }
 
@@ -51,6 +54,7 @@ func makeOptions(opts ...Option) Options {
 			remote.WithAuthFromKeychain(authn.DefaultKeychain),
 		},
 		Keychain: authn.DefaultKeychain,
+		jobs:     4,
 		ctx:      context.Background(),
 	}
 
@@ -124,6 +128,7 @@ func WithAuth(auth authn.Authenticator) Option {
 	return func(o *Options) {
 		// Replace the default keychain at position 0.
 		o.Remote[0] = remote.WithAuth(auth)
+		o.auth = auth
 	}
 }
 
@@ -148,5 +153,24 @@ func WithContext(ctx context.Context) Option {
 	return func(o *Options) {
 		o.ctx = ctx
 		o.Remote = append(o.Remote, remote.WithContext(ctx))
+	}
+}
+
+// WithJobs sets the number of concurrent jobs to run.
+//
+// The default number of jobs is GOMAXPROCS.
+func WithJobs(jobs int) Option {
+	return func(o *Options) {
+		if jobs > 0 {
+			o.jobs = jobs
+		}
+		o.Remote = append(o.Remote, remote.WithJobs(o.jobs))
+	}
+}
+
+// WithNoClobber modifies behavior to avoid overwriting existing tags, if possible.
+func WithNoClobber(noclobber bool) Option {
+	return func(o *Options) {
+		o.noclobber = noclobber
 	}
 }
