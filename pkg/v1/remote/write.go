@@ -210,6 +210,11 @@ func (w *writer) initiateUpload(ctx context.Context, from, mount, origin string)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := w.client.Do(req.WithContext(ctx))
 	if err != nil {
+		if origin != "" && origin != w.repo.RegistryStr() {
+			// https://github.com/google/go-containerregistry/issues/1679
+			logs.Warn.Printf("retrying without mount: %v", err)
+			return w.initiateUpload(ctx, "", "", "")
+		}
 		return "", false, err
 	}
 	defer resp.Body.Close()
