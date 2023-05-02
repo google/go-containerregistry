@@ -4,14 +4,14 @@ go 1.18
 
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3
-	github.com/docker/cli v23.0.4+incompatible
+	github.com/docker/cli v23.0.5+incompatible
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/docker/docker v23.0.4+incompatible
+	github.com/docker/docker v23.0.5+incompatible
 	github.com/google/go-cmp v0.5.9
 	github.com/klauspost/compress v1.16.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/opencontainers/go-digest v1.0.0
-	github.com/opencontainers/image-spec v1.1.0-rc2
+	github.com/opencontainers/image-spec v1.1.0-rc3
 	github.com/spf13/cobra v1.7.0
 	golang.org/x/oauth2 v0.7.0
 	golang.org/x/sync v0.1.0
