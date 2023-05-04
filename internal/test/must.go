@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/random"
 )
 
 // test.T(t).Digest(img)
@@ -46,8 +45,8 @@ type digester interface {
 }
 
 type Muster interface {
-	RandomImage(int64, int64) v1.Image
-	RandomIndex(int64, int64, int64) v1.ImageIndex
+	Image(v1.Image, error) v1.Image
+	Index(v1.ImageIndex, error) v1.ImageIndex
 	Digest(digester) v1.Hash
 	ParseReference(string) name.Reference
 	Tag(string) name.Tag
@@ -57,20 +56,18 @@ type testMuster struct {
 	t *testing.T
 }
 
-func (m testMuster) RandomIndex(size, layers, count int64) v1.ImageIndex {
+func (m testMuster) Index(idx v1.ImageIndex, err error) v1.ImageIndex {
 	m.t.Helper()
-	idx, err := random.Index(size, layers, count)
 	if err != nil {
-		m.t.Fatalf("random.Index(): %v", err)
+		m.t.Fatalf("Index(): %v", err)
 	}
 	return idx
 }
 
-func (m testMuster) RandomImage(size, layers int64) v1.Image {
+func (m testMuster) Image(img v1.Image, err error) v1.Image {
 	m.t.Helper()
-	img, err := random.Image(size, layers)
 	if err != nil {
-		m.t.Fatalf("random.Image(): %v", err)
+		m.t.Fatalf("Image(): %v", err)
 	}
 	return img
 }

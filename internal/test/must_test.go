@@ -28,8 +28,8 @@ func TestTest(t *testing.T) {
 	must := test.T(t)
 	s := "gcr.io/foo/bar"
 
-	t.Log(must.Digest(must.RandomImage(1024, 5)))
-	t.Log(must.Digest(must.RandomIndex(1024, 5, 5)))
+	t.Log(must.Digest(must.Image(random.Image(1024, 5))))
+	t.Log(must.Digest(must.Index(random.Index(1024, 5, 5))))
 	t.Log(must.ParseReference(s).Context())
 	t.Log(must.Tag(s).Context())
 
