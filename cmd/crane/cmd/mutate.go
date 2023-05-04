@@ -38,6 +38,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var newRepo string
 	var user string
 	var workdir string
+	var ports []string
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
@@ -120,6 +121,15 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.WorkingDir = workdir
 			}
 
+			// Set ports
+			if len(ports) > 0 {
+				portMap := make(map[string]struct{})
+				for _, port := range ports {
+					portMap[port] = struct{}{}
+				}
+				cfg.Config.ExposedPorts = portMap
+			}
+
 			// Mutate and write image.
 			img, err = mutate.Config(img, cfg.Config)
 			if err != nil {
@@ -172,6 +182,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringSliceVar(&newLayers, "append", []string{}, "Path to tarball to append to image")
 	mutateCmd.Flags().StringVarP(&user, "user", "u", "", "New user to set")
 	mutateCmd.Flags().StringVarP(&workdir, "workdir", "w", "", "New working dir to set")
+	mutateCmd.Flags().StringSliceVar(&ports, "exposed-ports", nil, "New ports to expose")
 	return mutateCmd
 }
 

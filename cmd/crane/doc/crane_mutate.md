@@ -14,6 +14,7 @@ crane mutate [flags]
       --cmd strings                 New cmd to set
       --entrypoint strings          New entrypoint to set
   -e, --env keyToValue              New envvar to add
+      --exposed-ports strings       New ports to expose
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
   -o, --output string               Path to new tarball of resulting image
