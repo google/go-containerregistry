@@ -21,21 +21,6 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
-// test.T(t).Digest(img)
-//
-// or
-//
-// must := must.T(t)
-// must.Digest(img)
-
-// func TestFoo(t *testing.T) {
-//   must := test.T(t)
-//   img := must.RandomImage(1024, 5)
-//   must.Digest(img)
-//   must.ParseReference("gcr.io/foo/bar")
-//   must.Tag("gcr.io/foo/bar:baz")
-// }
-
 func T(t *testing.T) Muster {
 	return testMuster{t}
 }
