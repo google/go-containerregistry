@@ -29,6 +29,7 @@ import (
 	"testing"
 
 	"github.com/google/go-containerregistry/internal/compare"
+	"github.com/google/go-containerregistry/internal/test"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -42,42 +43,23 @@ import (
 
 // TODO(jonjohnsonjr): Test crane.Copy failures.
 func TestCraneRegistry(t *testing.T) {
+	must := test.T(t)
+
 	// Set up a fake registry.
 	s := httptest.NewServer(registry.New())
 	defer s.Close()
-	u, err := url.Parse(s.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
+	u := test.Must[*url.URL](t).Do(url.Parse(s.URL))
 
 	src := fmt.Sprintf("%s/test/crane", u.Host)
 	dst := fmt.Sprintf("%s/test/crane/copy", u.Host)
 
 	// Expected values.
-	img, err := random.Image(1024, 5)
-	if err != nil {
-		t.Fatal(err)
-	}
-	digest, err := img.Digest()
-	if err != nil {
-		t.Fatal(err)
-	}
-	rawManifest, err := img.RawManifest()
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := img.Manifest()
-	if err != nil {
-		t.Fatal(err)
-	}
-	config, err := img.RawConfigFile()
-	if err != nil {
-		t.Fatal(err)
-	}
-	layer, err := img.LayerByDigest(manifest.Layers[0].Digest)
-	if err != nil {
-		t.Fatal(err)
-	}
+	img := must.Image(random.Image(1024, 5))
+	digest := must.Digest(img)
+	rawManifest := test.Must[[]byte](t).Do(img.RawManifest())
+	manifest := test.Must[*v1.Manifest](t).Do(img.Manifest())
+	config := test.Must[[]byte](t).Do(img.RawConfigFile())
+	layer := test.Must[v1.Layer](t).Do(img.LayerByDigest(manifest.Layers[0].Digest))
 
 	// Load up the registry.
 	if err := crane.Push(img, src); err != nil {
@@ -85,32 +67,23 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Test that `crane.Foo` returns expected values.
-	d, err := crane.Digest(src)
-	if err != nil {
-		t.Error(err)
-	} else if d != digest.String() {
+	d := test.Must[string](t).Do(crane.Digest(src))
+	if d != digest.String() {
 		t.Errorf("Digest(): %v != %v", d, digest)
 	}
 
-	m, err := crane.Manifest(src)
-	if err != nil {
-		t.Error(err)
-	} else if string(m) != string(rawManifest) {
+	m := string(test.Must[[]byte](t).Do(crane.Manifest(src)))
+	if m != string(rawManifest) {
 		t.Errorf("Manifest(): %v != %v", m, rawManifest)
 	}
 
-	c, err := crane.Config(src)
-	if err != nil {
-		t.Error(err)
-	} else if string(c) != string(config) {
+	c := string(test.Must[[]byte](t).Do(crane.Config(src)))
+	if c != string(config) {
 		t.Errorf("Config(): %v != %v", c, config)
 	}
 
 	// Make sure we pull what we pushed.
-	pulled, err := crane.Pull(src)
-	if err != nil {
-		t.Error(err)
-	}
+	pulled := must.Image(crane.Pull(src))
 	if err := compare.Images(img, pulled); err != nil {
 		t.Fatal(err)
 	}
@@ -122,10 +95,12 @@ func TestCraneRegistry(t *testing.T) {
 
 	// Make sure what we copied is equivalent.
 	// Also, get options coverage in a dumb way.
-	copied, err := crane.Pull(dst, crane.Insecure, crane.WithTransport(http.DefaultTransport), crane.WithAuth(authn.Anonymous), crane.WithAuthFromKeychain(authn.DefaultKeychain), crane.WithUserAgent("crane/tests"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	copied := must.Image(crane.Pull(dst,
+		crane.Insecure,
+		crane.WithTransport(http.DefaultTransport),
+		crane.WithAuth(authn.Anonymous),
+		crane.WithAuthFromKeychain(authn.DefaultKeychain),
+		crane.WithUserAgent("crane/tests")))
 	if err := compare.Images(pulled, copied); err != nil {
 		t.Fatal(err)
 	}
@@ -135,19 +110,13 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// Make sure what we tagged is equivalent.
-	tagged, err := crane.Pull(fmt.Sprintf("%s:%s", dst, "crane-tag"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	tagged := must.Image(crane.Pull(fmt.Sprintf("%s:%s", dst, "crane-tag")))
 	if err := compare.Images(pulled, tagged); err != nil {
 		t.Fatal(err)
 	}
 
 	layerRef := fmt.Sprintf("%s/test/crane@%s", u.Host, manifest.Layers[0].Digest)
-	pulledLayer, err := crane.PullLayer(layerRef)
-	if err != nil {
-		t.Fatal(err)
-	}
+	pulledLayer := test.Must[v1.Layer](t).Do(crane.PullLayer(layerRef))
 
 	if err := compare.Layers(pulledLayer, layer); err != nil {
 		t.Fatal(err)
@@ -155,10 +124,7 @@ func TestCraneRegistry(t *testing.T) {
 
 	// List Tags
 	// dst variable have: latest and crane-tag
-	tags, err := crane.ListTags(dst)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tags := test.Must[[]string](t).Do(crane.ListTags(dst))
 	if len(tags) != 2 {
 		t.Fatalf("wanted 2 tags, got %d", len(tags))
 	}
@@ -170,10 +136,7 @@ func TestCraneRegistry(t *testing.T) {
 		}
 	}
 
-	tags, err = crane.ListTags(dst)
-	if err != nil {
-		t.Fatal(err)
-	}
+	tags = test.Must[[]string](t).Do(crane.ListTags(dst))
 	if len(tags) != 6 {
 		t.Fatalf("wanted 6 tags, got %d", len(tags))
 	}
@@ -194,28 +157,19 @@ func TestCraneRegistry(t *testing.T) {
 	}
 
 	// check if the copied image still exist
-	dstPulled, err := crane.Pull(dst)
-	if err != nil {
-		t.Fatal(err)
-	}
+	dstPulled := must.Image(crane.Pull(dst))
 	if err := compare.Images(dstPulled, copied); err != nil {
 		t.Fatal(err)
 	}
 
 	// List Catalog
-	repos, err := crane.Catalog(u.Host)
-	if err != nil {
-		t.Fatal(err)
-	}
+	repos := test.Must[[]string](t).Do(crane.Catalog(u.Host))
 	if len(repos) != 2 {
 		t.Fatalf("wanted 2 repos, got %d", len(repos))
 	}
 
 	// Test pushing layer
-	layer, err = img.LayerByDigest(manifest.Layers[1].Digest)
-	if err != nil {
-		t.Fatal(err)
-	}
+	layer = test.Must[v1.Layer](t).Do(img.LayerByDigest(manifest.Layers[1].Digest))
 	if err := crane.Upload(layer, dst); err != nil {
 		t.Fatal(err)
 	}
