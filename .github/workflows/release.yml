@@ -51,7 +51,7 @@ jobs:
     permissions: read-all
     steps:
       - name: Install SLSA verifier
-        uses: slsa-framework/slsa-verifier/actions/installer@v2.2.0
+        uses: slsa-framework/slsa-verifier/actions/installer@v2.3.0
       - name: Download assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
