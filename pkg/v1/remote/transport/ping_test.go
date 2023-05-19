@@ -43,15 +43,15 @@ func TestPingNoChallenge(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(context.Background(), testRegistry, tprt)
+	pr, err := Ping(context.Background(), testRegistry, tprt)
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != anonymous {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, anonymous)
+	if pr.Scheme != "" {
+		t.Errorf("ping(); got %v, want %v", pr.Scheme, "")
 	}
-	if pr.scheme != "http" {
-		t.Errorf("ping(); got %v, want %v", pr.scheme, "http")
+	if !pr.Insecure {
+		t.Errorf("ping(); got %v, want %v", pr.Insecure, true)
 	}
 }
 
@@ -68,14 +68,14 @@ func TestPingBasicChallengeNoParams(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(context.Background(), testRegistry, tprt)
+	pr, err := Ping(context.Background(), testRegistry, tprt)
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != basic {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, basic)
+	if pr.Scheme != "basic" {
+		t.Errorf("ping(); got %v, want %v", pr.Scheme, "basic")
 	}
-	if got, want := len(pr.parameters), 0; got != want {
+	if got, want := len(pr.Parameters), 0; got != want {
 		t.Errorf("ping(); got %v, want %v", got, want)
 	}
 }
@@ -93,14 +93,14 @@ func TestPingBearerChallengeWithParams(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(context.Background(), testRegistry, tprt)
+	pr, err := Ping(context.Background(), testRegistry, tprt)
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != bearer {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, bearer)
+	if pr.Scheme != "bearer" {
+		t.Errorf("ping(); got %v, want %v", pr.Scheme, "bearer")
 	}
-	if got, want := len(pr.parameters), 1; got != want {
+	if got, want := len(pr.Parameters), 1; got != want {
 		t.Errorf("ping(); got %v, want %v", got, want)
 	}
 }
@@ -119,14 +119,14 @@ func TestPingMultipleChallenges(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(context.Background(), testRegistry, tprt)
+	pr, err := Ping(context.Background(), testRegistry, tprt)
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != basic {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, basic)
+	if pr.Scheme != "basic" {
+		t.Errorf("ping(); got %v, want %v", pr.Scheme, "basic")
 	}
-	if got, want := len(pr.parameters), 1; got != want {
+	if got, want := len(pr.Parameters), 1; got != want {
 		t.Errorf("ping(); got %v, want %v", got, want)
 	}
 }
@@ -145,12 +145,12 @@ func TestPingMultipleNotSupportedChallenges(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(context.Background(), testRegistry, tprt)
+	pr, err := Ping(context.Background(), testRegistry, tprt)
 	if err != nil {
 		t.Errorf("ping() = %v", err)
 	}
-	if pr.challenge != "negotiate" {
-		t.Errorf("ping(); got %v, want %v", pr.challenge, "negotiate")
+	if pr.Scheme != "negotiate" {
+		t.Errorf("ping(); got %v, want %v", pr.Scheme, "negotiate")
 	}
 }
 
@@ -167,7 +167,7 @@ func TestUnsupportedStatus(t *testing.T) {
 		},
 	}
 
-	pr, err := ping(context.Background(), testRegistry, tprt)
+	pr, err := Ping(context.Background(), testRegistry, tprt)
 	if err == nil {
 		t.Errorf("ping() = %v", pr)
 	}
@@ -219,7 +219,7 @@ func TestPingHttpFallback(t *testing.T) {
 			server.Close()
 		}
 
-		_, err := ping(context.Background(), test.reg, tprt)
+		_, err := Ping(context.Background(), test.reg, tprt)
 		if got, want := gotCount, test.wantCount; got != want {
 			t.Errorf("%s: got %d requests, wanted %d", test.reg.String(), got, want)
 		}
