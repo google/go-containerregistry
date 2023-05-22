@@ -34,7 +34,7 @@ func TestInsecureOptionTracking(t *testing.T) {
 func TestTransportSetting(t *testing.T) {
 	opts := GetOptions(WithTransport(remote.DefaultTransport))
 
-	if opts.transport == nil {
+	if opts.Transport == nil {
 		t.Error("expected crane transport to be set when user passes WithTransport")
 	}
 }
@@ -44,7 +44,7 @@ func TestInsecureTransport(t *testing.T) {
 	opts := GetOptions(Insecure)
 	var transport *http.Transport
 	var ok bool
-	if transport, ok = opts.transport.(*http.Transport); !ok {
+	if transport, ok = opts.Transport.(*http.Transport); !ok {
 		t.Fatal("Unable to successfully assert default transport")
 	}
 
