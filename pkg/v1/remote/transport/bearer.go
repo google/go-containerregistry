@@ -45,7 +45,7 @@ func Exchange(ctx context.Context, reg name.Registry, auth authn.Authenticator, 
 		// TODO: Pretend token for basic?
 		return nil, fmt.Errorf("challenge scheme %q is not bearer", pr.Scheme)
 	}
-	bt, err := fromChallenge(reg, auth, t, pr)
+	bt, err := fromChallenge(reg, auth, t, pr, scopes...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func FromToken(reg name.Registry, auth authn.Authenticator, t http.RoundTripper,
 	return &Wrapper{bt}, nil
 }
 
-func fromChallenge(reg name.Registry, auth authn.Authenticator, t http.RoundTripper, pr *Challenge) (*bearerTransport, error) {
+func fromChallenge(reg name.Registry, auth authn.Authenticator, t http.RoundTripper, pr *Challenge, scopes ...string) (*bearerTransport, error) {
 	// We require the realm, which tells us where to send our Basic auth to turn it into Bearer auth.
 	realm, ok := pr.Parameters["realm"]
 	if !ok {
@@ -92,6 +92,7 @@ func fromChallenge(reg name.Registry, auth authn.Authenticator, t http.RoundTrip
 		realm:    realm,
 		registry: reg,
 		service:  service,
+		scopes:   scopes,
 		scheme:   scheme,
 	}, nil
 }
