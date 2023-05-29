@@ -382,34 +382,30 @@ func Time(img v1.Image, t time.Time) (v1.Image, error) {
 	}
 
 	addendums := make([]Addendum, max(len(ocf.History), len(layers)))
-	var historyIdx, addendumIdx int
-	for layerIdx := 0; layerIdx < len(layers); addendumIdx, layerIdx = addendumIdx+1, layerIdx+1 {
-		newLayer, err := layerTime(layers[layerIdx], t)
+
+	for historyIdx, history := range ocf.History {
+		addendums[historyIdx].History = history
+	}
+
+	var addendumIdx int
+	for _, layer := range layers {
+		// search next non-empty layer
+		for addendumIdx < len(ocf.History) && addendums[addendumIdx].History.EmptyLayer {
+			addendumIdx++
+		}
+
+		// we hadn't found any non-empty layer
+		if addendumIdx >= len(ocf.History) {
+			break
+		}
+
+		// for found non-empty layer we set layer time from layer
+		newLayer, err := layerTime(layer, t)
 		if err != nil {
 			return nil, fmt.Errorf("setting layer times: %w", err)
 		}
 
-		// try to search for the history entry that corresponds to this layer
-		for ; historyIdx < len(ocf.History); historyIdx++ {
-			addendums[addendumIdx].History = ocf.History[historyIdx]
-			// if it's an EmptyLayer, do not set the Layer and have the Addendum with just the History
-			// and move on to the next History entry
-			if ocf.History[historyIdx].EmptyLayer {
-				addendumIdx++
-				continue
-			}
-			// otherwise, we can exit from the cycle
-			historyIdx++
-			break
-		}
-		if addendumIdx < len(addendums) {
-			addendums[addendumIdx].Layer = newLayer
-		}
-	}
-
-	// add all leftover History entries
-	for ; historyIdx < len(ocf.History); historyIdx, addendumIdx = historyIdx+1, addendumIdx+1 {
-		addendums[addendumIdx].History = ocf.History[historyIdx]
+		addendums[addendumIdx].Layer = newLayer
 	}
 
 	newImage, err = Append(newImage, addendums...)

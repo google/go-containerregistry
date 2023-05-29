@@ -338,6 +338,10 @@ func TestMutateTime(t *testing.T) {
 			name:   "image with empty_layer history entries",
 			source: sourceImagePath(t, "testdata/source_image_with_empty_layer_history.tar"),
 		},
+		{
+			name:   "image with empty_layer all history entries",
+			source: sourceImagePath(t, "testdata/source_image_all_empty.tar"),
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			want := time.Time{}
