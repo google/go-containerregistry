@@ -70,9 +70,16 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			base, err := remote.Index(ref, o.Remote...)
+			desc, err := remote.Get(ref, o.Remote...)
 			if err != nil {
 				return fmt.Errorf("pulling %s: %w", baseRef, err)
+			}
+			if !desc.MediaType.IsIndex() {
+				return fmt.Errorf("expected %s to be an index, got %q", baseRef, desc.MediaType)
+			}
+			base, err := desc.ImageIndex()
+			if err != nil {
+				return nil
 			}
 
 			idx := filterIndex(base, platforms.platforms)
@@ -153,9 +160,16 @@ The platform for appended manifests is inferred from the config file or omitted 
 				if err != nil {
 					return err
 				}
-				base, err = remote.Index(ref, o.Remote...)
+				desc, err := remote.Get(ref, o.Remote...)
 				if err != nil {
 					return fmt.Errorf("pulling %s: %w", baseRef, err)
+				}
+				if !desc.MediaType.IsIndex() {
+					return fmt.Errorf("expected %s to be an index, got %q", baseRef, desc.MediaType)
+				}
+				base, err = desc.ImageIndex()
+				if err != nil {
+					return err
 				}
 			}
 
