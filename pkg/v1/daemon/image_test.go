@@ -35,6 +35,35 @@ import (
 
 var imagePath = "../tarball/testdata/test_image_1.tar"
 
+var inspectResp = types.ImageInspect{
+	ID: "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
+	RepoTags: []string{
+		"bazel/v1/tarball:test_image_1",
+		"test_image_2:latest",
+	},
+	Created:      "1970-01-01T00:00:00Z",
+	Author:       "Bazel",
+	Architecture: "amd64",
+	Os:           "linux",
+	Size:         8,
+	VirtualSize:  8,
+	Config:       &container.Config{},
+	GraphDriver: types.GraphDriverData{
+		Data: map[string]string{
+			"MergedDir": "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/merged",
+			"UpperDir":  "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/diff",
+			"WorkDir":   "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/work",
+		},
+		Name: "overlay2",
+	},
+	RootFS: types.RootFS{
+		Type: "layers",
+		Layers: []string{
+			"sha256:8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
+		},
+	},
+}
+
 type MockClient struct {
 	Client
 	path       string
@@ -47,6 +76,12 @@ type MockClient struct {
 
 	saveErr  error
 	saveBody io.ReadCloser
+
+	inspectErr  error
+	inspectResp types.ImageInspect
+	inspectBody []byte
+
+	tagErr error
 }
 
 func (m *MockClient) NegotiateAPIVersion(_ context.Context) {
@@ -66,33 +101,7 @@ func (m *MockClient) ImageSave(_ context.Context, _ []string) (io.ReadCloser, er
 }
 
 func (m *MockClient) ImageInspectWithRaw(_ context.Context, _ string) (types.ImageInspect, []byte, error) {
-	return types.ImageInspect{
-		ID: "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
-		RepoTags: []string{
-			"bazel/v1/tarball:test_image_1",
-		},
-		Created:      "1970-01-01T00:00:00Z",
-		Author:       "Bazel",
-		Architecture: "amd64",
-		Os:           "linux",
-		Size:         8,
-		VirtualSize:  8,
-		Config:       &container.Config{},
-		GraphDriver: types.GraphDriverData{
-			Data: map[string]string{
-				"MergedDir": "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/merged",
-				"UpperDir":  "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/diff",
-				"WorkDir":   "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/work",
-			},
-			Name: "overlay2",
-		},
-		RootFS: types.RootFS{
-			Type: "layers",
-			Layers: []string{
-				"sha256:8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
-			},
-		},
-	}, nil, nil
+	return m.inspectResp, m.inspectBody, m.inspectErr
 }
 
 func (m *MockClient) ImageHistory(_ context.Context, _ string) ([]api.HistoryResponseItem, error) {
@@ -118,19 +127,22 @@ func TestImage(t *testing.T) {
 	}{{
 		name: "success",
 		client: &MockClient{
-			path: imagePath,
+			path:        imagePath,
+			inspectResp: inspectResp,
 		},
 	}, {
 		name: "save err",
 		client: &MockClient{
-			saveBody: io.NopCloser(strings.NewReader("Loaded")),
-			saveErr:  fmt.Errorf("locked and loaded"),
+			saveBody:    io.NopCloser(strings.NewReader("Loaded")),
+			saveErr:     fmt.Errorf("locked and loaded"),
+			inspectResp: inspectResp,
 		},
 		wantErr: "locked and loaded",
 	}, {
 		name: "read err",
 		client: &MockClient{
-			saveBody: io.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
+			inspectResp: inspectResp,
+			saveBody:    io.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
 		},
 		wantErr: "goodbye, world",
 	}} {
