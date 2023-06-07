@@ -66,7 +66,7 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 			o := crane.GetOptions(*options...)
 			baseRef := args[0]
 
-			ref, err := name.ParseReference(baseRef)
+			ref, err := name.ParseReference(baseRef, o.Name...)
 			if err != nil {
 				return err
 			}
@@ -90,7 +90,7 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 			}
 
 			if newTag != "" {
-				ref, err = name.ParseReference(newTag)
+				ref, err = name.ParseReference(newTag, o.Name...)
 				if err != nil {
 					return fmt.Errorf("parsing reference %s: %w", newTag, err)
 				}
@@ -156,7 +156,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 					base = mutate.IndexMediaType(base, types.DockerManifestList)
 				}
 			} else {
-				ref, err = name.ParseReference(baseRef)
+				ref, err = name.ParseReference(baseRef, o.Name...)
 				if err != nil {
 					return err
 				}
@@ -176,7 +176,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 			adds := make([]mutate.IndexAddendum, 0, len(newManifests))
 
 			for _, m := range newManifests {
-				ref, err := name.ParseReference(m)
+				ref, err := name.ParseReference(m, o.Name...)
 				if err != nil {
 					return err
 				}
@@ -254,7 +254,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 			}
 
 			if newTag != "" {
-				ref, err = name.ParseReference(newTag)
+				ref, err = name.ParseReference(newTag, o.Name...)
 				if err != nil {
 					return fmt.Errorf("parsing reference %s: %w", newTag, err)
 				}
