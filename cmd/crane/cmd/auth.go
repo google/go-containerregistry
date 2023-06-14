@@ -97,7 +97,7 @@ $ curl -H "$(crane auth token -H ubuntu)" https://index.docker.io/v2/library/ubu
 			}
 
 			if header {
-				fmt.Printf("Authorization: Bearer %s", tr.Token)
+				fmt.Fprintf(cmd.OutOrStdout(), "Authorization: Bearer %s", tr.Token)
 				return nil
 			}
 
