@@ -37,7 +37,8 @@ func newCmdRegistry() *cobra.Command {
 }
 
 func newCmdServe() *cobra.Command {
-	return &cobra.Command{
+	var disk bool
+	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Serve an in-memory registry implementation",
 		Long: `This sub-command serves an in-memory registry implementation on port :8080 (or $PORT)
@@ -60,9 +61,16 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 			porti := listener.Addr().(*net.TCPAddr).Port
 			port = fmt.Sprintf("%d", porti)
 
+			bh := registry.NewInMemoryBlobHandler()
+			if disk {
+				tmp := os.TempDir()
+				log.Printf("storing blobs in %s", tmp)
+				bh = registry.NewDiskBlobHandler(tmp)
+			}
+
 			s := &http.Server{
 				ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
-				Handler:           registry.New(),
+				Handler:           registry.New(registry.WithBlobHandler(bh)),
 			}
 			log.Printf("serving on port %s", port)
 
@@ -81,4 +89,6 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 			return nil
 		},
 	}
+	cmd.Flags().BoolVar(&disk, "blobs-to-disk", false, "Store blobs on disk")
+	return cmd
 }
