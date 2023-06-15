@@ -90,5 +90,6 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 		},
 	}
 	cmd.Flags().BoolVar(&disk, "blobs-to-disk", false, "Store blobs on disk")
+	cmd.Flags().MarkHidden("blobs-to-disk")
 	return cmd
 }
