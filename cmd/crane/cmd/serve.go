@@ -41,7 +41,7 @@ func newCmdServe() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Serve an in-memory registry implementation",
-		Long: `This sub-command serves an in-memory registry implementation on port :8080 (or $PORT)
+		Long: `This sub-command serves an in-memory registry implementation on an automatically chosen port (or $PORT)
 
 The command blocks while the server accepts pushes and pulls.
 
