@@ -27,14 +27,14 @@ import (
 
 type diskHandler struct {
 	dir  string
-	lock sync.Mutex
+	lock sync.RWMutex
 }
 
 func NewDiskBlobHandler(dir string) BlobHandler { return &diskHandler{dir: dir} }
 
 func (m *diskHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 
 	fi, err := os.Stat(filepath.Join(m.dir, h.String()))
 	if errors.Is(err, os.ErrNotExist) {
@@ -45,25 +45,33 @@ func (m *diskHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error
 	return fi.Size(), nil
 }
 func (m *diskHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser, error) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	m.lock.RLock()
+	defer m.lock.RUnlock()
 
 	return os.Open(filepath.Join(m.dir, h.String()))
 }
 func (m *diskHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadCloser) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	f, err := os.Create(filepath.Join(m.dir, h.String()))
+	// Put the temp file in the same directory to avoid cross-device problems
+	// during the os.Rename.  The filenames cannot conflict.
+	f, err := os.CreateTemp(m.dir, "upload-*")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	if _, err := io.Copy(f, rc); err != nil {
+	if err := func() error {
+		defer f.Close()
+		_, err := io.Copy(f, rc)
+		return err
+	}(); err != nil {
 		return err
 	}
-	return nil
+
+	// Only lock for the atomic copy of the blob into its final place to avoid
+	// holding the lock excessively long.
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	return os.Rename(f.Name(), filepath.Join(m.dir, h.String()))
 }
 func (m *diskHandler) Delete(_ context.Context, _ string, h v1.Hash) error {
 	m.lock.Lock()
