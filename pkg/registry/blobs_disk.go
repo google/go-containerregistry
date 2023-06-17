@@ -20,22 +20,17 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 type diskHandler struct {
-	dir  string
-	lock sync.RWMutex
+	dir string
 }
 
 func NewDiskBlobHandler(dir string) BlobHandler { return &diskHandler{dir: dir} }
 
 func (m *diskHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
 	fi, err := os.Stat(filepath.Join(m.dir, h.String()))
 	if errors.Is(err, os.ErrNotExist) {
 		return 0, errNotFound
@@ -45,9 +40,6 @@ func (m *diskHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error
 	return fi.Size(), nil
 }
 func (m *diskHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser, error) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
 	return os.Open(filepath.Join(m.dir, h.String()))
 }
 func (m *diskHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadCloser) error {
@@ -66,16 +58,8 @@ func (m *diskHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClos
 		return err
 	}
 
-	// Only lock for the atomic copy of the blob into its final place to avoid
-	// holding the lock excessively long.
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
 	return os.Rename(f.Name(), filepath.Join(m.dir, h.String()))
 }
 func (m *diskHandler) Delete(_ context.Context, _ string, h v1.Hash) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
 	return os.Remove(filepath.Join(m.dir, h.String()))
 }
