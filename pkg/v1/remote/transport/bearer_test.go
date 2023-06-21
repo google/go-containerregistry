@@ -145,20 +145,30 @@ func TestBearerTransport(t *testing.T) {
 }
 
 func TestBearerTransportBasicRefresh(t *testing.T) {
-	initialToken := "foo"
-	refreshedToken := "bar"
+	initialToken := "initial-token"
+	refreshedToken := "refreshed-token"
+	username := "foo"
+	password := "bar"
 
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			hdr := r.Header.Get("Authorization")
+			// Request with the correct token
 			if hdr == "Bearer "+refreshedToken {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
+			// Request with the basic flow
 			if strings.HasPrefix(hdr, "Basic ") {
 				w.Write([]byte(fmt.Sprintf(`{"token": %q}`, refreshedToken)))
+				return
 			}
-
+			// Request with the oauth flow
+			if r.Method == http.MethodPost {
+				t.Fatal("oauth flow was unexpectedly used")
+				return
+			}
+			// Initial ping request
 			w.Header().Set("WWW-Authenticate", "scope=foo")
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
@@ -176,7 +186,7 @@ func TestBearerTransportBasicRefresh(t *testing.T) {
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
 		bearer:   authn.AuthConfig{RegistryToken: initialToken},
-		basic:    &authn.Basic{Username: "foo", Password: "bar"},
+		basic:    &authn.Basic{Username: username, Password: password},
 		registry: registry,
 		realm:    server.URL,
 		scheme:   "http",
@@ -205,15 +215,17 @@ func TestBearerTransportBasic404Fallback(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			hdr := r.Header.Get("Authorization")
+			// Request with the correct token
 			if hdr == "Bearer "+refreshedToken {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
+			// Request with the basic flow
 			if strings.HasPrefix(hdr, "Basic ") {
 				w.WriteHeader(http.StatusNotFound)
 				return
 			}
-
+			// Request with the oauth flow
 			if r.Method == http.MethodPost {
 				if err := r.ParseForm(); err != nil {
 					t.Fatal(err)
@@ -228,7 +240,7 @@ func TestBearerTransportBasic404Fallback(t *testing.T) {
 				w.Write([]byte(fmt.Sprintf(`{"access_token": %q}`, refreshedToken)))
 				return
 			}
-
+			// Initial ping request
 			w.Header().Set("WWW-Authenticate", "scope=foo")
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
@@ -273,11 +285,22 @@ func TestBearerTransportRegistryTokenRefresh(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			hdr := r.Header.Get("Authorization")
+			// Request with the correct token
 			if hdr == "Bearer "+refreshedToken {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-
+			// Request with the basic flow
+			if strings.HasPrefix(hdr, "Basic ") {
+				t.Fatal("basic flow was unexpectedly used")
+				return
+			}
+			// Request with the oauth flow
+			if r.Method == http.MethodPost {
+				t.Fatal("oauth flow was unexpectedly used")
+				return
+			}
+			// Initial ping request
 			w.Header().Set("WWW-Authenticate", "scope=foo")
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
@@ -292,7 +315,6 @@ func TestBearerTransportRegistryTokenRefresh(t *testing.T) {
 		t.Fatalf("Unexpected error during NewRegistry: %v", err)
 	}
 
-	// Pass RegistryToken directly
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
 		bearer:   authn.AuthConfig{RegistryToken: initialToken},
@@ -323,6 +345,18 @@ func TestBearerTransportIdentityTokenRefresh(t *testing.T) {
 
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hdr := r.Header.Get("Authorization")
+			// Request with the correct token
+			if hdr == "Bearer "+accessToken {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			// Request with the basic flow
+			if strings.HasPrefix(hdr, "Basic ") {
+				t.Fatal("basic flow was unexpectedly used")
+				return
+			}
+			// Request with the oauth flow
 			if r.Method == http.MethodPost {
 				if err := r.ParseForm(); err != nil {
 					t.Fatal(err)
@@ -334,13 +368,7 @@ func TestBearerTransportIdentityTokenRefresh(t *testing.T) {
 				w.Write([]byte(fmt.Sprintf(`{"access_token": %q, "refresh_token": %q}`, accessToken, refreshToken)))
 				return
 			}
-
-			hdr := r.Header.Get("Authorization")
-			if hdr == "Bearer "+accessToken {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-
+			// Initial ping request
 			w.Header().Set("WWW-Authenticate", "scope=foo")
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
@@ -392,20 +420,25 @@ func TestBearerTransportIdentityToken404Fallback(t *testing.T) {
 
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost {
-				w.WriteHeader(http.StatusNotFound)
-			}
-
 			hdr := r.Header.Get("Authorization")
-			if hdr == "Basic "+basicAuth {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(fmt.Sprintf(`{"access_token": %q}`, accessToken)))
-			}
+			// Request with the correct token
 			if hdr == "Bearer "+accessToken {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-
+			// Request with the basic flow
+			if strings.HasPrefix(hdr, "Basic ") {
+				if hdr != "Basic "+basicAuth {
+					t.Errorf("want %s got %s", basicAuth, strings.TrimPrefix(hdr, "Basic "))
+				}
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(fmt.Sprintf(`{"access_token": %q}`, accessToken)))
+			}
+			// Request with the oauth flow
+			if r.Method == http.MethodPost {
+				w.WriteHeader(http.StatusNotFound)
+			}
+			// Initial ping request
 			w.Header().Set("WWW-Authenticate", "scope=foo")
 			w.WriteHeader(http.StatusUnauthorized)
 		}))
