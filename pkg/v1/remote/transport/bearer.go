@@ -242,14 +242,16 @@ func (bt *bearerTransport) Refresh(ctx context.Context, auth *authn.AuthConfig) 
 	// have a status code that signals that the auth method is not supported.
 	for _, refreshFn := range []func(context.Context) ([]byte, error){first, second} {
 		content, err = refreshFn(ctx)
-		if terr, ok := err.(*Error); ok {
-			switch terr.StatusCode {
-			case http.StatusNotFound, http.StatusMethodNotAllowed:
-				continue
-			default:
-				return nil, err
+		if err != nil {
+			if terr, ok := err.(*Error); ok {
+				switch terr.StatusCode {
+				case http.StatusNotFound, http.StatusMethodNotAllowed:
+					continue
+				}
 			}
+			return nil, err
 		}
+		break
 	}
 	if err != nil {
 		return nil, err
