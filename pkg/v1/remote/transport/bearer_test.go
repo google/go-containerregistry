@@ -144,7 +144,7 @@ func TestBearerTransport(t *testing.T) {
 	}
 }
 
-func TestBearerTransportTokenRefresh(t *testing.T) {
+func TestBearerTransportBasicRefresh(t *testing.T) {
 	initialToken := "foo"
 	refreshedToken := "bar"
 
@@ -173,7 +173,6 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 		t.Fatalf("Unexpected error during NewRegistry: %v", err)
 	}
 
-	// Pass Username/Password
 	transport := &bearerTransport{
 		inner:    http.DefaultTransport,
 		bearer:   authn.AuthConfig{RegistryToken: initialToken},
@@ -195,13 +194,66 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	if got, want := transport.bearer.RegistryToken, refreshedToken; got != want {
 		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
 	}
+}
 
-	// Pass RegistryToken directly
-	transport.bearer = authn.AuthConfig{RegistryToken: initialToken}
-	transport.basic = &authn.Bearer{Token: refreshedToken}
-	client = http.Client{Transport: transport}
+func TestBearerTransportBasic404Fallback(t *testing.T) {
+	initialToken := "initial-token"
+	refreshedToken := "refreshed-token"
+	username := "foo"
+	password := "bar"
 
-	res, err = client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hdr := r.Header.Get("Authorization")
+			if hdr == "Bearer "+refreshedToken {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			if strings.HasPrefix(hdr, "Basic ") {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+
+			if r.Method == http.MethodPost {
+				if err := r.ParseForm(); err != nil {
+					t.Fatal(err)
+				}
+				if u := r.FormValue("username"); u != username {
+					t.Errorf("want %s got %s", username, u)
+				}
+				if p := r.FormValue("password"); p != password {
+					t.Errorf("want %s got %s", password, p)
+				}
+				w.WriteHeader(http.StatusOK)
+				w.Write([]byte(fmt.Sprintf(`{"access_token": %q}`, refreshedToken)))
+				return
+			}
+
+			w.Header().Set("WWW-Authenticate", "scope=foo")
+			w.WriteHeader(http.StatusUnauthorized)
+		}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Fatalf("Unexpected error during NewRegistry: %v", err)
+	}
+
+	transport := &bearerTransport{
+		inner:    http.DefaultTransport,
+		bearer:   authn.AuthConfig{RegistryToken: initialToken},
+		basic:    &authn.Basic{Username: username, Password: password},
+		registry: registry,
+		realm:    server.URL,
+		scheme:   "http",
+	}
+	client := http.Client{Transport: transport}
+
+	res, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
 	if err != nil {
 		t.Errorf("Unexpected error during client.Get: %v", err)
 		return
@@ -214,7 +266,57 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 	}
 }
 
-func TestBearerTransportOauthRefresh(t *testing.T) {
+func TestBearerTransportRegistryTokenRefresh(t *testing.T) {
+	initialToken := "foo"
+	refreshedToken := "bar"
+
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hdr := r.Header.Get("Authorization")
+			if hdr == "Bearer "+refreshedToken {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			w.Header().Set("WWW-Authenticate", "scope=foo")
+			w.WriteHeader(http.StatusUnauthorized)
+		}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Fatalf("Unexpected error during NewRegistry: %v", err)
+	}
+
+	// Pass RegistryToken directly
+	transport := &bearerTransport{
+		inner:    http.DefaultTransport,
+		bearer:   authn.AuthConfig{RegistryToken: initialToken},
+		basic:    &authn.Bearer{Token: refreshedToken},
+		registry: registry,
+		realm:    server.URL,
+		scheme:   "http",
+	}
+	client := http.Client{Transport: transport}
+
+	res, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
+	if err != nil {
+		t.Errorf("Unexpected error during client.Get: %v", err)
+		return
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
+	}
+	if got, want := transport.bearer.RegistryToken, refreshedToken; got != want {
+		t.Errorf("Expected Bearer token to be refreshed, got %v, want %v", got, want)
+	}
+}
+
+func TestBearerTransportIdentityTokenRefresh(t *testing.T) {
 	initialToken := "foo"
 	accessToken := "bar"
 	refreshToken := "baz"
@@ -283,7 +385,7 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 	}
 }
 
-func TestBearerTransportOauth404Fallback(t *testing.T) {
+func TestBearerTransportIdentityToken404Fallback(t *testing.T) {
 	basicAuth := "basic_auth"
 	identityToken := "identity_token"
 	accessToken := "access_token"
