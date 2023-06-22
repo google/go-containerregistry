@@ -315,6 +315,8 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 		"from":  []string{"baz/bar"},
 	}.Encode()
 
+	first := true
+
 	w, closer, err := setupWriter(expectedRepo, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			t.Errorf("Method; got %v, want %v", r.Method, http.MethodPost)
@@ -322,9 +324,17 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 		if r.URL.Path != expectedPath {
 			t.Errorf("URL; got %v, want %v", r.URL.Path, expectedPath)
 		}
-		if r.URL.RawQuery != expectedQuery {
-			t.Errorf("RawQuery; got %v, want %v", r.URL.RawQuery, expectedQuery)
+		if first {
+			if r.URL.RawQuery != expectedQuery {
+				t.Errorf("RawQuery; got %v, want %v", r.URL.RawQuery, expectedQuery)
+			}
+			first = false
+		} else {
+			if r.URL.RawQuery != "" {
+				t.Errorf("RawQuery; got %v, want %v", r.URL.RawQuery, "")
+			}
 		}
+
 		http.Error(w, "Unknown", http.StatusNoContent)
 	}))
 	if err != nil {
