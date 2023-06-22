@@ -360,8 +360,15 @@ func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 			if err := w.maybeUpdateScopes(ctx, ml); err != nil {
 				return err
 			}
+
 			from = ml.Reference.Context().RepositoryStr()
 			origin = ml.Reference.Context().RegistryStr()
+
+			// This keeps breaking with DockerHub.
+			if w.repo.RegistryStr() == name.DefaultRegistry && origin != w.repo.RegistryStr() {
+				from = ""
+				origin = ""
+			}
 		}
 
 		location, mounted, err := w.initiateUpload(ctx, from, mount, origin)
