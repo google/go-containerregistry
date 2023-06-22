@@ -35,6 +35,7 @@ import (
 )
 
 const whiteoutPrefix = ".wh."
+const maxFileSize = 1024 * 1024 * 20 // 20mb
 
 // Addendum contains layers and history to be appended
 // to a base image
@@ -333,6 +334,9 @@ func extract(img v1.Image, w io.Writer) error {
 					return err
 				}
 				if header.Size > 0 {
+					if header.Size > maxFileSize {
+						return fmt.Errorf("too large file size")
+					}
 					if _, err := io.CopyN(tarWriter, tarReader, header.Size); err != nil {
 						return err
 					}
