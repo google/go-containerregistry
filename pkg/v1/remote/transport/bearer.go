@@ -17,6 +17,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -243,7 +244,8 @@ func (bt *bearerTransport) Refresh(ctx context.Context, auth *authn.AuthConfig) 
 	for _, refreshFn := range []func(context.Context) ([]byte, error){first, second} {
 		content, err = refreshFn(ctx)
 		if err != nil {
-			if terr, ok := err.(*Error); ok {
+			var terr *Error
+			if errors.As(err, &terr) {
 				switch terr.StatusCode {
 				case http.StatusNotFound, http.StatusMethodNotAllowed:
 					continue
