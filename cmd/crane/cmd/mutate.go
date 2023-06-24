@@ -48,13 +48,44 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			// Pull image and get config.
 			ref := args[0]
 
-			if len(annotations) != 0 {
-				desc, err := crane.Head(ref, *options...)
-				if err != nil {
-					return err
-				}
-				if desc.MediaType.IsIndex() {
-					return errors.New("mutating annotations on an index is not yet supported")
+			desc, err := crane.Get(ref, *options...)
+			if err != nil {
+				return fmt.Errorf("pulling %s: %w", ref, err)
+			}
+			if desc.MediaType.IsIndex() {
+				if len(annotations) != 0 {
+					// Special case mutating annotations on an index, otherwise we pull by platform.
+					if err := validateKeyVals(annotations); err != nil {
+						return err
+					}
+					idx, err := desc.ImageIndex()
+					if err != nil {
+						return err
+					}
+					idx = mutate.Annotations(idx, annotations).(v1.ImageIndex)
+
+					if newRepo != "" {
+						newRef = newRepo
+					} else if newRef == "" {
+						newRef = ref
+					}
+					digest, err := idx.Digest()
+					if err != nil {
+						return err
+					}
+
+					r, err := name.ParseReference(newRef)
+					if err != nil {
+						return fmt.Errorf("parsing %s: %w", newRef, err)
+					}
+					if _, ok := r.(name.Digest); ok || newRepo != "" {
+						newRef = r.Context().Digest(digest.String()).String()
+					}
+					if err := crane.Put(idx, newRef, *options...); err != nil {
+						return fmt.Errorf("pushing %s: %w", newRef, err)
+					}
+					fmt.Fprintln(c.OutOrStdout(), r.Context().Digest(digest.String()))
+					return nil
 				}
 			}
 
@@ -62,9 +93,9 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				return errors.New("repository can't be set when a tag is specified")
 			}
 
-			img, err := crane.Pull(ref, *options...)
+			img, err := desc.Image()
 			if err != nil {
-				return fmt.Errorf("pulling %s: %w", ref, err)
+				return err
 			}
 			if len(newLayers) != 0 {
 				img, err = crane.Append(img, newLayers...)

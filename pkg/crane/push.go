@@ -43,6 +43,16 @@ func LoadTag(path, tag string, opt ...Option) (v1.Image, error) {
 	return tarball.ImageFromPath(path, &t)
 }
 
+// Put writes the remote.Taggable to a registry as dst.
+func Put(put remote.Taggable, dst string, opt ...Option) error {
+	o := makeOptions(opt...)
+	ref, err := name.ParseReference(dst, o.Name...)
+	if err != nil {
+		return fmt.Errorf("parsing reference %q: %w", dst, err)
+	}
+	return remote.Put(ref, put, o.Remote...)
+}
+
 // Push pushes the v1.Image img to a registry as dst.
 func Push(img v1.Image, dst string, opt ...Option) error {
 	o := makeOptions(opt...)
