@@ -54,7 +54,7 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 			if port == "" {
 				port = "0"
 			}
-			listener, err := net.Listen("tcp", "localhost:"+port)
+			listener, err := net.Listen("tcp", ":"+port)
 			if err != nil {
 				log.Fatalln(err)
 			}
