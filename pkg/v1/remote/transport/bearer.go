@@ -155,6 +155,14 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		// close out old response, since we will not return it.
 		res.Body.Close()
 
+		if wac := pickFromMultipleChallenges(challenges); strings.ToLower(wac.Scheme) == "basic" {
+			// In some cases, a registry may respond to a bearer token with a basic challenge.
+			// Use the underlying basic authenticator directly.
+			basic := &basicTransport{inner: bt.inner, auth: bt.basic, target: bt.registry.RegistryStr()}
+			return basic.RoundTrip(in)
+		}
+
+		// TODO(#1744) This scope set grows unbounded. Should we refresh/persist a token per scope-set?
 		newScopes := []string{}
 		for _, wac := range challenges {
 			// TODO(jonjohnsonjr): Should we also update "realm" or "service"?

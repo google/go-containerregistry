@@ -16,6 +16,7 @@ package transport
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -555,6 +556,77 @@ func TestInsufficientScope(t *testing.T) {
 		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
 	}
 
+	if !passed {
+		t.Error("didn't refresh insufficient scope")
+	}
+}
+
+func TestBasicChallengeFromBearerToken(t *testing.T) {
+	basic := &authn.Basic{Username: "foo", Password: "bar"}
+	basicEncoded := base64.StdEncoding.EncodeToString([]byte(basic.Username + ":" + basic.Password))
+	refreshedToken := "securetoken"
+	blobPath := "/v2/foo/bar/blobs/blah"
+	var serverURL string
+	var passed bool
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hdr := r.Header.Get("Authorization")
+		switch r.URL.Path {
+		case blobPath:
+			if hdr == "Bearer "+refreshedToken {
+				w.Header().Set("WWW-Authenticate", "Basic realm=\"myService\"")
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if hdr == "Basic "+basicEncoded {
+				w.WriteHeader(http.StatusOK)
+				passed = true
+				return
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+		case "/service/token":
+			if hdr == "Bearer "+refreshedToken {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			if strings.HasPrefix(hdr, "Basic ") {
+				w.Write([]byte(fmt.Sprintf(`{"token": %q}`, refreshedToken)))
+			}
+		default:
+			if hdr == "Bearer "+refreshedToken {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			realm := fmt.Sprintf("%s/service/token", serverURL)
+			w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer realm=\"%s\",service=myService,scope=foo", realm))
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	}))
+	serverURL = server.URL
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Errorf("Unexpected error during NewRegistry: %v", err)
+	}
+
+	transport, err := NewWithContext(context.Background(), registry, basic, http.DefaultTransport, []string{"myscope"})
+	if err != nil {
+		t.Errorf("Unexpected error during NewWithContext: %v", err)
+	}
+	client := http.Client{Transport: transport}
+
+	res, err := client.Get(serverURL + blobPath)
+	if err != nil {
+		t.Fatalf("Unexpected error during client.Get: %v", err)
+	}
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
+	}
 	if !passed {
 		t.Error("didn't refresh insufficient scope")
 	}
