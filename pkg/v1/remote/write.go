@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -593,7 +594,7 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 
 		// If the manifest referred to a subject, we may need to update the fallback tag manifest.
 		// TODO: If this fails, we'll retry the whole upload. We should retry just this part.
-		if mf.Subject != nil {
+		if mf.Subject != nil && os.Getenv("GGCR_REF_FALLBACK") != "" {
 			h, size, err := v1.SHA256(bytes.NewReader(raw))
 			if err != nil {
 				return err
