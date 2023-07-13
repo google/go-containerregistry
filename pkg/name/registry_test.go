@@ -250,3 +250,17 @@ func TestRegistryInsecureScheme(t *testing.T) {
 		t.Errorf("scheme(%v); got %v, want http", reg, got)
 	}
 }
+
+func TestRegistryForceSecureScheme(t *testing.T) {
+	t.Parallel()
+	domain := "domain.local"
+
+	reg, err := NewRegistry(domain, WeakValidation, ForceSecure)
+	if err != nil {
+		t.Errorf("NewRegistry(%s) = %v", domain, err)
+	}
+
+	if got := reg.Scheme(); got != "https" {
+		t.Errorf("scheme(%v); got %v, want http", reg, got)
+	}
+}

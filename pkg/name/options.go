@@ -28,6 +28,7 @@ const (
 type options struct {
 	strict          bool // weak by default
 	insecure        bool // secure by default
+	forceSecure     bool
 	defaultRegistry string
 	defaultTag      string
 }
@@ -62,6 +63,11 @@ func WeakValidation(opts *options) {
 // Insecure is an Option that allows image references to be fetched without TLS.
 func Insecure(opts *options) {
 	opts.insecure = true
+}
+
+// ForceSecure is an Option that forces usage of HTTPS protocol.
+func ForceSecure(opts *options) {
+	opts.forceSecure = true
 }
 
 // OptionFn is a function that returns an option.
