@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 )
@@ -87,7 +88,7 @@ func validateConfig(img v1.Image) error {
 		errs = append(errs, fmt.Sprintf("mismatched config size: Manifest.Config.Size()=%d, len(RawConfigFile())=%d", want, got))
 	}
 
-	if diff := cmp.Diff(pcf, cf); diff != "" {
+	if diff := cmp.Diff(pcf, cf, cmpopts.EquateEmpty()); diff != "" {
 		errs = append(errs, fmt.Sprintf("mismatched config content: (-ParseConfigFile(RawConfigFile()) +ConfigFile()) %s", diff))
 	}
 
@@ -253,7 +254,7 @@ func validateManifest(img v1.Image) error {
 		errs = append(errs, fmt.Sprintf("mismatched manifest digest: Digest()=%s, SHA256(RawManifest())=%s", digest, hash))
 	}
 
-	if diff := cmp.Diff(pm, m); diff != "" {
+	if diff := cmp.Diff(pm, m, cmpopts.EquateEmpty()); diff != "" {
 		errs = append(errs, fmt.Sprintf("mismatched manifest content: (-ParseManifest(RawManifest()) +Manifest()) %s", diff))
 	}
 
