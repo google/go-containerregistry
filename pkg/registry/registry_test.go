@@ -446,6 +446,9 @@ func TestCalls(t *testing.T) {
 				"foo/manifests/image":           "foo",
 				"foo/manifests/points-to-image": "{\"subject\": {\"digest\": \"sha256:" + sha256String("foo") + "\"}}",
 			},
+			Header: map[string]string{
+				"Content-Type": "application/vnd.oci.image.index.v1+json",
+			},
 		},
 		{
 			Description: "fetch references, subject pointing elsewhere",
@@ -456,6 +459,9 @@ func TestCalls(t *testing.T) {
 				"foo/manifests/image":           "foo",
 				"foo/manifests/points-to-image": "{\"subject\": {\"digest\": \"sha256:" + sha256String("nonexistant") + "\"}}",
 			},
+			Header: map[string]string{
+				"Content-Type": "application/vnd.oci.image.index.v1+json",
+			},
 		},
 		{
 			Description: "fetch references, no results",
@@ -464,6 +470,9 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusOK,
 			Manifests: map[string]string{
 				"foo/manifests/image": "foo",
+			},
+			Header: map[string]string{
+				"Content-Type": "application/vnd.oci.image.index.v1+json",
 			},
 		},
 		{
