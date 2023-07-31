@@ -437,6 +437,7 @@ func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request)
 	}
 	msg, _ := json.Marshal(&im)
 	resp.Header().Set("Content-Length", fmt.Sprint(len(msg)))
+	resp.Header().Set("Content-Type", string(types.OCIImageIndex))
 	resp.WriteHeader(http.StatusOK)
 	io.Copy(resp, bytes.NewReader([]byte(msg)))
 	return nil
