@@ -3,6 +3,7 @@
 bazel*
 .idea
 *.iml
+dist/
 
 cmd/crane/crane
 cmd/gcrane/gcrane
