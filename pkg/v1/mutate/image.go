@@ -182,6 +182,9 @@ func (i *image) Layers() ([]v1.Layer, error) {
 			return nil, err
 		}
 		for _, add := range i.adds {
+			if add.Layer == nil {
+				continue
+			}
 			layers = append(layers, add.Layer)
 		}
 		return layers, nil
