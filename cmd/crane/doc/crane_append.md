@@ -20,6 +20,7 @@ crane append [flags]
 
 ```
   -b, --base string                  Name of base image to append to
+  -c  --compression                  Compression to use for new image layers. Gzip is the default, Zstd is also supported but only works for OCI base images.
   -h, --help                         help for append
   -f, --new_layer strings            Path to tarball to append to image
   -t, --new_tag string               Tag to apply to resulting image

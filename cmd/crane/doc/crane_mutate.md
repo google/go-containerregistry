@@ -11,6 +11,7 @@ crane mutate [flags]
 ```
   -a, --annotation stringToString   New annotations to add (default [])
       --append strings              Path to tarball to append to image
+  -c  --compression                 Compression to use for new image layers. Gzip is the default, Zstd is also supported but only works for OCI base images.
       --cmd strings                 New cmd to set
       --entrypoint strings          New entrypoint to set
   -e, --env keyToValue              New envvar to add

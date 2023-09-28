@@ -17,6 +17,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -33,6 +34,7 @@ func NewCmdAppend(options *[]crane.Option) *cobra.Command {
 	var baseRef, newTag, outFile string
 	var newLayers []string
 	var annotate, ociEmptyBase bool
+	var comp = compression.GZip
 
 	appendCmd := &cobra.Command{
 		Use:   "append",
@@ -63,7 +65,7 @@ container image.`,
 				}
 			}
 
-			img, err := crane.Append(base, newLayers...)
+			img, err := crane.AppendWithCompression(base, comp, newLayers...)
 			if err != nil {
 				return fmt.Errorf("appending %v: %w", newLayers, err)
 			}
@@ -111,6 +113,7 @@ container image.`,
 	appendCmd.Flags().StringVarP(&baseRef, "base", "b", "", "Name of base image to append to")
 	appendCmd.Flags().StringVarP(&newTag, "new_tag", "t", "", "Tag to apply to resulting image")
 	appendCmd.Flags().StringSliceVarP(&newLayers, "new_layer", "f", []string{}, "Path to tarball to append to image")
+	appendCmd.Flags().VarP(&comp, "compression", "c", "Compression to use for new layers")
 	appendCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
 	appendCmd.Flags().BoolVar(&annotate, "set-base-image-annotations", false, "If true, annotate the resulting image as being based on the base image")
 	appendCmd.Flags().BoolVar(&ociEmptyBase, "oci-empty-base", false, "If true, empty base image will have OCI media types instead of Docker")

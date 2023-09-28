@@ -15,8 +15,10 @@
 package crane_test
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -25,7 +27,7 @@ import (
 
 func TestAppendWithOCIBaseImage(t *testing.T) {
 	base := mutate.MediaType(empty.Image, types.OCIManifestSchema1)
-	img, err := crane.Append(base, "testdata/content.tar")
+	img, err := crane.AppendWithCompression(base, compression.GZip, "testdata/content.tar")
 
 	if err != nil {
 		t.Fatalf("crane.Append(): %v", err)
@@ -48,8 +50,33 @@ func TestAppendWithOCIBaseImage(t *testing.T) {
 	}
 }
 
+func TestAppendWithOCIBaseImageZstd(t *testing.T) {
+	base := mutate.MediaType(empty.Image, types.OCIManifestSchema1)
+	img, err := crane.AppendWithCompression(base, compression.ZStd, "testdata/content.tar")
+
+	if err != nil {
+		t.Fatalf("crane.Append(): %v", err)
+	}
+
+	layers, err := img.Layers()
+
+	if err != nil {
+		t.Fatalf("img.Layers(): %v", err)
+	}
+
+	mediaType, err := layers[0].MediaType()
+
+	if err != nil {
+		t.Fatalf("layers[0].MediaType(): %v", err)
+	}
+
+	if got, want := mediaType, types.OCILayerZStd; got != want {
+		t.Errorf("MediaType(): want %q, got %q", want, got)
+	}
+}
+
 func TestAppendWithDockerBaseImage(t *testing.T) {
-	img, err := crane.Append(empty.Image, "testdata/content.tar")
+	img, err := crane.AppendWithCompression(empty.Image, compression.GZip, "testdata/content.tar")
 
 	if err != nil {
 		t.Fatalf("crane.Append(): %v", err)
@@ -69,5 +96,17 @@ func TestAppendWithDockerBaseImage(t *testing.T) {
 
 	if got, want := mediaType, types.DockerLayer; got != want {
 		t.Errorf("MediaType(): want %q, got %q", want, got)
+	}
+}
+
+func TestAppendWithDockerBaseImageZstd(t *testing.T) {
+	img, err := crane.AppendWithCompression(empty.Image, compression.ZStd, "testdata/content.tar")
+
+	if img != nil {
+		t.Fatalf("Unexpected success")
+	}
+
+	if !errors.Is(err, compression.ErrZStdNonOci) {
+		t.Fatalf("Unexpected error: %v", err)
 	}
 }
