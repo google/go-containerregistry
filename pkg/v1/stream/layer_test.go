@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	ggzip "github.com/google/go-containerregistry/internal/gzip"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -103,6 +104,34 @@ func TestStreamVsBuffer(t *testing.T) {
 	} else if d.String() != l2WantDigest {
 		t.Errorf("stream Digest got %q, want %q", d.String(), l2WantDigest)
 	}
+
+	// Test with compressed input stream
+	l3 := NewCompressedLayer(ggzip.ReadCloser(newBlob()))
+	if c, err := l3.Compressed(); err != nil {
+		t.Errorf("Compressed: %v", err)
+	} else {
+		if _, err := io.Copy(io.Discard, c); err != nil {
+			t.Errorf("error reading Compressed: %v", err)
+		}
+		if err := c.Close(); err != nil {
+			t.Errorf("Close: %v", err)
+		}
+	}
+	if d, err := l3.Digest(); err != nil {
+		t.Errorf("Digest: %v", err)
+	} else if d.String() != wantDigest {
+		t.Errorf("stream Digest got %q, want %q", d.String(), wantDigest)
+	}
+	if d, err := l3.DiffID(); err != nil {
+		t.Errorf("DiffID: %v", err)
+	} else if d.String() != wantDiffID {
+		t.Errorf("stream DiffID got %q, want %q", d.String(), wantDiffID)
+	}
+	if s, err := l3.Size(); err != nil {
+		t.Errorf("Size: %v", err)
+	} else if s != wantSize {
+		t.Errorf("stream Size got %d, want %d", s, wantSize)
+	}
 }
 
 func TestLargeStream(t *testing.T) {
@@ -110,7 +139,7 @@ func TestLargeStream(t *testing.T) {
 	sl := NewLayer(io.NopCloser(io.LimitReader(rand.Reader, n)))
 	rc, err := sl.Compressed()
 	if err != nil {
-		t.Fatalf("Uncompressed: %v", err)
+		t.Fatalf("Compressed: %v", err)
 	}
 	if _, err := io.Copy(io.Discard, rc); err != nil {
 		t.Fatalf("Reading layer: %v", err)
@@ -130,6 +159,35 @@ func TestLargeStream(t *testing.T) {
 		t.Errorf("DiffID got %q, want anything else", (v1.Hash{}).String())
 	}
 	if size, err := sl.Size(); err != nil {
+		t.Errorf("Size: %v", err)
+	} else if size != wantSize {
+		t.Errorf("Size got %d, want %d", size, wantSize)
+	}
+
+	// Test with compressed input stream
+	cl := NewLayer(io.NopCloser(io.LimitReader(rand.Reader, n)))
+	cr, err := cl.Compressed()
+	if err != nil {
+		t.Fatalf("Uncompressed: %v", err)
+	}
+	if _, err := io.Copy(io.Discard, cr); err != nil {
+		t.Fatalf("Reading layer: %v", err)
+	}
+	if err := cr.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	if dig, err := cl.Digest(); err != nil {
+		t.Errorf("Digest: %v", err)
+	} else if dig.String() == (v1.Hash{}).String() {
+		t.Errorf("Digest got %q, want anything else", (v1.Hash{}).String())
+	}
+	if diffID, err := cl.DiffID(); err != nil {
+		t.Errorf("DiffID: %v", err)
+	} else if diffID.String() == (v1.Hash{}).String() {
+		t.Errorf("DiffID got %q, want anything else", (v1.Hash{}).String())
+	}
+	if size, err := cl.Size(); err != nil {
 		t.Errorf("Size: %v", err)
 	} else if size != wantSize {
 		t.Errorf("Size got %d, want %d", size, wantSize)
@@ -229,6 +287,18 @@ func TestCloseTextStreamBeforeConsume(t *testing.T) {
 
 	// Close stream layer before consuming
 	if err := rc.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	// Test compressed stream
+	l2 := NewCompressedLayer(ggzip.ReadCloser(io.NopCloser(strings.NewReader("hello"))))
+	rc2, err := l2.Compressed()
+	if err != nil {
+		t.Fatalf("Compressed: %v", err)
+	}
+
+	// Close stream layer before consuming
+	if err := rc2.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
 }

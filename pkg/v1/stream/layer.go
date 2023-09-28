@@ -42,7 +42,9 @@ var (
 
 // Layer is a streaming implementation of v1.Layer.
 type Layer struct {
-	blob        io.ReadCloser
+	// exactly one reader should be non-nil
+	uncompressed, compressed io.ReadCloser
+
 	consumed    bool
 	compression int
 
@@ -71,11 +73,27 @@ func WithMediaType(mt types.MediaType) LayerOption {
 	}
 }
 
-// NewLayer creates a Layer from an io.ReadCloser.
+// NewLayer creates a Layer from an io.ReadCloser containing uncompressed data.
 func NewLayer(rc io.ReadCloser, opts ...LayerOption) *Layer {
 	layer := &Layer{
-		blob:        rc,
-		compression: gzip.BestSpeed,
+		uncompressed: rc,
+		compression:  gzip.BestSpeed,
+		// We use DockerLayer for now as uncompressed layers
+		// are unimplemented
+		mediaType: types.DockerLayer,
+	}
+
+	for _, opt := range opts {
+		opt(layer)
+	}
+
+	return layer
+}
+
+// NewCompressedLayer creates a Layer from an io.ReadCloser containing already-compressed data.
+func NewCompressedLayer(rc io.ReadCloser, opts ...LayerOption) *Layer {
+	layer := &Layer{
+		compressed: rc,
 		// We use DockerLayer for now as uncompressed layers
 		// are unimplemented
 		mediaType: types.DockerLayer,
@@ -134,6 +152,9 @@ func (l *Layer) Compressed() (io.ReadCloser, error) {
 	defer l.mu.Unlock()
 	if l.consumed {
 		return nil, ErrConsumed
+	}
+	if l.compressed != nil {
+		return newUncompressedReader(l)
 	}
 	return newCompressedReader(l)
 }
@@ -211,7 +232,7 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 			//
 			// NOTE: net/http will call close on success, so if we've already
 			// closed the inner rc, it's not an error.
-			if err := l.blob.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			if err := l.uncompressed.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 				return err
 			}
 
@@ -223,7 +244,7 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 	go func() {
 		// Copy blob into the gzip writer, which also hashes and counts the
 		// size of the compressed output, and hasher of the raw contents.
-		_, copyErr := io.Copy(io.MultiWriter(h, zw), l.blob)
+		_, copyErr := io.Copy(io.MultiWriter(h, zw), l.uncompressed)
 
 		// Close the gzip writer once copying is done. If this is done in the
 		// Close method of compressedReader instead, then it can cause a panic
@@ -262,9 +283,98 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 	return cr, nil
 }
 
+// Read returns the uncompressed bytes.
 func (cr *compressedReader) Read(b []byte) (int, error) { return cr.pr.Read(b) }
 
 func (cr *compressedReader) Close() error { return cr.closer() }
+
+type uncompressedReader struct {
+	pr     io.Reader
+	closer func() error
+}
+
+func newUncompressedReader(l *Layer) (*uncompressedReader, error) {
+	// Collect digests of compressed and uncompressed stream and size of
+	// uncompressed stream.
+	h := crypto.SHA256.New()
+	zh := crypto.SHA256.New()
+	count := &countWriter{}
+
+	// io.TeeReader writes to the output stream via pipe, a hasher to
+	// capture compressed digest, and a countWriter to capture compressed
+	// size.
+	pr, pw := io.Pipe()
+
+	// Read compressed bytes through hash and counter to capture size and digest.
+	tr := io.TeeReader(l.compressed, io.MultiWriter(zh, count, pw))
+
+	doneDigesting := make(chan struct{})
+
+	ur := &uncompressedReader{
+		pr: tr,
+		closer: func() error {
+			// Immediately close pw without error. There are three ways to get
+			// here.
+			//
+			// 1. There was a copy error due from the underlying reader, in which
+			//    case the error will not be overwritten.
+			// 2. Copying from the underlying reader completed successfully.
+			// 3. Close has been called before the underlying reader has been
+			//    fully consumed. In this case pw must be closed in order to
+			//    keep the flush of bw from blocking indefinitely.
+			//
+			// NOTE: pw.Close never returns an error. The signature is only to
+			// implement io.Closer.
+			_ = pw.Close()
+
+			// Close the inner ReadCloser.
+			//
+			// NOTE: net/http will call close on success, so if we've already
+			// closed the inner rc, it's not an error.
+			if err := l.compressed.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+				return err
+			}
+
+			// Finalize layer with its digest and size values.
+			<-doneDigesting
+			return l.finalize(h, zh, count.n)
+		},
+	}
+	go func() {
+		gr, err := gzip.NewReader(pr)
+		if err != nil {
+			close(doneDigesting)
+			_ = pr.CloseWithError(err)
+			return
+		}
+		// Write uncompressed bytes to hash to capture DiffID.
+		_, copyErr := io.Copy(h, gr)
+		// Close the gzip writer once copying is done.
+		closeErr := gr.Close()
+
+		// Check errors from writing and closing streams.
+		if copyErr != nil {
+			close(doneDigesting)
+			_ = pw.CloseWithError(copyErr)
+			return
+		}
+		if closeErr != nil {
+			close(doneDigesting)
+			_ = pw.CloseWithError(closeErr)
+			return
+		}
+
+		// Notify closer that digests are done being written.
+		close(doneDigesting)
+
+		_ = pr.CloseWithError(gr.Close())
+	}()
+	return ur, nil
+}
+
+func (ur *uncompressedReader) Read(b []byte) (int, error) { return ur.pr.Read(b) }
+
+func (ur *uncompressedReader) Close() error { return ur.closer() }
 
 // countWriter counts bytes written to it.
 type countWriter struct{ n int64 }
