@@ -36,15 +36,22 @@ type Reference interface {
 	Scope(string) string
 }
 
-// ParseReference parses the string as a reference, either by tag or digest.
 func ParseReference(s string, opts ...Option) (Reference, error) {
-	if t, err := NewTag(s, opts...); err == nil {
+	var tagErr, digestErr error
+
+	if t, tagErr := NewTag(s, opts...); tagErr == nil {
 		return t, nil
 	}
-	if d, err := NewDigest(s, opts...); err == nil {
+
+	if d, digestErr := NewDigest(s, opts...); digestErr == nil {
 		return d, nil
 	}
-	return nil, newErrBadName("could not parse reference: " + s)
+
+	errMsg := fmt.Sprintf(
+		"could not parse reference '%s' as tag or digest: tag error: %v, digest error: %v",
+		s, tagErr, digestErr,
+	)
+	return nil, newErrBadName(errMsg)
 }
 
 type stringConst string
