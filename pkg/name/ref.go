@@ -38,12 +38,13 @@ type Reference interface {
 
 func ParseReference(s string, opts ...Option) (Reference, error) {
 	var tagErr, digestErr error
+	var t, d Reference
 
-	if t, tagErr := NewTag(s, opts...); tagErr == nil {
+	if t, tagErr = NewTag(s, opts...); tagErr == nil {
 		return t, nil
 	}
 
-	if d, digestErr := NewDigest(s, opts...); digestErr == nil {
+	if d, digestErr = NewDigest(s, opts...); digestErr == nil {
 		return d, nil
 	}
 
