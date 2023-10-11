@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -36,6 +37,100 @@ import (
 var layoutFile = `{
     "imageLayoutVersion": "1.0.0"
 }`
+
+// GarbageCollect removes unreferenced blobs from the oci-layout
+func (l Path) GarbageCollect() error {
+	idx, err := l.ImageIndex()
+	if err != nil {
+		return err
+	}
+	blobsToKeep := map[string]bool{}
+	if err := l.garbageCollectImageIndex(idx, blobsToKeep); err != nil {
+		return err
+	}
+	blobsDir := l.path("blobs")
+
+	if err := filepath.WalkDir(blobsDir, func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+
+		rel, err := filepath.Rel(blobsDir, path)
+		if err != nil {
+			return err
+		}
+		if ok := blobsToKeep[rel]; !ok {
+			if err := os.Remove(path); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l Path) garbageCollectImageIndex(index v1.ImageIndex, blobsToKeep map[string]bool) error {
+	idxm, err := index.IndexManifest()
+	if err != nil {
+		return err
+	}
+	if h, err := index.Digest(); err != nil {
+		return err
+	} else {
+		blobsToKeep[fmt.Sprintf("%s/%s", h.Algorithm, h.Hex)] = true
+	}
+	for _, descriptor := range idxm.Manifests {
+		if descriptor.MediaType.IsImage() {
+			img, err := index.Image(descriptor.Digest)
+			if err != nil {
+				return err
+			}
+			if err := l.garbageCollectImage(img, blobsToKeep); err != nil {
+				return err
+			}
+		} else if descriptor.MediaType.IsIndex() {
+			idx, err := index.ImageIndex(descriptor.Digest)
+			if err != nil {
+				return err
+			}
+			if err := l.garbageCollectImageIndex(idx, blobsToKeep); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (l Path) garbageCollectImage(image v1.Image, blobsToKeep map[string]bool) error {
+
+	if h, err := image.Digest(); err != nil {
+		return err
+	} else {
+		blobsToKeep[fmt.Sprintf("%s/%s", h.Algorithm, h.Hex)] = true
+	}
+
+	if h, err := image.ConfigName(); err != nil {
+		return err
+	} else {
+		blobsToKeep[fmt.Sprintf("%s/%s", h.Algorithm, h.Hex)] = true
+	}
+
+	ls, err := image.Layers()
+	if err != nil {
+		return err
+	}
+	for _, l := range ls {
+		if h, err := l.Digest(); err != nil {
+			return err
+		} else {
+			blobsToKeep[fmt.Sprintf("%s/%s", h.Algorithm, h.Hex)] = true
+		}
+	}
+	return nil
+}
 
 // AppendImage writes a v1.Image to the Path and updates
 // the index.json to reference it.
