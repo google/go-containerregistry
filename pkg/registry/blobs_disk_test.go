@@ -15,6 +15,7 @@
 package registry_test
 
 import (
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -59,7 +60,7 @@ func TestDiskPush(t *testing.T) {
 	if h, err := img.ConfigName(); err != nil {
 		t.Fatal(err)
 	} else {
-		want[h.String()] = true
+		want[fmt.Sprintf("%s/%s", h.Algorithm, h.Hex)] = true
 	}
 	ls, err := img.Layers()
 	if err != nil {
@@ -69,7 +70,7 @@ func TestDiskPush(t *testing.T) {
 		if h, err := l.Digest(); err != nil {
 			t.Fatal(err)
 		} else {
-			want[h.String()] = true
+			want[fmt.Sprintf("%s/%s", h.Algorithm, h.Hex)] = true
 		}
 	}
 
