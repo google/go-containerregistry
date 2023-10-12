@@ -48,16 +48,6 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			// Pull image and get config.
 			ref := args[0]
 
-			if len(annotations) != 0 {
-				desc, err := crane.Head(ref, *options...)
-				if err != nil {
-					return err
-				}
-				if desc.MediaType.IsIndex() {
-					return errors.New("mutating annotations on an index is not yet supported")
-				}
-			}
-
 			if newRepo != "" && newRef != "" {
 				return errors.New("repository can't be set when a tag is specified")
 			}
