@@ -46,16 +46,18 @@ var Keychain = authn.NewMultiKeychain(google.Keychain, authn.DefaultKeychain)
 //
 // On error, we will wait for:
 // - 6 seconds (in case of very short term 429s from GCS), then
-// - 1 minute (in case of temporary network issues), then
-// - 10 minutes (to get around GCR 10 minute quotas), then fail.
+// - 30 seconds  (in case of very short term 429s from GCS), then
+// - 2.5 minutes (in case of temporary network issues), then
+// - 12.5 minutes (to get around GCR 10 minute quotas), then
+// - 1 hour (in case of longer term network issues), then fail.
 //
 // TODO: In theory, we could keep retrying until the next day to get around the 1M limit.
 func GCRBackoff() retry.Backoff {
 	return retry.Backoff{
 		Duration: 6 * time.Second,
-		Factor:   10.0,
+		Factor:   5.0,
 		Jitter:   0.1,
-		Steps:    3,
+		Steps:    6,
 		Cap:      1 * time.Hour,
 	}
 }
