@@ -39,6 +39,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var user string
 	var workdir string
 	var ports []string
+	var volumes []string
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
@@ -123,11 +124,12 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 
 			// Set ports
 			if len(ports) > 0 {
-				portMap := make(map[string]struct{})
-				for _, port := range ports {
-					portMap[port] = struct{}{}
-				}
-				cfg.Config.ExposedPorts = portMap
+				cfg.Config.ExposedPorts = stringsToKeyMap(ports)
+			}
+
+			// Set volumes
+			if len(volumes) > 0 {
+				cfg.Config.Volumes = stringsToKeyMap(volumes)
 			}
 
 			// Mutate and write image.
@@ -183,6 +185,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringVarP(&user, "user", "u", "", "New user to set")
 	mutateCmd.Flags().StringVarP(&workdir, "workdir", "w", "", "New working dir to set")
 	mutateCmd.Flags().StringSliceVar(&ports, "exposed-ports", nil, "New ports to expose")
+	mutateCmd.Flags().StringSliceVar(&volumes, "volumes", nil, "New volumes to declare")
 	return mutateCmd
 }
 
@@ -284,4 +287,12 @@ func (o *keyToValue) String() string {
 
 func (o *keyToValue) Map() map[string]string {
 	return o.mapped
+}
+
+func stringsToKeyMap(values []string) map[string]struct{} {
+	res := make(map[string]struct{})
+	for _, v := range values {
+		res[v] = struct{}{}
+	}
+	return res
 }
