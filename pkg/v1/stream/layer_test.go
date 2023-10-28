@@ -36,7 +36,10 @@ func TestStreamVsBuffer(t *testing.T) {
 	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
 
 	// Check that streaming some content results in the expected digest/diffID/size.
-	l := NewLayer(newBlob())
+	l, err := NewLayer(newBlob())
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	if c, err := l.Compressed(); err != nil {
 		t.Errorf("Compressed: %v", err)
 	} else {
@@ -86,7 +89,10 @@ func TestStreamVsBuffer(t *testing.T) {
 	}
 
 	// Test with different compression
-	l2 := NewLayer(newBlob(), WithCompressionLevel(2))
+	l2, err := NewLayer(newBlob(), WithCompressionLevel(2))
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	l2WantDigest := "sha256:c9afe7b0da6783232e463e12328cb306142548384accf3995806229c9a6a707f"
 	if c, err := l2.Compressed(); err != nil {
 		t.Errorf("Compressed: %v", err)
@@ -107,7 +113,10 @@ func TestStreamVsBuffer(t *testing.T) {
 
 func TestLargeStream(t *testing.T) {
 	var n, wantSize int64 = 10000000, 10000788 // "Compressing" n random bytes results in this many bytes.
-	sl := NewLayer(io.NopCloser(io.LimitReader(rand.Reader, n)))
+	sl, err := NewLayer(io.NopCloser(io.LimitReader(rand.Reader, n)))
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	rc, err := sl.Compressed()
 	if err != nil {
 		t.Fatalf("Uncompressed: %v", err)
@@ -161,7 +170,10 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 		}())
 	}()
 
-	l := NewLayer(pr)
+	l, err := NewLayer(pr)
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	rc, err := l.Compressed()
 	if err != nil {
 		t.Fatalf("Compressed: %v", err)
@@ -184,7 +196,10 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 // TestNotComputed tests that Digest/DiffID/Size return ErrNotComputed before
 // the stream has been consumed.
 func TestNotComputed(t *testing.T) {
-	l := NewLayer(io.NopCloser(bytes.NewBufferString("hi")))
+	l, err := NewLayer(io.NopCloser(bytes.NewBufferString("hi")))
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 
 	// All methods should return ErrNotComputed until the stream has been
 	// consumed and closed.
@@ -202,7 +217,10 @@ func TestNotComputed(t *testing.T) {
 // TestConsumed tests that Compressed returns ErrConsumed when the stream has
 // already been consumed.
 func TestConsumed(t *testing.T) {
-	l := NewLayer(io.NopCloser(strings.NewReader("hello")))
+	l, err := NewLayer(io.NopCloser(strings.NewReader("hello")))
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	rc, err := l.Compressed()
 	if err != nil {
 		t.Errorf("Compressed: %v", err)
@@ -221,7 +239,10 @@ func TestConsumed(t *testing.T) {
 
 func TestCloseTextStreamBeforeConsume(t *testing.T) {
 	// Create stream layer from tar pipe
-	l := NewLayer(io.NopCloser(strings.NewReader("hello")))
+	l, err := NewLayer(io.NopCloser(strings.NewReader("hello")))
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	rc, err := l.Compressed()
 	if err != nil {
 		t.Fatalf("Compressed: %v", err)
@@ -256,7 +277,10 @@ func TestCloseTarStreamBeforeConsume(t *testing.T) {
 	}()
 
 	// Create stream layer from tar pipe
-	l := NewLayer(pr)
+	l, err := NewLayer(pr)
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	rc, err := l.Compressed()
 	if err != nil {
 		t.Fatalf("Compressed: %v", err)
@@ -269,7 +293,10 @@ func TestCloseTarStreamBeforeConsume(t *testing.T) {
 }
 
 func TestMediaType(t *testing.T) {
-	l := NewLayer(io.NopCloser(strings.NewReader("hello")))
+	l, err := NewLayer(io.NopCloser(strings.NewReader("hello")))
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	mediaType, err := l.MediaType()
 
 	if err != nil {
@@ -282,7 +309,10 @@ func TestMediaType(t *testing.T) {
 }
 
 func TestMediaTypeOption(t *testing.T) {
-	l := NewLayer(io.NopCloser(strings.NewReader("hello")), WithMediaType(types.OCILayer))
+	l, err := NewLayer(io.NopCloser(strings.NewReader("hello")), WithOCIMediaType(true))
+	if err != nil {
+		t.Fatalf("NewLayer: %v", err)
+	}
 	mediaType, err := l.MediaType()
 
 	if err != nil {

@@ -26,6 +26,9 @@ import (
 	"os"
 	"sync"
 
+	internalcomp "github.com/google/go-containerregistry/internal/compression"
+	"github.com/google/go-containerregistry/internal/zstd"
+	"github.com/google/go-containerregistry/pkg/compression"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -42,14 +45,19 @@ var (
 
 // Layer is a streaming implementation of v1.Layer.
 type Layer struct {
-	blob        io.ReadCloser
-	consumed    bool
-	compression int
+	closer             io.Closer
+	uncompressedReader io.Reader
+
+	consumed bool
+
+	compression      compression.Compression
+	compressionLevel int
 
 	mu             sync.Mutex
 	digest, diffID *v1.Hash
 	size           int64
-	mediaType      types.MediaType
+
+	oci bool
 }
 
 var _ v1.Layer = (*Layer)(nil)
@@ -60,32 +68,54 @@ type LayerOption func(*Layer)
 // WithCompressionLevel sets the gzip compression. See `gzip.NewWriterLevel` for possible values.
 func WithCompressionLevel(level int) LayerOption {
 	return func(l *Layer) {
-		l.compression = level
+		l.compressionLevel = level
 	}
 }
 
-// WithMediaType is a functional option for overriding the layer's media type.
-func WithMediaType(mt types.MediaType) LayerOption {
+// WithOCIMediaType is a functional option for overriding the layer's media type.
+func WithOCIMediaType(oci bool) LayerOption {
 	return func(l *Layer) {
-		l.mediaType = mt
+		l.oci = oci
 	}
 }
 
 // NewLayer creates a Layer from an io.ReadCloser.
-func NewLayer(rc io.ReadCloser, opts ...LayerOption) *Layer {
+func NewLayer(rc io.ReadCloser, opts ...LayerOption) (*Layer, error) {
+	comp, peekReader, err := internalcomp.PeekCompression(rc)
+	if err != nil {
+		return nil, err
+	}
+
 	layer := &Layer{
-		blob:        rc,
-		compression: gzip.BestSpeed,
-		// We use DockerLayer for now as uncompressed layers
-		// are unimplemented
-		mediaType: types.DockerLayer,
+		closer:           rc,
+		compression:      comp,
+		compressionLevel: gzip.BestSpeed,
+	}
+
+	switch comp {
+	case compression.ZStd:
+		layer.compression = comp
+		layer.uncompressedReader, err = zstd.NewReader(peekReader)
+		if err != nil {
+			return nil, err
+		}
+	case compression.GZip:
+		layer.compression = comp
+		layer.uncompressedReader, err = gzip.NewReader(peekReader)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		// No support for uncompressed layers for now
+		layer.compression = compression.GZip
+		layer.uncompressedReader = peekReader
 	}
 
 	for _, opt := range opts {
 		opt(layer)
 	}
 
-	return layer
+	return layer, nil
 }
 
 // Digest implements v1.Layer.
@@ -120,7 +150,7 @@ func (l *Layer) Size() (int64, error) {
 
 // MediaType implements v1.Layer
 func (l *Layer) MediaType() (types.MediaType, error) {
-	return l.mediaType, nil
+	return l.compression.ToMediaType(l.oci)
 }
 
 // Uncompressed implements v1.Layer.
@@ -183,9 +213,27 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 	// Buffer the output of the gzip writer so we don't have to wait on pr to keep writing.
 	// 64K ought to be small enough for anybody.
 	bw := bufio.NewWriterSize(mw, 2<<16)
-	zw, err := gzip.NewWriterLevel(bw, l.compression)
-	if err != nil {
-		return nil, err
+
+	var compressedWriter io.Writer
+	var compressedCloser io.Closer
+
+	switch l.compression {
+	case compression.ZStd:
+		w, err := zstd.NewWriterLevel(bw, l.compressionLevel)
+		if err != nil {
+			return nil, err
+		}
+		compressedWriter = w
+		compressedCloser = w
+	case compression.GZip:
+		w, err := gzip.NewWriterLevel(bw, l.compressionLevel)
+		if err != nil {
+			return nil, err
+		}
+		compressedWriter = w
+		compressedCloser = w
+	case compression.None:
+		compressedWriter = bw
 	}
 
 	doneDigesting := make(chan struct{})
@@ -211,7 +259,7 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 			//
 			// NOTE: net/http will call close on success, so if we've already
 			// closed the inner rc, it's not an error.
-			if err := l.blob.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			if err := l.closer.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
 				return err
 			}
 
@@ -223,13 +271,16 @@ func newCompressedReader(l *Layer) (*compressedReader, error) {
 	go func() {
 		// Copy blob into the gzip writer, which also hashes and counts the
 		// size of the compressed output, and hasher of the raw contents.
-		_, copyErr := io.Copy(io.MultiWriter(h, zw), l.blob)
+		_, copyErr := io.Copy(io.MultiWriter(h, compressedWriter), l.uncompressedReader)
 
 		// Close the gzip writer once copying is done. If this is done in the
 		// Close method of compressedReader instead, then it can cause a panic
 		// when the compressedReader is closed before the blob is fully
 		// consumed and io.Copy in this goroutine is still blocking.
-		closeErr := zw.Close()
+		var closeErr error
+		if compressedCloser != nil {
+			closeErr = compressedCloser.Close()
+		}
 
 		// Check errors from writing and closing streams.
 		if copyErr != nil {

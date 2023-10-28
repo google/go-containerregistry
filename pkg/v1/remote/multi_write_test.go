@@ -50,7 +50,12 @@ func streamable(t *testing.T) v1.Layer {
 		t.Fatalf("Uncompressed(): %v", err)
 	}
 
-	return stream.NewLayer(rc)
+	l, err := stream.NewLayer(rc)
+	if err != nil {
+		t.Fatalf("stream.NewLayer: %v", err)
+	}
+
+	return l
 }
 
 type rawManifest struct {

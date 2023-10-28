@@ -228,7 +228,11 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 	}
 
 	// TODO: Make compression configurable?
-	layer := stream.NewLayer(mutate.Extract(old), stream.WithCompressionLevel(gzip.BestCompression))
+	layer, err := stream.NewLayer(mutate.Extract(old), stream.WithCompressionLevel(gzip.BestCompression))
+	if err != nil {
+		return nil, fmt.Errorf("new layer: %w", err)
+	}
+
 	if err := remote.WriteLayer(repo, layer, o.Remote...); err != nil {
 		return nil, fmt.Errorf("uploading layer: %w", err)
 	}
