@@ -345,9 +345,6 @@ func TestBackoff(t *testing.T) {
 	if d := backoff.Step(); d > 4000*time.Second {
 		t.Errorf("Duration too long: %v", d)
 	}
-	if d := backoff.Step(); d > 4000*time.Second {
-		t.Errorf("Duration too long: %v", d)
-	}
 	if s := backoff.Steps; s != 0 {
 		t.Errorf("backoff.Steps should be 0, got %d", s)
 	}

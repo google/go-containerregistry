@@ -89,7 +89,7 @@ func (b *Backoff) Step() time.Duration {
 		b.Duration = time.Duration(float64(b.Duration) * b.Factor)
 		if b.Cap > 0 && b.Duration > b.Cap {
 			b.Duration = b.Cap
-			b.Steps = 0
+			b.Steps = 1
 		}
 	}
 
