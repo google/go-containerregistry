@@ -17,7 +17,7 @@ package kubernetes
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net"
 	"net/url"
 	"path/filepath"
@@ -132,7 +132,6 @@ func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.K
 			}
 		}
 	}
-
 	return NewFromPullSecrets(ctx, pullSecrets)
 }
 
@@ -165,17 +164,22 @@ func NewFromPullSecrets(ctx context.Context, secrets []corev1.Secret) (authn.Key
 	}
 
 	var cfg dockerConfigJSON
+	// hasValid tracks if at least one of the given secrets provided is valid and contains at least
+	// one valid auth.
+	var hasValid bool
 
 	// From: https://github.com/kubernetes/kubernetes/blob/0dcafb1f37ee522be3c045753623138e5b907001/pkg/credentialprovider/keyring.go
 	for _, secret := range secrets {
 		if b, exists := secret.Data[corev1.DockerConfigJsonKey]; secret.Type == corev1.SecretTypeDockerConfigJson && exists && len(b) > 0 {
 			if err := json.Unmarshal(b, &cfg); err != nil {
-				return nil, err
+				logs.Warn.Printf("cannot decode secret %s/%s; ignoring", secret.Namespace, secret.Name)
+				continue
 			}
 		}
 		if b, exists := secret.Data[corev1.DockerConfigKey]; secret.Type == corev1.SecretTypeDockercfg && exists && len(b) > 0 {
 			if err := json.Unmarshal(b, &cfg.Auths); err != nil {
-				return nil, err
+				logs.Warn.Printf("cannot decode secret %s/%s; ignoring", secret.Namespace, secret.Name)
+				continue
 			}
 		}
 
@@ -186,9 +190,11 @@ func NewFromPullSecrets(ctx context.Context, secrets []corev1.Secret) (authn.Key
 			}
 			parsed, err := url.Parse(value)
 			if err != nil {
-				return nil, fmt.Errorf("Entry %q in dockercfg invalid (%w)", value, err)
+				logs.Warn.Printf("entry %q in dockercfg secret %s/%s invalid (%s); ignoring", secret.Namespace, secret.Name, value, err)
+				continue
 			}
 
+			hasValid = true
 			// The docker client allows exact matches:
 			//    foo.bar.com/namespace
 			// Or hostname matches:
@@ -218,6 +224,10 @@ func NewFromPullSecrets(ctx context.Context, secrets []corev1.Secret) (authn.Key
 		// when matching for creds
 		sort.Sort(sort.Reverse(sort.StringSlice(keyring.index)))
 	}
+	if !hasValid && len(secrets) > 0 {
+		return nil, errors.New("could not find a valid secret")
+	}
+
 	return keyring, nil
 }
 
