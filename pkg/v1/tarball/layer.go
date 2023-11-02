@@ -16,11 +16,12 @@ package tarball
 
 import (
 	"bytes"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"os"
 	"sync"
+
+	gzip "github.com/klauspost/pgzip"
 
 	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/internal/and"

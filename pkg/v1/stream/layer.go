@@ -17,7 +17,6 @@ package stream
 
 import (
 	"bufio"
-	"compress/gzip"
 	"crypto"
 	"encoding/hex"
 	"errors"
@@ -25,6 +24,8 @@ import (
 	"io"
 	"os"
 	"sync"
+
+	gzip "github.com/klauspost/pgzip"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"

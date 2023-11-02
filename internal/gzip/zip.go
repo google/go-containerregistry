@@ -18,8 +18,9 @@ package gzip
 import (
 	"bufio"
 	"bytes"
-	"compress/gzip"
 	"io"
+
+	gzip "github.com/klauspost/pgzip"
 
 	"github.com/google/go-containerregistry/internal/and"
 )

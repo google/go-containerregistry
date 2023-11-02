@@ -16,13 +16,14 @@ package validate
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"crypto"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
+
+	gzip "github.com/klauspost/pgzip"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"

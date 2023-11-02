@@ -15,10 +15,11 @@
 package cmd
 
 import (
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"log"
+
+	gzip "github.com/klauspost/pgzip"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
