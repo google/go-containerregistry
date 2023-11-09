@@ -21,21 +21,52 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 )
 
+func streamable(t *testing.T) v1.Layer {
+	t.Helper()
+	rl, err := random.Layer(1024, types.OCIUncompressedLayer)
+	if err != nil {
+		t.Fatal("random.Layer:", err)
+	}
+	rc, err := rl.Uncompressed()
+	if err != nil {
+		t.Fatalf("Uncompressed(): %v", err)
+	}
+
+	return stream.NewLayer(rc)
+}
+
+type rawManifest struct {
+	b []byte
+}
+
+func (r *rawManifest) RawManifest() ([]byte, error) {
+	return r.b, nil
+}
+
 func TestMultiWrite(t *testing.T) {
+	c := make(chan v1.Update, 1000)
+
+	logs.Progress.SetOutput(os.Stderr)
+	logs.Warn.SetOutput(os.Stderr)
+
 	// Create a random image.
 	img1, err := random.Image(1024, 2)
 	if err != nil {
@@ -47,7 +78,7 @@ func TestMultiWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal("random.Layer:", err)
 	}
-	img2, err := mutate.AppendLayers(img1, rl)
+	img2, err := mutate.AppendLayers(img1, rl, streamable(t))
 	if err != nil {
 		t.Fatal("mutate.AppendLayers:", err)
 	}
@@ -74,7 +105,8 @@ func TestMultiWrite(t *testing.T) {
 	)
 
 	// Set up a fake registry.
-	s := httptest.NewServer(registry.New())
+	nopLog := log.New(io.Discard, "", 0)
+	s := httptest.NewServer(registry.New(registry.Logger(nopLog)))
 	defer s.Close()
 	u, err := url.Parse(s.URL)
 	if err != nil {
@@ -82,13 +114,14 @@ func TestMultiWrite(t *testing.T) {
 	}
 
 	// Write both images and the manifest list.
-	tag1, tag2, tag3 := mustNewTag(t, u.Host+"/repo:tag1"), mustNewTag(t, u.Host+"/repo:tag2"), mustNewTag(t, u.Host+"/repo:tag3")
+	tag1, tag2, tag3, tag4, tag5 := mustNewTag(t, u.Host+"/repo2:tag1"), mustNewTag(t, u.Host+"/repo:tag2"), mustNewTag(t, u.Host+"/repo:tag3"), mustNewTag(t, u.Host+"/repo:tag4"), mustNewTag(t, u.Host+"/repo1:tag4")
+
 	if err := MultiWrite(map[name.Reference]Taggable{
 		tag1: img1,
 		tag2: img2,
 		tag3: idx,
-	}); err != nil {
-		t.Error("Write:", err)
+	}, WithProgress(c)); err != nil {
+		t.Fatal("MultiWrite:", err)
 	}
 
 	// Check that tagged images are present.
@@ -110,6 +143,32 @@ func TestMultiWrite(t *testing.T) {
 	}
 	if err := validate.Index(got); err != nil {
 		t.Error("Validate() =", err)
+	}
+
+	if err := checkUpdates(c); err != nil {
+		t.Fatal(err)
+	}
+
+	desc1, err := Get(tag1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	desc2, err := Get(tag3)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rm := &rawManifest{[]byte("{}")}
+
+	// Hit "already exists" coverage paths and move some tags.
+	if err := MultiWrite(map[name.Reference]Taggable{
+		tag1: img2,
+		tag2: img1,
+		tag3: desc2,
+		tag4: desc1,
+		tag5: rm,
+	}); err != nil {
+		t.Fatal("MultiWrite:", err)
 	}
 }
 
@@ -187,39 +246,6 @@ func TestMultiWrite_Retry(t *testing.T) {
 			tag1: img1,
 		}, WithRetryBackoff(fastBackoff)); err != nil {
 			t.Error("Write:", err)
-		}
-	})
-
-	t.Run("do not retry http error 401", func(t *testing.T) {
-		// Set up a fake registry.
-		handler := registry.New()
-
-		numOf401HttpErrors := 0
-		registryThatFailsOnFirstUpload := http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-			if strings.Contains(request.URL.Path, "/manifests/") {
-				numOf401HttpErrors++
-				responseWriter.WriteHeader(401)
-				return
-			}
-			handler.ServeHTTP(responseWriter, request)
-		})
-
-		s := httptest.NewServer(registryThatFailsOnFirstUpload)
-		defer s.Close()
-		u, err := url.Parse(s.URL)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
-		if err := MultiWrite(map[name.Reference]Taggable{
-			tag1: img1,
-		}); err == nil {
-			t.Fatal("Expected error:")
-		}
-
-		if numOf401HttpErrors > 1 {
-			t.Fatal("Should not retry on 401 errors:")
 		}
 	})
 

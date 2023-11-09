@@ -399,7 +399,7 @@ type fakeKeychain struct {
 	count int
 }
 
-func (k *fakeKeychain) Resolve(target Resource) (Authenticator, error) {
+func (k *fakeKeychain) Resolve(_ Resource) (Authenticator, error) {
 	k.count++
 	return k.auth, k.err
 }

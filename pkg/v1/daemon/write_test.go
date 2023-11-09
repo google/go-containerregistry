@@ -33,7 +33,7 @@ type errReader struct {
 	err error
 }
 
-func (r *errReader) Read(p []byte) (int, error) {
+func (r *errReader) Read(_ []byte) (int, error) {
 	return 0, r.err
 }
 
@@ -51,14 +51,14 @@ func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ bool) (types.
 	}, m.loadErr
 }
 
-func (m *MockClient) ImageTag(ctx context.Context, source, target string) error {
+func (m *MockClient) ImageTag(ctx context.Context, _, _ string) error {
 	if !m.negotiated {
 		return errors.New("you forgot to call NegotiateAPIVersion before calling ImageTag")
 	}
 	if m.wantCtx != nil && m.wantCtx != ctx {
 		return fmt.Errorf("ImageTag: wrong context")
 	}
-	return nil
+	return m.tagErr
 }
 
 func TestWriteImage(t *testing.T) {
@@ -70,22 +70,38 @@ func TestWriteImage(t *testing.T) {
 	}{{
 		name: "success",
 		client: &MockClient{
-			loadBody: io.NopCloser(strings.NewReader("Loaded")),
+			inspectErr: errors.New("nope"),
+			loadBody:   io.NopCloser(strings.NewReader("Loaded")),
 		},
 		wantResponse: "Loaded",
 	}, {
 		name: "load err",
 		client: &MockClient{
-			loadBody: io.NopCloser(strings.NewReader("Loaded")),
-			loadErr:  fmt.Errorf("locked and loaded"),
+			inspectErr: errors.New("nope"),
+			loadBody:   io.NopCloser(strings.NewReader("Loaded")),
+			loadErr:    fmt.Errorf("locked and loaded"),
 		},
 		wantErr: "locked and loaded",
 	}, {
 		name: "read err",
 		client: &MockClient{
-			loadBody: io.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
+			inspectErr: errors.New("nope"),
+			loadBody:   io.NopCloser(&errReader{fmt.Errorf("goodbye, world")}),
 		},
 		wantErr: "goodbye, world",
+	}, {
+		name: "skip load",
+		client: &MockClient{
+			tagErr: fmt.Errorf("called tag"),
+		},
+		wantErr: "called tag",
+	}, {
+		name: "skip tag",
+		client: &MockClient{
+			inspectResp: inspectResp,
+			tagErr:      fmt.Errorf("called tag"),
+		},
+		wantResponse: "",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
 			image, err := tarball.ImageFromPath("../tarball/testdata/test_image_1.tar", nil)
@@ -110,14 +126,6 @@ func TestWriteImage(t *testing.T) {
 			}
 			if !strings.Contains(response, tc.wantResponse) {
 				t.Errorf("Error loading image. Response: %s", response)
-			}
-
-			dst, err := name.NewTag("hello:world")
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := Tag(tag, dst, WithClient(tc.client)); err != nil {
-				t.Errorf("Error tagging image: %v", err)
 			}
 		})
 	}
@@ -146,8 +154,9 @@ func TestWriteDefaultClient(t *testing.T) {
 	ctx := context.TODO()
 	defaultClient = func() (Client, error) {
 		return &MockClient{
-			loadBody: io.NopCloser(strings.NewReader("Loaded")),
-			wantCtx:  ctx,
+			inspectErr: errors.New("nope"),
+			loadBody:   io.NopCloser(strings.NewReader("Loaded")),
+			wantCtx:    ctx,
 		}, nil
 	}
 	if err := Tag(tag, tag, WithContext(ctx)); err != nil {

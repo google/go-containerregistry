@@ -157,10 +157,7 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 					return err
 				}
 			}
-			if err := tw.Close(); err != nil {
-				return err
-			}
-			return nil
+			return tw.Close()
 		}())
 	}()
 

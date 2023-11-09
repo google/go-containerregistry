@@ -9,7 +9,10 @@ crane copy SRC DST [flags]
 ### Options
 
 ```
-  -h, --help   help for copy
+  -a, --all-tags     (Optional) if true, copy all tags from SRC to DST
+  -h, --help         help for copy
+  -j, --jobs int     (Optional) The maximum number of concurrent copies, defaults to GOMAXPROCS
+  -n, --no-clobber   (Optional) if true, avoid overwriting existing tags in DST
 ```
 
 ### Options inherited from parent commands

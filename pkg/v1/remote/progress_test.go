@@ -15,7 +15,6 @@
 package remote
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -437,15 +436,11 @@ func checkUpdates(updates <-chan v1.Update) error {
 			return u.Error
 		}
 
-		if u.Total == 0 {
-			return errors.New("saw zero total")
-		}
-
-		if total == 0 {
-			total = u.Total
-		} else if u.Total != total {
+		if u.Total < total {
 			return fmt.Errorf("total changed: was %d, saw %d", total, u.Total)
 		}
+
+		total = u.Total
 
 		if u.Complete < high {
 			return fmt.Errorf("saw progress revert: was high of %d, saw %d", high, u.Complete)

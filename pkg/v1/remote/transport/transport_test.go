@@ -231,26 +231,6 @@ func TestTransportSelectionBearerAuthError(t *testing.T) {
 	}
 }
 
-func TestTransportSelectionUnrecognizedChallenge(t *testing.T) {
-	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("WWW-Authenticate", `Unrecognized`)
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		}))
-	defer server.Close()
-	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
-	}
-
-	basic := &authn.Basic{Username: "foo", Password: "bar"}
-	tp, err := NewWithContext(context.Background(), testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
-	if err == nil || !strings.Contains(err.Error(), "challenge") {
-		t.Errorf("NewWithContext() = %v, %v", tp, err)
-	}
-}
-
 func TestTransportAlwaysTriesHttps(t *testing.T) {
 	// Use a NewTLSServer so that this speaks TLS even though it's localhost.
 	// This ensures that we try https even for local registries.

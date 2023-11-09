@@ -30,9 +30,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
+var fakeDigest = "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+
 func TestGetSchema1(t *testing.T) {
 	expectedRepo := "foo/bar"
-	fakeDigest := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -71,7 +72,7 @@ func TestGetSchema1(t *testing.T) {
 	want := `unsupported MediaType: "application/vnd.docker.distribution.manifest.v1+prettyjws", see https://github.com/google/go-containerregistry/issues/377`
 	// Should fail based on media type.
 	if _, err := desc.Image(); err != nil {
-		if errors.Is(err, &ErrSchema1{}) {
+		if !errors.Is(err, ErrSchema1) {
 			t.Errorf("Image() = %v, expected remote.ErrSchema1", err)
 		}
 		if diff := cmp.Diff(want, err.Error()); diff != "" {
@@ -83,8 +84,7 @@ func TestGetSchema1(t *testing.T) {
 
 	// Should fail based on media type.
 	if _, err := desc.ImageIndex(); err != nil {
-		var s1err ErrSchema1
-		if errors.Is(err, &s1err) {
+		if !errors.Is(err, ErrSchema1) {
 			t.Errorf("ImageImage() = %v, expected remote.ErrSchema1", err)
 		}
 	} else {
@@ -133,7 +133,6 @@ func TestGetImageAsIndex(t *testing.T) {
 func TestHeadSchema1(t *testing.T) {
 	expectedRepo := "foo/bar"
 	mediaType := types.DockerManifestSchema1Signed
-	fakeDigest := "sha256:0000000000000000000000000000000000000000000000000000000000000000"
 	response := []byte("doesn't matter")
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
 
@@ -202,7 +201,7 @@ func TestHead_MissingHeaders(t *testing.T) {
 			w.Header().Set("Content-Length", "10")
 		}
 		if !strings.Contains(r.URL.Path, missingDigest) {
-			w.Header().Set("Docker-Content-Digest", "sha256:0000000000000000000000000000000000000000000000000000000000000000")
+			w.Header().Set("Docker-Content-Digest", fakeDigest)
 		}
 	}))
 	defer server.Close()
@@ -225,13 +224,12 @@ func TestHead_MissingHeaders(t *testing.T) {
 func TestRedactFetchBlob(t *testing.T) {
 	ctx := context.Background()
 	f := fetcher{
-		Ref: mustNewTag(t, "original.com/repo:latest"),
-		Client: &http.Client{
+		target: mustNewTag(t, "original.com/repo:latest").Context(),
+		client: &http.Client{
 			Transport: errTransport{},
 		},
-		context: ctx,
 	}
-	h, err := v1.NewHash("sha256:0000000000000000000000000000000000000000000000000000000000000000")
+	h, err := v1.NewHash(fakeDigest)
 	if err != nil {
 		t.Fatal("NewHash:", err)
 	}

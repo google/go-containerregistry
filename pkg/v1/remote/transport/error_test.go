@@ -227,7 +227,7 @@ type errReadCloser struct {
 	err error
 }
 
-func (e *errReadCloser) Read(p []byte) (int, error) {
+func (e *errReadCloser) Read(_ []byte) (int, error) {
 	return 0, e.err
 }
 

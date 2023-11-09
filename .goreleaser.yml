@@ -25,6 +25,7 @@ builds:
     - arm64
     - 386
     - s390x
+    - ppc64le
   goos:
     - linux
     - darwin
@@ -51,6 +52,7 @@ builds:
     - arm64
     - 386
     - s390x
+    - ppc64le
   goos:
     - linux
     - darwin
@@ -78,6 +80,7 @@ builds:
     - arm64
     - 386
     - s390x
+    - ppc64le
   goos:
     - linux
     - darwin
