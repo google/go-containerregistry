@@ -30,8 +30,8 @@ import (
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	var (
-		cachePath, format  string
-		annotateRef, prune bool
+		cachePath, format string
+		annotateRef       bool
 	)
 
 	cmd := &cobra.Command{
@@ -124,13 +124,6 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 						return err
 					}
 				}
-
-				if prune {
-					if err := p.GarbageCollect(); err != nil {
-						return err
-					}
-				}
-
 			default:
 				return fmt.Errorf("unexpected --format: %q (valid values are: tarball, legacy, and oci)", format)
 			}
@@ -140,7 +133,6 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	cmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
 	cmd.Flags().StringVar(&format, "format", "tarball", fmt.Sprintf("Format in which to save images (%q, %q, or %q)", "tarball", "legacy", "oci"))
 	cmd.Flags().BoolVar(&annotateRef, "annotate-ref", false, "Preserves image reference used to pull as an annotation when used with --format=oci")
-	cmd.Flags().BoolVar(&prune, "prune", false, "Removes orphan blobs from the oci-layout after pull")
-	cmd.Flags().MarkHidden("prune")
+
 	return cmd
 }
