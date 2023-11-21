@@ -4,7 +4,7 @@ Serve an in-memory registry implementation
 
 ### Synopsis
 
-This sub-command serves an in-memory registry implementation on an automatically chosen port (or $PORT)
+This sub-command serves an in-memory registry implementation on an automatically chosen port (:0), $PORT or --address
 
 The command blocks while the server accepts pushes and pulls.
 
@@ -17,7 +17,8 @@ crane registry serve [flags]
 ### Options
 
 ```
-  -h, --help   help for serve
+      --address string   Address to listen on
+  -h, --help             help for serve
 ```
 
 ### Options inherited from parent commands
