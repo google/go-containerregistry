@@ -37,11 +37,11 @@ func newCmdRegistry() *cobra.Command {
 }
 
 func newCmdServe() *cobra.Command {
-	var disk bool
+	var address, disk string
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Serve an in-memory registry implementation",
-		Long: `This sub-command serves an in-memory registry implementation on an automatically chosen port (or $PORT)
+		Long: `This sub-command serves an in-memory registry implementation on an automatically chosen port (:0), $PORT or --address
 
 The command blocks while the server accepts pushes and pulls.
 
@@ -54,7 +54,12 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 			if port == "" {
 				port = "0"
 			}
-			listener, err := net.Listen("tcp", ":"+port)
+			listenOn := ":" + port
+			if address != "" {
+				listenOn = address
+			}
+
+			listener, err := net.Listen("tcp", listenOn)
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -62,12 +67,14 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 			port = fmt.Sprintf("%d", porti)
 
 			bh := registry.NewInMemoryBlobHandler()
-			if disk {
-				tmp := os.TempDir()
-				log.Printf("storing blobs in %s", tmp)
-				bh = registry.NewDiskBlobHandler(tmp)
+			if cmd.Flags().Changed("blobs-to-disk") {
+				path := os.TempDir()
+				if disk != "" && disk != " " {
+					path = disk
+				}
+				log.Printf("storing blobs in %s", path)
+				bh = registry.NewDiskBlobHandler(path)
 			}
-
 			s := &http.Server{
 				ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
 				Handler:           registry.New(registry.WithBlobHandler(bh)),
@@ -89,7 +96,11 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&disk, "blobs-to-disk", false, "Store blobs on disk")
+	cmd.Flags().StringVarP(&disk, "blobs-to-disk", "", "", "Store blobs on disk")
+	// allow --blobs-to-disk to work without a value
+	cmd.Flags().Lookup("blobs-to-disk").NoOptDefVal = " "
 	cmd.Flags().MarkHidden("blobs-to-disk")
+	cmd.Flags().StringVar(&address, "address", "", "Address to listen on")
+
 	return cmd
 }
