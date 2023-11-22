@@ -22,8 +22,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func NewCmdLayout() *cobra.Command {
+	cmd := &cobra.Command{
+		Use: "layout",
+	}
+	cmd.AddCommand(newCmdGc())
+	return cmd
+}
+
 // NewCmdGc creates a new cobra.Command for the pull subcommand.
-func NewCmdGc() *cobra.Command {
+func newCmdGc() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "gc OCI-LAYOUT",
 		Short:  "Garbage collect unreferenced blobs in a local oci-layout",
