@@ -38,14 +38,15 @@ func newCmdRegistry() *cobra.Command {
 
 func newCmdServe() *cobra.Command {
 	var address, disk string
+	var blobs_to_disk bool
 	cmd := &cobra.Command{
 		Use:   "serve",
-		Short: "Serve an in-memory registry implementation",
-		Long: `This sub-command serves an in-memory registry implementation on an automatically chosen port (:0), $PORT or --address
+		Short: "Serve a registry implementation",
+		Long: `This sub-command serves a registry implementation on an automatically chosen port (:0), $PORT or --address
 
 The command blocks while the server accepts pushes and pulls.
 
-Contents are only stored in memory, and when the process exits, pushed data is lost.`,
+Contents are can be stored in memory (when the process exits, pushed data is lost.), and disk (--disk).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
@@ -67,14 +68,23 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 			port = fmt.Sprintf("%d", porti)
 
 			bh := registry.NewInMemoryBlobHandler()
+
+			diskp := disk
 			if cmd.Flags().Changed("blobs-to-disk") {
-				path := os.TempDir()
-				if disk != "" && disk != " " {
-					path = disk
+				if disk != "" {
+					return fmt.Errorf("--disk and --blobs-to-disk can't be used together")
 				}
-				log.Printf("storing blobs in %s", path)
-				bh = registry.NewDiskBlobHandler(path)
+				diskp, err = os.MkdirTemp(os.TempDir(), "craneregistry*")
+				if err != nil {
+					return err
+				}
 			}
+
+			if diskp != "" {
+				log.Printf("storing blobs in %s", diskp)
+				bh = registry.NewDiskBlobHandler(diskp)
+			}
+
 			s := &http.Server{
 				ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
 				Handler:           registry.New(registry.WithBlobHandler(bh)),
@@ -96,10 +106,11 @@ Contents are only stored in memory, and when the process exits, pushed data is l
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&disk, "blobs-to-disk", "", "", "Store blobs on disk")
-	// allow --blobs-to-disk to work without a value
-	cmd.Flags().Lookup("blobs-to-disk").NoOptDefVal = " "
+	// TODO: remove --blobs-to-disk in a future release.
+	cmd.Flags().BoolVarP(&blobs_to_disk, "blobs-to-disk", "", false, "Store blobs on disk on tmpdir")
 	cmd.Flags().MarkHidden("blobs-to-disk")
+	cmd.Flags().MarkDeprecated("blobs-to-disk", "and will stop working in a future release. use --disk=$(mktemp -d) instead.")
+	cmd.Flags().StringVarP(&disk, "disk", "", "", "Path to a directory where blobs will be stored")
 	cmd.Flags().StringVar(&address, "address", "", "Address to listen on")
 
 	return cmd
