@@ -5,3 +5,4 @@
 **/zz_deepcopy_generated.go linguist-generated=true
 cmd/crane/doc/crane*.md linguist-generated=true
 go.sum linguist-generated=true
+**/testdata/** ignore-lint=true

@@ -28,7 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 )
 
-func newCmdRegistry() *cobra.Command {
+func NewCmdRegistry() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "registry",
 	}
