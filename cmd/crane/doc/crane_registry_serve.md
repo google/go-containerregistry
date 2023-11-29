@@ -1,14 +1,14 @@
 ## crane registry serve
 
-Serve an in-memory registry implementation
+Serve a registry implementation
 
 ### Synopsis
 
-This sub-command serves an in-memory registry implementation on an automatically chosen port (or $PORT)
+This sub-command serves a registry implementation on an automatically chosen port (:0), $PORT or --address
 
 The command blocks while the server accepts pushes and pulls.
 
-Contents are only stored in memory, and when the process exits, pushed data is lost.
+Contents are can be stored in memory (when the process exits, pushed data is lost.), and disk (--disk).
 
 ```
 crane registry serve [flags]
@@ -17,7 +17,9 @@ crane registry serve [flags]
 ### Options
 
 ```
-  -h, --help   help for serve
+      --address string   Address to listen on
+      --disk string      Path to a directory where blobs will be stored
+  -h, --help             help for serve
 ```
 
 ### Options inherited from parent commands
