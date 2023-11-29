@@ -20,5 +20,5 @@
 ### SEE ALSO
 
 * [crane](crane.md)	 - Crane is a tool for managing container images
-* [crane registry serve](crane_registry_serve.md)	 - Serve an in-memory registry implementation
+* [crane registry serve](crane_registry_serve.md)	 - Serve a registry implementation
 
