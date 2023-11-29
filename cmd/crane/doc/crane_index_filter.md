@@ -32,6 +32,8 @@ crane index filter [flags]
 ```
       --allow-nondistributable-artifacts   Allow pushing non-distributable (foreign) layers
       --insecure                           Allow image references to be fetched without TLS
+      --mtls-certificate string            Certificate path for mTLS
+      --mtls-key string                    Certificate key path for mTLS
   -v, --verbose                            Enable debug logs
 ```
 
