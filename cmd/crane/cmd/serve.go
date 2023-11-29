@@ -38,7 +38,7 @@ func newCmdRegistry() *cobra.Command {
 
 func newCmdServe() *cobra.Command {
 	var address, disk string
-	var blobs_to_disk bool
+	var blobsToDisk bool
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Serve a registry implementation",
@@ -107,7 +107,7 @@ Contents are can be stored in memory (when the process exits, pushed data is los
 		},
 	}
 	// TODO: remove --blobs-to-disk in a future release.
-	cmd.Flags().BoolVarP(&blobs_to_disk, "blobs-to-disk", "", false, "Store blobs on disk on tmpdir")
+	cmd.Flags().BoolVarP(&blobsToDisk, "blobs-to-disk", "", false, "Store blobs on disk on tmpdir")
 	cmd.Flags().MarkHidden("blobs-to-disk")
 	cmd.Flags().MarkDeprecated("blobs-to-disk", "and will stop working in a future release. use --disk=$(mktemp -d) instead.")
 	cmd.Flags().StringVarP(&disk, "disk", "", "", "Path to a directory where blobs will be stored")
