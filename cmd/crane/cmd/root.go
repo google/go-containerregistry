@@ -46,6 +46,8 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 	verbose := false
 	insecure := false
 	ndlayers := false
+	mTLSCertificatePath := ""
+	mTLSKeyPath := ""
 	platform := &platformValue{}
 
 	wt := &warnTransport{}
@@ -81,6 +83,14 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 			transport := remote.DefaultTransport.(*http.Transport).Clone()
 			transport.TLSClientConfig = &tls.Config{
 				InsecureSkipVerify: insecure, //nolint: gosec
+			}
+			if mTLSCertificatePath != "" && mTLSKeyPath != "" {
+				cert, err := tls.LoadX509KeyPair(mTLSCertificatePath, mTLSKeyPath)
+				if err != nil {
+					logs.Warn.Print("failed to load mTLS certificate")
+					return
+				}
+				transport.TLSClientConfig.Certificates = []tls.Certificate{cert}
 			}
 
 			var rt http.RoundTripper = transport
@@ -134,6 +144,8 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 
 	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
 	root.PersistentFlags().BoolVar(&insecure, "insecure", false, "Allow image references to be fetched without TLS")
+	root.PersistentFlags().StringVar(&mTLSCertificatePath, "mtls-certificate", "", "Certificate path for mTLS")
+	root.PersistentFlags().StringVar(&mTLSKeyPath, "mtls-key", "", "Certificate key path for mTLS")
 	root.PersistentFlags().BoolVar(&ndlayers, "allow-nondistributable-artifacts", false, "Allow pushing non-distributable (foreign) layers")
 	root.PersistentFlags().Var(platform, "platform", "Specifies the platform in the form os/arch[/variant][:osversion] (e.g. linux/amd64).")
 
