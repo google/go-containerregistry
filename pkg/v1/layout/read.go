@@ -21,9 +21,13 @@ import (
 
 // FromPath reads an OCI image layout at path and constructs a layout.Path.
 func FromPath(path string) (Path, error) {
-	// TODO: check oci-layout exists
 
-	_, err := os.Stat(filepath.Join(path, "index.json"))
+	_, err := os.Stat(filepath.Join(path, "oci-layout"))
+	if err != nil {
+		return "", err
+	}
+
+	_, err = os.Stat(filepath.Join(path, "index.json"))
 	if err != nil {
 		return "", err
 	}
