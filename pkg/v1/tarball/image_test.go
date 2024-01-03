@@ -24,28 +24,31 @@ import (
 )
 
 func TestManifestAndConfig(t *testing.T) {
-	img, err := ImageFromPath("testdata/test_image_1.tar", nil)
-	if err != nil {
-		t.Fatalf("Error loading image: %v", err)
-	}
-	manifest, err := img.Manifest()
-	if err != nil {
-		t.Fatalf("Error loading manifest: %v", err)
-	}
-	if len(manifest.Layers) != 1 {
-		t.Fatalf("layers should be 1, got %d", len(manifest.Layers))
-	}
+	imgList := []string{"testdata/test_image_1.tar", "testdata/test_image_1.tar.gz"}
+	for _, file := range imgList {
+		img, err := ImageFromPath(file, nil)
+		if err != nil {
+			t.Fatalf("Error loading image: %v", err)
+		}
+		manifest, err := img.Manifest()
+		if err != nil {
+			t.Fatalf("Error loading manifest: %v", err)
+		}
+		if len(manifest.Layers) != 1 {
+			t.Fatalf("layers should be 1, got %d", len(manifest.Layers))
+		}
 
-	config, err := img.ConfigFile()
-	if err != nil {
-		t.Fatalf("Error loading config file: %v", err)
-	}
-	if len(config.History) != 1 {
-		t.Fatalf("history length should be 1, got %d", len(config.History))
-	}
+		config, err := img.ConfigFile()
+		if err != nil {
+			t.Fatalf("Error loading config file: %v", err)
+		}
+		if len(config.History) != 1 {
+			t.Fatalf("history length should be 1, got %d", len(config.History))
+		}
 
-	if err := validate.Image(img); err != nil {
-		t.Errorf("Validate() = %v", err)
+		if err := validate.Image(img); err != nil {
+			t.Errorf("Validate() = %v", err)
+		}
 	}
 }
 
