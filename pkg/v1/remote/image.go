@@ -262,7 +262,7 @@ func (rl *remoteImageLayer) Descriptor() (*v1.Descriptor, error) {
 	return partial.BlobDescriptor(rl, rl.digest)
 }
 
-// See partial.Exists.
+// Exists See partial.Exists.
 func (rl *remoteImageLayer) Exists() (bool, error) {
 	return rl.ri.fetcher.blobExists(rl.ri.ctx, rl.digest)
 }
