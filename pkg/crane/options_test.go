@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"testing"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
@@ -54,5 +55,15 @@ func TestInsecureTransport(t *testing.T) {
 
 	if got := transport.TLSClientConfig.InsecureSkipVerify; got != want {
 		t.Errorf("got: %t\nwant: %t", got, want)
+	}
+}
+
+func TestWithProgress(t *testing.T) {
+	c := make(chan v1.Update, 100)
+
+	opts := GetOptions(WithProgress(c))
+
+	if len(opts.Remote) != 2 {
+		t.Errorf("expected 1 remote option, got %d", len(opts.Remote))
 	}
 }

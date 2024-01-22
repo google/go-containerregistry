@@ -109,6 +109,17 @@ func WithPlatform(platform *v1.Platform) Option {
 	}
 }
 
+// WithProgress is an option which takes a channel that will receive
+// progress updates as bytes are written.
+//
+// Sending updates to an unbuffered channel will block writes, so callers
+// should provide a buffered channel to avoid potential deadlocks.
+func WithProgress(updates chan<- v1.Update) Option {
+	return func(o *Options) {
+		o.Remote = append(o.Remote, remote.WithProgress(updates))
+	}
+}
+
 // WithAuthFromKeychain is a functional option for overriding the default
 // authenticator for remote operations, using an authn.Keychain to find
 // credentials.
