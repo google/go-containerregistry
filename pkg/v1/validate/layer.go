@@ -21,11 +21,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/google/go-containerregistry/internal/compression"
-	comp "github.com/google/go-containerregistry/pkg/compression"
 	"io"
 	"strings"
 
+	"github.com/google/go-containerregistry/internal/compression"
+	comp "github.com/google/go-containerregistry/pkg/compression"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 )
