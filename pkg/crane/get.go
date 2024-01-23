@@ -17,6 +17,7 @@ package crane
 import (
 	"fmt"
 
+	"github.com/google/go-containerregistry/pkg/crane/local"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -56,6 +57,9 @@ func Head(r string, opt ...Option) (*v1.Descriptor, error) {
 	ref, err := name.ParseReference(r, o.Name...)
 	if err != nil {
 		return nil, err
+	}
+	if o.local {
+		return local.Head(ref, o.Local...)
 	}
 	return remote.Head(ref, o.Remote...)
 }

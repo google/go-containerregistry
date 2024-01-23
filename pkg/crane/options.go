@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/crane/local"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -29,11 +30,13 @@ import (
 type Options struct {
 	Name      []name.Option
 	Remote    []remote.Option
+	Local     []local.Option
 	Platform  *v1.Platform
 	Keychain  authn.Keychain
 	Transport http.RoundTripper
 
 	auth      authn.Authenticator
+	local     bool
 	insecure  bool
 	jobs      int
 	noclobber bool
@@ -155,6 +158,14 @@ func WithContext(ctx context.Context) Option {
 	return func(o *Options) {
 		o.ctx = ctx
 		o.Remote = append(o.Remote, remote.WithContext(ctx))
+	}
+}
+
+// WithLocalPath is a functional option for setting the context.
+func WithLocalPath(path string) Option {
+	return func(o *Options) {
+		o.local = true
+		o.Local = []local.Option{local.WithPath(path)}
 	}
 }
 

@@ -17,6 +17,7 @@ package crane
 import (
 	"fmt"
 
+	"github.com/google/go-containerregistry/pkg/crane/local"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -50,7 +51,19 @@ func Push(img v1.Image, dst string, opt ...Option) error {
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %w", dst, err)
 	}
+	if o.local {
+		return local.Write(tag, img, o.Local...)
+	}
 	return remote.Write(tag, img, o.Remote...)
+}
+
+// Put puts the remote.Taggable to a registry as dst.
+func Put(t remote.Taggable, ref name.Reference, opt ...Option) error {
+	o := makeOptions(opt...)
+	if o.local {
+		return local.Put(ref, t, o.Local...)
+	}
+	return remote.Put(ref, t, o.Remote...)
 }
 
 // Upload pushes the v1.Layer to a given repo.
@@ -60,6 +73,8 @@ func Upload(layer v1.Layer, repo string, opt ...Option) error {
 	if err != nil {
 		return fmt.Errorf("parsing repo %q: %w", repo, err)
 	}
-
+	if o.local {
+		return local.WriteLayer(layer, o.Local...)
+	}
 	return remote.WriteLayer(ref, layer, o.Remote...)
 }

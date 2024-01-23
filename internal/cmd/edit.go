@@ -256,16 +256,11 @@ func editConfig(ctx context.Context, in io.Reader, out io.Writer, src, dst strin
 		return nil, err
 	}
 
-	pusher, err := remote.NewPusher(o.Remote...)
-	if err != nil {
+	if err := crane.Upload(l, dstRef.Context().String(), options...); err != nil {
 		return nil, err
 	}
 
-	if err := pusher.Upload(ctx, dstRef.Context(), l); err != nil {
-		return nil, err
-	}
-
-	if err := pusher.Push(ctx, dstRef, rm); err != nil {
+	if err := crane.Put(rm, dstRef, options...); err != nil {
 		return nil, err
 	}
 

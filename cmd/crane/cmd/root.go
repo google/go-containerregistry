@@ -47,6 +47,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 	insecure := false
 	ndlayers := false
 	platform := &platformValue{}
+	local := ""
 
 	wt := &warnTransport{}
 
@@ -68,6 +69,10 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 			if ndlayers {
 				options = append(options, crane.WithNondistributable())
 			}
+			if local != "" {
+				options = append(options, crane.WithLocalPath(local))
+			}
+
 			if Version != "" {
 				binary := "crane"
 				if len(os.Args[0]) != 0 {
@@ -137,7 +142,8 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 	root.PersistentFlags().BoolVar(&insecure, "insecure", false, "Allow image references to be fetched without TLS")
 	root.PersistentFlags().BoolVar(&ndlayers, "allow-nondistributable-artifacts", false, "Allow pushing non-distributable (foreign) layers")
 	root.PersistentFlags().Var(platform, "platform", "Specifies the platform in the form os/arch[/variant][:osversion] (e.g. linux/amd64).")
-
+	root.PersistentFlags().StringVar(&local, "local", "", "Use a local oci-layout as remote registry")
+	root.PersistentFlags().MarkHidden("local")
 	return root
 }
 
