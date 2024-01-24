@@ -17,8 +17,11 @@ package cmd
 import (
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
+
+const ociAnnotationImageRefName = "org.opencontainers.image.ref.name"
 
 type platformsValue struct {
 	platforms []v1.Platform
@@ -83,4 +86,12 @@ func parsePlatform(platform string) (*v1.Platform, error) {
 	}
 
 	return v1.ParsePlatform(platform)
+}
+
+func referenceMapToStringMap(m map[name.Reference]v1.Image) map[string]v1.Image {
+	out := make(map[string]v1.Image, len(m))
+	for k, v := range m {
+		out[k.String()] = v
+	}
+	return out
 }

@@ -70,6 +70,11 @@ func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
 	return Image(pathOpener(path), tag)
 }
 
+// ImageAllFromPath returns a v1.Image from a tarball located on path.
+func ImageAllFromPath(path string) ([]v1.Image, error) {
+	return ImageAll(pathOpener(path))
+}
+
 // LoadManifest load manifest
 func LoadManifest(opener Opener) (Manifest, error) {
 	m, err := extractFileFromTar(opener, "manifest.json")
@@ -84,6 +89,33 @@ func LoadManifest(opener Opener) (Manifest, error) {
 		return nil, err
 	}
 	return manifest, nil
+}
+
+// ImageAll exposes all images from the tarball at the provided path.
+func ImageAll(opener Opener) ([]v1.Image, error) {
+	parentImage := &image{
+		opener: opener,
+	}
+	if err := parentImage.loadManifest(); err != nil {
+		return nil, err
+	}
+	var images []v1.Image
+	for _, desc := range *parentImage.manifest {
+		for _, tagStr := range desc.RepoTags {
+			repoTag, err := name.NewTag(tagStr)
+			if err != nil {
+				return nil, err
+			}
+
+			// may extract manifest and cfg many times, but optimizing it will make breaking changes
+			img, err := Image(opener, &repoTag)
+			if err != nil {
+				return nil, err
+			}
+			images = append(images, img)
+		}
+	}
+	return images, nil
 }
 
 // Image exposes an image from the tarball at the provided path.
@@ -118,6 +150,10 @@ func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 
 func (i *image) MediaType() (types.MediaType, error) {
 	return types.DockerManifestSchema2, nil
+}
+
+func (i *image) RepoTags() []string {
+	return i.imgDescriptor.RepoTags
 }
 
 // Descriptor stores the manifest data for a single image inside a `docker save` tarball.
@@ -175,7 +211,7 @@ func (i *image) areLayersCompressed() (bool, error) {
 	return cp != compression.None, nil
 }
 
-func (i *image) loadTarDescriptorAndConfig() error {
+func (i *image) loadManifest() error {
 	m, err := extractFileFromTar(i.opener, "manifest.json")
 	if err != nil {
 		return err
@@ -188,6 +224,14 @@ func (i *image) loadTarDescriptorAndConfig() error {
 
 	if i.manifest == nil {
 		return errors.New("no valid manifest.json in tarball")
+	}
+	return nil
+}
+
+func (i *image) loadTarDescriptorAndConfig() error {
+	err := i.loadManifest()
+	if err != nil {
+		return err
 	}
 
 	i.imgDescriptor, err = i.manifest.findDescriptor(i.tag)

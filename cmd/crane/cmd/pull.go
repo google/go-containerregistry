@@ -101,7 +101,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 							return err
 						}
 						opts = append(opts, layout.WithAnnotations(map[string]string{
-							"org.opencontainers.image.ref.name": parsed.Name(),
+							ociAnnotationImageRefName: parsed.Name(),
 						}))
 					}
 					if err = p.AppendImage(img, opts...); err != nil {
@@ -117,7 +117,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 							return err
 						}
 						opts = append(opts, layout.WithAnnotations(map[string]string{
-							"org.opencontainers.image.ref.name": parsed.Name(),
+							ociAnnotationImageRefName: parsed.Name(),
 						}))
 					}
 					if err := p.AppendIndex(idx, opts...); err != nil {

@@ -221,3 +221,11 @@ func (i *uncompressedImageExtender) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 	}
 	return i.LayerByDiffID(diffID)
 }
+
+// RepoTags try get repo tags
+func (i *uncompressedImageExtender) RepoTags() []string {
+	if it, ok := i.UncompressedImageCore.(WithRepoTags); ok {
+		return it.RepoTags()
+	}
+	return nil
+}
