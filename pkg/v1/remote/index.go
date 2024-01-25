@@ -17,6 +17,7 @@ package remote
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -45,12 +46,14 @@ type remoteIndex struct {
 
 // Index provides access to a remote index reference.
 func Index(ref name.Reference, options ...Option) (v1.ImageIndex, error) {
-	desc, err := get(ref, acceptableIndexMediaTypes, options...)
+	desc, err := artifact(ref, acceptableIndexMediaTypes, options...)
 	if err != nil {
 		return nil, err
 	}
-
-	return desc.ImageIndex()
+	if idx, ok := desc.(v1.ImageIndex); ok {
+		return idx, nil
+	}
+	return nil, errors.New("is not a image index")
 }
 
 func (r *remoteIndex) MediaType() (types.MediaType, error) {

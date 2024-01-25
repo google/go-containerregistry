@@ -17,6 +17,7 @@ package remote
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -62,12 +63,14 @@ var _ partial.CompressedImageCore = (*remoteImage)(nil)
 
 // Image provides access to a remote image reference.
 func Image(ref name.Reference, options ...Option) (v1.Image, error) {
-	desc, err := Get(ref, options...)
+	desc, err := Artifact(ref, options...)
 	if err != nil {
 		return nil, err
 	}
-
-	return desc.Image()
+	if img, ok := desc.(v1.Image); ok {
+		return img, nil
+	}
+	return nil, errors.New("is not a image")
 }
 
 func (r *remoteImage) MediaType() (types.MediaType, error) {

@@ -49,25 +49,27 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 					return fmt.Errorf("parsing reference %q: %w", src, err)
 				}
 
-				rmt, err := remote.Get(ref, o.Remote...)
+				rmt, err := remote.Artifact(ref, o.Remote...)
 				if err != nil {
 					return err
 				}
 
 				// If we're writing an index to a layout and --platform hasn't been set,
 				// pull the entire index, not just a child image.
-				if format == "oci" && rmt.MediaType.IsIndex() && o.Platform == nil {
-					idx, err := rmt.ImageIndex()
-					if err != nil {
-						return err
-					}
+				if idx, ok := rmt.(v1.ImageIndex); ok && format == "oci" && o.Platform == nil {
 					indexMap[src] = idx
 					continue
 				}
 
-				img, err := rmt.Image()
+				mt, err := rmt.MediaType()
 				if err != nil {
 					return err
+				}
+
+				var img v1.Image
+				var ok bool
+				if img, ok = rmt.(v1.Image); !ok {
+					return fmt.Errorf("expected %s to be an index or image, got %q", src, mt)
 				}
 				if cachePath != "" {
 					img = cache.Image(img, cache.NewFilesystemCache(cachePath))

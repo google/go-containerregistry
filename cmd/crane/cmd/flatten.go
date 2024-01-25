@@ -91,26 +91,23 @@ func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 }
 
 func flatten(ref name.Reference, repo name.Repository, use string, o crane.Options) (partial.Describable, error) {
-	desc, err := remote.Get(ref, o.Remote...)
+	desc, err := remote.Artifact(ref, o.Remote...)
 	if err != nil {
 		return nil, fmt.Errorf("pulling %s: %w", ref, err)
 	}
 
-	if desc.MediaType.IsIndex() {
-		idx, err := desc.ImageIndex()
-		if err != nil {
-			return nil, err
-		}
+	if idx, ok := desc.(v1.ImageIndex); ok {
 		return flattenIndex(idx, repo, use, o)
-	} else if desc.MediaType.IsImage() {
-		img, err := desc.Image()
-		if err != nil {
-			return nil, err
-		}
+	} else if img, ok := desc.(v1.Image); ok {
 		return flattenImage(img, repo, use, o)
 	}
 
-	return nil, fmt.Errorf("can't flatten %s", desc.MediaType)
+	mt, err := desc.MediaType()
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, fmt.Errorf("can't flatten %s", mt)
 }
 
 func push(flat partial.Describable, ref name.Reference, o crane.Options) error {

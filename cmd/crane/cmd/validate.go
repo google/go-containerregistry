@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
 	"github.com/spf13/cobra"
@@ -52,7 +53,7 @@ func NewCmdValidate(options *[]crane.Option) *cobra.Command {
 			}
 
 			if remoteRef != "" {
-				rmt, err := crane.Get(remoteRef, *options...)
+				rmt, err := crane.Artifact(remoteRef, *options...)
 				if err != nil {
 					return fmt.Errorf("failed to read image %s: %w", remoteRef, err)
 				}
@@ -63,24 +64,27 @@ func NewCmdValidate(options *[]crane.Option) *cobra.Command {
 				if fast {
 					opt = append(opt, validate.Fast)
 				}
-				if rmt.MediaType.IsIndex() && o.Platform == nil {
-					idx, err := rmt.ImageIndex()
-					if err != nil {
-						return fmt.Errorf("reading index: %w", err)
-					}
+				var (
+					idx v1.ImageIndex
+					img v1.Image
+					ok  bool
+				)
+				if idx, ok = rmt.(v1.ImageIndex); ok && o.Platform == nil {
 					if err := validate.Index(idx, opt...); err != nil {
 						fmt.Fprintf(cmd.OutOrStdout(), "FAIL: %s: %v\n", remoteRef, err)
 						return err
 					}
-				} else {
-					img, err := rmt.Image()
-					if err != nil {
-						return fmt.Errorf("reading image: %w", err)
-					}
+				} else if img, ok = rmt.(v1.Image); ok {
 					if err := validate.Image(img, opt...); err != nil {
 						fmt.Fprintf(cmd.OutOrStdout(), "FAIL: %s: %v\n", remoteRef, err)
 						return err
 					}
+				} else {
+					mt, err := rmt.MediaType()
+					if err != nil {
+						return err
+					}
+					return fmt.Errorf("failed to validate ref %s: uknown media type %s", remoteRef, mt)
 				}
 				fmt.Fprintf(cmd.OutOrStdout(), "PASS: %s\n", remoteRef)
 			}

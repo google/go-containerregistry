@@ -14,26 +14,19 @@
 
 package crane
 
-import "github.com/google/go-containerregistry/pkg/logs"
+import (
+	"github.com/google/go-containerregistry/pkg/logs"
+)
 
 // Digest returns the sha256 hash of the remote image at ref.
 func Digest(ref string, opt ...Option) (string, error) {
 	o := makeOptions(opt...)
 	if o.Platform != nil {
-		desc, err := getManifest(ref, opt...)
+		desc, err := getArtifact(ref, opt...)
 		if err != nil {
 			return "", err
 		}
-		if !desc.MediaType.IsIndex() {
-			return desc.Digest.String(), nil
-		}
-
-		// TODO: does not work for indexes which contain schema v1 manifests
-		img, err := desc.Image()
-		if err != nil {
-			return "", err
-		}
-		digest, err := img.Digest()
+		digest, err := desc.Digest()
 		if err != nil {
 			return "", err
 		}
@@ -42,11 +35,15 @@ func Digest(ref string, opt ...Option) (string, error) {
 	desc, err := Head(ref, opt...)
 	if err != nil {
 		logs.Warn.Printf("HEAD request failed, falling back on GET: %v", err)
-		rdesc, err := getManifest(ref, opt...)
+		rdesc, err := getArtifact(ref, opt...)
 		if err != nil {
 			return "", err
 		}
-		return rdesc.Digest.String(), nil
+		hash, err := rdesc.Digest()
+		if err != nil {
+			return "", err
+		}
+		return hash.String(), nil
 	}
 	return desc.Digest.String(), nil
 }
