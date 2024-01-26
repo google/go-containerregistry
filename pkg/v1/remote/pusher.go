@@ -111,7 +111,6 @@ func NewPusher(options ...Option) (Pusher, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return newPusher(o), nil
 }
 
@@ -251,7 +250,7 @@ func taggableToManifest(t Taggable) (manifest, error) {
 			return d.Schema1()
 		}
 
-		return tagManifest{t, describable{d.toDesc()}}, nil
+		return tagManifest{t, describable{d.ToDescriptor()}}, nil
 	}
 
 	desc := v1.Descriptor{

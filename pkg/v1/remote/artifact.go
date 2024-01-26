@@ -20,9 +20,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-// Get returns a remote.Descriptor for the given reference. The response from
-// the registry is left un-interpreted, for the most part. This is useful for
-// querying what kind of artifact a reference represents.
+// Get returns a partial.Artifact for the given reference.
 //
 // See Head if you don't need the response body.
 func Artifact(ref name.Reference, options ...Option) (partial.Artifact, error) {
@@ -36,9 +34,10 @@ func Artifact(ref name.Reference, options ...Option) (partial.Artifact, error) {
 // Handle options and fetch the manifest with the acceptable MediaTypes in the
 // Accept header.
 func artifact(ref name.Reference, acceptable []types.MediaType, options ...Option) (partial.Artifact, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(append(options, WithAcceptableMediaTypes(acceptable))...)
 	if err != nil {
 		return nil, err
 	}
-	return newPuller(o).artifact(o.context, ref, acceptable, o.platform)
+
+	return newPuller(o).Artifact(o.context, ref)
 }

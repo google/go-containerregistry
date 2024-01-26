@@ -30,10 +30,12 @@ type Puller interface {
 	Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, error)
 	List(ctx context.Context, repo name.Repository) ([]string, error)
 	// Deprecated: Use Artifact instead.
-	// Get(ctx context.Context, ref name.Reference) (*Descriptor, error)
+	Get(ctx context.Context, ref name.Reference) (*Descriptor, error)
 	Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error)
 	Lister(ctx context.Context, repo name.Repository) (*Lister, error)
 	Catalogger(ctx context.Context, reg name.Registry) (*Catalogger, error)
+	Catalog(ctx context.Context, reg name.Registry) ([]string, error)
+	Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error)
 }
 
 type puller struct {
@@ -50,15 +52,13 @@ func NewPuller(options ...Option) (Puller, error) {
 	if err != nil {
 		return nil, err
 	}
-	if o.puller != nil {
-		return *o.puller, nil
-	}
-	return &puller{
-		o: o,
-	}, nil
+	return newPuller(o), nil
 }
 
-func newPuller(o *options) *puller {
+func newPuller(o *options) Puller {
+	if o.puller != nil {
+		return *o.puller
+	}
 	return &puller{
 		o: o,
 	}
@@ -105,12 +105,11 @@ func (p *puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, 
 }
 
 // Get is like remote.Get, but avoids re-authenticating when possible.
-// func (p *puller) Get(ctx context.Context, ref name.Reference) (*Descriptor, error) {
-// 	return p.get(ctx, ref, allManifestMediaTypes, p.o.platform)
-// }
+func (p *puller) Get(ctx context.Context, ref name.Reference) (*Descriptor, error) {
+	return p.get(ctx, ref, allManifestMediaTypes, p.o.platform)
+}
 
-// // Deprecated: Use Artifact instead.
-func (p *puller) getFail(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {
+func (p *puller) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {
 	f, err := p.fetcher(ctx, ref.Context())
 	if err != nil {
 		return nil, err
@@ -130,11 +129,11 @@ func (p *puller) getFail(ctx context.Context, ref name.Reference, acceptable []t
 }
 
 func (p *puller) Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error) {
-	return p.artifact(ctx, ref, allManifestMediaTypes, p.o.platform)
+	return p.artifact(ctx, ref, p.o.acceptableMediaTypes, p.o.platform)
 }
 
 func (p *puller) artifact(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (partial.Artifact, error) {
-	desc, err := p.getFail(ctx, ref, acceptable, platform)
+	desc, err := p.get(ctx, ref, acceptable, platform)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +144,7 @@ func (p *puller) artifact(ctx context.Context, ref name.Reference, acceptable []
 	} else if desc.MediaType.IsSchema1() {
 		return desc.Schema1()
 	}
-	return nil, errors.New("TODO")
+	return nil, errors.New("TODO: ???")
 }
 
 // Layer is like remote.Layer, but avoids re-authenticating when possible.
@@ -259,7 +258,7 @@ func (p *puller) catalogger(ctx context.Context, reg name.Registry, pageSize int
 	}, nil
 }
 
-func (p *puller) referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
+func (p *puller) Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
 	f, err := p.fetcher(ctx, d.Context())
 	if err != nil {
 		return nil, err

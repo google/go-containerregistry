@@ -37,7 +37,7 @@ func CatalogPage(target name.Registry, last string, n int, options ...Option) ([
 		return nil, err
 	}
 
-	f, err := newPuller(o).fetcher(o.context, target)
+	f, err := makeFetcher(o.context, target, o)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func Catalog(ctx context.Context, target name.Registry, options ...Option) ([]st
 		ctx = o.context
 	}
 
-	return newPuller(o).catalog(ctx, target, o.pageSize)
+	return newPuller(o).Catalog(ctx, target)
 }
 
 func (f *fetcher) catalogPage(ctx context.Context, reg name.Registry, next string, pageSize int) (*Catalogs, error) {

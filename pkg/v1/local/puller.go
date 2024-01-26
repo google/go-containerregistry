@@ -17,7 +17,7 @@ type puller struct {
 	path layout.Path
 }
 
-func NewLocalPuller(path layout.Path) remote.Puller {
+func NewPuller(path layout.Path) remote.Puller {
 	return &puller{
 		path,
 	}
@@ -101,5 +101,15 @@ func (*puller) Lister(ctx context.Context, repo name.Repository) (*remote.Lister
 
 // Catalogger implements remote.Puller.
 func (*puller) Catalogger(ctx context.Context, reg name.Registry) (*remote.Catalogger, error) {
+	return nil, errors.ErrUnsupported
+}
+
+// Catalog implements remote.Puller.
+func (*puller) Catalog(ctx context.Context, reg name.Registry) ([]string, error) {
+	return nil, errors.ErrUnsupported
+}
+
+// Referrers implements remote.Puller.
+func (*puller) Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
 	return nil, errors.ErrUnsupported
 }

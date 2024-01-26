@@ -29,6 +29,8 @@ import (
 	"github.com/google/go-containerregistry/internal/cmd"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/local"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
@@ -47,6 +49,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 	insecure := false
 	ndlayers := false
 	platform := &platformValue{}
+	uselocal := ""
 
 	wt := &warnTransport{}
 
@@ -67,6 +70,10 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 			}
 			if ndlayers {
 				options = append(options, crane.WithNondistributable())
+			}
+			if uselocal != "" {
+				p, _ := layout.FromPath(uselocal)
+				options = append(options, crane.WithPuller(local.NewPuller(p)), crane.WithPusher(local.NewPusher(p)))
 			}
 			if Version != "" {
 				binary := "crane"
@@ -137,7 +144,8 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 	root.PersistentFlags().BoolVar(&insecure, "insecure", false, "Allow image references to be fetched without TLS")
 	root.PersistentFlags().BoolVar(&ndlayers, "allow-nondistributable-artifacts", false, "Allow pushing non-distributable (foreign) layers")
 	root.PersistentFlags().Var(platform, "platform", "Specifies the platform in the form os/arch[/variant][:osversion] (e.g. linux/amd64).")
-
+	root.PersistentFlags().StringVar(&uselocal, "local", "", "Use a local oci-layout as remote registry")
+	root.PersistentFlags().MarkHidden("local")
 	return root
 }
 

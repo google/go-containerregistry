@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 // Option is a functional option for remote operations.
@@ -52,8 +53,9 @@ type options struct {
 	filter   map[string]string
 
 	// Set by Reuse, we currently store one or the other.
-	puller *Puller
-	pusher *Pusher
+	puller               *Puller
+	pusher               *Pusher
+	acceptableMediaTypes []types.MediaType
 }
 
 var defaultPlatform = v1.Platform{
@@ -223,6 +225,14 @@ func WithPlatform(p v1.Platform) Option {
 	}
 }
 
+// WithAcceptableMediaTypes sets acceptable media types for artifacts
+func WithAcceptableMediaTypes(acceptable []types.MediaType) Option {
+	return func(o *options) error {
+		o.acceptableMediaTypes = acceptable
+		return nil
+	}
+}
+
 // WithContext is a functional option for setting the context in http requests
 // performed by a given function. Note that this context is used for _all_
 // http requests, not just the initial volley. E.g., for remote.Image, the
@@ -332,17 +342,17 @@ func WithFilter(key string, value string) Option {
 }
 
 // WithPuller sets puller for remote
-func WithPuller(puller *Puller) Option {
+func WithPuller(puller Puller) Option {
 	return func(o *options) error {
-		o.puller = puller
+		o.puller = &puller
 		return nil
 	}
 }
 
 // WithPuller sets pusher for remote
-func WithPusher(pusher *Pusher) Option {
+func WithPusher(pusher Pusher) Option {
 	return func(o *options) error {
-		o.pusher = pusher
+		o.pusher = &pusher
 		return nil
 	}
 }
