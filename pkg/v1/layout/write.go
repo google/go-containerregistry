@@ -318,6 +318,23 @@ func (l Path) RemoveBlob(hash v1.Hash) error {
 	return nil
 }
 
+// BlobExists checks a blob exists at blobs/{hash.Algorithm}/{hash.Hex}
+func (l Path) BlobExists(hash v1.Hash) bool {
+	dir := l.path("blobs", hash.Algorithm)
+	_, err := os.Stat(dir)
+	return !errors.Is(err, os.ErrNotExist)
+}
+
+// BlobExists checks a blob exists at blobs/{hash.Algorithm}/{hash.Hex}
+func (l Path) BlobSize(hash v1.Hash) (int64, error) {
+	dir := l.path("blobs", hash.Algorithm)
+	stat, err := os.Stat(dir)
+	if err != nil {
+		return 0, err
+	}
+	return stat.Size(), nil
+}
+
 // WriteImage writes an image, including its manifest, config and all of its
 // layers, to the blobs directory. If any blob already exists, as determined by
 // the hash filename, does not write it.
