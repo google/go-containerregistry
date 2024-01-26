@@ -176,3 +176,17 @@ func WithNoClobber(noclobber bool) Option {
 		o.noclobber = noclobber
 	}
 }
+
+// WithPuller sets the puller for remote
+func WithPuller(puller *remote.Puller) Option {
+	return func(o *Options) {
+		o.Remote = append(o.Remote, remote.WithPuller(puller))
+	}
+}
+
+// WithPuller sets the puller for remote
+func WithPusher(pusher *remote.Pusher) Option {
+	return func(o *Options) {
+		o.Remote = append(o.Remote, remote.WithPusher(pusher))
+	}
+}

@@ -91,14 +91,22 @@ func (w *workers) Stream(layer v1.Layer, f func() error) error {
 	return v.(error)
 }
 
-type Pusher struct {
+type Pusher interface {
+	Delete(ctx context.Context, ref name.Reference) error
+	Push(ctx context.Context, ref name.Reference, t Taggable) error
+	Upload(ctx context.Context, repo name.Repository, l v1.Layer) error
+}
+
+var _ Pusher = (*pusher)(nil)
+
+type pusher struct {
 	o *options
 
 	// map[name.Repository]*repoWriter
 	writers sync.Map
 }
 
-func NewPusher(options ...Option) (*Pusher, error) {
+func NewPusher(options ...Option) (Pusher, error) {
 	o, err := makeOptions(options...)
 	if err != nil {
 		return nil, err
@@ -107,16 +115,16 @@ func NewPusher(options ...Option) (*Pusher, error) {
 	return newPusher(o), nil
 }
 
-func newPusher(o *options) *Pusher {
+func newPusher(o *options) Pusher {
 	if o.pusher != nil {
-		return o.pusher
+		return *o.pusher
 	}
-	return &Pusher{
+	return &pusher{
 		o: o,
 	}
 }
 
-func (p *Pusher) writer(ctx context.Context, repo name.Repository, o *options) (*repoWriter, error) {
+func (p *pusher) writer(ctx context.Context, repo name.Repository, o *options) (*repoWriter, error) {
 	v, _ := p.writers.LoadOrStore(repo, &repoWriter{
 		repo: repo,
 		o:    o,
@@ -125,7 +133,7 @@ func (p *Pusher) writer(ctx context.Context, repo name.Repository, o *options) (
 	return rw, rw.init(ctx)
 }
 
-func (p *Pusher) Push(ctx context.Context, ref name.Reference, t Taggable) error {
+func (p *pusher) Push(ctx context.Context, ref name.Reference, t Taggable) error {
 	w, err := p.writer(ctx, ref.Context(), p.o)
 	if err != nil {
 		return err
@@ -133,7 +141,7 @@ func (p *Pusher) Push(ctx context.Context, ref name.Reference, t Taggable) error
 	return w.writeManifest(ctx, ref, t)
 }
 
-func (p *Pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) error {
+func (p *pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) error {
 	w, err := p.writer(ctx, repo, p.o)
 	if err != nil {
 		return err
@@ -141,7 +149,7 @@ func (p *Pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) e
 	return w.writeLayer(ctx, l)
 }
 
-func (p *Pusher) Delete(ctx context.Context, ref name.Reference) error {
+func (p *pusher) Delete(ctx context.Context, ref name.Reference) error {
 	w, err := p.writer(ctx, ref.Context(), p.o)
 	if err != nil {
 		return err
@@ -256,7 +264,7 @@ func taggableToManifest(t Taggable) (manifest, error) {
 		return nil, err
 	}
 
-	if wmt, ok := t.(withMediaType); ok {
+	if wmt, ok := t.(partial.WithMediaType); ok {
 		desc.MediaType, err = wmt.MediaType()
 		if err != nil {
 			return nil, err

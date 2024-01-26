@@ -331,6 +331,22 @@ func WithFilter(key string, value string) Option {
 	}
 }
 
+// WithPuller sets puller for remote
+func WithPuller(puller *Puller) Option {
+	return func(o *options) error {
+		o.puller = puller
+		return nil
+	}
+}
+
+// WithPuller sets pusher for remote
+func WithPusher(pusher *Pusher) Option {
+	return func(o *options) error {
+		o.pusher = pusher
+		return nil
+	}
+}
+
 // Reuse takes a Puller or Pusher and reuses it for remote interactions
 // rather than starting from a clean slate. For example, it will reuse token exchanges
 // when possible and avoid sending redundant HEAD requests.

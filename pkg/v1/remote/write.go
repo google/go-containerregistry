@@ -33,6 +33,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -426,10 +427,6 @@ func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 	return retry.Retry(tryUpload, w.predicate, w.backoff)
 }
 
-type withMediaType interface {
-	MediaType() (types.MediaType, error)
-}
-
 // This is really silly, but go interfaces don't let me satisfy remote.Taggable
 // with remote.Descriptor because of name collisions between method names and
 // struct fields.
@@ -448,7 +445,7 @@ func unpackTaggable(t Taggable) ([]byte, *v1.Descriptor, error) {
 	// A reasonable default if Taggable doesn't implement MediaType.
 	mt := types.DockerManifestSchema2
 
-	if wmt, ok := t.(withMediaType); ok {
+	if wmt, ok := t.(partial.WithMediaType); ok {
 		m, err := wmt.MediaType()
 		if err != nil {
 			return nil, nil, err
