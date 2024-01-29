@@ -13,112 +13,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/google/go-containerregistry/pkg/v1/types"
+	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
-
-type manifest interface {
-	remote.Taggable
-	partial.Describable
-}
-
-type describable struct {
-	desc v1.Descriptor
-}
-
-func (d describable) Digest() (v1.Hash, error) {
-	return d.desc.Digest, nil
-}
-
-func (d describable) Size() (int64, error) {
-	return d.desc.Size, nil
-}
-
-func (d describable) MediaType() (types.MediaType, error) {
-	return d.desc.MediaType, nil
-}
-
-type tagManifest struct {
-	remote.Taggable
-	partial.Describable
-}
-
-func taggableToManifest(t remote.Taggable) (manifest, error) {
-	if m, ok := t.(manifest); ok {
-		return m, nil
-	}
-
-	if d, ok := t.(*remote.Descriptor); ok {
-		if d.MediaType.IsIndex() {
-			return d.ImageIndex()
-		}
-
-		if d.MediaType.IsImage() {
-			return d.Image()
-		}
-
-		if d.MediaType.IsSchema1() {
-			return d.Schema1()
-		}
-
-		return tagManifest{t, describable{d.ToDescriptor()}}, nil
-	}
-
-	desc := v1.Descriptor{
-		// A reasonable default if Taggable doesn't implement MediaType.
-		MediaType: types.DockerManifestSchema2,
-	}
-
-	b, err := t.RawManifest()
-	if err != nil {
-		return nil, err
-	}
-
-	if wmt, ok := t.(partial.WithMediaType); ok {
-		desc.MediaType, err = wmt.MediaType()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	desc.Digest, desc.Size, err = v1.SHA256(bytes.NewReader(b))
-	if err != nil {
-		return nil, err
-	}
-
-	return tagManifest{t, describable{desc}}, nil
-}
-
-func unpackTaggable(t remote.Taggable) ([]byte, *v1.Descriptor, error) {
-	if d, ok := t.(*remote.Descriptor); ok {
-		return d.Manifest, &d.Descriptor, nil
-	}
-	b, err := t.RawManifest()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// A reasonable default if Taggable doesn't implement MediaType.
-	mt := types.DockerManifestSchema2
-
-	if wmt, ok := t.(partial.WithMediaType); ok {
-		m, err := wmt.MediaType()
-		if err != nil {
-			return nil, nil, err
-		}
-		mt = m
-	}
-
-	h, sz, err := v1.SHA256(bytes.NewReader(b))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return b, &v1.Descriptor{
-		MediaType: mt,
-		Size:      sz,
-		Digest:    h,
-	}, nil
-}
 
 type pusher struct {
 	path layout.Path
@@ -130,13 +26,29 @@ func (lp *pusher) Delete(ctx context.Context, ref name.Reference) error {
 	return errors.ErrUnsupported
 }
 
-// Push implements remote.Pusher.
-func (lp *pusher) Push(ctx context.Context, ref name.Reference, t remote.Taggable) error {
-	mf, err := taggableToManifest(t)
+func (lp *pusher) writeLayer(l v1.Layer) error {
+	dg, err := l.Digest()
 	if err != nil {
 		return err
 	}
-	b, desc, err := unpackTaggable(t)
+	rc, err := l.Compressed()
+	if err != nil {
+		return err
+	}
+	err = lp.path.WriteBlob(dg, rc)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Push implements remote.Pusher.
+func (lp *pusher) Push(ctx context.Context, ref name.Reference, t remote.Taggable) error {
+	mf, err := remote.TaggableToManifest(t)
+	if err != nil {
+		return err
+	}
+	b, desc, err := remote.UnpackTaggable(t)
 	if err != nil {
 		return err
 	}
@@ -157,10 +69,24 @@ func (lp *pusher) Push(ctx context.Context, ref name.Reference, t remote.Taggabl
 		if err != nil {
 			return err
 		}
-		lp.path.WriteBlob(dg, io.NopCloser(bytes.NewBuffer(rc)))
+		err = lp.path.WriteBlob(dg, io.NopCloser(bytes.NewBuffer(rc)))
+		if err != nil {
+			return err
+		}
+		ls, err := img.Layers()
+		if err != nil {
+			return err
+		}
+		for _, l := range ls {
+			if err = lp.writeLayer(l); err != nil {
+				return err
+			}
+		}
 		fmt.Fprintln(os.Stderr, "image!")
 	}
-
+	desc.Annotations = map[string]string{
+		specsv1.AnnotationRefName: ref.String(),
+	}
 	return lp.path.AppendDescriptor(*desc)
 }
 

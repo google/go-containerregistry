@@ -232,7 +232,7 @@ type tagManifest struct {
 	partial.Describable
 }
 
-func taggableToManifest(t Taggable) (manifest, error) {
+func TaggableToManifest(t Taggable) (manifest, error) {
 	if m, ok := t.(manifest); ok {
 		return m, nil
 	}
@@ -279,7 +279,7 @@ func taggableToManifest(t Taggable) (manifest, error) {
 }
 
 func (rw *repoWriter) writeManifest(ctx context.Context, ref name.Reference, t Taggable) error {
-	m, err := taggableToManifest(t)
+	m, err := TaggableToManifest(t)
 	if err != nil {
 		return err
 	}
@@ -402,7 +402,7 @@ func (rw *repoWriter) manifestExists(ctx context.Context, ref name.Reference, t 
 		client: rw.w.client,
 	}
 
-	m, err := taggableToManifest(t)
+	m, err := TaggableToManifest(t)
 	if err != nil {
 		return false, err
 	}

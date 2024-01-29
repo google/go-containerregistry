@@ -433,7 +433,7 @@ func (w *writer) uploadOne(ctx context.Context, l v1.Layer) error {
 //
 // Use reflection to either pull the v1.Descriptor out of remote.Descriptor or
 // create a descriptor based on the RawManifest and (optionally) MediaType.
-func unpackTaggable(t Taggable) ([]byte, *v1.Descriptor, error) {
+func UnpackTaggable(t Taggable) ([]byte, *v1.Descriptor, error) {
 	if d, ok := t.(*Descriptor); ok {
 		return d.Manifest, &d.Descriptor, nil
 	}
@@ -571,7 +571,7 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 
 	tryUpload := func() error {
 		ctx := retry.Never(ctx)
-		raw, desc, err := unpackTaggable(t)
+		raw, desc, err := UnpackTaggable(t)
 		if err != nil {
 			return err
 		}
