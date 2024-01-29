@@ -70,6 +70,16 @@ func TestBundleSingle(t *testing.T) {
 	}
 }
 
+func TestDocker25(t *testing.T) {
+	img, err := ImageFromPath("testdata/hello-world-v25.tar", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := validate.Image(img); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestBundleMultiple(t *testing.T) {
 	for _, imgName := range []string{
 		"test_image_1",
