@@ -69,9 +69,9 @@ func (d *Descriptor) RawManifest() ([]byte, error) {
 // querying what kind of artifact a reference represents.
 //
 // See Head if you don't need the response body.
-// func Get(ref name.Reference, options ...Option) (*Descriptor, error) {
-// 	return get(ref, allManifestMediaTypes, options...)
-// }
+func Get(ref name.Reference, options ...Option) (*Descriptor, error) {
+	return get(ref, allManifestMediaTypes, options...)
+}
 
 // Head returns a v1.Descriptor for the given reference by issuing a HEAD
 // request.
@@ -89,13 +89,13 @@ func Head(ref name.Reference, options ...Option) (*v1.Descriptor, error) {
 
 // Handle options and fetch the manifest with the acceptable MediaTypes in the
 // Accept header.
-// func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*Descriptor, error) {
-// 	o, err := makeOptions(options...)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return newPuller(o).get(o.context, ref, acceptable, o.platform)
-// }
+func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*Descriptor, error) {
+	o, err := makeOptions(append(options, WithAcceptableMediaTypes(acceptable))...)
+	if err != nil {
+		return nil, err
+	}
+	return newPuller(o).Get(o.context, ref)
+}
 
 // Image converts the Descriptor into a v1.Image.
 //

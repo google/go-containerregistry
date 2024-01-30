@@ -106,7 +106,7 @@ func (p *puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, 
 
 // Get is like remote.Get, but avoids re-authenticating when possible.
 func (p *puller) Get(ctx context.Context, ref name.Reference) (*Descriptor, error) {
-	return p.get(ctx, ref, allManifestMediaTypes, p.o.platform)
+	return p.get(ctx, ref, p.o.acceptableMediaTypes, p.o.platform)
 }
 
 func (p *puller) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {

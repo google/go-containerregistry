@@ -129,14 +129,15 @@ var DefaultTransport http.RoundTripper = &http.Transport{
 
 func makeOptions(opts ...Option) (*options, error) {
 	o := &options{
-		transport:        DefaultTransport,
-		platform:         defaultPlatform,
-		context:          context.Background(),
-		jobs:             defaultJobs,
-		pageSize:         defaultPageSize,
-		retryPredicate:   defaultRetryPredicate,
-		retryBackoff:     defaultRetryBackoff,
-		retryStatusCodes: defaultRetryStatusCodes,
+		transport:            DefaultTransport,
+		platform:             defaultPlatform,
+		acceptableMediaTypes: allManifestMediaTypes,
+		context:              context.Background(),
+		jobs:                 defaultJobs,
+		pageSize:             defaultPageSize,
+		retryPredicate:       defaultRetryPredicate,
+		retryBackoff:         defaultRetryBackoff,
+		retryStatusCodes:     defaultRetryStatusCodes,
 	}
 
 	for _, option := range opts {
