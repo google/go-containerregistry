@@ -82,7 +82,6 @@ func (lp *pusher) Push(ctx context.Context, ref name.Reference, t remote.Taggabl
 				return err
 			}
 		}
-		fmt.Fprintln(os.Stderr, "image!")
 	}
 	desc.Annotations = map[string]string{
 		specsv1.AnnotationRefName: ref.String(),
