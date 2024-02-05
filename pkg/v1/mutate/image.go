@@ -277,6 +277,9 @@ func (i *image) LayerByDigest(h v1.Hash) (v1.Layer, error) {
 // LayerByDiffID is an analog to LayerByDigest, looking up by "diff id"
 // (the uncompressed hash).
 func (i *image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
+	if err := i.compute(); err != nil {
+		return nil, err
+	}
 	if layer, ok := i.diffIDMap[h]; ok {
 		return layer, nil
 	}
