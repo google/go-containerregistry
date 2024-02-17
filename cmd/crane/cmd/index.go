@@ -168,8 +168,13 @@ The platform for appended manifests is inferred from the config file or omitted 
 				if err != nil {
 					return fmt.Errorf("pulling %s: %w", baseRef, err)
 				}
+				mt, err := desc.MediaType()
+				if err != nil {
+					return fmt.Errorf("getting media type %s: %w", baseRef, err)
+				}
 				if base, ok = desc.(v1.ImageIndex); !ok {
-					return fmt.Errorf("expected %s to be an index, got %q", baseRef, desc.MediaType)
+
+					return fmt.Errorf("expected %s to be an index, got %q", baseRef, mt)
 				}
 			}
 
@@ -234,7 +239,11 @@ The platform for appended manifests is inferred from the config file or omitted 
 						})
 					}
 				} else {
-					return fmt.Errorf("saw unexpected MediaType %q for %q", desc.MediaType, m)
+					mt, err := desc.MediaType()
+					if err != nil {
+						return fmt.Errorf("getting media type %s: %w", baseRef, err)
+					}
+					return fmt.Errorf("saw unexpected MediaType %q for %q", mt, m)
 				}
 			}
 
