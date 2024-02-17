@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -70,6 +71,7 @@ func Image(ref name.Reference, options ...Option) (v1.Image, error) {
 	if img, ok := desc.(v1.Image); ok {
 		return img, nil
 	}
+	fmt.Println(desc.MediaType())
 	return nil, errors.New("is not a image")
 }
 

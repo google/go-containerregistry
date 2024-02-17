@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -53,7 +54,7 @@ func mustChild(t *testing.T, idx v1.ImageIndex, h v1.Hash) v1.Image {
 	return img
 }
 
-func mustMediaType(t *testing.T, tag withMediaType) types.MediaType {
+func mustMediaType(t *testing.T, tag partial.WithMediaType) types.MediaType {
 	mt, err := tag.MediaType()
 	if err != nil {
 		t.Fatalf("MediaType() = %v", err)

@@ -16,7 +16,6 @@ package remote
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -144,7 +143,8 @@ func (p *puller) artifact(ctx context.Context, ref name.Reference, acceptable []
 	} else if desc.MediaType.IsSchema1() {
 		return desc.Schema1()
 	}
-	return nil, errors.New("TODO: ???")
+	// TODO: is this the right thing?
+	return desc.ToArtifact(), nil
 }
 
 // Layer is like remote.Layer, but avoids re-authenticating when possible.

@@ -250,7 +250,7 @@ func TaggableToManifest(t Taggable) (manifest, error) {
 			return d.Schema1()
 		}
 
-		return tagManifest{t, describable{d.ToDescriptor()}}, nil
+		return tagManifest{t, describable{d.toDesc()}}, nil
 	}
 
 	desc := v1.Descriptor{
