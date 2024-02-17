@@ -30,7 +30,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
-	"github.com/google/go-containerregistry/pkg/v1/local"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
@@ -73,7 +72,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 			}
 			if uselocal != "" {
 				p, _ := layout.FromPath(uselocal)
-				options = append(options, crane.WithPuller(local.NewPuller(p)), crane.WithPusher(local.NewPusher(p)))
+				options = append(options, crane.WithPuller(layout.NewPuller(p)), crane.WithPusher(layout.NewPusher(p)))
 			}
 			if Version != "" {
 				binary := "crane"

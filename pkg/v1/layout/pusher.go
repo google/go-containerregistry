@@ -1,23 +1,20 @@
-package local
+package layout
 
 import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
-	"os"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type pusher struct {
-	path layout.Path
+	path Path
 }
 
 // Delete implements remote.Pusher.
@@ -99,11 +96,10 @@ func (lp *pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) 
 	if err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stderr, digest)
 	return lp.path.WriteBlob(digest, rc)
 }
 
-func NewPusher(path layout.Path) remote.Pusher {
+func NewPusher(path Path) remote.Pusher {
 	return &pusher{
 		path,
 	}

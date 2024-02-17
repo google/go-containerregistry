@@ -1,17 +1,16 @@
-package local
+package layout
 
 import (
 	"io"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 // remoteImagelayer implements partial.CompressedLayer
 type localLayer struct {
-	path   layout.Path
+	path   Path
 	digest v1.Hash
 }
 

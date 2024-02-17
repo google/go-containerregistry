@@ -1,23 +1,22 @@
-package local
+package layout
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/layout"
+
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type puller struct {
-	path layout.Path
+	path Path
 }
 
-func NewPuller(path layout.Path) remote.Puller {
+func NewPuller(path Path) remote.Puller {
 	return &puller{
 		path,
 	}
@@ -60,7 +59,7 @@ func (p *puller) Artifact(ctx context.Context, ref name.Reference) (partial.Arti
 		}
 		return reg.ImageIndex(desc.Digest)
 	}
-	return nil, errors.ErrUnsupported
+	return nil, fmt.Errorf("TODO: handle non image media types")
 }
 
 // Head implements remote.Puller.
@@ -86,30 +85,30 @@ func (p *puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
 
 // List implements remote.Puller.
 func (*puller) List(ctx context.Context, repo name.Repository) ([]string, error) {
-	return nil, errors.ErrUnsupported
+	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Get implements remote.Puller.
 func (*puller) Get(ctx context.Context, ref name.Reference) (*remote.Descriptor, error) {
-	return nil, errors.ErrUnsupported
+	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Lister implements remote.Puller.
 func (*puller) Lister(ctx context.Context, repo name.Repository) (*remote.Lister, error) {
-	return nil, errors.ErrUnsupported
+	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Catalogger implements remote.Puller.
 func (*puller) Catalogger(ctx context.Context, reg name.Registry) (*remote.Catalogger, error) {
-	return nil, errors.ErrUnsupported
+	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Catalog implements remote.Puller.
 func (*puller) Catalog(ctx context.Context, reg name.Registry) ([]string, error) {
-	return nil, errors.ErrUnsupported
+	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Referrers implements remote.Puller.
 func (*puller) Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
-	return nil, errors.ErrUnsupported
+	return nil, fmt.Errorf("unsupported operation")
 }
