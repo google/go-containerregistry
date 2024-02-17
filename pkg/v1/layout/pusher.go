@@ -20,7 +20,7 @@ type pusher struct {
 // Delete implements remote.Pusher.
 func (lp *pusher) Delete(ctx context.Context, ref name.Reference) error {
 	// TODO
-	return errors.ErrUnsupported
+	return errors.New("unsupported operation")
 }
 
 func (lp *pusher) writeLayer(l v1.Layer) error {
