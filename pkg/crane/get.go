@@ -36,19 +36,19 @@ func getImage(r string, opt ...Option) (v1.Image, name.Reference, error) {
 	return img, ref, nil
 }
 
-// func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
-// 	o := makeOptions(opt...)
-// 	ref, err := name.ParseReference(r, o.Name...)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("parsing reference %q: %w", r, err)
-// 	}
-// 	return remote.Get(ref, o.Remote...)
-// }
+func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
+	o := makeOptions(opt...)
+	ref, err := name.ParseReference(r, o.Name...)
+	if err != nil {
+		return nil, fmt.Errorf("parsing reference %q: %w", r, err)
+	}
+	return remote.Get(ref, o.Remote...)
+}
 
 // Get calls remote.Get and returns an uninterpreted response.
-// func Get(r string, opt ...Option) (*remote.Descriptor, error) {
-// 	return getManifest(r, opt...)
-// }
+func Get(r string, opt ...Option) (*remote.Descriptor, error) {
+	return getManifest(r, opt...)
+}
 
 func getArtifact(r string, opt ...Option) (partial.Artifact, error) {
 	o := makeOptions(opt...)
