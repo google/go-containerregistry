@@ -29,29 +29,29 @@ type localLayer struct {
 }
 
 // Compressed implements partial.CompressedLayer.
-func (lp *localLayer) Compressed() (io.ReadCloser, error) {
-	return lp.path.Blob(lp.digest)
+func (ll *localLayer) Compressed() (io.ReadCloser, error) {
+	return ll.path.Blob(ll.digest)
 }
 
 // Digest implements partial.CompressedLayer.
-func (lp *localLayer) Digest() (v1.Hash, error) {
-	return lp.digest, nil
+func (ll *localLayer) Digest() (v1.Hash, error) {
+	return ll.digest, nil
 }
 
 // MediaType implements partial.CompressedLayer.
-func (*localLayer) MediaType() (types.MediaType, error) {
+func (ll *localLayer) MediaType() (types.MediaType, error) {
 	// TODO
 	return types.DockerLayer, nil
 }
 
 // Size implements partial.CompressedLayer.
-func (rl *localLayer) Size() (int64, error) {
-	return rl.path.BlobSize(rl.digest)
+func (ll *localLayer) Size() (int64, error) {
+	return ll.path.BlobSize(ll.digest)
 }
 
 // See partial.Exists.
-func (rl *localLayer) Exists() (bool, error) {
-	return rl.path.BlobExists(rl.digest), nil
+func (ll *localLayer) Exists() (bool, error) {
+	return ll.path.BlobExists(ll.digest), nil
 }
 
 var _ partial.CompressedLayer = (*localLayer)(nil)

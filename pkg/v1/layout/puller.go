@@ -39,7 +39,7 @@ func NewPuller(path Path) remote.Puller {
 var _ remote.Puller = (*puller)(nil)
 
 // Artifact implements remote.Puller.
-func (p *puller) getDescriptor(ctx context.Context, ref name.Reference) (*v1.Descriptor, error) {
+func (p *puller) getDescriptor(ref name.Reference) (*v1.Descriptor, error) {
 	idx, err := p.path.ImageIndex()
 	if err != nil {
 		return nil, err
@@ -59,8 +59,8 @@ func (p *puller) getDescriptor(ctx context.Context, ref name.Reference) (*v1.Des
 }
 
 // Artifact implements remote.Puller.
-func (p *puller) Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error) {
-	desc, err := p.getDescriptor(ctx, ref)
+func (p *puller) Artifact(_ context.Context, ref name.Reference) (partial.Artifact, error) {
+	desc, err := p.getDescriptor(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -73,18 +73,18 @@ func (p *puller) Artifact(ctx context.Context, ref name.Reference) (partial.Arti
 		}
 		return reg.ImageIndex(desc.Digest)
 	} else if desc.MediaType.IsSchema1() {
-		return nil, fmt.Errorf("layout puller does not support Schema1 images.")
+		return nil, fmt.Errorf("layout puller does not support schema1 images")
 	}
 	return nil, fmt.Errorf("unknown media type: %s", desc.MediaType)
 }
 
 // Head implements remote.Puller.
-func (p *puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, error) {
-	return p.getDescriptor(ctx, ref)
+func (p *puller) Head(_ context.Context, ref name.Reference) (*v1.Descriptor, error) {
+	return p.getDescriptor(ref)
 }
 
 // Layer implements remote.Puller.
-func (p *puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
+func (p *puller) Layer(_ context.Context, ref name.Digest) (v1.Layer, error) {
 	h, err := v1.NewHash(ref.Identifier())
 	if err != nil {
 		return nil, err
@@ -100,31 +100,31 @@ func (p *puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
 }
 
 // List implements remote.Puller.
-func (*puller) List(ctx context.Context, repo name.Repository) ([]string, error) {
+func (*puller) List(_ context.Context, _ name.Repository) ([]string, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Get implements remote.Puller.
-func (*puller) Get(ctx context.Context, ref name.Reference) (*remote.Descriptor, error) {
+func (*puller) Get(_ context.Context, _ name.Reference) (*remote.Descriptor, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Lister implements remote.Puller.
-func (*puller) Lister(ctx context.Context, repo name.Repository) (*remote.Lister, error) {
+func (*puller) Lister(_ context.Context, _ name.Repository) (*remote.Lister, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Catalogger implements remote.Puller.
-func (*puller) Catalogger(ctx context.Context, reg name.Registry) (*remote.Catalogger, error) {
+func (*puller) Catalogger(_ context.Context, _ name.Registry) (*remote.Catalogger, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Catalog implements remote.Puller.
-func (*puller) Catalog(ctx context.Context, reg name.Registry) ([]string, error) {
+func (*puller) Catalog(_ context.Context, _ name.Registry) ([]string, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Referrers implements remote.Puller.
-func (*puller) Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
+func (*puller) Referrers(_ context.Context, _ name.Digest, _ map[string]string) (v1.ImageIndex, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }

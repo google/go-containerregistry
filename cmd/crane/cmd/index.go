@@ -173,7 +173,6 @@ The platform for appended manifests is inferred from the config file or omitted 
 					return fmt.Errorf("getting media type %s: %w", baseRef, err)
 				}
 				if base, ok = desc.(v1.ImageIndex); !ok {
-
 					return fmt.Errorf("expected %s to be an index, got %q", baseRef, mt)
 				}
 			}

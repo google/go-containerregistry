@@ -94,8 +94,7 @@ type pusher struct {
 }
 
 // Delete implements remote.Pusher.
-func (lp *pusher) Delete(ctx context.Context, ref name.Reference) error {
-	// TODO
+func (lp *pusher) Delete(_ context.Context, _ name.Reference) error {
 	return errors.New("unsupported operation")
 }
 
@@ -116,7 +115,7 @@ func (lp *pusher) writeLayer(l v1.Layer) error {
 }
 
 // Push implements remote.Pusher.
-func (lp *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
+func (lp *pusher) Push(_ context.Context, ref name.Reference, t partial.WithRawManifest) error {
 	mf, err := taggableToManifest(t)
 	if err != nil {
 		return err
@@ -163,7 +162,7 @@ func (lp *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRa
 }
 
 // Upload implements remote.Pusher.
-func (lp *pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) error {
+func (lp *pusher) Upload(_ context.Context, _ name.Repository, l v1.Layer) error {
 	digest, err := l.Digest()
 	if err != nil {
 		return err
