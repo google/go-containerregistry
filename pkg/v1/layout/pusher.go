@@ -4,15 +4,77 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
+func taggableToManifest(t partial.WithRawManifest) (partial.Artifact, error) {
+	if a, ok := t.(partial.Artifact); ok {
+		return a, nil
+	}
+
+	desc := v1.Descriptor{
+		// A reasonable default if Taggable doesn't implement MediaType.
+		MediaType: types.DockerManifestSchema2,
+	}
+
+	b, err := t.RawManifest()
+	if err != nil {
+		return nil, err
+	}
+
+	if wmt, ok := t.(partial.WithMediaType); ok {
+		desc.MediaType, err = wmt.MediaType()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	desc.Digest, desc.Size, err = v1.SHA256(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	return nil, fmt.Errorf("unknown taggable type")
+}
+
+func unpackTaggable(t partial.WithRawManifest) ([]byte, *v1.Descriptor, error) {
+	b, err := t.RawManifest()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// A reasonable default if Taggable doesn't implement MediaType.
+	mt := types.DockerManifestSchema2
+
+	if wmt, ok := t.(partial.WithMediaType); ok {
+		m, err := wmt.MediaType()
+		if err != nil {
+			return nil, nil, err
+		}
+		mt = m
+	}
+
+	h, sz, err := v1.SHA256(bytes.NewReader(b))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return b, &v1.Descriptor{
+		MediaType: mt,
+		Size:      sz,
+		Digest:    h,
+	}, nil
+}
+
+// Use partial.Artifact to unpack taggable.
+// Duplication is not a concern here.
 type pusher struct {
 	path Path
 }
@@ -40,12 +102,12 @@ func (lp *pusher) writeLayer(l v1.Layer) error {
 }
 
 // Push implements remote.Pusher.
-func (lp *pusher) Push(ctx context.Context, ref name.Reference, t remote.Taggable) error {
-	mf, err := remote.TaggableToManifest(t)
+func (lp *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
+	mf, err := taggableToManifest(t)
 	if err != nil {
 		return err
 	}
-	b, desc, err := remote.UnpackTaggable(t)
+	b, desc, err := unpackTaggable(t)
 	if err != nil {
 		return err
 	}

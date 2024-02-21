@@ -58,8 +58,10 @@ func (p *puller) Artifact(ctx context.Context, ref name.Reference) (partial.Arti
 			return nil, err
 		}
 		return reg.ImageIndex(desc.Digest)
+	} else if desc.MediaType.IsSchema1() {
+		return nil, fmt.Errorf("layout puller does not support Schema1 images.")
 	}
-	return nil, fmt.Errorf("TODO: handle non image media types")
+	return nil, fmt.Errorf("unknown media type: %s", desc.MediaType)
 }
 
 // Head implements remote.Puller.

@@ -34,8 +34,7 @@ import (
 )
 
 type manifest interface {
-	Taggable
-	partial.Describable
+	partial.Artifact
 }
 
 // key is either v1.Hash or v1.Layer (for stream.Layer)
@@ -93,7 +92,7 @@ func (w *workers) Stream(layer v1.Layer, f func() error) error {
 
 type Pusher interface {
 	Delete(ctx context.Context, ref name.Reference) error
-	Push(ctx context.Context, ref name.Reference, t Taggable) error
+	Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error
 	Upload(ctx context.Context, repo name.Repository, l v1.Layer) error
 }
 
@@ -132,7 +131,7 @@ func (p *pusher) writer(ctx context.Context, repo name.Repository, o *options) (
 	return rw, rw.init(ctx)
 }
 
-func (p *pusher) Push(ctx context.Context, ref name.Reference, t Taggable) error {
+func (p *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
 	w, err := p.writer(ctx, ref.Context(), p.o)
 	if err != nil {
 		return err
@@ -227,12 +226,13 @@ func (d describable) MediaType() (types.MediaType, error) {
 	return d.desc.MediaType, nil
 }
 
+// This is basically partia
 type tagManifest struct {
 	Taggable
 	partial.Describable
 }
 
-func TaggableToManifest(t Taggable) (manifest, error) {
+func taggableToManifest(t Taggable) (manifest, error) {
 	if m, ok := t.(manifest); ok {
 		return m, nil
 	}
@@ -279,7 +279,7 @@ func TaggableToManifest(t Taggable) (manifest, error) {
 }
 
 func (rw *repoWriter) writeManifest(ctx context.Context, ref name.Reference, t Taggable) error {
-	m, err := TaggableToManifest(t)
+	m, err := taggableToManifest(t)
 	if err != nil {
 		return err
 	}
@@ -402,7 +402,7 @@ func (rw *repoWriter) manifestExists(ctx context.Context, ref name.Reference, t 
 		client: rw.w.client,
 	}
 
-	m, err := TaggableToManifest(t)
+	m, err := taggableToManifest(t)
 	if err != nil {
 		return false, err
 	}
