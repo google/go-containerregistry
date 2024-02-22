@@ -23,19 +23,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-func getImage(r string, opt ...Option) (v1.Image, name.Reference, error) {
-	o := makeOptions(opt...)
-	ref, err := name.ParseReference(r, o.Name...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parsing reference %q: %w", r, err)
-	}
-	img, err := remote.Image(ref, o.Remote...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("reading image %q: %w", ref, err)
-	}
-	return img, ref, nil
-}
-
 func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(r, o.Name...)

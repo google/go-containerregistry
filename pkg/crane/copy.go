@@ -69,7 +69,7 @@ func Copy(src, dst string, opt ...Option) error {
 	}
 
 	logs.Progress.Printf("Copying from %v to %v", srcRef, dstRef)
-	desc, err := puller.Artifact(o.ctx, srcRef)
+	desc, err := puller.Get(o.ctx, srcRef)
 	if err != nil {
 		return fmt.Errorf("fetching %q: %w", src, err)
 	}
@@ -77,7 +77,13 @@ func Copy(src, dst string, opt ...Option) error {
 	if o.Platform == nil {
 		return pusher.Push(o.ctx, dstRef, desc)
 	}
-	return pusher.Push(o.ctx, dstRef, desc)
+
+	// If platform is explicitly set, don't copy the whole index, just the appropriate image.
+	img, err := desc.Image()
+	if err != nil {
+		return err
+	}
+	return pusher.Push(o.ctx, dstRef, img)
 }
 
 // CopyRepository copies every tag from src to dst.
@@ -160,7 +166,7 @@ func CopyRepository(src, dst string, opt ...Option) error {
 				}
 
 				logs.Progress.Printf("Fetching %s", srcTag)
-				desc, err := puller.Artifact(ctx, srcTag)
+				desc, err := puller.Get(ctx, srcTag)
 				if err != nil {
 					return err
 				}
