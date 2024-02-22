@@ -16,32 +16,9 @@ package remote
 
 import (
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
-
-type descriptorArtifact struct {
-	desc Descriptor
-}
-
-func (d *descriptorArtifact) Digest() (v1.Hash, error) {
-	return d.desc.Digest, nil
-}
-
-func (d *descriptorArtifact) MediaType() (types.MediaType, error) {
-	return d.desc.MediaType, nil
-}
-
-func (d *descriptorArtifact) RawManifest() ([]byte, error) {
-	return d.desc.RawManifest()
-}
-
-func (d *descriptorArtifact) Size() (int64, error) {
-	return d.desc.Size, nil
-}
-
-var _ partial.Artifact = (*descriptorArtifact)(nil)
 
 // Get returns a partial.Artifact for the given reference.
 //

@@ -55,10 +55,6 @@ type Descriptor struct {
 	platform v1.Platform
 }
 
-func (d *Descriptor) ToArtifact() partial.Artifact {
-	return &descriptorArtifact{desc: *d}
-}
-
 func (d *Descriptor) toDesc() v1.Descriptor {
 	return d.Descriptor
 }
