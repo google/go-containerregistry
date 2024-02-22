@@ -140,7 +140,15 @@ func (p *puller) artifact(ctx context.Context, ref name.Reference, acceptable []
 	if desc.MediaType.IsImage() {
 		return desc.Image()
 	} else if desc.MediaType.IsIndex() {
-		return desc.ImageIndex()
+		idx, err := desc.ImageIndex()
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(platform.String())
+		if platform.String() != "" {
+			return idx, nil
+		}
+		return idx, nil
 	} else if desc.MediaType.IsSchema1() {
 		return desc.Schema1()
 	}

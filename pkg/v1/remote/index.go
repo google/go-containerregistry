@@ -17,7 +17,6 @@ package remote
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
@@ -53,7 +52,11 @@ func Index(ref name.Reference, options ...Option) (v1.ImageIndex, error) {
 	if idx, ok := desc.(v1.ImageIndex); ok {
 		return idx, nil
 	}
-	return nil, errors.New("is not a image index")
+	mt, err := desc.MediaType()
+	if err != nil {
+		return nil, err
+	}
+	return nil, fmt.Errorf("%s is not an image index, media type is %s", ref, mt)
 }
 
 func (r *remoteIndex) MediaType() (types.MediaType, error) {
