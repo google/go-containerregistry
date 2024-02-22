@@ -17,7 +17,6 @@ package remote
 import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
-	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 // Get returns a partial.Artifact for the given reference.
@@ -28,16 +27,5 @@ func Artifact(ref name.Reference, options ...Option) (partial.Artifact, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newPuller(o).Artifact(o.context, ref)
-}
-
-// Handle options and fetch the manifest with the acceptable MediaTypes in the
-// Accept header.
-func artifact(ref name.Reference, acceptable []types.MediaType, options ...Option) (partial.Artifact, error) {
-	o, err := makeOptions(append(options, WithAcceptableMediaTypes(acceptable))...)
-	if err != nil {
-		return nil, err
-	}
-
 	return newPuller(o).Artifact(o.context, ref)
 }

@@ -32,11 +32,6 @@ func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
 	return remote.Get(ref, o.Remote...)
 }
 
-// Get calls remote.Get and returns an uninterpreted response.
-func Get(r string, opt ...Option) (*remote.Descriptor, error) {
-	return getManifest(r, opt...)
-}
-
 func getArtifact(r string, opt ...Option) (partial.Artifact, error) {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(r, o.Name...)
@@ -44,6 +39,11 @@ func getArtifact(r string, opt ...Option) (partial.Artifact, error) {
 		return nil, fmt.Errorf("parsing reference %q: %w", r, err)
 	}
 	return remote.Artifact(ref, o.Remote...)
+}
+
+// Get calls remote.Get and returns an uninterpreted response.
+func Get(r string, opt ...Option) (*remote.Descriptor, error) {
+	return getManifest(r, opt...)
 }
 
 func Artifact(r string, opt ...Option) (partial.Artifact, error) {
