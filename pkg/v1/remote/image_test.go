@@ -339,7 +339,6 @@ func TestImage(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
-			w.Header().Add("Content-type", string(mustMediaType(t, img)))
 			w.Write(mustRawManifest(t, img))
 		case layerPath:
 			t.Fatalf("BlobSize should not make any request: %v", r.URL.Path)
@@ -431,7 +430,6 @@ func TestPullingManifestList(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
-			w.Header().Set("Content-Type", string(mustMediaType(t, child)))
 			w.Write(mustRawManifest(t, child))
 		case configPath:
 			if r.Method != http.MethodGet {
@@ -634,7 +632,6 @@ func TestPullingForeignLayer(t *testing.T) {
 			if r.Method != http.MethodGet {
 				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
 			}
-			w.Header().Add("Content-Type", string(mustMediaType(t, img)))
 			w.Write(mustRawManifest(t, img))
 		case layerPath:
 			compressed, err := layer.Compressed()

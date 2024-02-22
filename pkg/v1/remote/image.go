@@ -17,7 +17,6 @@ package remote
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -63,40 +62,12 @@ var _ partial.CompressedImageCore = (*remoteImage)(nil)
 
 // Image provides access to a remote image reference.
 func Image(ref name.Reference, options ...Option) (v1.Image, error) {
-	opts, err := makeOptions(options...)
+	desc, err := Get(ref, options...)
 	if err != nil {
 		return nil, err
 	}
-	desc, err := Artifact(ref, options...)
-	if err != nil {
-		return nil, err
-	}
-	if img, ok := desc.(v1.Image); ok {
-		return img, nil
-	}
-	if idx, ok := desc.(v1.ImageIndex); ok && opts.platform.String() != "" {
-		index, err := idx.IndexManifest()
-		if err != nil {
-			return nil, err
-		}
-		for _, childDesc := range index.Manifests {
-			// If platform is missing from child descriptor, assume it's amd64/linux.
-			p := defaultPlatform
-			if childDesc.Platform != nil {
-				p = *childDesc.Platform
-			}
 
-			if matchesPlatform(p, opts.platform) {
-				return idx.Image(childDesc.Digest)
-			}
-		}
-		return nil, fmt.Errorf("no child with platform %+v in index %s", opts.platform, ref)
-	}
-	mt, err := desc.MediaType()
-	if err != nil {
-		return nil, err
-	}
-	return nil, fmt.Errorf("%s is not an image, media type is %s", ref, mt)
+	return desc.Image()
 }
 
 func (r *remoteImage) MediaType() (types.MediaType, error) {

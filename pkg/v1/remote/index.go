@@ -45,18 +45,12 @@ type remoteIndex struct {
 
 // Index provides access to a remote index reference.
 func Index(ref name.Reference, options ...Option) (v1.ImageIndex, error) {
-	desc, err := artifact(ref, acceptableIndexMediaTypes, options...)
+	desc, err := get(ref, acceptableIndexMediaTypes, options...)
 	if err != nil {
 		return nil, err
 	}
-	if idx, ok := desc.(v1.ImageIndex); ok {
-		return idx, nil
-	}
-	mt, err := desc.MediaType()
-	if err != nil {
-		return nil, err
-	}
-	return nil, fmt.Errorf("%s is not an image index, media type is %s", ref, mt)
+
+	return desc.ImageIndex()
 }
 
 func (r *remoteIndex) MediaType() (types.MediaType, error) {
