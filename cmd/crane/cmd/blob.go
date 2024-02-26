@@ -24,7 +24,7 @@ import (
 
 // NewCmdBlob creates a new cobra.Command for the blob subcommand.
 func NewCmdBlob(options *[]crane.Option) *cobra.Command {
-	return &cobra.Command{
+	cmd := cobra.Command{
 		Use:     "blob BLOB",
 		Short:   "Read a blob from the registry",
 		Example: "crane blob ubuntu@sha256:4c1d20cdee96111c8acf1858b62655a37ce81ae48648993542b7ac363ac5c0e5 > blob.tar.gz",
@@ -45,4 +45,6 @@ func NewCmdBlob(options *[]crane.Option) *cobra.Command {
 			return nil
 		},
 	}
+	cmd.AddCommand(NewCmdBlobCalculate(options))
+	return &cmd
 }

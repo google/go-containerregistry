@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/cobra"
 )
 
@@ -33,6 +34,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var envVars keyToValue
 	var entrypoint, cmd []string
 	var newLayers []string
+	var newLayersWith appendWith
 	var outFile string
 	var newRef string
 	var newRepo string
@@ -68,6 +70,28 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 			}
 			if len(newLayers) != 0 {
 				img, err = crane.Append(img, newLayers...)
+				if err != nil {
+					return fmt.Errorf("appending %v: %w", newLayers, err)
+				}
+			}
+			if len(newLayersWith.layers) != 0 {
+				layers := make([]v1.Layer, len(newLayersWith.layers))
+				for i, lp := range newLayersWith.layers {
+					diffid, err := v1.NewHash(lp.diffid)
+					if err != nil {
+						return fmt.Errorf("diffid %s: %w", lp.path, err)
+					}
+					digest, err := v1.NewHash(lp.digest)
+					if err != nil {
+						return fmt.Errorf("digest %s: %w", lp.path, err)
+					}
+					layer, err := tarball.LayerFromFile(lp.path, tarball.WithDigest(digest), tarball.WithDiffID(diffid))
+					if err != nil {
+						return fmt.Errorf("appending %v: %w", lp.path, err)
+					}
+					layers[i] = layer
+				}
+				img, err = mutate.AppendLayers(img, layers...)
 				if err != nil {
 					return fmt.Errorf("appending %v: %w", newLayers, err)
 				}
@@ -180,6 +204,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringVarP(&newRef, "tag", "t", "", "New tag reference to apply to mutated image. If not provided, push by digest to the original image repository.")
 	mutateCmd.Flags().StringVarP(&outFile, "output", "o", "", "Path to new tarball of resulting image")
 	mutateCmd.Flags().StringSliceVar(&newLayers, "append", []string{}, "Path to tarball to append to image")
+	mutateCmd.Flags().VarP(&newLayersWith, "append-with", "", "Path to tarball to append to image with diffid and digest provided")
 	mutateCmd.Flags().StringVarP(&user, "user", "u", "", "New user to set")
 	mutateCmd.Flags().StringVarP(&workdir, "workdir", "w", "", "New working dir to set")
 	mutateCmd.Flags().StringSliceVar(&ports, "exposed-ports", nil, "New ports to expose")
@@ -239,6 +264,38 @@ func setEnvVars(cfg *v1.ConfigFile, envVars keyToValue) error {
 
 	cfg.Config.Env = newEnv
 	return nil
+}
+
+type pathDiffIDAndDigest struct {
+	path   string
+	diffid string
+	digest string
+}
+
+type appendWith struct {
+	layers []pathDiffIDAndDigest
+}
+
+func (o *appendWith) Set(val string) error {
+	split := strings.SplitN(val, "=", 3)
+	if len(split) != 3 {
+		return fmt.Errorf("%s must be formatted as path=diffid=digest", val)
+	}
+
+	o.layers = append(o.layers, pathDiffIDAndDigest{split[0], split[1], split[2]})
+	return nil
+}
+
+func (o *appendWith) Type() string {
+	return "path=diffid=digest"
+}
+
+func (o *appendWith) String() string {
+	ss := make([]string, 0, len(o.layers))
+	for _, e := range o.layers {
+		ss = append(ss, e.path+"="+e.diffid+"="+e.digest)
+	}
+	return strings.Join(ss, ",")
 }
 
 type env struct {

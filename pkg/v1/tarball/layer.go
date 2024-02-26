@@ -209,6 +209,18 @@ func WithEstargz(l *layer) {
 	l.uncompressedopener = uncompressed
 }
 
+func WithDiffID(diffid v1.Hash) LayerOption {
+	return func(l *layer) {
+		l.diffID = diffid
+	}
+}
+
+func WithDigest(digest v1.Hash) LayerOption {
+	return func(l *layer) {
+		l.digest = digest
+	}
+}
+
 // LayerFromFile returns a v1.Layer given a tarball
 func LayerFromFile(path string, opts ...LayerOption) (v1.Layer, error) {
 	opener := func() (io.ReadCloser, error) {
@@ -302,11 +314,15 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 		logs.Warn.Printf("Unexpected mediaType (%s) for selected compression in %s in LayerFromOpener().", layer.mediaType, layer.compression)
 	}
 
-	if layer.digest, layer.size, err = computeDigest(layer.compressedopener); err != nil {
+	empty := v1.Hash{}
+	if layer.digest == empty {
+		if layer.digest, layer.size, err = computeDigest(layer.compressedopener); err != nil {
+			return nil, err
+		}
+	} else if layer.size, err = computeSize(layer.compressedopener); err != nil {
 		return nil, err
 	}
 
-	empty := v1.Hash{}
 	if layer.diffID == empty {
 		if layer.diffID, err = computeDiffID(layer.uncompressedopener); err != nil {
 			return nil, err
@@ -351,4 +367,17 @@ func computeDiffID(opener Opener) (v1.Hash, error) {
 
 	digest, _, err := v1.SHA256(rc)
 	return digest, err
+}
+
+func computeSize(opener Opener) (int64, error) {
+	rc, err := opener()
+	if err != nil {
+		return 0, err
+	}
+	defer rc.Close()
+	size, err := io.Copy(io.Discard, rc)
+	if err != nil {
+		return 0, err
+	}
+	return size, nil
 }
