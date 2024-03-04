@@ -48,7 +48,9 @@ func (p *puller) getDescriptor(ref name.Reference) (*v1.Descriptor, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, manifest := range im.Manifests {
+	// Search for descriptors in reverse order to match most recent descriptors first
+	for i := len(im.Manifests) - 1; i >= 0; i-- {
+		manifest := im.Manifests[i]
 		if rref, ok := manifest.Annotations[specsv1.AnnotationRefName]; ok {
 			if ref.String() == rref {
 				return &manifest, nil

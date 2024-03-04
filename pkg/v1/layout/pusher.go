@@ -253,8 +253,12 @@ func (lp *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRa
 	if err != nil {
 		return err
 	}
+	repo := ref.Context().String()
+	if tag, ok := ref.(name.Tag); ok {
+		repo = fmt.Sprintf("%s:%s", repo, tag.TagStr())
+	}
 	desc.Annotations = map[string]string{
-		specsv1.AnnotationRefName: ref.String(),
+		specsv1.AnnotationRefName: repo,
 	}
 	return lp.path.AppendDescriptor(*desc)
 }
