@@ -320,7 +320,7 @@ func (l Path) RemoveBlob(hash v1.Hash) error {
 
 // BlobExists checks a blob exists at blobs/{hash.Algorithm}/{hash.Hex}
 func (l Path) BlobExists(hash v1.Hash) bool {
-	dir := l.path("blobs", hash.Algorithm)
+	dir := l.path("blobs", hash.Algorithm, hash.Hex)
 	_, err := os.Stat(dir)
 	return !errors.Is(err, os.ErrNotExist)
 }

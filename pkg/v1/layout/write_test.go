@@ -443,6 +443,45 @@ func TestRemoveBlob(t *testing.T) {
 	}
 }
 
+func TestBlobExists(t *testing.T) {
+	// need to set up a basic path
+	tmp := t.TempDir()
+
+	var ii v1.ImageIndex = empty.Index
+	l, err := Write(tmp, ii)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a random blob
+	b := []byte("abcdefghijklmnop")
+	hash, _, err := v1.SHA256(bytes.NewReader(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := l.WriteBlob(hash, io.NopCloser(bytes.NewReader(b))); err != nil {
+		t.Fatal(err)
+	}
+	// make sure it exists
+	b2, err := l.Bytes(hash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(b, b2) {
+		t.Fatal("mismatched bytes")
+	}
+	if !l.BlobExists(hash) {
+		t.Fatal("blob should exist")
+	}
+	if err := l.RemoveBlob(hash); err != nil {
+		t.Fatal(err)
+	}
+	if l.BlobExists(hash) {
+		t.Fatal("blob should not exist")
+	}
+}
+
 func TestStreamingWriteLayer(t *testing.T) {
 	// need to set up a basic path
 	tmp := t.TempDir()

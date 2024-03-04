@@ -25,8 +25,10 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"golang.org/x/sync/errgroup"
 )
 
 func taggableToManifest(t partial.WithRawManifest) (partial.Artifact, error) {
@@ -114,12 +116,99 @@ func (lp *pusher) writeLayer(l v1.Layer) error {
 	return nil
 }
 
-// Push implements remote.Pusher.
-func (lp *pusher) Push(_ context.Context, ref name.Reference, t partial.WithRawManifest) error {
-	mf, err := taggableToManifest(t)
+func (lp *pusher) writeLayers(pctx context.Context, img v1.Image) error {
+	ls, err := img.Layers()
 	if err != nil {
 		return err
 	}
+
+	g, _ := errgroup.WithContext(pctx)
+
+	for _, l := range ls {
+		l := l
+
+		g.Go(func() error {
+			return lp.writeLayer(l)
+		})
+	}
+
+	cl, err := partial.ConfigLayer(img)
+	if errors.Is(err, stream.ErrNotComputed) {
+		if err := g.Wait(); err != nil {
+			return err
+		}
+
+		cl, err := partial.ConfigLayer(img)
+		if err != nil {
+			return err
+		}
+
+		return lp.writeLayer(cl)
+	} else if err != nil {
+		return err
+	}
+
+	g.Go(func() error {
+		return lp.writeLayer(cl)
+	})
+
+	return g.Wait()
+}
+
+func (lp *pusher) writeChildren(pctx context.Context, idx v1.ImageIndex) error {
+	children, err := partial.Manifests(idx)
+	if err != nil {
+		return err
+	}
+
+	g, ctx := errgroup.WithContext(pctx)
+
+	for _, child := range children {
+		child := child
+		if err := lp.writeChild(ctx, child, g); err != nil {
+			return err
+		}
+	}
+
+	return g.Wait()
+}
+
+func (lp *pusher) writeDeps(ctx context.Context, m partial.Artifact) error {
+	if img, ok := m.(v1.Image); ok {
+		return lp.writeLayers(ctx, img)
+	}
+
+	if idx, ok := m.(v1.ImageIndex); ok {
+		return lp.writeChildren(ctx, idx)
+	}
+
+	// This has no deps, not an error (e.g. something you want to just PUT).
+	return nil
+}
+
+func (lp *pusher) writeManifest(ctx context.Context, t partial.WithRawManifest) error {
+	m, err := taggableToManifest(t)
+	if err != nil {
+		return err
+	}
+
+	needDeps := true
+
+	if errors.Is(err, stream.ErrNotComputed) {
+		if err := lp.writeDeps(ctx, m); err != nil {
+			return err
+		}
+		needDeps = false
+	} else if err != nil {
+		return err
+	}
+
+	if needDeps {
+		if err := lp.writeDeps(ctx, m); err != nil {
+			return err
+		}
+	}
+
 	b, desc, err := unpackTaggable(t)
 	if err != nil {
 		return err
@@ -128,32 +217,41 @@ func (lp *pusher) Push(_ context.Context, ref name.Reference, t partial.WithRawM
 		return err
 	}
 
-	if img, ok := mf.(v1.Image); ok {
-		cl, err := partial.ConfigLayer(img)
-		if err != nil {
-			return err
-		}
-		dg, err := cl.Digest()
-		if err != nil {
-			return err
-		}
-		rc, err := img.RawConfigFile()
-		if err != nil {
-			return err
-		}
-		err = lp.path.WriteBlob(dg, io.NopCloser(bytes.NewBuffer(rc)))
-		if err != nil {
-			return err
-		}
-		ls, err := img.Layers()
-		if err != nil {
-			return err
-		}
-		for _, l := range ls {
-			if err = lp.writeLayer(l); err != nil {
-				return err
-			}
-		}
+	return nil
+}
+
+func (lp *pusher) writeChild(ctx context.Context, child partial.Describable, g *errgroup.Group) error {
+	switch child := child.(type) {
+	case v1.ImageIndex:
+		// For recursive index, we want to do a depth-first launching of goroutines
+		// to avoid deadlocking.
+		//
+		// Note that this is rare, so the impact of this should be really small.
+		return lp.writeManifest(ctx, child)
+	case v1.Image:
+		g.Go(func() error {
+			return lp.writeManifest(ctx, child)
+		})
+	case v1.Layer:
+		g.Go(func() error {
+			return lp.writeLayer(child)
+		})
+	default:
+		// This can't happen.
+		return fmt.Errorf("encountered unknown child: %T", child)
+	}
+	return nil
+}
+
+// Push implements remote.Pusher.
+func (lp *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
+	err := lp.writeManifest(ctx, t)
+	if err != nil {
+		return err
+	}
+	_, desc, err := unpackTaggable(t)
+	if err != nil {
+		return err
 	}
 	desc.Annotations = map[string]string{
 		specsv1.AnnotationRefName: ref.String(),
