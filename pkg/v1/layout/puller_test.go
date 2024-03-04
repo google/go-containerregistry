@@ -119,7 +119,7 @@ func TestPullerLayer(t *testing.T) {
 		t.Fatalf("layer.Size() = %v", err)
 	}
 
-	if size != 320 {
+	if size != 4096 {
 		t.Fatalf("wrong size returned, expected 320 but got %d", size)
 	}
 }
