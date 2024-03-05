@@ -443,7 +443,7 @@ func TestRemoveBlob(t *testing.T) {
 	}
 }
 
-func TestBlobExists(t *testing.T) {
+func TestBlobExistsAndSize(t *testing.T) {
 	// need to set up a basic path
 	tmp := t.TempDir()
 
@@ -473,6 +473,13 @@ func TestBlobExists(t *testing.T) {
 	}
 	if !l.BlobExists(hash) {
 		t.Fatal("blob should exist")
+	}
+	size, err := l.BlobSize(hash)
+	if err != nil {
+		t.Fatalf("BlobSize = %v", err)
+	}
+	if size != int64(len(b)) {
+		t.Fatalf("invalid size reported by BlobSize, expected %d, but got %d", len(b), size)
 	}
 	if err := l.RemoveBlob(hash); err != nil {
 		t.Fatal(err)

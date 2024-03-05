@@ -327,7 +327,7 @@ func (l Path) BlobExists(hash v1.Hash) bool {
 
 // BlobExists checks a blob exists at blobs/{hash.Algorithm}/{hash.Hex}
 func (l Path) BlobSize(hash v1.Hash) (int64, error) {
-	dir := l.path("blobs", hash.Algorithm)
+	dir := l.path("blobs", hash.Algorithm, hash.Hex)
 	stat, err := os.Stat(dir)
 	if err != nil {
 		return 0, err
