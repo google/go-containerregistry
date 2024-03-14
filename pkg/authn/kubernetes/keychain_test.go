@@ -228,7 +228,7 @@ func TestSecretAttachedServiceAccount(t *testing.T) {
 
 }
 
-// Prioritze picking the first secret
+// Prioritize picking the first secret
 func TestSecretPriority(t *testing.T) {
 	secrets := []corev1.Secret{
 		*dockerCfgSecretType.Create(t, "ns", "secret", "fake.registry.io", authn.AuthConfig{
