@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/cache"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
@@ -30,8 +31,8 @@ import (
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
 func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	var (
-		cachePath, format string
-		annotateRef       bool
+		cachePath, format, convert string
+		annotateRef                bool
 	)
 
 	cmd := &cobra.Command{
@@ -61,6 +62,12 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 					if err != nil {
 						return err
 					}
+					if convert == "oci" {
+						idx, err = mutate.OCIImageIndex(idx)
+						if err != nil {
+							return err
+						}
+					}
 					indexMap[src] = idx
 					continue
 				}
@@ -71,6 +78,12 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 				}
 				if cachePath != "" {
 					img = cache.Image(img, cache.NewFilesystemCache(cachePath))
+				}
+				if convert == "oci" {
+					img, err = mutate.OCIImage(img)
+					if err != nil {
+						return err
+					}
 				}
 				imageMap[src] = img
 			}
@@ -133,6 +146,9 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	cmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
 	cmd.Flags().StringVar(&format, "format", "tarball", fmt.Sprintf("Format in which to save images (%q, %q, or %q)", "tarball", "legacy", "oci"))
 	cmd.Flags().BoolVar(&annotateRef, "annotate-ref", false, "Preserves image reference used to pull as an annotation when used with --format=oci")
-
+	// Option --experimental-convert is not battle tested therefore marked as experimental.
+	// We may abandon it at any given time without prior notice.
+	cmd.Flags().StringVar(&convert, "experimental-convert", "preserve", fmt.Sprintf("Image spec to convert the pulled image (%q or %q). EXPERIMENTAL", "preserve", "oci"))
+	cmd.Flags().MarkHidden("experimental-convert")
 	return cmd
 }
