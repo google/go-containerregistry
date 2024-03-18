@@ -126,6 +126,19 @@ func (i *layoutIndex) Blob(h v1.Hash) (io.ReadCloser, error) {
 	return i.path.Blob(h)
 }
 
+// Workaround for #819.
+func (i *layoutIndex) Layer(h v1.Hash) (v1.Layer, error) {
+	desc, err := i.findDescriptor(h)
+	if err != nil {
+		return nil, err
+	}
+	layer := &compressedBlob{
+		path: i.path,
+		desc: *desc,
+	}
+	return partial.CompressedToLayer(layer)
+}
+
 func (i *layoutIndex) findDescriptor(h v1.Hash) (*v1.Descriptor, error) {
 	im, err := i.IndexManifest()
 	if err != nil {
