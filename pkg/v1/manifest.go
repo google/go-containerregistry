@@ -25,6 +25,7 @@ import (
 type Manifest struct {
 	SchemaVersion int64             `json:"schemaVersion"`
 	MediaType     types.MediaType   `json:"mediaType,omitempty"`
+	ArtifactType  string            `json:"artifactType,omitempty"`
 	Config        Descriptor        `json:"config"`
 	Layers        []Descriptor      `json:"layers"`
 	Annotations   map[string]string `json:"annotations,omitempty"`
@@ -35,6 +36,7 @@ type Manifest struct {
 type IndexManifest struct {
 	SchemaVersion int64             `json:"schemaVersion"`
 	MediaType     types.MediaType   `json:"mediaType,omitempty"`
+	ArtifactType  string            `json:"artifactType,omitempty"`
 	Manifests     []Descriptor      `json:"manifests"`
 	Annotations   map[string]string `json:"annotations,omitempty"`
 	Subject       *Descriptor       `json:"subject,omitempty"`
