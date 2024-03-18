@@ -14,7 +14,9 @@
 
 package partial
 
-import "github.com/google/go-containerregistry/pkg/v1/types"
+import (
+	types "github.com/google/go-containerregistry/pkg/v1/types"
+)
 
 type Artifact interface {
 	Describable

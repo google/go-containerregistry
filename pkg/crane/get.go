@@ -38,7 +38,7 @@ func getArtifact(r string, opt ...Option) (partial.Artifact, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parsing reference %q: %w", r, err)
 	}
-	return remote.Artifact(ref, o.Remote...)
+	return o.source.Artifact(o.ctx, ref)
 }
 
 // Get calls remote.Get and returns an uninterpreted response.
@@ -58,5 +58,5 @@ func Head(r string, opt ...Option) (*v1.Descriptor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return remote.Head(ref, o.Remote...)
+	return o.source.Head(o.ctx, ref)
 }

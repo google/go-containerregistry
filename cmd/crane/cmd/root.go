@@ -72,7 +72,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 			}
 			if uselocal != "" {
 				p, _ := layout.FromPath(uselocal)
-				options = append(options, crane.WithPuller(layout.NewPuller(p)), crane.WithPusher(layout.NewPusher(p)))
+				options = append(options, crane.WithSource(layout.NewSource(p)), crane.WithSink(layout.NewSink(p)))
 			}
 			if Version != "" {
 				binary := "crane"

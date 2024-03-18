@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/sourcesink"
 )
 
 // Options hold the options that crane uses when calling other packages.
@@ -38,6 +39,9 @@ type Options struct {
 	jobs      int
 	noclobber bool
 	ctx       context.Context
+
+	sink   sourcesink.Sink
+	source sourcesink.Source
 }
 
 // GetOptions exposes the underlying []remote.Option, []name.Option, and
@@ -60,6 +64,14 @@ func makeOptions(opts ...Option) Options {
 
 	for _, o := range opts {
 		o(&opt)
+	}
+
+	// By default use remote source and sink
+	if opt.sink == nil {
+		opt.sink, _ = remote.NewPusher(opt.Remote...)
+	}
+	if opt.source == nil {
+		opt.source, _ = remote.NewPuller(opt.Remote...)
 	}
 
 	// Allow for untrusted certificates if the user
@@ -177,16 +189,16 @@ func WithNoClobber(noclobber bool) Option {
 	}
 }
 
-// WithPuller sets the puller for remote
-func WithPuller(puller remote.Puller) Option {
+// WithSink sets the sink
+func WithSink(sink sourcesink.Sink) Option {
 	return func(o *Options) {
-		o.Remote = append(o.Remote, remote.WithPuller(puller))
+		o.sink = sink
 	}
 }
 
-// WithPuller sets the puller for remote
-func WithPusher(pusher remote.Pusher) Option {
+// WithSource sets the source
+func WithSource(source sourcesink.Source) Option {
 	return func(o *Options) {
-		o.Remote = append(o.Remote, remote.WithPusher(pusher))
+		o.source = source
 	}
 }

@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2024 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package sourcesink
 
 import (
-	"fmt"
+	"context"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 )
 
-// Delete deletes the remote reference at src.
-func Delete(src string, opt ...Option) error {
-	o := makeOptions(opt...)
-	ref, err := name.ParseReference(src, o.Name...)
-	if err != nil {
-		return fmt.Errorf("parsing reference %q: %w", src, err)
-	}
-
-	return o.sink.Delete(o.ctx, ref)
+type Source interface {
+	Layer(ctx context.Context, ref name.Digest) (v1.Layer, error)
+	Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, error)
+	Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error)
 }

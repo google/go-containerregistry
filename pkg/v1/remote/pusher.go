@@ -28,6 +28,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/go-containerregistry/pkg/v1/sourcesink"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
@@ -90,22 +91,16 @@ func (w *workers) Stream(layer v1.Layer, f func() error) error {
 	return v.(error)
 }
 
-type Pusher interface {
-	Delete(ctx context.Context, ref name.Reference) error
-	Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error
-	Upload(ctx context.Context, repo name.Repository, l v1.Layer) error
-}
+var _ sourcesink.Sink = (*Pusher)(nil)
 
-var _ Pusher = (*pusher)(nil)
-
-type pusher struct {
+type Pusher struct {
 	o *options
 
 	// map[name.Repository]*repoWriter
 	writers sync.Map
 }
 
-func NewPusher(options ...Option) (Pusher, error) {
+func NewPusher(options ...Option) (*Pusher, error) {
 	o, err := makeOptions(options...)
 	if err != nil {
 		return nil, err
@@ -113,16 +108,13 @@ func NewPusher(options ...Option) (Pusher, error) {
 	return newPusher(o), nil
 }
 
-func newPusher(o *options) Pusher {
-	if o.pusher != nil {
-		return *o.pusher
-	}
-	return &pusher{
+func newPusher(o *options) *Pusher {
+	return &Pusher{
 		o: o,
 	}
 }
 
-func (p *pusher) writer(ctx context.Context, repo name.Repository, o *options) (*repoWriter, error) {
+func (p *Pusher) writer(ctx context.Context, repo name.Repository, o *options) (*repoWriter, error) {
 	v, _ := p.writers.LoadOrStore(repo, &repoWriter{
 		repo: repo,
 		o:    o,
@@ -131,7 +123,7 @@ func (p *pusher) writer(ctx context.Context, repo name.Repository, o *options) (
 	return rw, rw.init(ctx)
 }
 
-func (p *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
+func (p *Pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
 	w, err := p.writer(ctx, ref.Context(), p.o)
 	if err != nil {
 		return err
@@ -139,7 +131,7 @@ func (p *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRaw
 	return w.writeManifest(ctx, ref, t)
 }
 
-func (p *pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) error {
+func (p *Pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) error {
 	w, err := p.writer(ctx, repo, p.o)
 	if err != nil {
 		return err
@@ -147,7 +139,7 @@ func (p *pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) e
 	return w.writeLayer(ctx, l)
 }
 
-func (p *pusher) Delete(ctx context.Context, ref name.Reference) error {
+func (p *Pusher) Delete(ctx context.Context, ref name.Reference) error {
 	w, err := p.writer(ctx, ref.Context(), p.o)
 	if err != nil {
 		return err

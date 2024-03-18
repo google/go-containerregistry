@@ -23,23 +23,24 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/sourcesink"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-type puller struct {
+type source struct {
 	path Path
 }
 
-func NewPuller(path Path) remote.Puller {
-	return &puller{
+func NewSource(path Path) sourcesink.Source {
+	return &source{
 		path,
 	}
 }
 
-var _ remote.Puller = (*puller)(nil)
+var _ sourcesink.Source = (*source)(nil)
 
 // Artifact implements remote.Puller.
-func (p *puller) getDescriptor(ref name.Reference) (*v1.Descriptor, error) {
+func (p *source) getDescriptor(ref name.Reference) (*v1.Descriptor, error) {
 	idx, err := p.path.ImageIndex()
 	if err != nil {
 		return nil, err
@@ -61,7 +62,7 @@ func (p *puller) getDescriptor(ref name.Reference) (*v1.Descriptor, error) {
 }
 
 // Artifact implements remote.Puller.
-func (p *puller) Artifact(_ context.Context, ref name.Reference) (partial.Artifact, error) {
+func (p *source) Artifact(_ context.Context, ref name.Reference) (partial.Artifact, error) {
 	desc, err := p.getDescriptor(ref)
 	if err != nil {
 		return nil, err
@@ -81,12 +82,12 @@ func (p *puller) Artifact(_ context.Context, ref name.Reference) (partial.Artifa
 }
 
 // Head implements remote.Puller.
-func (p *puller) Head(_ context.Context, ref name.Reference) (*v1.Descriptor, error) {
+func (p *source) Head(_ context.Context, ref name.Reference) (*v1.Descriptor, error) {
 	return p.getDescriptor(ref)
 }
 
 // Layer implements remote.Puller.
-func (p *puller) Layer(_ context.Context, ref name.Digest) (v1.Layer, error) {
+func (p *source) Layer(_ context.Context, ref name.Digest) (v1.Layer, error) {
 	h, err := v1.NewHash(ref.Identifier())
 	if err != nil {
 		return nil, err
@@ -102,31 +103,31 @@ func (p *puller) Layer(_ context.Context, ref name.Digest) (v1.Layer, error) {
 }
 
 // List implements remote.Puller.
-func (*puller) List(_ context.Context, _ name.Repository) ([]string, error) {
+func (*source) List(_ context.Context, _ name.Repository) ([]string, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Get implements remote.Puller.
-func (*puller) Get(_ context.Context, _ name.Reference) (*remote.Descriptor, error) {
+func (*source) Get(_ context.Context, _ name.Reference) (*remote.Descriptor, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Lister implements remote.Puller.
-func (*puller) Lister(_ context.Context, _ name.Repository) (*remote.Lister, error) {
+func (*source) Lister(_ context.Context, _ name.Repository) (*remote.Lister, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Catalogger implements remote.Puller.
-func (*puller) Catalogger(_ context.Context, _ name.Registry) (*remote.Catalogger, error) {
+func (*source) Catalogger(_ context.Context, _ name.Registry) (*remote.Catalogger, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Catalog implements remote.Puller.
-func (*puller) Catalog(_ context.Context, _ name.Registry) ([]string, error) {
+func (*source) Catalog(_ context.Context, _ name.Registry) ([]string, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }
 
 // Referrers implements remote.Puller.
-func (*puller) Referrers(_ context.Context, _ name.Digest, _ map[string]string) (v1.ImageIndex, error) {
+func (*source) Referrers(_ context.Context, _ name.Digest, _ map[string]string) (v1.ImageIndex, error) {
 	return nil, fmt.Errorf("unsupported operation")
 }

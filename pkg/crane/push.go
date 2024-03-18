@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
@@ -50,7 +49,7 @@ func Push(img v1.Image, dst string, opt ...Option) error {
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %w", dst, err)
 	}
-	return remote.Write(tag, img, o.Remote...)
+	return o.sink.Push(o.ctx, tag, img)
 }
 
 // Upload pushes the v1.Layer to a given repo.
@@ -60,6 +59,5 @@ func Upload(layer v1.Layer, repo string, opt ...Option) error {
 	if err != nil {
 		return fmt.Errorf("parsing repo %q: %w", repo, err)
 	}
-
-	return remote.WriteLayer(ref, layer, o.Remote...)
+	return o.sink.Upload(o.ctx, ref, layer)
 }

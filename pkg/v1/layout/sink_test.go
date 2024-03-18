@@ -110,11 +110,11 @@ func TestCanPushRandomImage(t *testing.T) {
 		t.Fatalf("random.Image() = %v", err)
 	}
 	path := mustOCILayout(t)
-	pusher := NewPusher(path)
+	sink := NewSink(path)
 	ref := name.MustParseReference("local.random/image:latest")
-	err = pusher.Push(context.TODO(), ref, img)
+	err = sink.Push(context.TODO(), ref, img)
 	if err != nil {
-		t.Errorf("pusher.Push() = %v", err)
+		t.Errorf("sink.Push() = %v", err)
 	}
 	mustHaveManifest(t, path, "local.random/image:latest")
 	mustHaveBlobs(t, path, enumerateImageBlobs(t, img))
@@ -126,11 +126,11 @@ func TestCanPushRandomImageIndex(t *testing.T) {
 		t.Fatalf("random.Index() = %v", err)
 	}
 	path := mustOCILayout(t)
-	pusher := NewPusher(path)
+	sink := NewSink(path)
 	ref := name.MustParseReference("local.random/index:latest")
-	err = pusher.Push(context.TODO(), ref, idx)
+	err = sink.Push(context.TODO(), ref, idx)
 	if err != nil {
-		t.Errorf("pusher.Push() = %v", err)
+		t.Errorf("sink.Push() = %v", err)
 	}
 	mustHaveManifest(t, path, "local.random/index:latest")
 	mustHaveBlobs(t, path, enumerateImageIndexBlobs(t, idx))
@@ -147,12 +147,12 @@ func TestCanPushImageIndex(t *testing.T) {
 	}
 
 	path := mustOCILayout(t)
-	pusher := NewPusher(path)
+	sink := NewSink(path)
 	ref := name.MustParseReference("local.repo/index:latest")
 
-	err = pusher.Push(context.TODO(), ref, img)
+	err = sink.Push(context.TODO(), ref, img)
 	if err != nil {
-		t.Errorf("pusher.Push() = %v", err)
+		t.Errorf("sink.Push() = %v", err)
 	}
 	mustHaveManifest(t, path, "local.repo/index:latest")
 	mustHaveBlobs(t, path, enumerateImageBlobs(t, img))
@@ -169,12 +169,12 @@ func TestCanPushImage(t *testing.T) {
 	}
 
 	path := mustOCILayout(t)
-	pusher := NewPusher(path)
+	sink := NewSink(path)
 	ref := name.MustParseReference("local.repo/index:latest")
 
-	err = pusher.Push(context.TODO(), ref, img)
+	err = sink.Push(context.TODO(), ref, img)
 	if err != nil {
-		t.Errorf("pusher.Push() = %v", err)
+		t.Errorf("sink.Push() = %v", err)
 	}
 	mustHaveManifest(t, path, "local.repo/index:latest")
 	mustHaveBlobs(t, path, enumerateImageBlobs(t, img))
@@ -191,11 +191,11 @@ func TestCanPushImageWithLatestTag(t *testing.T) {
 	}
 
 	path := mustOCILayout(t)
-	pusher := NewPusher(path)
+	sink := NewSink(path)
 
-	err = pusher.Push(context.TODO(), name.MustParseReference("reg.local.repo/index"), img)
+	err = sink.Push(context.TODO(), name.MustParseReference("reg.local.repo/index"), img)
 	if err != nil {
-		t.Errorf("pusher.Push() = %v", err)
+		t.Errorf("sink.Push() = %v", err)
 	}
 	mustHaveManifest(t, path, "reg.local.repo/index:latest")
 	mustHaveBlobs(t, path, enumerateImageBlobs(t, img))

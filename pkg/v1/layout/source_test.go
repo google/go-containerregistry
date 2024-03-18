@@ -32,10 +32,10 @@ func TestPullerHeadWithDigest(t *testing.T) {
 		t.Fatalf("FromPath() = %v", err)
 	}
 	digest := "sha256:32589985702551b6c56033bb3334432a0a513bf9d6aceda0f67c42b003850720"
-	puller := NewPuller(path)
-	desc, err := puller.Head(context.TODO(), name.MustParseReference("reg.local/repo2@sha256:32589985702551b6c56033bb3334432a0a513bf9d6aceda0f67c42b003850720"))
+	source := NewSource(path)
+	desc, err := source.Head(context.TODO(), name.MustParseReference("reg.local/repo2@sha256:32589985702551b6c56033bb3334432a0a513bf9d6aceda0f67c42b003850720"))
 	if err != nil {
-		t.Fatalf("puller.Head() = %v", err)
+		t.Fatalf("source.Head() = %v", err)
 	}
 
 	if desc.Digest.String() != digest {
@@ -49,10 +49,10 @@ func TestPullerHeadWithTag(t *testing.T) {
 		t.Fatalf("FromPath() = %v", err)
 	}
 	digest := "sha256:05f95b26ed10668b7183c1e2da98610e91372fa9f510046d4ce5812addad86b5"
-	puller := NewPuller(path)
-	desc, err := puller.Head(context.TODO(), name.MustParseReference("reg.local/repo4:latest"))
+	source := NewSource(path)
+	desc, err := source.Head(context.TODO(), name.MustParseReference("reg.local/repo4:latest"))
 	if err != nil {
-		t.Fatalf("puller.Head() = %v", err)
+		t.Fatalf("source.Head() = %v", err)
 	}
 	if desc.Digest.String() != digest {
 		t.Fatalf("wrong descriptor returned, expected %s but got %s ", digest, desc.Digest)
@@ -66,10 +66,10 @@ func TestPullerArtifact(t *testing.T) {
 	}
 	expectedDigest := "sha256:05f95b26ed10668b7183c1e2da98610e91372fa9f510046d4ce5812addad86b5"
 
-	puller := NewPuller(path)
-	desc, err := puller.Artifact(context.TODO(), name.MustParseReference("reg.local/repo4:latest"))
+	source := NewSource(path)
+	desc, err := source.Artifact(context.TODO(), name.MustParseReference("reg.local/repo4:latest"))
 	if err != nil {
-		t.Fatalf("puller.Artifact() = %v", err)
+		t.Fatalf("source.Artifact() = %v", err)
 	}
 
 	digest, err := desc.Digest()
@@ -98,11 +98,11 @@ func TestPullerLayer(t *testing.T) {
 	}
 
 	expectedDigest := "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e"
-	puller := NewPuller(path)
+	source := NewSource(path)
 
-	layer, err := puller.Layer(context.TODO(), name.MustParseReference("reg.local/repo4@sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e").(name.Digest))
+	layer, err := source.Layer(context.TODO(), name.MustParseReference("reg.local/repo4@sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e").(name.Digest))
 	if err != nil {
-		t.Fatalf("puller.Layer() = %v", err)
+		t.Fatalf("source.Layer() = %v", err)
 	}
 
 	digest, err := layer.Digest()

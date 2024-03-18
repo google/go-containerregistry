@@ -22,31 +22,20 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/sourcesink"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-type Puller interface {
-	Layer(ctx context.Context, ref name.Digest) (v1.Layer, error)
-	Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, error)
-	List(ctx context.Context, repo name.Repository) ([]string, error)
-	Get(ctx context.Context, ref name.Reference) (*Descriptor, error)
-	Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error)
-	Lister(ctx context.Context, repo name.Repository) (*Lister, error)
-	Catalogger(ctx context.Context, reg name.Registry) (*Catalogger, error)
-	Catalog(ctx context.Context, reg name.Registry) ([]string, error)
-	Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error)
-}
-
-type puller struct {
+type Puller struct {
 	o *options
 
 	// map[resource]*reader
 	readers sync.Map
 }
 
-var _ Puller = (*puller)(nil)
+var _ sourcesink.Source = (*Puller)(nil)
 
-func NewPuller(options ...Option) (Puller, error) {
+func NewPuller(options ...Option) (*Puller, error) {
 	o, err := makeOptions(options...)
 	if err != nil {
 		return nil, err
@@ -54,11 +43,8 @@ func NewPuller(options ...Option) (Puller, error) {
 	return newPuller(o), nil
 }
 
-func newPuller(o *options) Puller {
-	if o.puller != nil {
-		return *o.puller
-	}
-	return &puller{
+func newPuller(o *options) *Puller {
+	return &Puller{
 		o: o,
 	}
 }
@@ -84,7 +70,7 @@ func (r *reader) init(ctx context.Context) error {
 	return r.err
 }
 
-func (p *puller) fetcher(ctx context.Context, target resource) (*fetcher, error) {
+func (p *Puller) fetcher(ctx context.Context, target resource) (*fetcher, error) {
 	v, _ := p.readers.LoadOrStore(target, &reader{
 		target: target,
 		o:      p.o,
@@ -94,7 +80,7 @@ func (p *puller) fetcher(ctx context.Context, target resource) (*fetcher, error)
 }
 
 // Head is like remote.Head, but avoids re-authenticating when possible.
-func (p *puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, error) {
+func (p *Puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, error) {
 	f, err := p.fetcher(ctx, ref.Context())
 	if err != nil {
 		return nil, err
@@ -104,11 +90,11 @@ func (p *puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, 
 }
 
 // Get is like remote.Get, but avoids re-authenticating when possible.
-func (p *puller) Get(ctx context.Context, ref name.Reference) (*Descriptor, error) {
+func (p *Puller) Get(ctx context.Context, ref name.Reference) (*Descriptor, error) {
 	return p.get(ctx, ref, p.o.acceptableMediaTypes, p.o.platform)
 }
 
-func (p *puller) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {
+func (p *Puller) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {
 	f, err := p.fetcher(ctx, ref.Context())
 	if err != nil {
 		return nil, err
@@ -127,11 +113,11 @@ func (p *puller) get(ctx context.Context, ref name.Reference, acceptable []types
 	}, nil
 }
 
-func (p *puller) Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error) {
+func (p *Puller) Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error) {
 	return p.artifact(ctx, ref, p.o.acceptableMediaTypes, p.o.platform)
 }
 
-func (p *puller) artifact(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (partial.Artifact, error) {
+func (p *Puller) artifact(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (partial.Artifact, error) {
 	desc, err := p.get(ctx, ref, acceptable, platform)
 	if err != nil {
 		return nil, err
@@ -147,7 +133,7 @@ func (p *puller) artifact(ctx context.Context, ref name.Reference, acceptable []
 }
 
 // Layer is like remote.Layer, but avoids re-authenticating when possible.
-func (p *puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
+func (p *Puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
 	f, err := p.fetcher(ctx, ref.Context())
 	if err != nil {
 		return nil, err
@@ -172,7 +158,7 @@ func (p *puller) Layer(ctx context.Context, ref name.Digest) (v1.Layer, error) {
 }
 
 // List lists tags in a repo and handles pagination, returning the full list of tags.
-func (p *puller) List(ctx context.Context, repo name.Repository) ([]string, error) {
+func (p *Puller) List(ctx context.Context, repo name.Repository) ([]string, error) {
 	lister, err := p.Lister(ctx, repo)
 	if err != nil {
 		return nil, err
@@ -191,11 +177,11 @@ func (p *puller) List(ctx context.Context, repo name.Repository) ([]string, erro
 }
 
 // Lister lists tags in a repo and returns a Lister for paginating through the results.
-func (p *puller) Lister(ctx context.Context, repo name.Repository) (*Lister, error) {
+func (p *Puller) Lister(ctx context.Context, repo name.Repository) (*Lister, error) {
 	return p.lister(ctx, repo, p.o.pageSize)
 }
 
-func (p *puller) lister(ctx context.Context, repo name.Repository, pageSize int) (*Lister, error) {
+func (p *Puller) lister(ctx context.Context, repo name.Repository, pageSize int) (*Lister, error) {
 	f, err := p.fetcher(ctx, repo)
 	if err != nil {
 		return nil, err
@@ -214,11 +200,11 @@ func (p *puller) lister(ctx context.Context, repo name.Repository, pageSize int)
 }
 
 // Catalog lists repos in a registry and handles pagination, returning the full list of repos.
-func (p *puller) Catalog(ctx context.Context, reg name.Registry) ([]string, error) {
+func (p *Puller) Catalog(ctx context.Context, reg name.Registry) ([]string, error) {
 	return p.catalog(ctx, reg, p.o.pageSize)
 }
 
-func (p *puller) catalog(ctx context.Context, reg name.Registry, pageSize int) ([]string, error) {
+func (p *Puller) catalog(ctx context.Context, reg name.Registry, pageSize int) ([]string, error) {
 	catalogger, err := p.catalogger(ctx, reg, pageSize)
 	if err != nil {
 		return nil, err
@@ -235,11 +221,11 @@ func (p *puller) catalog(ctx context.Context, reg name.Registry, pageSize int) (
 }
 
 // Catalogger lists repos in a registry and returns a Catalogger for paginating through the results.
-func (p *puller) Catalogger(ctx context.Context, reg name.Registry) (*Catalogger, error) {
+func (p *Puller) Catalogger(ctx context.Context, reg name.Registry) (*Catalogger, error) {
 	return p.catalogger(ctx, reg, p.o.pageSize)
 }
 
-func (p *puller) catalogger(ctx context.Context, reg name.Registry, pageSize int) (*Catalogger, error) {
+func (p *Puller) catalogger(ctx context.Context, reg name.Registry, pageSize int) (*Catalogger, error) {
 	f, err := p.fetcher(ctx, reg)
 	if err != nil {
 		return nil, err
@@ -257,7 +243,7 @@ func (p *puller) catalogger(ctx context.Context, reg name.Registry, pageSize int
 	}, nil
 }
 
-func (p *puller) Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
+func (p *Puller) Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
 	f, err := p.fetcher(ctx, d.Context())
 	if err != nil {
 		return nil, err

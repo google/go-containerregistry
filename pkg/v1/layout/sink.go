@@ -24,7 +24,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/sourcesink"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -89,18 +89,16 @@ func unpackTaggable(t partial.WithRawManifest) ([]byte, *v1.Descriptor, error) {
 	}, nil
 }
 
-// Use partial.Artifact to unpack taggable.
-// Duplication is not a concern here.
-type pusher struct {
+type sink struct {
 	path Path
 }
 
 // Delete implements remote.Pusher.
-func (lp *pusher) Delete(_ context.Context, _ name.Reference) error {
+func (lp *sink) Delete(_ context.Context, _ name.Reference) error {
 	return errors.New("unsupported operation")
 }
 
-func (lp *pusher) writeLayer(l v1.Layer) error {
+func (lp *sink) writeLayer(l v1.Layer) error {
 	dg, err := l.Digest()
 	if err != nil {
 		return err
@@ -116,7 +114,7 @@ func (lp *pusher) writeLayer(l v1.Layer) error {
 	return nil
 }
 
-func (lp *pusher) writeLayers(pctx context.Context, img v1.Image) error {
+func (lp *sink) writeLayers(pctx context.Context, img v1.Image) error {
 	ls, err := img.Layers()
 	if err != nil {
 		return err
@@ -155,7 +153,7 @@ func (lp *pusher) writeLayers(pctx context.Context, img v1.Image) error {
 	return g.Wait()
 }
 
-func (lp *pusher) writeChildren(pctx context.Context, idx v1.ImageIndex) error {
+func (lp *sink) writeChildren(pctx context.Context, idx v1.ImageIndex) error {
 	children, err := partial.Manifests(idx)
 	if err != nil {
 		return err
@@ -173,7 +171,7 @@ func (lp *pusher) writeChildren(pctx context.Context, idx v1.ImageIndex) error {
 	return g.Wait()
 }
 
-func (lp *pusher) writeDeps(ctx context.Context, m partial.Artifact) error {
+func (lp *sink) writeDeps(ctx context.Context, m partial.Artifact) error {
 	if img, ok := m.(v1.Image); ok {
 		return lp.writeLayers(ctx, img)
 	}
@@ -186,7 +184,7 @@ func (lp *pusher) writeDeps(ctx context.Context, m partial.Artifact) error {
 	return nil
 }
 
-func (lp *pusher) writeManifest(ctx context.Context, t partial.WithRawManifest) error {
+func (lp *sink) writeManifest(ctx context.Context, t partial.WithRawManifest) error {
 	m, err := taggableToManifest(t)
 	if err != nil {
 		return err
@@ -220,7 +218,7 @@ func (lp *pusher) writeManifest(ctx context.Context, t partial.WithRawManifest) 
 	return nil
 }
 
-func (lp *pusher) writeChild(ctx context.Context, child partial.Describable, g *errgroup.Group) error {
+func (lp *sink) writeChild(ctx context.Context, child partial.Describable, g *errgroup.Group) error {
 	switch child := child.(type) {
 	case v1.ImageIndex:
 		// For recursive index, we want to do a depth-first launching of goroutines
@@ -244,7 +242,7 @@ func (lp *pusher) writeChild(ctx context.Context, child partial.Describable, g *
 }
 
 // Push implements remote.Pusher.
-func (lp *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
+func (lp *sink) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
 	err := lp.writeManifest(ctx, t)
 	if err != nil {
 		return err
@@ -264,7 +262,7 @@ func (lp *pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRa
 }
 
 // Upload implements remote.Pusher.
-func (lp *pusher) Upload(_ context.Context, _ name.Repository, l v1.Layer) error {
+func (lp *sink) Upload(_ context.Context, _ name.Repository, l v1.Layer) error {
 	digest, err := l.Digest()
 	if err != nil {
 		return err
@@ -276,10 +274,10 @@ func (lp *pusher) Upload(_ context.Context, _ name.Repository, l v1.Layer) error
 	return lp.path.WriteBlob(digest, rc)
 }
 
-func NewPusher(path Path) remote.Pusher {
-	return &pusher{
+func NewSink(path Path) sourcesink.Sink {
+	return &sink{
 		path,
 	}
 }
 
-var _ remote.Pusher = (*pusher)(nil)
+var _ sourcesink.Sink = (*sink)(nil)
