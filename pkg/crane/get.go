@@ -19,21 +19,9 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
-
-func getImage(r string, opt ...Option) (v1.Image, name.Reference, error) {
-	o := makeOptions(opt...)
-	ref, err := name.ParseReference(r, o.Name...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("parsing reference %q: %w", r, err)
-	}
-	img, err := remote.Image(ref, o.Remote...)
-	if err != nil {
-		return nil, nil, fmt.Errorf("reading image %q: %w", ref, err)
-	}
-	return img, ref, nil
-}
 
 func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
 	o := makeOptions(opt...)
@@ -44,9 +32,22 @@ func getManifest(r string, opt ...Option) (*remote.Descriptor, error) {
 	return remote.Get(ref, o.Remote...)
 }
 
+func getArtifact(r string, opt ...Option) (partial.Artifact, error) {
+	o := makeOptions(opt...)
+	ref, err := name.ParseReference(r, o.Name...)
+	if err != nil {
+		return nil, fmt.Errorf("parsing reference %q: %w", r, err)
+	}
+	return o.source.Artifact(o.ctx, ref)
+}
+
 // Get calls remote.Get and returns an uninterpreted response.
 func Get(r string, opt ...Option) (*remote.Descriptor, error) {
 	return getManifest(r, opt...)
+}
+
+func Artifact(r string, opt ...Option) (partial.Artifact, error) {
+	return getArtifact(r, opt...)
 }
 
 // Head performs a HEAD request for a manifest and returns a content descriptor
@@ -57,5 +58,5 @@ func Head(r string, opt ...Option) (*v1.Descriptor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return remote.Head(ref, o.Remote...)
+	return o.source.Head(o.ctx, ref)
 }

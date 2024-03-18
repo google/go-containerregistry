@@ -70,16 +70,19 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			desc, err := remote.Get(ref, o.Remote...)
+			desc, err := remote.Artifact(ref, o.Remote...)
 			if err != nil {
 				return fmt.Errorf("pulling %s: %w", baseRef, err)
 			}
-			if !desc.MediaType.IsIndex() {
-				return fmt.Errorf("expected %s to be an index, got %q", baseRef, desc.MediaType)
-			}
-			base, err := desc.ImageIndex()
+			mt, err := desc.MediaType()
 			if err != nil {
-				return nil
+				return err
+			}
+
+			var base v1.ImageIndex
+			var ok bool
+			if base, ok = desc.(v1.ImageIndex); !ok {
+				return fmt.Errorf("expected %s to be an index, got %q", baseRef, mt)
 			}
 
 			idx := filterIndex(base, platforms.platforms)
@@ -142,6 +145,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 			var (
 				base v1.ImageIndex
 				err  error
+				ok   bool
 				ref  name.Reference
 			)
 
@@ -160,16 +164,16 @@ The platform for appended manifests is inferred from the config file or omitted 
 				if err != nil {
 					return err
 				}
-				desc, err := remote.Get(ref, o.Remote...)
+				desc, err := remote.Artifact(ref, o.Remote...)
 				if err != nil {
 					return fmt.Errorf("pulling %s: %w", baseRef, err)
 				}
-				if !desc.MediaType.IsIndex() {
-					return fmt.Errorf("expected %s to be an index, got %q", baseRef, desc.MediaType)
-				}
-				base, err = desc.ImageIndex()
+				mt, err := desc.MediaType()
 				if err != nil {
-					return err
+					return fmt.Errorf("getting media type %s: %w", baseRef, err)
+				}
+				if base, ok = desc.(v1.ImageIndex); !ok {
+					return fmt.Errorf("expected %s to be an index, got %q", baseRef, mt)
 				}
 			}
 
@@ -180,16 +184,11 @@ The platform for appended manifests is inferred from the config file or omitted 
 				if err != nil {
 					return err
 				}
-				desc, err := remote.Get(ref, o.Remote...)
+				desc, err := remote.Artifact(ref, o.Remote...)
 				if err != nil {
 					return err
 				}
-				if desc.MediaType.IsImage() {
-					img, err := desc.Image()
-					if err != nil {
-						return err
-					}
-
+				if img, ok := desc.(v1.Image); ok {
 					cf, err := img.ConfigFile()
 					if err != nil {
 						return err
@@ -203,11 +202,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 						Add:        img,
 						Descriptor: *newDesc,
 					})
-				} else if desc.MediaType.IsIndex() {
-					idx, err := desc.ImageIndex()
-					if err != nil {
-						return err
-					}
+				} else if idx, ok := desc.(v1.ImageIndex); ok {
 					if flatten {
 						im, err := idx.IndexManifest()
 						if err != nil {
@@ -243,7 +238,11 @@ The platform for appended manifests is inferred from the config file or omitted 
 						})
 					}
 				} else {
-					return fmt.Errorf("saw unexpected MediaType %q for %q", desc.MediaType, m)
+					mt, err := desc.MediaType()
+					if err != nil {
+						return fmt.Errorf("getting media type %s: %w", baseRef, err)
+					}
+					return fmt.Errorf("saw unexpected MediaType %q for %q", mt, m)
 				}
 			}
 

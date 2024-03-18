@@ -1,4 +1,4 @@
-// Copyright 2018 Google LLC All Rights Reserved.
+// Copyright 2024 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package partial
 
 import (
-	"fmt"
-
-	"github.com/google/go-containerregistry/pkg/name"
+	types "github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-// Delete deletes the remote reference at src.
-func Delete(src string, opt ...Option) error {
-	o := makeOptions(opt...)
-	ref, err := name.ParseReference(src, o.Name...)
-	if err != nil {
-		return fmt.Errorf("parsing reference %q: %w", src, err)
-	}
+type Artifact interface {
+	Describable
+	WithRawManifest
+}
 
-	return o.sink.Delete(o.ctx, ref)
+type WithMediaType interface {
+	MediaType() (types.MediaType, error)
 }

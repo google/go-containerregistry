@@ -28,7 +28,7 @@ func Tag(img, tag string, opt ...Option) error {
 	if err != nil {
 		return fmt.Errorf("parsing reference %q: %w", img, err)
 	}
-	desc, err := remote.Get(ref, o.Remote...)
+	desc, err := remote.Artifact(ref, o.Remote...)
 	if err != nil {
 		return fmt.Errorf("fetching %q: %w", img, err)
 	}

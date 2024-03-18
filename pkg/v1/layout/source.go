@@ -1,0 +1,133 @@
+// Copyright 2024 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package layout
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+
+	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/sourcesink"
+	specsv1 "github.com/opencontainers/image-spec/specs-go/v1"
+)
+
+type source struct {
+	path Path
+}
+
+func NewSource(path Path) sourcesink.Source {
+	return &source{
+		path,
+	}
+}
+
+var _ sourcesink.Source = (*source)(nil)
+
+// Artifact implements remote.Puller.
+func (p *source) getDescriptor(ref name.Reference) (*v1.Descriptor, error) {
+	idx, err := p.path.ImageIndex()
+	if err != nil {
+		return nil, err
+	}
+	im, err := idx.IndexManifest()
+	if err != nil {
+		return nil, err
+	}
+	// Search for descriptors in reverse order to match most recent descriptors first
+	for i := len(im.Manifests) - 1; i >= 0; i-- {
+		manifest := im.Manifests[i]
+		if rref, ok := manifest.Annotations[specsv1.AnnotationRefName]; ok {
+			if ref.String() == rref {
+				return &manifest, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("unknown image: %s", ref.String())
+}
+
+// Artifact implements remote.Puller.
+func (p *source) Artifact(_ context.Context, ref name.Reference) (partial.Artifact, error) {
+	desc, err := p.getDescriptor(ref)
+	if err != nil {
+		return nil, err
+	}
+	if desc.MediaType.IsImage() {
+		return p.path.Image(desc.Digest)
+	} else if desc.MediaType.IsIndex() {
+		reg, err := p.path.ImageIndex()
+		if err != nil {
+			return nil, err
+		}
+		return reg.ImageIndex(desc.Digest)
+	} else if desc.MediaType.IsSchema1() {
+		return nil, fmt.Errorf("layout puller does not support schema1 images")
+	}
+	return nil, fmt.Errorf("unknown media type: %s", desc.MediaType)
+}
+
+// Head implements remote.Puller.
+func (p *source) Head(_ context.Context, ref name.Reference) (*v1.Descriptor, error) {
+	return p.getDescriptor(ref)
+}
+
+// Layer implements remote.Puller.
+func (p *source) Layer(_ context.Context, ref name.Digest) (v1.Layer, error) {
+	h, err := v1.NewHash(ref.Identifier())
+	if err != nil {
+		return nil, err
+	}
+	l, err := partial.CompressedToLayer(&localLayer{
+		path:   p.path,
+		digest: h,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
+// List implements remote.Puller.
+func (*source) List(_ context.Context, _ name.Repository) ([]string, error) {
+	return nil, fmt.Errorf("unsupported operation")
+}
+
+// Get implements remote.Puller.
+func (*source) Get(_ context.Context, _ name.Reference) (*remote.Descriptor, error) {
+	return nil, fmt.Errorf("unsupported operation")
+}
+
+// Lister implements remote.Puller.
+func (*source) Lister(_ context.Context, _ name.Repository) (*remote.Lister, error) {
+	return nil, fmt.Errorf("unsupported operation")
+}
+
+// Catalogger implements remote.Puller.
+func (*source) Catalogger(_ context.Context, _ name.Registry) (*remote.Catalogger, error) {
+	return nil, fmt.Errorf("unsupported operation")
+}
+
+// Catalog implements remote.Puller.
+func (*source) Catalog(_ context.Context, _ name.Registry) ([]string, error) {
+	return nil, fmt.Errorf("unsupported operation")
+}
+
+// Referrers implements remote.Puller.
+func (*source) Referrers(_ context.Context, _ name.Digest, _ map[string]string) (v1.ImageIndex, error) {
+	return nil, fmt.Errorf("unsupported operation")
+}

@@ -280,14 +280,19 @@ func editManifest(in io.Reader, out io.Writer, src string, dst string, mt string
 		return nil, err
 	}
 
-	desc, err := remote.Get(ref, o.Remote...)
+	desc, err := remote.Artifact(ref, o.Remote...)
+	if err != nil {
+		return nil, err
+	}
+
+	manifest, err := desc.RawManifest()
 	if err != nil {
 		return nil, err
 	}
 
 	var edited []byte
 	if interactive(in, out) {
-		edited, err = editor.Edit(bytes.NewReader(desc.Manifest), ".json")
+		edited, err = editor.Edit(bytes.NewReader(manifest), ".json")
 		if err != nil {
 			return nil, err
 		}
@@ -317,7 +322,11 @@ func editManifest(in io.Reader, out io.Writer, src string, dst string, mt string
 
 	if mt == "" {
 		// If --media-type is unset, use Content-Type by default.
-		mt = string(desc.MediaType)
+		mediatype, err := desc.MediaType()
+		if err != nil {
+			return nil, err
+		}
+		mt = string(mediatype)
 
 		// If document contains mediaType, default to that.
 		wmt := withMediaType{}

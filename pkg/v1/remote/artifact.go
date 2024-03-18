@@ -12,25 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package crane
+package remote
 
-import v1 "github.com/google/go-containerregistry/pkg/v1"
+import (
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
+)
 
-// Manifest returns the manifest for the remote image or index ref.
-func Manifest(ref string, opt ...Option) ([]byte, error) {
-	desc, err := getArtifact(ref, opt...)
+// Get returns a partial.Artifact for the given reference.
+//
+// See Head if you don't need the response body.
+func Artifact(ref name.Reference, options ...Option) (partial.Artifact, error) {
+	o, err := makeOptions(options...)
 	if err != nil {
 		return nil, err
 	}
-	o := makeOptions(opt...)
-	if idx, ok := desc.(v1.ImageIndex); ok && o.Platform != nil {
-		img, err := childByPlatform(idx, *o.Platform)
-		if err != nil {
-			return nil, err
-		}
-		if img, ok := img.(v1.Image); ok {
-			return img.RawManifest()
-		}
-	}
-	return desc.RawManifest()
+	return newPuller(o).Artifact(o.context, ref)
 }

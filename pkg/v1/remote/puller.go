@@ -16,11 +16,13 @@ package remote
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/sourcesink"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -30,6 +32,8 @@ type Puller struct {
 	// map[resource]*reader
 	readers sync.Map
 }
+
+var _ sourcesink.Source = (*Puller)(nil)
 
 func NewPuller(options ...Option) (*Puller, error) {
 	o, err := makeOptions(options...)
@@ -100,6 +104,25 @@ func (p *Puller) get(ctx context.Context, ref name.Reference, acceptable []types
 		return nil, err
 	}
 	return f.get(ctx, ref, acceptable, platform)
+}
+
+func (p *Puller) Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error) {
+	return p.artifact(ctx, ref, allManifestMediaTypes, p.o.platform)
+}
+
+func (p *Puller) artifact(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (partial.Artifact, error) {
+	desc, err := p.get(ctx, ref, acceptable, platform)
+	if err != nil {
+		return nil, err
+	}
+	if desc.MediaType.IsImage() {
+		return desc.Image()
+	} else if desc.MediaType.IsIndex() {
+		return desc.ImageIndex()
+	} else if desc.MediaType.IsSchema1() {
+		return desc.Schema1()
+	}
+	return nil, fmt.Errorf("unknown media type: %s", desc.MediaType)
 }
 
 // Layer is like remote.Layer, but avoids re-authenticating when possible.

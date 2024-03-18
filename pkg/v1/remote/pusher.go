@@ -28,14 +28,14 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/go-containerregistry/pkg/v1/sourcesink"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"golang.org/x/sync/errgroup"
 )
 
 type manifest interface {
-	Taggable
-	partial.Describable
+	partial.Artifact
 }
 
 // key is either v1.Hash or v1.Layer (for stream.Layer)
@@ -91,6 +91,8 @@ func (w *workers) Stream(layer v1.Layer, f func() error) error {
 	return v.(error)
 }
 
+var _ sourcesink.Sink = (*Pusher)(nil)
+
 type Pusher struct {
 	o *options
 
@@ -103,7 +105,6 @@ func NewPusher(options ...Option) (*Pusher, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return newPusher(o), nil
 }
 
@@ -125,7 +126,7 @@ func (p *Pusher) writer(ctx context.Context, repo name.Repository, o *options) (
 	return rw, rw.init(ctx)
 }
 
-func (p *Pusher) Push(ctx context.Context, ref name.Reference, t Taggable) error {
+func (p *Pusher) Push(ctx context.Context, ref name.Reference, t partial.WithRawManifest) error {
 	w, err := p.writer(ctx, ref.Context(), p.o)
 	if err != nil {
 		return err
@@ -220,6 +221,7 @@ func (d describable) MediaType() (types.MediaType, error) {
 	return d.desc.MediaType, nil
 }
 
+// This is basically partia
 type tagManifest struct {
 	Taggable
 	partial.Describable
@@ -256,7 +258,7 @@ func taggableToManifest(t Taggable) (manifest, error) {
 		return nil, err
 	}
 
-	if wmt, ok := t.(withMediaType); ok {
+	if wmt, ok := t.(partial.WithMediaType); ok {
 		desc.MediaType, err = wmt.MediaType()
 		if err != nil {
 			return nil, err

@@ -70,20 +70,14 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
 					return fmt.Errorf("reading tarball from stdin: %w", err)
 				}
 			} else {
-				desc, err := crane.Get(src, *options...)
+				desc, err := crane.Artifact(src, *options...)
 				if err != nil {
 					return fmt.Errorf("pulling %s: %w", src, err)
 				}
-				if desc.MediaType.IsSchema1() {
-					img, err = desc.Schema1()
-					if err != nil {
-						return fmt.Errorf("pulling schema 1 image %s: %w", src, err)
-					}
-				} else {
-					img, err = desc.Image()
-					if err != nil {
-						return fmt.Errorf("pulling Image %s: %w", src, err)
-					}
+				var ok bool
+				img, ok = desc.(v1.Image)
+				if !ok {
+					return fmt.Errorf("pulling schema 1 image %s: %w", src, err)
 				}
 			}
 
