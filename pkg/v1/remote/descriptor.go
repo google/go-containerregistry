@@ -90,11 +90,11 @@ func Head(ref name.Reference, options ...Option) (*v1.Descriptor, error) {
 // Handle options and fetch the manifest with the acceptable MediaTypes in the
 // Accept header.
 func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*Descriptor, error) {
-	o, err := makeOptions(append(options, WithAcceptableMediaTypes(acceptable))...)
+	o, err := makeOptions(options...)
 	if err != nil {
 		return nil, err
 	}
-	return newPuller(o).Get(o.context, ref)
+	return newPuller(o).get(o.context, ref, acceptable, o.platform)
 }
 
 // Image converts the Descriptor into a v1.Image.

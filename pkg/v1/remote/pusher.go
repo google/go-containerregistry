@@ -109,6 +109,9 @@ func NewPusher(options ...Option) (*Pusher, error) {
 }
 
 func newPusher(o *options) *Pusher {
+	if o.pusher != nil {
+		return o.pusher
+	}
 	return &Pusher{
 		o: o,
 	}

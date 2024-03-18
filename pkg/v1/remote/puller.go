@@ -40,10 +40,14 @@ func NewPuller(options ...Option) (*Puller, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return newPuller(o), nil
 }
 
 func newPuller(o *options) *Puller {
+	if o.puller != nil {
+		return o.puller
+	}
 	return &Puller{
 		o: o,
 	}
@@ -91,7 +95,7 @@ func (p *Puller) Head(ctx context.Context, ref name.Reference) (*v1.Descriptor, 
 
 // Get is like remote.Get, but avoids re-authenticating when possible.
 func (p *Puller) Get(ctx context.Context, ref name.Reference) (*Descriptor, error) {
-	return p.get(ctx, ref, p.o.acceptableMediaTypes, p.o.platform)
+	return p.get(ctx, ref, allManifestMediaTypes, p.o.platform)
 }
 
 func (p *Puller) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {
@@ -99,22 +103,11 @@ func (p *Puller) get(ctx context.Context, ref name.Reference, acceptable []types
 	if err != nil {
 		return nil, err
 	}
-	mf, desc, err := f.fetchManifest(ctx, ref, acceptable)
-	if err != nil {
-		return nil, err
-	}
-	return &Descriptor{
-		ref:        ref,
-		ctx:        ctx,
-		fetcher:    *f,
-		Manifest:   mf,
-		Descriptor: *desc,
-		platform:   platform,
-	}, nil
+	return f.get(ctx, ref, acceptable, platform)
 }
 
 func (p *Puller) Artifact(ctx context.Context, ref name.Reference) (partial.Artifact, error) {
-	return p.artifact(ctx, ref, p.o.acceptableMediaTypes, p.o.platform)
+	return p.artifact(ctx, ref, allManifestMediaTypes, p.o.platform)
 }
 
 func (p *Puller) artifact(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (partial.Artifact, error) {
@@ -243,7 +236,7 @@ func (p *Puller) catalogger(ctx context.Context, reg name.Registry, pageSize int
 	}, nil
 }
 
-func (p *Puller) Referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
+func (p *Puller) referrers(ctx context.Context, d name.Digest, filter map[string]string) (v1.ImageIndex, error) {
 	f, err := p.fetcher(ctx, d.Context())
 	if err != nil {
 		return nil, err

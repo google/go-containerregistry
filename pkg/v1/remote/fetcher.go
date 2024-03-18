@@ -99,6 +99,21 @@ func (f *fetcher) url(resource, identifier string) url.URL {
 	return u
 }
 
+func (f *fetcher) get(ctx context.Context, ref name.Reference, acceptable []types.MediaType, platform v1.Platform) (*Descriptor, error) {
+	b, desc, err := f.fetchManifest(ctx, ref, acceptable)
+	if err != nil {
+		return nil, err
+	}
+	return &Descriptor{
+		ref:        ref,
+		ctx:        ctx,
+		fetcher:    *f,
+		Manifest:   b,
+		Descriptor: *desc,
+		platform:   platform,
+	}, nil
+}
+
 func (f *fetcher) fetchManifest(ctx context.Context, ref name.Reference, acceptable []types.MediaType) ([]byte, *v1.Descriptor, error) {
 	u := f.url("manifests", ref.Identifier())
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)

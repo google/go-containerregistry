@@ -28,7 +28,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/logs"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
-	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 // Option is a functional option for remote operations.
@@ -53,9 +52,8 @@ type options struct {
 	filter   map[string]string
 
 	// Set by Reuse, we currently store one or the other.
-	puller               *Puller
-	pusher               *Pusher
-	acceptableMediaTypes []types.MediaType
+	puller *Puller
+	pusher *Pusher
 }
 
 var defaultPlatform = v1.Platform{
@@ -129,15 +127,14 @@ var DefaultTransport http.RoundTripper = &http.Transport{
 
 func makeOptions(opts ...Option) (*options, error) {
 	o := &options{
-		transport:            DefaultTransport,
-		platform:             defaultPlatform,
-		acceptableMediaTypes: allManifestMediaTypes,
-		context:              context.Background(),
-		jobs:                 defaultJobs,
-		pageSize:             defaultPageSize,
-		retryPredicate:       defaultRetryPredicate,
-		retryBackoff:         defaultRetryBackoff,
-		retryStatusCodes:     defaultRetryStatusCodes,
+		transport:        DefaultTransport,
+		platform:         defaultPlatform,
+		context:          context.Background(),
+		jobs:             defaultJobs,
+		pageSize:         defaultPageSize,
+		retryPredicate:   defaultRetryPredicate,
+		retryBackoff:     defaultRetryBackoff,
+		retryStatusCodes: defaultRetryStatusCodes,
 	}
 
 	for _, option := range opts {
@@ -222,14 +219,6 @@ func WithAuthFromKeychain(keys authn.Keychain) Option {
 func WithPlatform(p v1.Platform) Option {
 	return func(o *options) error {
 		o.platform = p
-		return nil
-	}
-}
-
-// WithAcceptableMediaTypes sets acceptable media types for artifacts
-func WithAcceptableMediaTypes(acceptable []types.MediaType) Option {
-	return func(o *options) error {
-		o.acceptableMediaTypes = acceptable
 		return nil
 	}
 }
