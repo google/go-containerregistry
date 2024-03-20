@@ -23,8 +23,11 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
+
+	"github.com/mitchellh/go-homedir"
 
 	"github.com/google/go-containerregistry/pkg/name"
 )
@@ -99,12 +102,19 @@ func TestPodmanConfig(t *testing.T) {
 	}
 	fresh++
 	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
-	t.Setenv("XDG_RUNTIME_DIR", p)
-	os.Unsetenv("DOCKER_CONFIG")
-	if err := os.MkdirAll(filepath.Join(p, "containers"), 0777); err != nil {
-		t.Fatalf("mkdir %s/containers: %v", p, err)
+	var ctrDir string
+	if runtime.GOOS == "linux" {
+		t.Setenv("XDG_RUNTIME_DIR", p)
+		ctrDir = filepath.Join(p, "containers")
+	} else {
+		setHomedir(t, p)
+		ctrDir = filepath.Join(p, ".config", "containers")
 	}
-	cfg := filepath.Join(p, "containers/auth.json")
+	os.Unsetenv("DOCKER_CONFIG")
+	if err := os.MkdirAll(ctrDir, 0777); err != nil {
+		t.Fatalf("mkdir %s: %v", ctrDir, err)
+	}
+	cfg := filepath.Join(ctrDir, "auth.json")
 	content := fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("foo", "bar"))
 	if err := os.WriteFile(cfg, []byte(content), 0600); err != nil {
 		t.Fatalf("write %q: %v", cfg, err)
@@ -179,6 +189,16 @@ func TestPodmanConfig(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
 	}
+}
+
+func setHomedir(t *testing.T, p string) {
+	oldDisableCache := homedir.DisableCache
+	t.Cleanup(func() {
+		homedir.DisableCache = oldDisableCache
+	})
+	homedir.DisableCache = true
+	t.Setenv("HOME", p)
+	t.Setenv("USERPROFILE", p)
 }
 
 func encode(user, pass string) string {
