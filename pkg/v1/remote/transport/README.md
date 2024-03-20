@@ -1,6 +1,6 @@
 # `transport`
 
-[![GoDoc](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/transport?status.svg)](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/transport)
+[![GoDoc](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote/transport?status.svg)](https://godoc.org/github.com/google/go-containerregistry/pkg/v1/remote/transport)
 
 The [distribution protocol](https://github.com/opencontainers/distribution-spec) is fairly simple, but correctly [implementing authentication](../../../authn/README.md) is **hard**.
 
