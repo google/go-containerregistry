@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/google/go-containerregistry/pkg/crane/local"
 	legacy "github.com/google/go-containerregistry/pkg/legacy/tarball"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -39,7 +40,9 @@ func Pull(src string, opt ...Option) (v1.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parsing reference %q: %w", src, err)
 	}
-
+	if o.local {
+		return local.Image(ref, o.Local...)
+	}
 	return remote.Image(ref, o.Remote...)
 }
 

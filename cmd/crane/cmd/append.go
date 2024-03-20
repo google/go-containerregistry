@@ -117,6 +117,5 @@ container image.`,
 
 	appendCmd.MarkFlagsMutuallyExclusive("oci-empty-base", "base")
 	appendCmd.MarkFlagRequired("new_tag")
-	appendCmd.MarkFlagRequired("new_layer")
 	return appendCmd
 }

@@ -14,8 +14,20 @@
 
 package crane
 
+import (
+	"github.com/google/go-containerregistry/pkg/crane/local"
+)
+
 // Config returns the config file for the remote image ref.
 func Config(ref string, opt ...Option) ([]byte, error) {
+	opts := makeOptions(opt...)
+	if opts.local {
+		i, err := local.Pull(ref, opts.Local...)
+		if err != nil {
+			return nil, err
+		}
+		return i.RawConfigFile()
+	}
 	i, _, err := getImage(ref, opt...)
 	if err != nil {
 		return nil, err
