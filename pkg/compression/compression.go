@@ -15,6 +15,8 @@
 // Package compression abstracts over gzip and zstd.
 package compression
 
+import "errors"
+
 // Compression is an enumeration of the supported compression algorithms
 type Compression string
 
@@ -24,3 +26,25 @@ const (
 	GZip Compression = "gzip"
 	ZStd Compression = "zstd"
 )
+
+// Used by fmt.Print and Cobra in help text
+func (e *Compression) String() string {
+	return string(*e)
+}
+
+func (e *Compression) Set(v string) error {
+	switch v {
+	case "none", "gzip", "zstd":
+		*e = Compression(v)
+		return nil
+	default:
+		return errors.New(`must be one of "none", "gzip, or "zstd"`)
+	}
+}
+
+// Used in Cobra help text
+func (e *Compression) Type() string {
+	return "Compression"
+}
+
+var ErrZStdNonOci = errors.New("ZSTD compression can only be used with an OCI base image")

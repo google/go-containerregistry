@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 // WriteToFile writes in the compressed format to a tarball, on disk.
@@ -182,9 +183,18 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 			// Drop the algorithm prefix, e.g. "sha256:"
 			hex := d.Hex
 
-			// gunzip expects certain file extensions:
-			// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
-			layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
+			mt, err := l.MediaType()
+			if err != nil {
+				return sendProgressWriterReturn(pw, err)
+			}
+			// OCILayerZStd is the only layer type that currently supports ZSTD-compression
+			if mt == types.OCILayerZStd {
+				layerFiles[i] = fmt.Sprintf("%s.tar.zst", hex)
+			} else {
+				// gunzip expects certain file extensions:
+				// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
+				layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
+			}
 
 			if _, ok := seenLayerDigests[hex]; ok {
 				continue

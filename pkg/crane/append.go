@@ -19,6 +19,7 @@ import (
 	"os"
 
 	"github.com/google/go-containerregistry/internal/windows"
+	"github.com/google/go-containerregistry/pkg/compression"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
@@ -40,6 +41,16 @@ func isWindows(img v1.Image) (bool, error) {
 // "windows"), the contents of the tarballs will be modified to be suitable for
 // a Windows container image.`,
 func Append(base v1.Image, paths ...string) (v1.Image, error) {
+	return AppendWithCompression(base, compression.GZip, paths...)
+}
+
+// Append reads a layer from path and appends it the the v1.Image base
+// using the specified compression
+//
+// If the base image is a Windows base image (i.e., its config.OS is
+// "windows"), the contents of the tarballs will be modified to be suitable for
+// a Windows container image.`,
+func AppendWithCompression(base v1.Image, comp compression.Compression, paths ...string) (v1.Image, error) {
 	if base == nil {
 		return nil, fmt.Errorf("invalid argument: base")
 	}
@@ -59,6 +70,12 @@ func Append(base v1.Image, paths ...string) (v1.Image, error) {
 
 	if baseMediaType == types.OCIManifestSchema1 {
 		layerType = types.OCILayer
+	}
+
+	if comp == compression.ZStd && layerType == types.OCILayer {
+		layerType = types.OCILayerZStd
+	} else if comp == compression.ZStd {
+		return nil, compression.ErrZStdNonOci
 	}
 
 	layers := make([]v1.Layer, 0, len(paths))
@@ -90,7 +107,11 @@ func getLayer(path string, layerType types.MediaType) (v1.Layer, error) {
 		return stream.NewLayer(f, stream.WithMediaType(layerType)), nil
 	}
 
-	return tarball.LayerFromFile(path, tarball.WithMediaType(layerType))
+	if layerType == types.OCILayerZStd {
+		return tarball.LayerFromFile(path, tarball.WithMediaType(layerType), tarball.WithCompression(compression.ZStd))
+	} else {
+		return tarball.LayerFromFile(path, tarball.WithMediaType(layerType))
+	}
 }
 
 // If we're dealing with a named pipe, trying to open it multiple times will

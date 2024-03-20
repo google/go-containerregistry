@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -30,6 +31,7 @@ import (
 func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var labels map[string]string
 	var annotations map[string]string
+	var comp = compression.GZip
 	var envVars keyToValue
 	var entrypoint, cmd []string
 	var newLayers []string
@@ -67,7 +69,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				return fmt.Errorf("pulling %s: %w", ref, err)
 			}
 			if len(newLayers) != 0 {
-				img, err = crane.Append(img, newLayers...)
+				img, err = crane.AppendWithCompression(img, comp, newLayers...)
 				if err != nil {
 					return fmt.Errorf("appending %v: %w", newLayers, err)
 				}
@@ -174,6 +176,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringToStringVarP(&annotations, "annotation", "a", nil, "New annotations to add")
 	mutateCmd.Flags().StringToStringVarP(&labels, "label", "l", nil, "New labels to add")
 	mutateCmd.Flags().VarP(&envVars, "env", "e", "New envvar to add")
+	mutateCmd.Flags().VarP(&comp, "compression", "c", "Compression to use for new layers")
 	mutateCmd.Flags().StringSliceVar(&entrypoint, "entrypoint", nil, "New entrypoint to set")
 	mutateCmd.Flags().StringSliceVar(&cmd, "cmd", nil, "New cmd to set")
 	mutateCmd.Flags().StringVar(&newRepo, "repo", "", "Repository to push the mutated image to. If provided, push by digest to this repository.")

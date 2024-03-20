@@ -30,6 +30,7 @@ import (
 
 	"github.com/google/go-containerregistry/internal/compare"
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
@@ -439,7 +440,7 @@ func TestCraneFilesystem(t *testing.T) {
 	tw.Flush()
 	tw.Close()
 
-	img, err = crane.Append(img, tmp.Name())
+	img, err = crane.AppendWithCompression(img, compression.GZip, tmp.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +501,7 @@ func TestStreamingAppend(t *testing.T) {
 
 	os.Stdin = tmp
 
-	img, err := crane.Append(empty.Image, "-")
+	img, err := crane.AppendWithCompression(empty.Image, compression.GZip, "-")
 	if err != nil {
 		t.Fatal(err)
 	}
