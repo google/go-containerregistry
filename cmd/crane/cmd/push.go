@@ -21,6 +21,9 @@ import (
 	"strings"
 	"sync"
 
+	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/spf13/cobra"
+
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -28,7 +31,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
-	"github.com/spf13/cobra"
 )
 
 type imageWithRef struct {
@@ -230,7 +232,7 @@ func loadImageWithRef(path string, index bool) ([]imageWithRef, error) {
 	}
 
 	if index {
-		refName := m.Annotations[ociAnnotationImageRefName]
+		refName := m.Annotations[imagespec.AnnotationRefName]
 		ref, err := name.ParseReference(refName, name.StrictValidation)
 		if err != nil {
 			return nil, fmt.Errorf("parsing %s repoTag: %w", path, err)
@@ -240,7 +242,7 @@ func loadImageWithRef(path string, index bool) ([]imageWithRef, error) {
 
 	imgRefs := make([]imageWithRef, len(m.Manifests))
 	for i := range m.Manifests {
-		refName := m.Manifests[i].Annotations[ociAnnotationImageRefName]
+		refName := m.Manifests[i].Annotations[imagespec.AnnotationRefName]
 		ref, err := name.ParseReference(refName, name.StrictValidation)
 		if err != nil {
 			return nil, fmt.Errorf("parsing %s repoTag: %w", path, err)

@@ -17,6 +17,9 @@ package cmd
 import (
 	"fmt"
 
+	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/spf13/cobra"
+
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -24,7 +27,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/spf13/cobra"
 )
 
 // NewCmdPull creates a new cobra.Command for the pull subcommand.
@@ -101,7 +103,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 							return err
 						}
 						opts = append(opts, layout.WithAnnotations(map[string]string{
-							ociAnnotationImageRefName: parsed.Name(),
+							imagespec.AnnotationRefName: parsed.Name(),
 						}))
 					}
 					if err = p.AppendImage(img, opts...); err != nil {
@@ -117,7 +119,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 							return err
 						}
 						opts = append(opts, layout.WithAnnotations(map[string]string{
-							ociAnnotationImageRefName: parsed.Name(),
+							imagespec.AnnotationRefName: parsed.Name(),
 						}))
 					}
 					if err := p.AppendIndex(idx, opts...); err != nil {

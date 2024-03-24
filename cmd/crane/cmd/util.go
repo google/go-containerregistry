@@ -21,8 +21,6 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
-const ociAnnotationImageRefName = "org.opencontainers.image.ref.name"
-
 type platformsValue struct {
 	platforms []v1.Platform
 }
