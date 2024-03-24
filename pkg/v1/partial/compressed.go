@@ -186,3 +186,11 @@ func CompressedToImage(cic CompressedImageCore) (v1.Image, error) {
 		CompressedImageCore: cic,
 	}, nil
 }
+
+// RepoTags try get repo tags
+func (i *compressedImageExtender) RepoTags() []string {
+	if it, ok := i.CompressedImageCore.(WithRepoTags); ok {
+		return it.RepoTags()
+	}
+	return nil
+}

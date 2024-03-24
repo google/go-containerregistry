@@ -13,6 +13,7 @@ crane push PATH IMAGE [flags]
 ### Options
 
 ```
+      --annotate-ref        use image reference to push bundle
   -h, --help                help for push
       --image-refs string   path to file where a list of the published image references will be written
       --index               push a collection of images as a single index, currently required if PATH contains multiple images

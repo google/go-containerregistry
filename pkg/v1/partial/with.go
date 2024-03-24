@@ -147,6 +147,10 @@ type WithRawManifest interface {
 	RawManifest() ([]byte, error)
 }
 
+type WithRepoTags interface {
+	RepoTags() []string
+}
+
 // Digest is a helper for implementing v1.Image
 func Digest(i WithRawManifest) (v1.Hash, error) {
 	mb, err := i.RawManifest()
