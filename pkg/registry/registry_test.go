@@ -138,6 +138,42 @@ func TestCalls(t *testing.T) {
 			Want:        "foo",
 		},
 		{
+			Description: "GET blob range",
+			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusPartialContent,
+			RequestHeader: map[string]string{
+				"Range": "bytes=1-2",
+			},
+			Header: map[string]string{
+				"Docker-Content-Digest": "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+				"Content-Length":        "2",
+				"Content-Range":         "bytes 1-2/3",
+			},
+			Want: "oo",
+		},
+		{
+			Description: "GET invalid range header",
+			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			RequestHeader: map[string]string{
+				"Range": "nibbles=123-456",
+			},
+			Code: http.StatusRequestedRangeNotSatisfiable,
+		},
+		{
+			Description: "GET bad blob range",
+			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			RequestHeader: map[string]string{
+				"Range": "bytes=1-3",
+			},
+			Code: http.StatusRequestedRangeNotSatisfiable,
+		},
+		{
 			Description: "HEAD blob",
 			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
 			Method:      "HEAD",
