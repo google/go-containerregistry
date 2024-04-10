@@ -19,6 +19,7 @@ crane mutate [flags]
   -l, --label stringToString        New labels to add (default [])
   -o, --output string               Path to new tarball of resulting image
       --repo string                 Repository to push the mutated image to. If provided, push by digest to this repository.
+      --set-platform string         New platform to set in the form os/arch[/variant][:osversion] (e.g. linux/amd64)
   -t, --tag string                  New tag reference to apply to mutated image. If not provided, push by digest to the original image repository.
   -u, --user string                 New user to set
   -w, --workdir string              New working dir to set
