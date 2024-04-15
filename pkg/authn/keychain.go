@@ -17,6 +17,7 @@ package authn
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -97,7 +98,13 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 			return nil, err
 		}
 	} else {
-		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
+		var configBaseDir string
+		if runtime.GOOS == "linux" {
+			configBaseDir = os.Getenv("XDG_RUNTIME_DIR")
+		} else {
+			configBaseDir = filepath.Join(home, ".config")
+		}
+		f, err := os.Open(filepath.Join(configBaseDir, "containers", "auth.json"))
 		if err != nil {
 			return Anonymous, nil
 		}
