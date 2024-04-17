@@ -326,6 +326,7 @@ func LayerFromReader(reader io.Reader, opts ...LayerOption) (v1.Layer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating temp file to buffer reader: %w", err)
 	}
+	defer tmp.Close()
 	if _, err := io.Copy(tmp, reader); err != nil {
 		return nil, fmt.Errorf("writing temp file to buffer reader: %w", err)
 	}
