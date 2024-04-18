@@ -86,8 +86,8 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 	// config.Load, which may fail if the config can't be parsed.
 	//
 	// If neither was found, look for Podman's auth at
-	// $XDG_RUNTIME_DIR/containers/auth.json and attempt to load it as a
-	// Docker config.
+	// $REGISTRY_AUTH_FILE or $XDG_RUNTIME_DIR/containers/auth.json
+	// and attempt to load it as a Docker config.
 	//
 	// If neither are found, fallback to Anonymous.
 	var cf *configfile.ConfigFile
@@ -96,16 +96,28 @@ func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
+	} else if fileExists(os.Getenv("REGISTRY_AUTH_FILE")) {
+		f, err := os.Open(os.Getenv("REGISTRY_AUTH_FILE"))
 		if err != nil {
-			return Anonymous, nil
+			return nil, err
 		}
 		defer f.Close()
 		cf, err = config.LoadFromReader(f)
 		if err != nil {
 			return nil, err
 		}
+	} else if fileExists(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json")) {
+		f, err := os.Open(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json"))
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		cf, err = config.LoadFromReader(f)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return Anonymous, nil
 	}
 
 	// See:
