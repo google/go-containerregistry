@@ -537,6 +537,14 @@ func MediaType(img v1.Image, mt types.MediaType) v1.Image {
 	}
 }
 
+// ArtifactType modifies the ArtifactType() of the given image.
+func ArtifactType(img v1.Image, at string) v1.Image {
+	return &image{
+		base:         img,
+		artifactType: &at,
+	}
+}
+
 // ConfigMediaType modifies the MediaType() of the given image's Config.
 //
 // If !mt.IsConfig(), this will be the image's artifactType in any indexes it's a part of.

@@ -35,6 +35,7 @@ type image struct {
 	manifest        *v1.Manifest
 	annotations     map[string]string
 	mediaType       *types.MediaType
+	artifactType    *string
 	configMediaType *types.MediaType
 	diffIDMap       map[v1.Hash]v1.Layer
 	digestMap       map[v1.Hash]v1.Layer
@@ -50,6 +51,13 @@ func (i *image) MediaType() (types.MediaType, error) {
 		return *i.mediaType, nil
 	}
 	return i.base.MediaType()
+}
+
+func (i *image) ArtifactType() (string, error) {
+	if i.artifactType != nil {
+		return *i.artifactType, nil
+	}
+	return partial.ArtifactType(i.base)
 }
 
 func (i *image) compute() error {
@@ -153,6 +161,10 @@ func (i *image) compute() error {
 
 	if i.mediaType != nil {
 		manifest.MediaType = *i.mediaType
+	}
+
+	if i.artifactType != nil {
+		manifest.ArtifactType = *i.artifactType
 	}
 
 	if i.annotations != nil {
