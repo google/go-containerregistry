@@ -39,11 +39,12 @@ const whiteoutPrefix = ".wh."
 // Addendum contains layers and history to be appended
 // to a base image
 type Addendum struct {
-	Layer       v1.Layer
-	History     v1.History
-	URLs        []string
-	Annotations map[string]string
-	MediaType   types.MediaType
+	Layer        v1.Layer
+	History      v1.History
+	URLs         []string
+	Annotations  map[string]string
+	MediaType    types.MediaType
+	ArtifactType string
 }
 
 // AppendLayers applies layers to a base image.

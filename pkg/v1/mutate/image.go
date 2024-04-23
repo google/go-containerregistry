@@ -117,6 +117,10 @@ func (i *image) compute() error {
 			desc.MediaType = add.MediaType
 		}
 
+		if add.ArtifactType != "" {
+			desc.ArtifactType = add.ArtifactType
+		}
+
 		manifestLayers = append(manifestLayers, *desc)
 		digestMap[desc.Digest] = add.Layer
 	}
