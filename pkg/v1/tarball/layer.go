@@ -286,13 +286,12 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	}
 
 	// Warn if media type does not match compression
-	var mediaTypeMismatch = false
+	mediaTypeMismatch := false
 	switch layer.compression {
 	case compression.GZip:
-		mediaTypeMismatch =
-			layer.mediaType != types.OCILayer &&
-				layer.mediaType != types.OCIRestrictedLayer &&
-				layer.mediaType != types.DockerLayer
+		mediaTypeMismatch = layer.mediaType != types.OCILayer &&
+			layer.mediaType != types.OCIRestrictedLayer &&
+			layer.mediaType != types.DockerLayer
 
 	case compression.ZStd:
 		mediaTypeMismatch = layer.mediaType != types.OCILayerZStd

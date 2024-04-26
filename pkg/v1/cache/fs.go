@@ -59,7 +59,7 @@ type layer struct {
 }
 
 func (l *layer) create(h v1.Hash) (io.WriteCloser, error) {
-	if err := os.MkdirAll(l.path, 0700); err != nil {
+	if err := os.MkdirAll(l.path, 0o700); err != nil {
 		return nil, err
 	}
 	return os.Create(cachepath(l.path, h))

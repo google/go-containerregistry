@@ -32,8 +32,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-var fatal = log.Fatal
-var helper = func() {}
+var (
+	fatal  = log.Fatal
+	helper = func() {}
+)
 
 func must[T any](t T, err error) T {
 	helper()

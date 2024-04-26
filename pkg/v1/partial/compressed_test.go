@@ -110,18 +110,23 @@ type noDiffID struct {
 func (l *noDiffID) Digest() (v1.Hash, error) {
 	return l.l.Digest()
 }
+
 func (l *noDiffID) Compressed() (io.ReadCloser, error) {
 	return l.l.Compressed()
 }
+
 func (l *noDiffID) Size() (int64, error) {
 	return l.l.Size()
 }
+
 func (l *noDiffID) MediaType() (types.MediaType, error) {
 	return l.l.MediaType()
 }
+
 func (l *noDiffID) Descriptor() (*v1.Descriptor, error) {
 	return partial.Descriptor(l.l)
 }
+
 func (l *noDiffID) UncompressedSize() (int64, error) {
 	return partial.UncompressedSize(l.l)
 }

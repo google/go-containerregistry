@@ -147,7 +147,7 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 				body := fmt.Sprintf("i am file number %d", i)
 				if err := tw.WriteHeader(&tar.Header{
 					Name:     name,
-					Mode:     0600,
+					Mode:     0o600,
 					Size:     int64(len(body)),
 					Typeflag: tar.TypeReg,
 				}); err != nil {
@@ -242,7 +242,7 @@ func TestCloseTarStreamBeforeConsume(t *testing.T) {
 			body := "test file"
 			if err := tw.WriteHeader(&tar.Header{
 				Name:     "test.txt",
-				Mode:     0600,
+				Mode:     0o600,
 				Size:     int64(len(body)),
 				Typeflag: tar.TypeReg,
 			}); err != nil {
@@ -271,7 +271,6 @@ func TestCloseTarStreamBeforeConsume(t *testing.T) {
 func TestMediaType(t *testing.T) {
 	l := NewLayer(io.NopCloser(strings.NewReader("hello")))
 	mediaType, err := l.MediaType()
-
 	if err != nil {
 		t.Fatalf("MediaType(): %v", err)
 	}
@@ -284,7 +283,6 @@ func TestMediaType(t *testing.T) {
 func TestMediaTypeOption(t *testing.T) {
 	l := NewLayer(io.NopCloser(strings.NewReader("hello")), WithMediaType(types.OCILayer))
 	mediaType, err := l.MediaType()
-
 	if err != nil {
 		t.Fatalf("MediaType(): %v", err)
 	}

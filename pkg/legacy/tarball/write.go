@@ -358,7 +358,7 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) ([]v1.Image, map[v1
 // Writes a file to the provided writer with a corresponding tar header
 func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	hdr := &tar.Header{
-		Mode:     0644,
+		Mode:     0o644,
 		Typeflag: tar.TypeReg,
 		Size:     size,
 		Name:     path,

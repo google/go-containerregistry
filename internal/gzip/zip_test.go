@@ -65,9 +65,7 @@ func TestIs(t *testing.T) {
 	}
 }
 
-var (
-	errRead = fmt.Errorf("Read failed")
-)
+var errRead = fmt.Errorf("Read failed")
 
 type failReader struct{}
 

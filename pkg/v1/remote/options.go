@@ -321,7 +321,7 @@ func WithRetryStatusCodes(codes ...int) Option {
 }
 
 // WithFilter sets the filter querystring for HTTP operations.
-func WithFilter(key string, value string) Option {
+func WithFilter(key, value string) Option {
 	return func(o *options) error {
 		if o.filter == nil {
 			o.filter = map[string]string{}

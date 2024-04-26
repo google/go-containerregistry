@@ -260,25 +260,26 @@ func TestMatchesPlatform(t *testing.T) {
 		given    v1.Platform
 		required v1.Platform
 		want     bool
-	}{{ // The given & required platforms are identical. matchesPlatform expected to return true.
-		given: v1.Platform{
-			Architecture: "amd64",
-			OS:           "linux",
-			OSVersion:    "10.0.10586",
-			OSFeatures:   []string{"win32k"},
-			Variant:      "armv6l",
-			Features:     []string{"sse4"},
+	}{
+		{ // The given & required platforms are identical. matchesPlatform expected to return true.
+			given: v1.Platform{
+				Architecture: "amd64",
+				OS:           "linux",
+				OSVersion:    "10.0.10586",
+				OSFeatures:   []string{"win32k"},
+				Variant:      "armv6l",
+				Features:     []string{"sse4"},
+			},
+			required: v1.Platform{
+				Architecture: "amd64",
+				OS:           "linux",
+				OSVersion:    "10.0.10586",
+				OSFeatures:   []string{"win32k"},
+				Variant:      "armv6l",
+				Features:     []string{"sse4"},
+			},
+			want: true,
 		},
-		required: v1.Platform{
-			Architecture: "amd64",
-			OS:           "linux",
-			OSVersion:    "10.0.10586",
-			OSFeatures:   []string{"win32k"},
-			Variant:      "armv6l",
-			Features:     []string{"sse4"},
-		},
-		want: true,
-	},
 		{ // OS and Architecture must exactly match. matchesPlatform expected to return false.
 			given: v1.Platform{
 				Architecture: "arm",

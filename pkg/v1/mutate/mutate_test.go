@@ -267,12 +267,12 @@ func TestMutateConfig(t *testing.T) {
 	}
 }
 
-type arbitrary struct {
-}
+type arbitrary struct{}
 
 func (arbitrary) RawManifest() ([]byte, error) {
 	return []byte(`{"hello":"world"}`), nil
 }
+
 func TestAnnotations(t *testing.T) {
 	anns := map[string]string{
 		"foo": "bar",
@@ -642,7 +642,6 @@ func TestImageImmutability(t *testing.T) {
 
 func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {
 	l, err := layer.Uncompressed()
-
 	if err != nil {
 		t.Fatalf("reading layer failed: %v", err)
 	}
@@ -765,6 +764,7 @@ func (m mockLayer) Size() (int64, error) { return 137438691328, nil }
 func (m mockLayer) Compressed() (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader("compressed times")), nil
 }
+
 func (m mockLayer) Uncompressed() (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader("uncompressed")), nil
 }

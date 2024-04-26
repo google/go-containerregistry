@@ -50,7 +50,6 @@ func Append(base v1.Image, paths ...string) (v1.Image, error) {
 	}
 
 	baseMediaType, err := base.MediaType()
-
 	if err != nil {
 		return nil, fmt.Errorf("getting base image media type: %w", err)
 	}

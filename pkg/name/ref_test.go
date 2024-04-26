@@ -152,6 +152,8 @@ func TestMustParseReference(t *testing.T) {
 // Test that MustParseReference can accept a const string or string value.
 const str = "valid/string"
 
-var _ = MustParseReference(str)
-var _ = MustParseReference("valid/string")
-var _ = MustParseReference("valid/prefix/" + str)
+var (
+	_ = MustParseReference(str)
+	_ = MustParseReference("valid/string")
+	_ = MustParseReference("valid/prefix/" + str)
+)

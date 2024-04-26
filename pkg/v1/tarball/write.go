@@ -368,7 +368,7 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 // writeTarEntry writes a file to the provided writer with a corresponding tar header
 func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	hdr := &tar.Header{
-		Mode:     0644,
+		Mode:     0o644,
 		Typeflag: tar.TypeReg,
 		Size:     size,
 		Name:     path,
@@ -388,10 +388,12 @@ func ComputeManifest(refToImage map[name.Reference]v1.Image) (Manifest, error) {
 }
 
 // WriteOption a function option to pass to Write()
-type WriteOption func(*writeOptions) error
-type writeOptions struct {
-	updates chan<- v1.Update
-}
+type (
+	WriteOption  func(*writeOptions) error
+	writeOptions struct {
+		updates chan<- v1.Update
+	}
+)
 
 // WithProgress create a WriteOption for passing to Write() that enables
 // a channel to receive updates as they are downloaded and written to disk.

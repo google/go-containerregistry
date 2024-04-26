@@ -378,7 +378,7 @@ func TestWriteSharedLayers(t *testing.T) {
 }
 
 func TestComputeManifest(t *testing.T) {
-	var randomTag, mutatedTag = "ubuntu", "gcr.io/baz/bat:latest"
+	randomTag, mutatedTag := "ubuntu", "gcr.io/baz/bat:latest"
 
 	// https://github.com/google/go-containerregistry/issues/890
 	randomTagWritten := "ubuntu:latest"

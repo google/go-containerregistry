@@ -41,7 +41,6 @@ func newCmdGc() *cobra.Command {
 			path := args[0]
 
 			p, err := layout.FromPath(path)
-
 			if err != nil {
 				return err
 			}
