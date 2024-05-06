@@ -230,13 +230,13 @@ func (r *remoteIndex) childDescriptor(child v1.Descriptor, platform v1.Platform)
 		}
 	}
 
+	child.Platform = &platform
 	return &Descriptor{
-		ref:        ref,
+		Reference:  ref,
 		ctx:        r.ctx,
 		fetcher:    r.fetcher,
 		Manifest:   manifest,
 		Descriptor: child,
-		platform:   platform,
 	}, nil
 }
 

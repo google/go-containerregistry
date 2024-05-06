@@ -21,6 +21,9 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/match"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"golang.org/x/sync/errgroup"
@@ -74,16 +77,62 @@ func Copy(src, dst string, opt ...Option) error {
 		return fmt.Errorf("fetching %q: %w", src, err)
 	}
 
-	if o.Platform == nil {
+	switch len(o.Platforms) {
+	case 0:
 		return pusher.Push(o.ctx, dstRef, desc)
+	case 1:
+		desc.Platform = &o.Platforms[0]
+		img, err := desc.Image()
+		if err != nil {
+			return err
+		}
+		pusher.Push(o.ctx, dstRef, img)
+	default:
+		return copyPlatforms(desc, dstRef, o)
+	}
+	return nil
+}
+
+func copyPlatforms(desc *remote.Descriptor, dstRef name.Reference, o Options) error {
+	if !desc.MediaType.IsIndex() {
+		return fmt.Errorf("expected to be an index, got %q", desc.MediaType)
+	}
+	base, err := desc.ImageIndex()
+	if err != nil {
+		return nil
 	}
 
-	// If platform is explicitly set, don't copy the whole index, just the appropriate image.
-	img, err := desc.Image()
-	if err != nil {
-		return err
+	idx := FilterIndex(base, o.Platforms)
+
+	if err := remote.WriteIndex(dstRef, idx, o.Remote...); err != nil {
+		return fmt.Errorf("pushing image %s: %w", dstRef, err)
 	}
-	return pusher.Push(o.ctx, dstRef, img)
+	return nil
+}
+
+func FilterIndex(idx v1.ImageIndex, platforms []v1.Platform) v1.ImageIndex {
+	matcher := not(satisfiesPlatforms(platforms))
+	return mutate.RemoveManifests(idx, matcher)
+}
+
+func satisfiesPlatforms(platforms []v1.Platform) match.Matcher {
+	return func(desc v1.Descriptor) bool {
+		if desc.Platform == nil {
+			return false
+		}
+		for _, p := range platforms {
+			if desc.Platform.Satisfies(p) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func not(in match.Matcher) match.Matcher {
+	return func(desc v1.Descriptor) bool {
+		return !in(desc)
+	}
 }
 
 // CopyRepository copies every tag from src to dst.

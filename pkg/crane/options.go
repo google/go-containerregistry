@@ -30,6 +30,7 @@ type Options struct {
 	Name      []name.Option
 	Remote    []remote.Option
 	Platform  *v1.Platform
+	Platforms []v1.Platform
 	Keychain  authn.Keychain
 	Transport http.RoundTripper
 
@@ -106,6 +107,13 @@ func WithPlatform(platform *v1.Platform) Option {
 			o.Remote = append(o.Remote, remote.WithPlatform(*platform))
 		}
 		o.Platform = platform
+	}
+}
+
+// WithPlatforms is an Option to specify the platforms.
+func WithPlatforms(platforms []v1.Platform) Option {
+	return func(o *Options) {
+		o.Platforms = platforms
 	}
 }
 

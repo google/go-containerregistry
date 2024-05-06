@@ -23,6 +23,7 @@ import (
 
 // NewCmdCopy creates a new cobra.Command for the copy subcommand.
 func NewCmdCopy(options *[]crane.Option) *cobra.Command {
+	platforms := &platformsValue{}
 	allTags := false
 	noclobber := false
 	jobs := runtime.GOMAXPROCS(0)
@@ -32,7 +33,7 @@ func NewCmdCopy(options *[]crane.Option) *cobra.Command {
 		Short:   "Efficiently copy a remote image from src to dst while retaining the digest value",
 		Args:    cobra.ExactArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			opts := append(*options, crane.WithJobs(jobs), crane.WithNoClobber(noclobber))
+			opts := append(*options, crane.WithJobs(jobs), crane.WithNoClobber(noclobber), crane.WithPlatforms(platforms.platforms))
 			src, dst := args[0], args[1]
 			if allTags {
 				return crane.CopyRepository(src, dst, opts...)
@@ -42,6 +43,7 @@ func NewCmdCopy(options *[]crane.Option) *cobra.Command {
 		},
 	}
 
+	cmd.Flags().Var(platforms, "platform", "Specifies the platform(s) to keep from base in the form os/arch[/variant][:osversion][,<platform>] (e.g. linux/amd64).")
 	cmd.Flags().BoolVarP(&allTags, "all-tags", "a", false, "(Optional) if true, copy all tags from SRC to DST")
 	cmd.Flags().BoolVarP(&noclobber, "no-clobber", "n", false, "(Optional) if true, avoid overwriting existing tags in DST")
 	cmd.Flags().IntVarP(&jobs, "jobs", "j", 0, "(Optional) The maximum number of concurrent copies, defaults to GOMAXPROCS")
