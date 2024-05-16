@@ -29,17 +29,20 @@ import (
 // NewCmdCatalog creates a new cobra.Command for the catalog subcommand.
 func NewCmdCatalog(options *[]crane.Option, _ ...string) *cobra.Command {
 	var fullRef bool
+	var pageSize int
 	cmd := &cobra.Command{
 		Use:   "catalog REGISTRY",
 		Short: "List the repos in a registry",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			*options = append(*options, crane.WithPageSize(pageSize))
 			o := crane.GetOptions(*options...)
 
 			return catalog(cmd.Context(), cmd.OutOrStdout(), args[0], fullRef, o)
 		},
 	}
 	cmd.Flags().BoolVar(&fullRef, "full-ref", false, "(Optional) if true, print the full image reference")
+	cmd.Flags().IntVar(&pageSize, "page-size", 1000, "(Optional) page size for paginated repo request")
 
 	return cmd
 }

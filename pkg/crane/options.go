@@ -170,6 +170,15 @@ func WithJobs(jobs int) Option {
 	}
 }
 
+// WithPageSize sets the page size for paginated requests.
+//
+// The default page size is 1000.
+func WithPageSize(pageSize int) Option {
+	return func(o *Options) {
+		o.Remote = append(o.Remote, remote.WithPageSize(pageSize))
+	}
+}
+
 // WithNoClobber modifies behavior to avoid overwriting existing tags, if possible.
 func WithNoClobber(noclobber bool) Option {
 	return func(o *Options) {
