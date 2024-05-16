@@ -15,6 +15,7 @@
 package authn
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sync"
@@ -45,6 +46,11 @@ type Keychain interface {
 	Resolve(Resource) (Authenticator, error)
 }
 
+// ContextKeychain is like Keychain, but allows for context to be passed in.
+type ContextKeychain interface {
+	ResolveContext(context.Context, Resource) (Authenticator, error)
+}
+
 // defaultKeychain implements Keychain with the semantics of the standard Docker
 // credential keychain.
 type defaultKeychain struct {
@@ -62,8 +68,23 @@ const (
 	DefaultAuthKey = "https://" + name.DefaultRegistry + "/v1/"
 )
 
-// Resolve implements Keychain.
+// Resolve calls ResolveContext with ctx if the given [Keychain] implements [ContextKeychain],
+// otherwise it calls Resolve with the given [Resource].
+func Resolve(ctx context.Context, keychain Keychain, target Resource) (Authenticator, error) {
+	if rctx, ok := keychain.(ContextKeychain); ok {
+		return rctx.ResolveContext(ctx, target)
+	}
+
+	return keychain.Resolve(target)
+}
+
+// ResolveContext implements ContextKeychain.
 func (dk *defaultKeychain) Resolve(target Resource) (Authenticator, error) {
+	return dk.ResolveContext(context.Background(), target)
+}
+
+// Resolve implements Keychain.
+func (dk *defaultKeychain) ResolveContext(ctx context.Context, target Resource) (Authenticator, error) {
 	dk.mu.Lock()
 	defer dk.mu.Unlock()
 
@@ -180,6 +201,10 @@ func NewKeychainFromHelper(h Helper) Keychain { return wrapper{h} }
 type wrapper struct{ h Helper }
 
 func (w wrapper) Resolve(r Resource) (Authenticator, error) {
+	return w.ResolveContext(context.Background(), r)
+}
+
+func (w wrapper) ResolveContext(ctx context.Context, r Resource) (Authenticator, error) {
 	u, p, err := w.h.Get(r.RegistryStr())
 	if err != nil {
 		return Anonymous, nil
@@ -206,8 +231,12 @@ type refreshingKeychain struct {
 }
 
 func (r *refreshingKeychain) Resolve(target Resource) (Authenticator, error) {
+	return r.ResolveContext(context.Background(), target)
+}
+
+func (r *refreshingKeychain) ResolveContext(ctx context.Context, target Resource) (Authenticator, error) {
 	last := time.Now()
-	auth, err := r.keychain.Resolve(target)
+	auth, err := Resolve(ctx, r.keychain, target)
 	if err != nil || auth == Anonymous {
 		return auth, err
 	}
@@ -236,17 +265,21 @@ type refreshing struct {
 }
 
 func (r *refreshing) Authorization() (*AuthConfig, error) {
+	return r.AuthorizationContext(context.Background())
+}
+
+func (r *refreshing) AuthorizationContext(ctx context.Context) (*AuthConfig, error) {
 	r.Lock()
 	defer r.Unlock()
 	if r.cached == nil || r.expired() {
 		r.last = r.now()
-		auth, err := r.keychain.Resolve(r.target)
+		auth, err := Resolve(ctx, r.keychain, r.target)
 		if err != nil {
 			return nil, err
 		}
 		r.cached = auth
 	}
-	return r.cached.Authorization()
+	return Authorization(ctx, r.cached)
 }
 
 func (r *refreshing) now() time.Time {
