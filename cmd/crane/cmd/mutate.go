@@ -43,6 +43,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var workdir string
 	var ports []string
 	var ociEmptyBase bool
+	var newPlatform string
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
@@ -151,8 +152,20 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.ExposedPorts = portMap
 			}
 
+			// Set platform
+			if len(newPlatform) > 0 {
+				platform, err := parsePlatform(newPlatform)
+				if err != nil {
+					return err
+				}
+				cfg.OS = platform.OS
+				cfg.Architecture = platform.Architecture
+				cfg.Variant = platform.Variant
+				cfg.OSVersion = platform.OSVersion
+			}
+
 			// Mutate and write image.
-			img, err = mutate.Config(img, cfg.Config)
+			img, err = mutate.ConfigFile(img, cfg)
 			if err != nil {
 				return fmt.Errorf("mutating config: %w", err)
 			}
@@ -205,8 +218,10 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringVarP(&workdir, "workdir", "w", "", "New working dir to set")
 	mutateCmd.Flags().StringSliceVar(&ports, "exposed-ports", nil, "New ports to expose")
 	mutateCmd.Flags().BoolVar(&ociEmptyBase, "oci-empty-base", false, "If true, scratch base image will have OCI media types instead of Docker")
-
-	return mutateCmd
+	// Using "set-platform" to avoid clobbering "platform" persistent flag.
+	mutateCmd.Flags().StringVar(&newPlatform, "set-platform", "", "New platform to set in the form os/arch[/variant][:osversion] (e.g. linux/amd64)")
+	
+  return mutateCmd
 }
 
 // validateKeyVals ensures no values are empty, returns error if they are

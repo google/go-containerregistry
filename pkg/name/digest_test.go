@@ -15,7 +15,9 @@
 package name
 
 import (
+	"encoding/json"
 	"path"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -149,4 +151,59 @@ func TestDigestScopes(t *testing.T) {
 	if actualScope != expectedScope {
 		t.Errorf("scope was incorrect for %v. Wanted: `%s` Got: `%s`", digest, expectedScope, actualScope)
 	}
+}
+
+func TestJSON(t *testing.T) {
+	t.Parallel()
+	digestNameStr := "gcr.io/project-id/image@" + validDigest
+	digest, err := NewDigest(digestNameStr, StrictValidation)
+	if err != nil {
+		t.Fatalf("`%s` should be a valid Digest name, got error: %v", digestNameStr, err)
+	}
+
+	t.Run("string", func(t *testing.T) {
+		t.Parallel()
+		b, err := json.Marshal(digest)
+		if err != nil {
+			t.Fatalf("Marshal() failed: %v", err)
+		}
+
+		if want := `"` + digestNameStr + `"`; want != string(b) {
+			t.Errorf("Marshal() was incorrect. Wanted: `%s` Got: `%s`", want, string(b))
+		}
+
+		var out Digest
+		if err := json.Unmarshal(b, &out); err != nil {
+			t.Fatalf("Unmarshal() failed: %v", err)
+		}
+
+		if out.String() != digest.String() {
+			t.Errorf("Unmarshaled Digest should be the same as the original. Wanted: `%s` Got: `%s`", digest, out)
+		}
+	})
+
+	t.Run("map", func(t *testing.T) {
+		t.Parallel()
+		in := map[string]Digest{
+			"a": digest,
+		}
+		b, err := json.Marshal(in)
+		if err != nil {
+			t.Fatalf("MarshalJSON() failed: %v", err)
+		}
+
+		want := `{"a":"` + digestNameStr + `"}`
+		if want != string(b) {
+			t.Errorf("Marshal() was incorrect. Wanted: `%s` Got: `%s`", want, string(b))
+		}
+
+		var out map[string]Digest
+		if err := json.Unmarshal(b, &out); err != nil {
+			t.Fatalf("Unmarshal() failed: %v", err)
+		}
+
+		if !reflect.DeepEqual(in, out) {
+			t.Errorf("Unmarshaled map should be the same as the original. Wanted: `%v` Got: `%v`", in, out)
+		}
+	})
 }

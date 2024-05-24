@@ -19,6 +19,7 @@ package google
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -84,15 +85,16 @@ func TestMain(m *testing.M) {
 	}
 }
 
-func newGcloudCmdMock(env string) func() *exec.Cmd {
-	return func() *exec.Cmd {
-		cmd := exec.Command(os.Args[0])
+func newGcloudCmdMock(env string) func(context.Context) *exec.Cmd {
+	return func(ctx context.Context) *exec.Cmd {
+		cmd := exec.CommandContext(ctx, os.Args[0])
 		cmd.Env = []string{fmt.Sprintf("GO_TEST_MODE=%s", env)}
 		return cmd
 	}
 }
 
 func TestGcloudErrors(t *testing.T) {
+	ctx := context.Background()
 	cases := []struct {
 		env string
 
@@ -113,7 +115,7 @@ func TestGcloudErrors(t *testing.T) {
 		t.Run(tc.env, func(t *testing.T) {
 			GetGcloudCmd = newGcloudCmdMock(tc.env)
 
-			if _, err := NewGcloudAuthenticator(); err == nil {
+			if _, err := NewGcloudAuthenticator(ctx); err == nil {
 				t.Errorf("wanted error, got nil")
 			} else if got := err.Error(); !strings.HasPrefix(got, tc.wantPrefix) {
 				t.Errorf("wanted error prefix %q, got %q", tc.wantPrefix, got)
@@ -123,13 +125,14 @@ func TestGcloudErrors(t *testing.T) {
 }
 
 func TestGcloudSuccess(t *testing.T) {
+	ctx := context.Background()
 	// Stupid coverage to make sure it doesn't panic.
 	var b bytes.Buffer
 	logs.Debug.SetOutput(&b)
 
 	GetGcloudCmd = newGcloudCmdMock("success")
 
-	auth, err := NewGcloudAuthenticator()
+	auth, err := NewGcloudAuthenticator(ctx)
 	if err != nil {
 		t.Fatalf("NewGcloudAuthenticator got error %v", err)
 	}
@@ -263,7 +266,7 @@ func TestNewEnvAuthenticatorFailure(t *testing.T) {
 	}
 
 	// Expect error.
-	_, err := NewEnvAuthenticator()
+	_, err := NewEnvAuthenticator(context.Background())
 	if err == nil {
 		t.Errorf("expected err, got nil")
 	}
