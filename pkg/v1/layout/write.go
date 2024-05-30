@@ -39,6 +39,7 @@ var layoutFile = `{
     "imageLayoutVersion": "1.0.0"
 }`
 
+// renameMutex guards os.Rename calls in AppendImage on Windows only.
 var renameMutex sync.Mutex
 
 // AppendImage writes a v1.Image to the Path and updates
