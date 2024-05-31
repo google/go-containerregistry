@@ -29,11 +29,13 @@ import (
 // NewCmdList creates a new cobra.Command for the ls subcommand.
 func NewCmdList(options *[]crane.Option) *cobra.Command {
 	var fullRef, omitDigestTags bool
+	var pageSize int
 	cmd := &cobra.Command{
 		Use:   "ls REPO",
 		Short: "List the tags in a repo",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			*options = append(*options, crane.WithPageSize(pageSize))
 			o := crane.GetOptions(*options...)
 
 			return list(cmd.Context(), cmd.OutOrStdout(), args[0], fullRef, omitDigestTags, o)
@@ -41,6 +43,7 @@ func NewCmdList(options *[]crane.Option) *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&fullRef, "full-ref", false, "(Optional) if true, print the full image reference")
 	cmd.Flags().BoolVar(&omitDigestTags, "omit-digest-tags", false, "(Optional), if true, omit digest tags (e.g., ':sha256-...')")
+	cmd.Flags().IntVar(&pageSize, "page-size", 1000, "(Optional) page size for paginated tags request")
 	return cmd
 }
 
