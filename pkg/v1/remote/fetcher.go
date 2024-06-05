@@ -104,13 +104,13 @@ func (f *fetcher) get(ctx context.Context, ref name.Reference, acceptable []type
 	if err != nil {
 		return nil, err
 	}
+	desc.Platform = &platform
 	return &Descriptor{
-		ref:        ref,
+		Reference:  ref,
 		ctx:        ctx,
 		fetcher:    *f,
 		Manifest:   b,
 		Descriptor: *desc,
-		platform:   platform,
 	}, nil
 }
 
