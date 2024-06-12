@@ -160,3 +160,17 @@ func TestOverrideDefault(t *testing.T) {
 		t.Errorf("Name() was incorrect for %v. Wanted: `%s` Got: `%s`", tag, expectedName, actualName)
 	}
 }
+
+func TestWithTag(t *testing.T) {
+	tagNameStr := "ubuntu"
+	tag, err := NewTag(tagNameStr)
+	if err != nil {
+		t.Fatalf("`%s` should be a valid Tag name, got error: %v", tagNameStr, err)
+	}
+
+	expectedName := "index.docker.io/library/ubuntu:latest@sha256:deadbeef"
+	actualName := tag.WithDigest("sha256:deadbeef")
+	if actualName != expectedName {
+		t.Errorf("Name() was incorrect for %v. Wanted: `%s` Got: `%s`", tag, expectedName, actualName)
+	}
+}
