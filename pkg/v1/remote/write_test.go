@@ -540,7 +540,10 @@ func TestDedupeLayers(t *testing.T) {
 	// Append three identical stream.Layers, whose uploads will *not* be
 	// deduped since Write can't tell they're identical ahead of time.
 	for i := 0; i < 3; i++ {
-		sl := stream.NewLayer(newBlob())
+		sl, err := stream.NewLayer(newBlob())
+		if err != nil {
+			t.Fatalf("stream.NewLayer(#%d): %v", i, err)
+		}
 		img, err = mutate.AppendLayers(img, sl)
 		if err != nil {
 			t.Fatalf("mutate.AppendLayer(#%d): %v", i, err)
@@ -697,7 +700,10 @@ func TestStreamLayer(t *testing.T) {
 	defer closer.Close()
 
 	streamLocation := w.url(expectedPath)
-	sl := stream.NewLayer(newBlob())
+	sl, err := stream.NewLayer(newBlob())
+	if err != nil {
+		t.Fatalf("stream.NewLayer: %v", err)
+	}
 
 	commitLocation, err := w.streamBlob(context.Background(), sl, streamLocation.String())
 	if err != nil {
@@ -856,7 +862,10 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 	newBlob := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
 	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
 	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
-	l := stream.NewLayer(newBlob())
+	l, err := stream.NewLayer(newBlob())
+	if err != nil {
+		t.Fatalf("stream.NewLayer: %v", err)
+	}
 	if err := w.uploadOne(ctx, l); err != nil {
 		t.Fatalf("uploadOne: %v", err)
 	}
