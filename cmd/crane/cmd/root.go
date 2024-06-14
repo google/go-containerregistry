@@ -131,6 +131,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 		NewCmdVersion(),
 		NewCmdRegistry(),
 		NewCmdLayout(),
+		NewCmdSize(),
 	)
 
 	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logs")
