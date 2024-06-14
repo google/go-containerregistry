@@ -25,7 +25,6 @@ import (
 	"net/url"
 	"strings"
 
-	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -151,7 +150,7 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	}
 
 	// If we hit a WWW-Authenticate challenge, it might be due to expired tokens or insufficient scope.
-	if challenges := authchallenge.ResponseChallenges(res); len(challenges) != 0 {
+	if challenges := authResponseChallenges(res); len(challenges) != 0 {
 		// close out old response, since we will not return it.
 		res.Body.Close()
 

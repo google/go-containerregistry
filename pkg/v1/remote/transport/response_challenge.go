@@ -1,90 +1,27 @@
-package challenge
+// Copyright 2024 Google LLC All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package transport
+
+// This code is copy-paste imported from the Apache-licensed https://github.com/distribution/distribution,
+// as the dependency has been made internal upstream.
+// There is an alternative implementation in https://fuchsia.googlesource.com/tools/+/efc566f8f0dcc061dac3d57989b24f496b109ecb/net/digest/digest.go
 
 import (
-	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
-	"sync"
 )
-
-// Challenge carries information from a WWW-Authenticate response header.
-// See RFC 2617.
-type Challenge struct {
-	// Scheme is the auth-scheme according to RFC 2617
-	Scheme string
-
-	// Parameters are the auth-params according to RFC 2617
-	Parameters map[string]string
-}
-
-// Manager manages the challenges for endpoints.
-// The challenges are pulled out of HTTP responses. Only
-// responses which expect challenges should be added to
-// the manager, since a non-unauthorized request will be
-// viewed as not requiring challenges.
-type Manager interface {
-	// GetChallenges returns the challenges for the given
-	// endpoint URL.
-	GetChallenges(endpoint url.URL) ([]Challenge, error)
-
-	// AddResponse adds the response to the challenge
-	// manager. The challenges will be parsed out of
-	// the WWW-Authenicate headers and added to the
-	// URL which was produced the response. If the
-	// response was authorized, any challenges for the
-	// endpoint will be cleared.
-	AddResponse(resp *http.Response) error
-}
-
-// NewSimpleManager returns an instance of
-// Manger which only maps endpoints to challenges
-// based on the responses which have been added the
-// manager. The simple manager will make no attempt to
-// perform requests on the endpoints or cache the responses
-// to a backend.
-func NewSimpleManager() Manager {
-	return &simpleManager{
-		Challenges: make(map[string][]Challenge),
-	}
-}
-
-type simpleManager struct {
-	sync.RWMutex
-	Challenges map[string][]Challenge
-}
-
-func normalizeURL(endpoint *url.URL) {
-	endpoint.Host = strings.ToLower(endpoint.Host)
-	endpoint.Host = canonicalAddr(endpoint)
-}
-
-func (m *simpleManager) GetChallenges(endpoint url.URL) ([]Challenge, error) {
-	normalizeURL(&endpoint)
-
-	m.RLock()
-	defer m.RUnlock()
-	challenges := m.Challenges[endpoint.String()]
-	return challenges, nil
-}
-
-func (m *simpleManager) AddResponse(resp *http.Response) error {
-	challenges := ResponseChallenges(resp)
-	if resp.Request == nil {
-		return fmt.Errorf("missing request reference")
-	}
-	urlCopy := url.URL{
-		Path:   resp.Request.URL.Path,
-		Host:   resp.Request.URL.Host,
-		Scheme: resp.Request.URL.Scheme,
-	}
-	normalizeURL(&urlCopy)
-
-	m.Lock()
-	defer m.Unlock()
-	m.Challenges[urlCopy.String()] = challenges
-	return nil
-}
 
 // Octet types from RFC 2616.
 type octetType byte
@@ -128,10 +65,10 @@ func init() {
 	}
 }
 
-// ResponseChallenges returns a list of authorization challenges
+// authResponseChallenges returns a list of authorization challenges
 // for the given http Response. Challenges are only checked if
 // the response status code was a 401.
-func ResponseChallenges(resp *http.Response) []Challenge {
+func authResponseChallenges(resp *http.Response) []authChallenge {
 	if resp.StatusCode == http.StatusUnauthorized {
 		// Parse the WWW-Authenticate Header and store the challenges
 		// on this endpoint object.
@@ -141,15 +78,24 @@ func ResponseChallenges(resp *http.Response) []Challenge {
 	return nil
 }
 
-func parseAuthHeader(header http.Header) []Challenge {
-	challenges := []Challenge{}
+func parseAuthHeader(header http.Header) []authChallenge {
+	challenges := []authChallenge{}
 	for _, h := range header[http.CanonicalHeaderKey("WWW-Authenticate")] {
 		v, p := parseValueAndParams(h)
 		if v != "" {
-			challenges = append(challenges, Challenge{Scheme: v, Parameters: p})
+			challenges = append(challenges, authChallenge{Scheme: v, Parameters: p})
 		}
 	}
 	return challenges
+}
+
+// Note: we may be able to combine with Challenge here
+type authChallenge struct {
+	Scheme string
+
+	// Following the challenge there are often key/value pairs
+	// e.g. Bearer service="gcr.io",realm="https://auth.gcr.io/v36/tokenz"
+	Parameters map[string]string
 }
 
 func parseValueAndParams(header string) (value string, params map[string]string) {

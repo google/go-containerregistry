@@ -28,7 +28,6 @@ github.com/docker/cli/cli/config/types
 ## explicit
 github.com/docker/distribution/digestset
 github.com/docker/distribution/reference
-github.com/docker/distribution/registry/client/auth/challenge
 # github.com/docker/docker v24.0.0+incompatible
 ## explicit
 github.com/docker/docker/api

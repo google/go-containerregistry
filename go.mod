@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3
 	github.com/docker/cli v24.0.0+incompatible
-	github.com/docker/distribution v2.8.2+incompatible
 	github.com/docker/docker v24.0.0+incompatible
 	github.com/google/go-cmp v0.5.9
 	github.com/klauspost/compress v1.16.5
@@ -23,6 +22,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/docker/distribution v2.8.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
