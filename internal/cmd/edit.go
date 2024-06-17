@@ -272,7 +272,7 @@ func editConfig(ctx context.Context, in io.Reader, out io.Writer, src, dst strin
 	return dstRef, nil
 }
 
-func editManifest(in io.Reader, out io.Writer, src string, dst string, mt string, options ...crane.Option) (name.Reference, error) {
+func editManifest(in io.Reader, out io.Writer, src, dst, mt string, options ...crane.Option) (name.Reference, error) {
 	o := crane.GetOptions(options...)
 
 	ref, err := name.ParseReference(src, o.Name...)
@@ -465,7 +465,7 @@ func blankHeader(name string) *tar.Header {
 		// Use a fixed Mode, so that this isn't sensitive to the directory and umask
 		// under which it was created. Additionally, windows can only set 0222,
 		// 0444, or 0666, none of which are executable.
-		Mode: 0555,
+		Mode: 0o555,
 	}
 }
 

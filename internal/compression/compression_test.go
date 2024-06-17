@@ -24,8 +24,10 @@ import (
 	"github.com/google/go-containerregistry/internal/zstd"
 )
 
-type Compressor = func(rc io.ReadCloser) io.ReadCloser
-type Decompressor = func(rc io.ReadCloser) (io.ReadCloser, error)
+type (
+	Compressor   = func(rc io.ReadCloser) io.ReadCloser
+	Decompressor = func(rc io.ReadCloser) (io.ReadCloser, error)
+)
 
 func testPeekCompression(t *testing.T,
 	compressionExpected string,

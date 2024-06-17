@@ -57,10 +57,8 @@ type defaultKeychain struct {
 	mu sync.Mutex
 }
 
-var (
-	// DefaultKeychain implements Keychain by interpreting the docker config file.
-	DefaultKeychain = &defaultKeychain{}
-)
+// DefaultKeychain implements Keychain by interpreting the docker config file.
+var DefaultKeychain = &defaultKeychain{}
 
 const (
 	// DefaultAuthKey is the key used for dockerhub in config files, which

@@ -29,9 +29,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 )
 
-var (
-	testReference, _ = name.NewTag("localhost:8080/user/image:latest", name.StrictValidation)
-)
+var testReference, _ = name.NewTag("localhost:8080/user/image:latest", name.StrictValidation)
 
 func TestTransportNoActionIfTransportIsAlreadyWrapper(t *testing.T) {
 	server := httptest.NewServer(

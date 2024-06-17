@@ -53,8 +53,10 @@ type compressedImage struct {
 	manifest     *v1.Manifest
 }
 
-var _ partial.UncompressedImageCore = (*uncompressedImage)(nil)
-var _ partial.CompressedImageCore = (*compressedImage)(nil)
+var (
+	_ partial.UncompressedImageCore = (*uncompressedImage)(nil)
+	_ partial.CompressedImageCore   = (*compressedImage)(nil)
+)
 
 // Opener is a thunk for opening a tar file.
 type Opener func() (io.ReadCloser, error)

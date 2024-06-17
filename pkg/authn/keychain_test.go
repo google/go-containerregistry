@@ -61,7 +61,7 @@ func setupConfigDir(t *testing.T) string {
 	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
 	t.Logf("DOCKER_CONFIG=%s", p)
 	t.Setenv("DOCKER_CONFIG", p)
-	if err := os.Mkdir(p, 0777); err != nil {
+	if err := os.Mkdir(p, 0o777); err != nil {
 		t.Fatalf("mkdir %q: %v", p, err)
 	}
 	return p
@@ -70,7 +70,7 @@ func setupConfigDir(t *testing.T) string {
 func setupConfigFile(t *testing.T, content string) string {
 	cd := setupConfigDir(t)
 	p := filepath.Join(cd, "config.json")
-	if err := os.WriteFile(p, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
 		t.Fatalf("write %q: %v", p, err)
 	}
 
@@ -93,10 +93,10 @@ func TestNoConfig(t *testing.T) {
 }
 
 func writeConfig(t *testing.T, dir, file, content string) {
-	if err := os.MkdirAll(dir, 0777); err != nil {
+	if err := os.MkdirAll(dir, 0o777); err != nil {
 		t.Fatalf("mkdir %s: %v", dir, err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, file), []byte(content), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, file), []byte(content), 0o600); err != nil {
 		t.Fatalf("write %q: %v", file, err)
 	}
 }
@@ -338,7 +338,7 @@ func (h helper) Get(serverURL string) (string, string, error) {
 }
 
 func TestNewKeychainFromHelper(t *testing.T) {
-	var repo = name.MustParseReference("example.com/my/repo").Context()
+	repo := name.MustParseReference("example.com/my/repo").Context()
 
 	t.Run("success", func(t *testing.T) {
 		kc := NewKeychainFromHelper(helper{"username", "password", nil})
@@ -398,7 +398,7 @@ func TestConfigFileIsADir(t *testing.T) {
 	tmpdir := setupConfigDir(t)
 	// Create "config.json" as a directory, not a file to simulate optional
 	// secrets in Kubernetes.
-	err := os.Mkdir(path.Join(tmpdir, "config.json"), 0777)
+	err := os.Mkdir(path.Join(tmpdir, "config.json"), 0o777)
 	if err != nil {
 		t.Fatal(err)
 	}
