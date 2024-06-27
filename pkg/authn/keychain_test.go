@@ -23,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -33,6 +34,7 @@ var (
 	fresh              = 0
 	testRegistry, _    = name.NewRegistry("test.io", name.WeakValidation)
 	testRepo, _        = name.NewRepository("test.io/my-repo", name.WeakValidation)
+	testNestedRepo, _  = name.NewRepository("test.io/parent/my-repo", name.WeakValidation)
 	defaultRegistry, _ = name.NewRegistry(name.DefaultRegistry, name.WeakValidation)
 )
 
@@ -289,6 +291,19 @@ func TestVariousPaths(t *testing.T) {
 }`, encode("bar", "baz")),
 		cfg:       &AuthConfig{},
 		anonymous: true,
+	}, {
+		desc:   "inherit from parent",
+		target: testNestedRepo,
+		content: fmt.Sprintf(`{
+  "auths": {
+    "test.io/parent": {"auth": %q},
+	"test.io": {}
+  }
+}`, encode("bar", "baz")),
+		cfg: &AuthConfig{
+			Username: "bar",
+			Password: "baz",
+		},
 	}}
 
 	for _, test := range tests {
@@ -461,5 +476,47 @@ func TestRefreshingAuth(t *testing.T) {
 
 	if got, want := keychain.count, 2; got != want {
 		t.Errorf("refreshed %d times, wanted %d", got, want)
+	}
+}
+
+func TestAuthLookup(t *testing.T) {
+	tests := []struct {
+		description string
+		target      string
+		lookup      []string
+	}{
+		{
+			description: "remove tags",
+			target:      "test.io/my-repo:tag",
+			lookup:      []string{"test.io/my-repo", "test.io"},
+		},
+		{
+			description: "remove digests",
+			target:      "test.io/my-repo@sha256:8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4",
+			lookup:      []string{"test.io/my-repo", "test.io"},
+		},
+		{
+			description: "hierarchy",
+			target:      "test.io/a/b/c/d",
+			lookup:      []string{"test.io/a/b/c/d", "test.io/a/b/c", "test.io/a/b", "test.io/a", "test.io"},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			target, err := name.ParseReference(test.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := authLookup(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !slices.Equal(test.lookup, got) {
+				t.Errorf("got %+v, want %+v", got, test.lookup)
+			}
+		})
 	}
 }
