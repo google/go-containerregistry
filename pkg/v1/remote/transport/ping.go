@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 )
@@ -84,7 +83,7 @@ func pingSingle(ctx context.Context, reg name.Registry, t http.RoundTripper, sch
 			Insecure: insecure,
 		}, nil
 	case http.StatusUnauthorized:
-		if challenges := authchallenge.ResponseChallenges(resp); len(challenges) != 0 {
+		if challenges := authResponseChallenges(resp); len(challenges) != 0 {
 			// If we hit more than one, let's try to find one that we know how to handle.
 			wac := pickFromMultipleChallenges(challenges)
 			return &Challenge{
@@ -165,7 +164,7 @@ func pingParallel(ctx context.Context, reg name.Registry, t http.RoundTripper, s
 	}
 }
 
-func pickFromMultipleChallenges(challenges []authchallenge.Challenge) authchallenge.Challenge {
+func pickFromMultipleChallenges(challenges []authChallenge) authChallenge {
 	// It might happen there are multiple www-authenticate headers, e.g. `Negotiate` and `Basic`.
 	// Picking simply the first one could result eventually in `unrecognized challenge` error,
 	// that's why we're looping through the challenges in search for one that can be handled.
