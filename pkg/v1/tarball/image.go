@@ -41,6 +41,8 @@ type image struct {
 	imgDescriptor *Descriptor
 
 	tag *name.Tag
+
+	mediaTypeVendor string
 }
 
 type uncompressedImage struct {
@@ -68,6 +70,11 @@ func pathOpener(path string) Opener {
 // ImageFromPath returns a v1.Image from a tarball located on path.
 func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
 	return Image(pathOpener(path), tag)
+}
+
+// OCIImageFromPath returns a v1.Image with oci media type from a tarball located on path.
+func OCIImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
+	return OCIImage(pathOpener(path), tag, types.OCIVendorPrefix)
 }
 
 // LoadManifest load manifest
@@ -116,8 +123,46 @@ func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 	return partial.UncompressedToImage(&uc)
 }
 
+// OCIImage exposes an image with oci media type from the tarball at the provided path
+func OCIImage(opener Opener, tag *name.Tag, mediaTypeVendor string) (v1.Image, error) {
+	img := &image{
+		opener:          opener,
+		tag:             tag,
+		mediaTypeVendor: mediaTypeVendor,
+	}
+	if err := img.loadTarDescriptorAndConfig(); err != nil {
+		return nil, err
+	}
+
+	// Peek at the first layer and see if it's compressed.
+	if len(img.imgDescriptor.Layers) > 0 {
+		compressed, err := img.areLayersCompressed()
+		if err != nil {
+			return nil, err
+		}
+		if compressed {
+			c := compressedImage{
+				image: img,
+			}
+			return partial.CompressedToImage(&c)
+		}
+	}
+
+	uc := uncompressedImage{
+		image: img,
+	}
+	return partial.UncompressedToImage(&uc)
+}
+
 func (i *image) MediaType() (types.MediaType, error) {
-	return types.DockerManifestSchema2, nil
+	switch i.mediaTypeVendor {
+	case types.DockerVendorPrefix:
+		return types.DockerManifestSchema2, nil
+	case types.OCIVendorPrefix:
+		return types.OCIManifestSchema1, nil
+	default:
+		return types.DockerManifestSchema2, nil
+	}
 }
 
 // Descriptor stores the manifest data for a single image inside a `docker save` tarball.
@@ -298,7 +343,15 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 			// Technically the media type should be 'application/tar' but given that our
 			// v1.Layer doesn't force consumers to care about whether the layer is compressed
 			// we should be fine returning the DockerLayer media type
-			mt := types.DockerLayer
+			var mt types.MediaType
+			switch i.image.mediaTypeVendor {
+			case types.DockerVendorPrefix:
+				mt = types.DockerLayer
+			case types.OCIVendorPrefix:
+				mt = types.OCILayer
+			default:
+				mt = types.DockerLayer
+			}
 			bd, ok := i.imgDescriptor.LayerSources[h]
 			if ok {
 				// This is janky, but we don't want to implement Descriptor for
@@ -350,11 +403,29 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		return nil, err
 	}
 
+	var mt types.MediaType
+	switch c.image.mediaTypeVendor {
+	case types.DockerVendorPrefix:
+		mt = types.DockerManifestSchema2
+	case types.OCIVendorPrefix:
+		mt = types.OCIManifestSchema1
+	default:
+		mt = types.DockerManifestSchema2
+	}
+	var cmt types.MediaType
+	switch c.image.mediaTypeVendor {
+	case types.DockerVendorPrefix:
+		mt = types.DockerConfigJSON
+	case types.OCIVendorPrefix:
+		mt = types.OCIConfigJSON
+	default:
+		mt = types.DockerConfigJSON
+	}
 	c.manifest = &v1.Manifest{
 		SchemaVersion: 2,
-		MediaType:     types.DockerManifestSchema2,
+		MediaType:     mt,
 		Config: v1.Descriptor{
-			MediaType: types.DockerConfigJSON,
+			MediaType: cmt,
 			Size:      cfgSize,
 			Digest:    cfgHash,
 		},
@@ -380,8 +451,17 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 			if err != nil {
 				return nil, err
 			}
+			var lmt types.MediaType
+			switch c.image.mediaTypeVendor {
+			case types.DockerVendorPrefix:
+				mt = types.DockerLayer
+			case types.OCIVendorPrefix:
+				mt = types.OCILayer
+			default:
+				mt = types.DockerLayer
+			}
 			c.manifest.Layers = append(c.manifest.Layers, v1.Descriptor{
-				MediaType: types.DockerLayer,
+				MediaType: lmt,
 				Size:      size,
 				Digest:    sha,
 			})
