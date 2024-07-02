@@ -41,6 +41,8 @@ type image struct {
 	imgDescriptor *Descriptor
 
 	tag *name.Tag
+
+	mediaTypeVendor string
 }
 
 type uncompressedImage struct {
@@ -70,6 +72,16 @@ func ImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
 	return Image(pathOpener(path), tag)
 }
 
+// OCIImageFromPath returns a v1.Image with oci media type from a tarball located on path.
+func OCIImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
+	return vendorImage(pathOpener(path), tag, types.OCIVendorPrefix)
+}
+
+// DockerImageFromPath returns a v1.Image with docker media type from a tarball located on path.
+func DockerImageFromPath(path string, tag *name.Tag) (v1.Image, error) {
+	return vendorImage(pathOpener(path), tag, types.DockerVendorPrefix)
+}
+
 // LoadManifest load manifest
 func LoadManifest(opener Opener) (Manifest, error) {
 	m, err := extractFileFromTar(opener, "manifest.json")
@@ -88,9 +100,15 @@ func LoadManifest(opener Opener) (Manifest, error) {
 
 // Image exposes an image from the tarball at the provided path.
 func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
+	return vendorImage(opener, tag, "")
+}
+
+// VendorImage exposes an image with media type vendor from the tarball at the provided path
+func vendorImage(opener Opener, tag *name.Tag, mediaTypeVendor string) (v1.Image, error) {
 	img := &image{
-		opener: opener,
-		tag:    tag,
+		opener:          opener,
+		tag:             tag,
+		mediaTypeVendor: mediaTypeVendor,
 	}
 	if err := img.loadTarDescriptorAndConfig(); err != nil {
 		return nil, err
@@ -117,7 +135,14 @@ func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 }
 
 func (i *image) MediaType() (types.MediaType, error) {
-	return types.DockerManifestSchema2, nil
+	switch i.mediaTypeVendor {
+	case types.DockerVendorPrefix:
+		return types.DockerManifestSchema2, nil
+	case types.OCIVendorPrefix:
+		return types.OCIManifestSchema1, nil
+	default:
+		return types.DockerManifestSchema2, nil
+	}
 }
 
 // Descriptor stores the manifest data for a single image inside a `docker save` tarball.
@@ -298,7 +323,15 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 			// Technically the media type should be 'application/tar' but given that our
 			// v1.Layer doesn't force consumers to care about whether the layer is compressed
 			// we should be fine returning the DockerLayer media type
-			mt := types.DockerLayer
+			var mt types.MediaType
+			switch i.image.mediaTypeVendor {
+			case types.DockerVendorPrefix:
+				mt = types.DockerLayer
+			case types.OCIVendorPrefix:
+				mt = types.OCILayer
+			default:
+				mt = types.DockerLayer
+			}
 			bd, ok := i.imgDescriptor.LayerSources[h]
 			if ok {
 				// This is janky, but we don't want to implement Descriptor for
@@ -350,11 +383,29 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		return nil, err
 	}
 
+	var mt types.MediaType
+	switch c.image.mediaTypeVendor {
+	case types.DockerVendorPrefix:
+		mt = types.DockerManifestSchema2
+	case types.OCIVendorPrefix:
+		mt = types.OCIManifestSchema1
+	default:
+		mt = types.DockerManifestSchema2
+	}
+	var cmt types.MediaType
+	switch c.image.mediaTypeVendor {
+	case types.DockerVendorPrefix:
+		mt = types.DockerConfigJSON
+	case types.OCIVendorPrefix:
+		mt = types.OCIConfigJSON
+	default:
+		mt = types.DockerConfigJSON
+	}
 	c.manifest = &v1.Manifest{
 		SchemaVersion: 2,
-		MediaType:     types.DockerManifestSchema2,
+		MediaType:     mt,
 		Config: v1.Descriptor{
-			MediaType: types.DockerConfigJSON,
+			MediaType: cmt,
 			Size:      cfgSize,
 			Digest:    cfgHash,
 		},
@@ -380,8 +431,17 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 			if err != nil {
 				return nil, err
 			}
+			var lmt types.MediaType
+			switch c.image.mediaTypeVendor {
+			case types.DockerVendorPrefix:
+				mt = types.DockerLayer
+			case types.OCIVendorPrefix:
+				mt = types.OCILayer
+			default:
+				mt = types.DockerLayer
+			}
 			c.manifest.Layers = append(c.manifest.Layers, v1.Descriptor{
-				MediaType: types.DockerLayer,
+				MediaType: lmt,
 				Size:      size,
 				Digest:    sha,
 			})
