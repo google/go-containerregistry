@@ -1101,7 +1101,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("img.Layers() = %v", err)
 	}
-	dummyLayer := layers[0]
+	wokeLayer := layers[0]
 
 	testCases := []struct {
 		name      string
@@ -1122,7 +1122,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 			reference: referenceToUpload,
 			layers: []v1.Layer{
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: sameReference,
 				},
 			},
@@ -1135,7 +1135,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 			reference: referenceToUpload,
 			layers: []v1.Layer{
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo1,
 				},
 			},
@@ -1149,11 +1149,11 @@ func TestScopesForUploadingImage(t *testing.T) {
 			reference: referenceToUpload,
 			layers: []v1.Layer{
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo1,
 				},
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo1,
 				},
 			},
@@ -1167,11 +1167,11 @@ func TestScopesForUploadingImage(t *testing.T) {
 			reference: referenceToUpload,
 			layers: []v1.Layer{
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo1,
 				},
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo2,
 				},
 			},
@@ -1186,19 +1186,19 @@ func TestScopesForUploadingImage(t *testing.T) {
 			reference: referenceToUpload,
 			layers: []v1.Layer{
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo1,
 				},
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo2,
 				},
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo1,
 				},
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: anotherRepo2,
 				},
 			},
@@ -1213,7 +1213,7 @@ func TestScopesForUploadingImage(t *testing.T) {
 			reference: referenceToUpload,
 			layers: []v1.Layer{
 				&MountableLayer{
-					Layer:     dummyLayer,
+					Layer:     wokeLayer,
 					Reference: repoOnOtherRegistry,
 				},
 			},
