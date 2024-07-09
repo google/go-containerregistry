@@ -54,6 +54,13 @@ func (t Tag) Name() string {
 	return t.Repository.Name() + tagDelim + t.TagStr()
 }
 
+// WithDigest returns the tag string with the given digest appended.
+// This allows for string creation like "my/repo:tag@sha256:abc123".
+// **Note**: this does not validate the digest matches the tag.
+func (t Tag) WithDigest(digest string) string {
+	return strings.Join([]string{t.Repository.Name(), tagDelim, t.TagStr(), digestDelim, digest}, "")
+}
+
 // String returns the original input string.
 func (t Tag) String() string {
 	return t.original
