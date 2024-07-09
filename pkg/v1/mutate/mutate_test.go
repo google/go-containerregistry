@@ -640,6 +640,49 @@ func TestImageImmutability(t *testing.T) {
 	})
 }
 
+func TestEmpyConfig(t *testing.T) {
+	emptyMediaType := types.MediaType("application/vnd.oci.empty.v1+json")
+
+	img := empty.Image
+	var err error
+	// this should be stomped on
+	img, err = mutate.ConfigFile(img, &v1.ConfigFile{
+		Architecture: "amd64",
+	})
+	if err != nil {
+		t.Fatalf("ConfigFile: %v", err)
+	}
+	img = mutate.EmptyConfig(img)
+
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("Manifest: %v", err)
+	}
+	cfg := manifest.Config
+	if cfg.MediaType != emptyMediaType {
+		t.Errorf("config media type got %q, want %q", cfg.MediaType, emptyMediaType)
+	}
+	if cfg.Size != 2 {
+		t.Errorf("config size got %d, want 2", cfg.Size)
+	}
+	if string(cfg.Data) != "{}" {
+		t.Errorf("config data got %q, want e30=", cfg.Data)
+	}
+
+	// this should set it back
+	img, err = mutate.ConfigFile(img, &v1.ConfigFile{})
+	if err != nil {
+		t.Fatalf("ConfigFile: %v", err)
+	}
+	manifest, err = img.Manifest()
+	if err != nil {
+		t.Fatalf("Manifest: %v", err)
+	}
+	if manifest.Config.Size == 2 {
+		t.Errorf("config size got %d, want > 2", manifest.Config.Size)
+	}
+}
+
 func assertMTime(t *testing.T, layer v1.Layer, expectedTime time.Time) {
 	l, err := layer.Uncompressed()
 
