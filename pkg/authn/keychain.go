@@ -137,6 +137,16 @@ func (dk *defaultKeychain) ResolveContext(_ context.Context, target Resource) (A
 		if err != nil {
 			return nil, err
 		}
+	} else if fileExists(filepath.Join(home, ".config/containers/auth.json")) {
+		f, err := os.Open(filepath.Join(home, ".config/containers/auth.json"))
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		cf, err = config.LoadFromReader(f)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		return Anonymous, nil
 	}
