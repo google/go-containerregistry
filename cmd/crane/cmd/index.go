@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
-	"github.com/google/go-containerregistry/pkg/v1/match"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -82,7 +81,7 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 				return nil
 			}
 
-			idx := filterIndex(base, platforms.platforms)
+			idx := crane.FilterIndex(base, platforms.platforms)
 
 			digest, err := idx.Digest()
 			if err != nil {
@@ -277,29 +276,4 @@ The platform for appended manifests is inferred from the config file or omitted 
 	cmd.Flags().BoolVar(&flatten, "flatten", true, "If true, appending an index will append each of its children rather than the index itself")
 
 	return cmd
-}
-
-func filterIndex(idx v1.ImageIndex, platforms []v1.Platform) v1.ImageIndex {
-	matcher := not(satisfiesPlatforms(platforms))
-	return mutate.RemoveManifests(idx, matcher)
-}
-
-func satisfiesPlatforms(platforms []v1.Platform) match.Matcher {
-	return func(desc v1.Descriptor) bool {
-		if desc.Platform == nil {
-			return false
-		}
-		for _, p := range platforms {
-			if desc.Platform.Satisfies(p) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
-func not(in match.Matcher) match.Matcher {
-	return func(desc v1.Descriptor) bool {
-		return !in(desc)
-	}
 }
