@@ -10,7 +10,7 @@ crane export ubuntu - | tar -tvf - | less
 ```
 Local image from `podman`.
 ```sh
-podman image save bb2-make-single - | crane export - - | tar -tvf - | less
+podman image save ubuntu - | crane export - - | tar -tvf - | less
 ```
 
 ### Extract a single file from an image
