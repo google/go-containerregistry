@@ -238,6 +238,7 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 		History: v1.History{
 			CreatedBy: fmt.Sprintf("%s flatten %s", use, digest),
 			Comment:   string(oldHistory),
+			Created:   time.Now(),
 		},
 	})
 	if err != nil {
