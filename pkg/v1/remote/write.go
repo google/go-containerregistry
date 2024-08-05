@@ -562,9 +562,10 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 		return err
 	}
 	var mf struct {
-		MediaType types.MediaType `json:"mediaType"`
-		Subject   *v1.Descriptor  `json:"subject,omitempty"`
-		Config    struct {
+		ArtifactType string          `json:"artifactType,omitempty"`
+		MediaType    types.MediaType `json:"mediaType"`
+		Subject      *v1.Descriptor  `json:"subject,omitempty"`
+		Config       struct {
 			MediaType types.MediaType `json:"mediaType"`
 		} `json:"config"`
 	}
@@ -605,8 +606,12 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 			if err != nil {
 				return err
 			}
+			artifactType := mf.ArtifactType
+			if artifactType == "" {
+				artifactType = string(mf.Config.MediaType)
+			}
 			desc := v1.Descriptor{
-				ArtifactType: string(mf.Config.MediaType),
+				ArtifactType: artifactType,
 				MediaType:    mf.MediaType,
 				Digest:       h,
 				Size:         size,

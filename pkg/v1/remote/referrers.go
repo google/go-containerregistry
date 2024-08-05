@@ -49,6 +49,10 @@ func fallbackTag(d name.Digest) name.Tag {
 func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, d name.Digest) (v1.ImageIndex, error) {
 	// Check the Referrers API endpoint first.
 	u := f.url("referrers", d.DigestStr())
+	artifactType, ok := filter["artifactType"]
+	if ok {
+		u.Query().Add("artifactType", artifactType)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
