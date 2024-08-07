@@ -26,10 +26,11 @@ const (
 )
 
 type options struct {
-	strict          bool // weak by default
-	insecure        bool // secure by default
-	defaultRegistry string
-	defaultTag      string
+	strict               bool // weak by default
+	insecure             bool // secure by default
+	considerAsRepository bool
+	defaultRegistry      string
+	defaultTag           string
 }
 
 func makeOptions(opts ...Option) options {
@@ -62,6 +63,11 @@ func WeakValidation(opts *options) {
 // Insecure is an Option that allows image references to be fetched without TLS.
 func Insecure(opts *options) {
 	opts.insecure = true
+}
+
+// ConsiderAsRepository is an Option that talks about using a repository with a dot as a repository, not a registry
+func ConsiderAsRepository(opts *options) {
+	opts.considerAsRepository = true
 }
 
 // OptionFn is a function that returns an option.
