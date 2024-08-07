@@ -79,11 +79,13 @@ func NewRepository(name string, opts ...Option) (Repository, error) {
 	repo := name
 	parts := strings.SplitN(name, regRepoDelimiter, 2)
 	if len(parts) == 2 && (strings.ContainsRune(parts[0], '.') || strings.ContainsRune(parts[0], ':')) {
-		// The first part of the repository is treated as the registry domain
-		// iff it contains a '.' or ':' character, otherwise it is all repository
-		// and the domain defaults to Docker Hub.
-		registry = parts[0]
-		repo = parts[1]
+		if !opt.considerAsRepository {
+			// The first part of the repository is treated as the registry domain
+			// iff it contains a '.' or ':' character, otherwise it is all repository
+			// and the domain defaults to Docker Hub.
+			registry = parts[0]
+			repo = parts[1]
+		}
 	}
 
 	if err := checkRepository(repo); err != nil {
