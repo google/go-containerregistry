@@ -127,3 +127,15 @@ func loadImage(path string, index bool) (partial.WithRawManifest, error) {
 
 	return nil, fmt.Errorf("layout contains non-image (mediaType: %q), consider --index", desc.MediaType)
 }
+
+func loadImageTarballOrDir(path string) (v1.Image, error) {
+	img, err := loadImage(path, false)
+	if err != nil {
+		return nil, err
+	}
+	if img, ok := img.(v1.Image); ok {
+		return img, nil
+	}
+
+	return nil, fmt.Errorf("directory doesn't specify an image")
+}
