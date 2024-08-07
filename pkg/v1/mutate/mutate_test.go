@@ -451,12 +451,19 @@ func TestMutateMediaType(t *testing.T) {
 }
 
 func TestAppendStreamableLayer(t *testing.T) {
-	img, err := mutate.AppendLayers(
-		sourceImage(t),
-		stream.NewLayer(io.NopCloser(strings.NewReader(strings.Repeat("a", 100)))),
-		stream.NewLayer(io.NopCloser(strings.NewReader(strings.Repeat("b", 100)))),
-		stream.NewLayer(io.NopCloser(strings.NewReader(strings.Repeat("c", 100)))),
-	)
+	l1, err := stream.NewLayer(io.NopCloser(strings.NewReader(strings.Repeat("a", 100))))
+	if err != nil {
+		t.Fatalf("stream.NewLayer: %v", err)
+	}
+	l2, err := stream.NewLayer(io.NopCloser(strings.NewReader(strings.Repeat("b", 100))))
+	if err != nil {
+		t.Fatalf("stream.NewLayer: %v", err)
+	}
+	l3, err := stream.NewLayer(io.NopCloser(strings.NewReader(strings.Repeat("c", 100))))
+	if err != nil {
+		t.Fatalf("stream.NewLayer: %v", err)
+	}
+	img, err := mutate.AppendLayers(sourceImage(t), l1, l2, l3)
 	if err != nil {
 		t.Fatalf("AppendLayers: %v", err)
 	}

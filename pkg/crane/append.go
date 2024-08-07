@@ -55,15 +55,11 @@ func Append(base v1.Image, paths ...string) (v1.Image, error) {
 		return nil, fmt.Errorf("getting base image media type: %w", err)
 	}
 
-	layerType := types.DockerLayer
-
-	if baseMediaType == types.OCIManifestSchema1 {
-		layerType = types.OCILayer
-	}
+	oci := baseMediaType == types.OCIManifestSchema1
 
 	layers := make([]v1.Layer, 0, len(paths))
 	for _, path := range paths {
-		layer, err := getLayer(path, layerType)
+		layer, err := getLayer(path, oci)
 		if err != nil {
 			return nil, fmt.Errorf("reading layer %q: %w", path, err)
 		}
@@ -81,16 +77,16 @@ func Append(base v1.Image, paths ...string) (v1.Image, error) {
 	return mutate.AppendLayers(base, layers...)
 }
 
-func getLayer(path string, layerType types.MediaType) (v1.Layer, error) {
+func getLayer(path string, oci bool) (v1.Layer, error) {
 	f, err := streamFile(path)
 	if err != nil {
 		return nil, err
 	}
 	if f != nil {
-		return stream.NewLayer(f, stream.WithMediaType(layerType)), nil
+		return stream.NewLayer(f, stream.WithOCIMediaType(oci))
 	}
 
-	return tarball.LayerFromFile(path, tarball.WithMediaType(layerType))
+	return tarball.LayerFromFile(path, tarball.WithOCIMediaType(oci))
 }
 
 // If we're dealing with a named pipe, trying to open it multiple times will
