@@ -16,8 +16,10 @@ package authn
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -145,10 +147,13 @@ func (dk *defaultKeychain) ResolveContext(ctx context.Context, target Resource) 
 	// https://github.com/google/ko/issues/90
 	// https://github.com/moby/moby/blob/fc01c2b481097a6057bec3cd1ab2d7b4488c50c4/registry/config.go#L397-L404
 	var cfg, empty types.AuthConfig
-	for _, key := range []string{
-		target.String(),
-		target.RegistryStr(),
-	} {
+
+	keys, err := authLookup(target)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, key := range keys {
 		if key == name.DefaultRegistry {
 			key = DefaultAuthKey
 		}
@@ -176,6 +181,44 @@ func (dk *defaultKeychain) ResolveContext(ctx context.Context, target Resource) 
 		IdentityToken: cfg.IdentityToken,
 		RegistryToken: cfg.RegistryToken,
 	}), nil
+}
+
+func authLookup(target any) ([]string, error) {
+	switch t := target.(type) {
+	case name.Registry:
+		return []string{
+			t.RegistryStr(),
+		}, nil
+	case name.Tag:
+		return authLookup(t.Repository)
+	case name.Digest:
+		return authLookup(t.Repository)
+	case name.Repository:
+		return authLookupParts(t), nil
+	case Resource:
+		r, err := name.ParseReference(t.String())
+		if err != nil {
+			return nil, err
+		}
+
+		return authLookup(r)
+	default:
+		return nil, fmt.Errorf("unsupported target resource type: %T", target)
+	}
+}
+
+func authLookupParts(target name.Repository) []string {
+	segments := strings.Split(target.String(), "/")
+	parts := make([]string, 0, len(segments))
+
+	part := ""
+	for _, p := range segments {
+		part = part + p
+		parts = append([]string{part}, parts...)
+		part += "/"
+	}
+
+	return parts
 }
 
 // fileExists returns true if the given path exists and is not a directory.
