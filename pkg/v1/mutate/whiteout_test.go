@@ -23,7 +23,7 @@ func TestWhiteoutDir(t *testing.T) {
 		"baz":      true,
 		"red/blue": true,
 	}
-	var tests = []struct {
+	tests := []struct {
 		path     string
 		whiteout bool
 	}{

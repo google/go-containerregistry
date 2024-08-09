@@ -535,7 +535,6 @@ func TestCalls(t *testing.T) {
 
 		var logger *log.Logger
 		testf := func(t *testing.T) {
-
 			opts := []registry.Option{registry.WithReferrersSupport(true)}
 			if logger != nil {
 				opts = append(opts, registry.Logger(logger))

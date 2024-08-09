@@ -64,7 +64,6 @@ func (l Path) GarbageCollect() ([]v1.Hash, error) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

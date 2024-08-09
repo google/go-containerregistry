@@ -51,7 +51,6 @@ func TestAuthConfigMarshalJSON(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			bytes, err := json.Marshal(&tc.config)
-
 			if err != nil {
 				t.Fatal("Marshal() =", err)
 			}

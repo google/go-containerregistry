@@ -43,7 +43,7 @@ type secretType struct {
 	marshal func(t *testing.T, registry string, auth authn.AuthConfig) []byte
 }
 
-func (s *secretType) Create(t *testing.T, namespace, name string, registry string, auth authn.AuthConfig) *corev1.Secret {
+func (s *secretType) Create(t *testing.T, namespace, name, registry string, auth authn.AuthConfig) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -192,7 +192,6 @@ func TestSecretAttachedServiceAccount(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-
 			objs := []runtime.Object{
 				&corev1.ServiceAccount{
 					ObjectMeta: metav1.ObjectMeta{
@@ -225,7 +224,6 @@ func TestSecretAttachedServiceAccount(t *testing.T) {
 			testResolve(t, kc, registry(t, "fake.registry.io"), c.expected)
 		})
 	}
-
 }
 
 // Prioritze picking the first secret
@@ -269,7 +267,6 @@ func TestResolveTargets(t *testing.T) {
 				kc, err := NewFromPullSecrets(context.Background(), []corev1.Secret{
 					*secretType.Create(t, "ns", "secret", target.String(), auth),
 				})
-
 				if err != nil {
 					t.Fatalf("New() = %v", err)
 				}
@@ -289,7 +286,6 @@ func TestAuthWithScheme(t *testing.T) {
 	kc, err := NewFromPullSecrets(context.Background(), []corev1.Secret{
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret", "https://fake.registry.io", auth),
 	})
-
 	if err != nil {
 		t.Fatalf("New() = %v", err)
 	}
@@ -307,7 +303,6 @@ func TestAuthWithPorts(t *testing.T) {
 	kc, err := NewFromPullSecrets(context.Background(), []corev1.Secret{
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret", "fake.registry.io:5000", auth),
 	})
-
 	if err != nil {
 		t.Fatalf("New() = %v", err)
 	}
@@ -332,7 +327,6 @@ func TestAuthPathMatching(t *testing.T) {
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret-3", "fake.registry.io/nested/repo", leafAuth),
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret-4", "fake.registry.io/par", partialAuth),
 	})
-
 	if err != nil {
 		t.Fatalf("New() = %v", err)
 	}
@@ -351,7 +345,6 @@ func TestAuthHostNameVariations(t *testing.T) {
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret-1", "fake.registry.io", rootAuth),
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret-2", "1.fake.registry.io", subdomainAuth),
 	})
-
 	if err != nil {
 		t.Fatalf("New() = %v", err)
 	}
@@ -372,7 +365,6 @@ func TestAuthSpecialPathsIgnored(t *testing.T) {
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret-1", "https://fake.registry.io/v1/", auth),
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret-2", "https://fake2.registry.io/v2/", auth2),
 	})
-
 	if err != nil {
 		t.Fatalf("New() = %v", err)
 	}
@@ -388,7 +380,6 @@ func TestAuthDockerRegistry(t *testing.T) {
 	kc, err := NewFromPullSecrets(context.Background(), []corev1.Secret{
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret", "index.docker.io", auth),
 	})
-
 	if err != nil {
 		t.Fatalf("New() = %v", err)
 	}
@@ -402,7 +393,6 @@ func TestAuthWithGlobs(t *testing.T) {
 	kc, err := NewFromPullSecrets(context.Background(), []corev1.Secret{
 		*dockerConfigJSONSecretType.Create(t, "ns", "secret", "*.registry.io", auth),
 	})
-
 	if err != nil {
 		t.Fatalf("New() = %v", err)
 	}
@@ -437,7 +427,6 @@ func toJSON(t *testing.T, obj any) []byte {
 	t.Helper()
 
 	bites, err := json.Marshal(obj)
-
 	if err != nil {
 		t.Fatal("unable to json marshal", err)
 	}
@@ -537,7 +526,8 @@ func TestKubernetesAuth(t *testing.T) {
 			"dtestcontainer.azurecr.io/dave/nginx",
 			"http://dtestcontainer.azurecr.io/dave/nginx",
 			"https://dtestcontainer.azurecr.io/dave/nginx",
-		}} {
+		},
+	} {
 		repo, err := name.NewRepository(k)
 		if err != nil {
 			t.Errorf("parsing %q: %v", k, err)

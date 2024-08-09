@@ -301,7 +301,7 @@ func TestDiffImages(t *testing.T) {
 			"a": {
 				Size:      123,
 				MediaType: string(types.DockerManifestSchema2),
-				Created:   time.Date(1992, time.January, 7, 6, 40, 00, 5e8, time.UTC),
+				Created:   time.Date(1992, time.January, 7, 6, 40, 0o0, 5e8, time.UTC),
 				Uploaded:  time.Date(2018, time.November, 29, 4, 13, 30, 5e8, time.UTC),
 				Tags:      []string{"b", "c", "d"},
 			},
@@ -311,7 +311,7 @@ func TestDiffImages(t *testing.T) {
 			"a": {
 				Size:      123,
 				MediaType: string(types.DockerManifestSchema2),
-				Created:   time.Date(1992, time.January, 7, 6, 40, 00, 5e8, time.UTC),
+				Created:   time.Date(1992, time.January, 7, 6, 40, 0o0, 5e8, time.UTC),
 				Uploaded:  time.Date(2018, time.November, 29, 4, 13, 30, 5e8, time.UTC),
 				Tags:      []string{"b", "c", "d"},
 			},

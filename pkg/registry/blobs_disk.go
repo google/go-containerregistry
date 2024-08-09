@@ -43,9 +43,11 @@ func (m *diskHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error
 	}
 	return fi.Size(), nil
 }
+
 func (m *diskHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser, error) {
 	return os.Open(m.blobHashPath(h))
 }
+
 func (m *diskHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadCloser) error {
 	// Put the temp file in the same directory to avoid cross-device problems
 	// during the os.Rename.  The filenames cannot conflict.
@@ -66,6 +68,7 @@ func (m *diskHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClos
 	}
 	return os.Rename(f.Name(), m.blobHashPath(h))
 }
+
 func (m *diskHandler) Delete(_ context.Context, _ string, h v1.Hash) error {
 	return os.Remove(m.blobHashPath(h))
 }

@@ -189,7 +189,7 @@ func TestErrUnexpectedEOF(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Read(buf): %v", err)
 	}
-	if err := os.WriteFile(p, buf[:n], 0644); err != nil {
+	if err := os.WriteFile(p, buf[:n], 0o644); err != nil {
 		t.Fatalf("os.WriteFile(%s, buf[:%d]): %v", p, n, err)
 	}
 

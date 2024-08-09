@@ -17,12 +17,13 @@ linters:
   - depguard
   - errorlint
   - gofmt
-  - gosec
+  - gofumpt
   - goimports
+  - gosec
   - importas
+  - misspell
   - prealloc
   - revive
-  - misspell
   - stylecheck
   - tparallel
   - unconvert
@@ -38,3 +39,5 @@ linters-settings:
     include-go-root: true
     packages-with-error-message:
     - crypto/sha256: "use crypto.SHA256 instead"
+  gofumpt:
+    extra-rules: true

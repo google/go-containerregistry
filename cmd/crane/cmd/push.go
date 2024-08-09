@@ -71,7 +71,7 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 
 			digest := ref.Context().Digest(h.String())
 			if imageRefs != "" {
-				if err := os.WriteFile(imageRefs, []byte(digest.String()), 0600); err != nil {
+				if err := os.WriteFile(imageRefs, []byte(digest.String()), 0o600); err != nil {
 					return fmt.Errorf("failed to write image refs to %s: %w", imageRefs, err)
 				}
 			}

@@ -461,7 +461,7 @@ func TestStreamingWriteLayer(t *testing.T) {
 			body := "test file"
 			if err := tw.WriteHeader(&tar.Header{
 				Name:     "test.txt",
-				Mode:     0600,
+				Mode:     0o600,
 				Size:     int64(len(body)),
 				Typeflag: tar.TypeReg,
 			}); err != nil {
