@@ -560,6 +560,7 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 		Config    struct {
 			MediaType types.MediaType `json:"mediaType"`
 		} `json:"config"`
+		Annotations map[string]string `json:"annotations,omitempty"`
 	}
 	if err := json.Unmarshal(raw, &mf); err != nil {
 		return err
@@ -603,6 +604,7 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 				MediaType:    mf.MediaType,
 				Digest:       h,
 				Size:         size,
+				Annotations:  mf.Annotations,
 			}
 			if err := w.commitSubjectReferrers(ctx,
 				ref.Context().Digest(mf.Subject.Digest.String()),
