@@ -86,10 +86,10 @@ steps:
 
 ## Images
 
-You can also use crane as docker image
+You can also use crane as docker image. Newer releases are published in the GitHub container registry:
 
 ```sh
-$ docker run --rm gcr.io/go-containerregistry/crane ls ubuntu
+docker run --rm ghcr.io/google/go-containerregistry/crane ls ubuntu
 10.04
 12.04.5
 12.04
@@ -99,10 +99,16 @@ $ docker run --rm gcr.io/go-containerregistry/crane ls ubuntu
 And it's also available with a shell, at the `:debug` tag:
 
 ```sh
-docker run --rm -it --entrypoint "/busybox/sh" gcr.io/go-containerregistry/crane:debug
+docker run --rm -it --entrypoint "/busybox/sh" ghcr.io/google/go-containerregistry/crane:debug
 ```
 
-Tagged debug images are available at `gcr.io/go-containerregistry/crane/debug:[tag]`.
+Tagged debug images are available at `ghcr.io/google/go-containerregistry/crane/debug:[tag]`.
+
+Note that some older releases are only available in the google container registry, respectively at:
+
+- `gcr.io/go-containerregistry/crane`
+- `gcr.io/go-containerregistry/crane:debug`
+- `gcr.io/go-containerregistry/crane/debug:[tag]`
 
 ### Using with GitLab
 
@@ -114,7 +120,7 @@ docker-tag-latest:
     refs:
       - main
   image:
-    name: gcr.io/go-containerregistry/crane:debug
+    name: ghcr.io/google/go-containerregistry/crane:debug
     entrypoint: [""]
   script:
     - crane auth login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
