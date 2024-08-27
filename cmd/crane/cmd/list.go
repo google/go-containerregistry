@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
@@ -47,6 +49,9 @@ func NewCmdList(options *[]crane.Option) *cobra.Command {
 func list(ctx context.Context, w io.Writer, src string, fullRef, omitDigestTags bool, o crane.Options) error {
 	repo, err := name.NewRepository(src, o.Name...)
 	if err != nil {
+		if _, err := name.NewRegistry(src, o.Name...); err == nil {
+			logs.Warn.Printf("did you mean '%s catalog %s'?", os.Args[0], src)
+		}
 		return fmt.Errorf("parsing repo %q: %w", src, err)
 	}
 
@@ -57,6 +62,9 @@ func list(ctx context.Context, w io.Writer, src string, fullRef, omitDigestTags 
 
 	lister, err := puller.Lister(ctx, repo)
 	if err != nil {
+		if _, err := name.NewRegistry(src, o.Name...); err == nil {
+			logs.Warn.Printf("did you mean '%s catalog %s'?", os.Args[0], src)
+		}
 		return fmt.Errorf("reading tags for %s: %w", repo, err)
 	}
 
