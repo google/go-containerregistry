@@ -28,7 +28,7 @@ jobs:
 
         # Setup local registry, wait a bit for it to come up.
         go run ./cmd/registry &
-        sleep 1
+        sleep 5
 
         base=alpine
         platform=linux/amd64
