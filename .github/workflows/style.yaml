@@ -10,11 +10,11 @@ jobs:
     name: check goimports
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: 1.19
           check-latest: true
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: chainguard-dev/actions/goimports@5e21cb47971231c078a677dfe89a348371cb880c # main
 
   lint:
@@ -22,8 +22,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: 1.19
           check-latest: true
