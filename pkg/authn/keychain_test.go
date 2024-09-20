@@ -110,13 +110,11 @@ func TestPodmanConfig(t *testing.T) {
 
 	os.Unsetenv("DOCKER_CONFIG")
 	// At first, $DOCKER_CONFIG is unset and $HOME/.docker/config.json isn't
-	// found, but Podman auth $XDG_RUNTIME_DIR/containers/auth.json is configured.
-	// This should return Podman's auth $XDG_RUNTIME_DIR/containers/auth.json.
-	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
-	t.Setenv("XDG_RUNTIME_DIR", p)
-	writeConfig(t, filepath.Join(p, "containers"), "auth.json",
-		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`,
-			encode("XDG_RUNTIME_DIR-foo", "XDG_RUNTIME_DIR-bar")))
+	// found, but Podman auth $HOME/.config/containers.auth.json is configured.
+	// This should return Podman's auth $$HOME/.config/containers.auth.json.
+	writeConfig(t, filepath.Join(os.Getenv("HOME"), ".config/containers"), "auth.json",
+		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`, encode("home-foo", "home-bar")))
+	defer func() { os.Remove(filepath.Join(os.Getenv("HOME"), ".config/containers/auth.json")) }()
 	auth, err := DefaultKeychain.Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
@@ -126,6 +124,29 @@ func TestPodmanConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := &AuthConfig{
+		Username: "home-foo",
+		Password: "home-bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+
+	// Then, configure Podman auth $XDG_RUNTIME_DIR.
+	// This demonstrates that $XDG_RUNTIME_DIR is preferred over $HOME/.config/containers/auth.json.
+	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
+	t.Setenv("XDG_RUNTIME_DIR", p)
+	writeConfig(t, filepath.Join(p, "containers"), "auth.json",
+		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`,
+			encode("XDG_RUNTIME_DIR-foo", "XDG_RUNTIME_DIR-bar")))
+	auth, err = DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err = auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = &AuthConfig{
 		Username: "XDG_RUNTIME_DIR-foo",
 		Password: "XDG_RUNTIME_DIR-bar",
 	}
