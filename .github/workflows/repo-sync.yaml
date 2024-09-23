@@ -1,0 +1,20 @@
+---
+name: Repo sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 8 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  repo-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh repo sync $REPO
+        env:
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+
