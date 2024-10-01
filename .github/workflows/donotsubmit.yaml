@@ -11,5 +11,5 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: chainguard-dev/actions/donotsubmit@5e21cb47971231c078a677dfe89a348371cb880c # main
