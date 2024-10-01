@@ -102,6 +102,14 @@ func UnzipReadCloser(r io.ReadCloser) (io.ReadCloser, error) {
 	}, nil
 }
 
+func NewReader(r io.Reader) (io.Reader, error) {
+	return zstd.NewReader(r)
+}
+
+func NewWriterLevel(w io.Writer, level int) (*zstd.Encoder, error) {
+	return zstd.NewWriter(w, zstd.WithEncoderLevel(zstd.EncoderLevelFromZstd(level)))
+}
+
 // Is detects whether the input stream is compressed.
 func Is(r io.Reader) (bool, error) {
 	magicHeader := make([]byte, 4)

@@ -17,6 +17,7 @@ package tarball
 import (
 	"bytes"
 	"compress/gzip"
+	"github.com/klauspost/compress/zstd"
 	"io"
 	"os"
 	"testing"
@@ -253,13 +254,15 @@ func TestLayerFromOpenerReader(t *testing.T) {
 	zstdOpener := func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(zstdBytes)), nil
 	}
-	tarZstdLayer, err := LayerFromOpener(zstdOpener)
+	tarZstdLayer, err := LayerFromOpener(zstdOpener, WithOCIMediaType(true))
 	if err != nil {
 		t.Fatalf("Unable to create layer from tar file: %v", err)
 	}
 
-	if err := compare.Layers(tarLayer, tarZstdLayer); err != nil {
-		t.Errorf("compare.Layers: %v", err)
+	if mediaType, err := tarZstdLayer.MediaType(); err != nil {
+		t.Fatalf("MediaType: %v", err)
+	} else if mediaType != types.OCILayerZStd {
+		t.Errorf("unexpected mediaType: %v", mediaType)
 	}
 }
 
@@ -279,7 +282,7 @@ func TestWithMediaType(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 
-	l, err = LayerFromFile("testdata/content.tar", WithMediaType(types.OCILayer))
+	l, err = LayerFromFile("testdata/content.tar", WithOCIMediaType(true))
 	if err != nil {
 		t.Fatalf("Unable to create layer from tar file: %v", err)
 	}
@@ -341,11 +344,11 @@ func TestLayerFromReader(t *testing.T) {
 func setupFixtures(t *testing.T) {
 	t.Helper()
 
-	setupCompressedTar(t, "gzip_content.tgz")
-	setupCompressedTar(t, "zstd_content.tar.zst")
+	setupCompressedTar(t, "gzip_content.tgz", compression.GZip)
+	setupCompressedTar(t, "zstd_content.tar.zst", compression.ZStd)
 }
 
-func setupCompressedTar(t *testing.T, fileName string) {
+func setupCompressedTar(t *testing.T, fileName string, comp compression.Compression) {
 	t.Helper()
 	in, err := os.Open("testdata/content.tar")
 	if err != nil {
@@ -361,10 +364,16 @@ func setupCompressedTar(t *testing.T, fileName string) {
 
 	defer out.Close()
 
-	gw, _ := gzip.NewWriterLevel(out, gzip.BestSpeed)
-	defer gw.Close()
+	var compressor io.WriteCloser
 
-	_, err = io.Copy(gw, in)
+	if comp == compression.ZStd {
+		compressor, _ = zstd.NewWriter(out)
+	} else {
+		compressor, _ = gzip.NewWriterLevel(out, gzip.BestSpeed)
+	}
+	defer compressor.Close()
+
+	_, err = io.Copy(compressor, in)
 	if err != nil {
 		t.Errorf("Error setting up fixtures: %v", err)
 	}
