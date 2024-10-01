@@ -21,7 +21,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -272,6 +274,8 @@ func extract(img v1.Image, w io.Writer) error {
 		return fmt.Errorf("retrieving image layers: %w", err)
 	}
 
+	imgFS := getImageFS(img)
+
 	// we iterate through the layers in reverse order because it makes handling
 	// whiteout layers more efficient, since we can just keep track of the removed
 	// files as we see .wh. layers and ignore those in previous layers.
@@ -294,14 +298,15 @@ func extract(img v1.Image, w io.Writer) error {
 
 			// Some tools prepend everything with "./", so if we don't Clean the
 			// name, we may have duplicate entries, which angers tar-split.
-			header.Name = filepath.Clean(header.Name)
+			header.Name = imgFS.Clean(header.Name)
+
 			// force PAX format to remove Name/Linkname length limit of 100 characters
 			// required by USTAR and to not depend on internal tar package guess which
 			// prefers USTAR over PAX
 			header.Format = tar.FormatPAX
 
-			basename := filepath.Base(header.Name)
-			dirname := filepath.Dir(header.Name)
+			basename := imgFS.Base(header.Name)
+			dirname := imgFS.Dir(header.Name)
 			tombstone := strings.HasPrefix(basename, whiteoutPrefix)
 			if tombstone {
 				basename = basename[len(whiteoutPrefix):]
@@ -313,7 +318,7 @@ func extract(img v1.Image, w io.Writer) error {
 			if header.Typeflag == tar.TypeDir {
 				name = header.Name
 			} else {
-				name = filepath.Join(dirname, basename)
+				name = imgFS.Join(dirname, basename)
 			}
 
 			if _, ok := fileMap[name]; ok {
@@ -321,7 +326,7 @@ func extract(img v1.Image, w io.Writer) error {
 			}
 
 			// check for a whited out parent directory
-			if inWhiteoutDir(fileMap, name) {
+			if inWhiteoutDir(fileMap, name, imgFS) {
 				continue
 			}
 
@@ -343,12 +348,12 @@ func extract(img v1.Image, w io.Writer) error {
 	return nil
 }
 
-func inWhiteoutDir(fileMap map[string]bool, file string) bool {
+func inWhiteoutDir(fileMap map[string]bool, file string, imgFS imageFS) bool {
 	for {
 		if file == "" {
 			break
 		}
-		dirname := filepath.Dir(file)
+		dirname := imgFS.Dir(file)
 		if file == dirname {
 			break
 		}
@@ -359,6 +364,50 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 	}
 	return false
 }
+
+// imageFS exposes functions for maniplating image path names.
+type imageFS interface {
+	Dir(string) string
+	Base(string) string
+	Clean(string) string
+	Join(...string) string
+}
+
+// getImageFS returns the appropriate [imageFS] for handling paths within img.
+// Namely, it returns an [imageFS] that uses [path.Clean] and co. when handeling a non-Windows
+// image on Windows, since [filepath.Clean] will replace `/` with `\` and potentially invalidate
+// the resulting filesystem.
+func getImageFS(img v1.Image) imageFS {
+	if runtime.GOOS != "windows" {
+		return filepathImageFS{}
+	}
+
+	cfg, err := img.ConfigFile()
+	if err != nil || (cfg != nil && cfg.OS == "windows") {
+		// silently ignore the error since it will likely surface elsewhere
+		return filepathImageFS{}
+	}
+	// we are handling a non-Windows image on Windows, use "path".* to preserve `\`
+	return pathImageFS{}
+}
+
+type filepathImageFS struct{}
+
+var _ imageFS = filepathImageFS{}
+
+func (filepathImageFS) Dir(p string) string        { return filepath.Dir(p) }
+func (filepathImageFS) Base(p string) string       { return filepath.Base(p) }
+func (filepathImageFS) Clean(p string) string      { return filepath.Clean(p) }
+func (filepathImageFS) Join(elem ...string) string { return filepath.Join(elem...) }
+
+type pathImageFS struct{}
+
+var _ imageFS = pathImageFS{}
+
+func (pathImageFS) Dir(p string) string        { return path.Dir(p) }
+func (pathImageFS) Base(p string) string       { return path.Base(p) }
+func (pathImageFS) Clean(p string) string      { return path.Clean(p) }
+func (pathImageFS) Join(elem ...string) string { return path.Join(elem...) }
 
 func max(a, b int) int {
 	if a > b {
