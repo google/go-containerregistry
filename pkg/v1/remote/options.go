@@ -54,6 +54,8 @@ type options struct {
 	// Set by Reuse, we currently store one or the other.
 	puller *Puller
 	pusher *Pusher
+
+	mirrors []transport.Mirror
 }
 
 var defaultPlatform = v1.Platform{
@@ -100,6 +102,8 @@ var defaultRetryStatusCodes = []int{
 	522, // Cloudflare-specific, connection timeout
 }
 
+var defaultMirrors = []transport.Mirror{}
+
 const (
 	defaultJobs = 4
 
@@ -135,6 +139,7 @@ func makeOptions(opts ...Option) (*options, error) {
 		retryPredicate:   defaultRetryPredicate,
 		retryBackoff:     defaultRetryBackoff,
 		retryStatusCodes: defaultRetryStatusCodes,
+		mirrors:          defaultMirrors,
 	}
 
 	for _, option := range opts {
@@ -168,6 +173,16 @@ func makeOptions(opts ...Option) (*options, error) {
 		// Wrap this last to prevent transport.New from double-wrapping.
 		if o.userAgent != "" {
 			o.transport = transport.NewUserAgent(o.transport, o.userAgent)
+		}
+
+		if len(o.mirrors) > 0 {
+			o.transport = transport.NewWithMirrors(o.transport, o.mirrors)
+		} else {
+			testMirror := transport.Mirror{
+				OriginUrl:       "docker://quay.io/ubi9",
+				MirrorEndpoints: []transport.MirrorEndpoint{{Secure: false, Endpoint: "docker://localhost:5000/ubi9"}},
+			}
+			o.transport = transport.NewWithMirrors(o.transport, []transport.Mirror{testMirror})
 		}
 	}
 
@@ -327,6 +342,16 @@ func WithFilter(key string, value string) Option {
 			o.filter = map[string]string{}
 		}
 		o.filter[key] = value
+		return nil
+	}
+}
+
+func WithMirrors(m ...transport.Mirror) Option {
+	return func(o *options) error {
+		if o.mirrors == nil {
+			o.mirrors = make([]transport.Mirror, 0)
+		}
+		o.mirrors = append(o.mirrors, m...)
 		return nil
 	}
 }
