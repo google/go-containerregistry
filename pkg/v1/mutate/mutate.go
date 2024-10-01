@@ -217,9 +217,10 @@ func ConfigFile(base v1.Image, cfg *v1.ConfigFile) (v1.Image, error) {
 	}
 
 	image := &image{
-		base:       base,
-		manifest:   m.DeepCopy(),
-		configFile: cfg,
+		base:        base,
+		manifest:    m.DeepCopy(),
+		configFile:  cfg,
+		emptyConfig: false,
 	}
 
 	return image, nil
@@ -524,7 +525,6 @@ func Canonical(img v1.Image) (v1.Image, error) {
 	cfg.Container = ""
 	cfg.Config.Hostname = ""
 	cfg.DockerVersion = ""
-
 	return ConfigFile(img, cfg)
 }
 
@@ -551,5 +551,17 @@ func IndexMediaType(idx v1.ImageIndex, mt types.MediaType) v1.ImageIndex {
 	return &index{
 		base:      idx,
 		mediaType: &mt,
+	}
+}
+
+// EmptyConfig returns a new image with an empty config as per
+// https://github.com/opencontainers/image-spec/blob/main/manifest.md#guidelines-for-artifact-usage
+func EmptyConfig(img v1.Image) v1.Image {
+	mt := types.MediaType("application/vnd.oci.empty.v1+json")
+	return &image{
+		base:            img,
+		configMediaType: &mt,
+		configFile:      nil,
+		emptyConfig:     true,
 	}
 }
