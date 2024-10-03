@@ -17,6 +17,7 @@ package tarball
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"sync"
 
 	comp "github.com/google/go-containerregistry/internal/compression"
+	ggzip "github.com/google/go-containerregistry/internal/gzip"
 	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -230,7 +232,28 @@ func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, error) {
 		}
 	}()
 
-	tf := tar.NewReader(f)
+	var tf *tar.Reader
+	magicHeader := make([]byte, len(ggzip.MagicHeader))
+	n, err := f.Read(magicHeader)
+	if n == 0 && err == io.EOF {
+		return nil, errors.New("invalid tar or tar.zip header")
+	}
+	if err != nil {
+		return nil, err
+	}
+	// ggzip.Is will eat two bytes, so used the MultiReader
+	combinedReader := io.MultiReader(bytes.NewReader(magicHeader[:n]), f)
+	if bytes.Equal(magicHeader, ggzip.MagicHeader) {
+		gzipReader, err := gzip.NewReader(combinedReader)
+		if err != nil {
+			return nil, err
+		}
+		defer gzipReader.Close()
+		tf = tar.NewReader(gzipReader)
+	} else {
+		tf = tar.NewReader(combinedReader)
+	}
+
 	for {
 		hdr, err := tf.Next()
 		if errors.Is(err, io.EOF) {
