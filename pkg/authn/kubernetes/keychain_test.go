@@ -132,6 +132,49 @@ func TestServiceAccountNotFound(t *testing.T) {
 	testResolve(t, kc, registry(t, "fake.registry.io"), authn.Anonymous)
 }
 
+func TestMalformedSecretsIgnored(t *testing.T) {
+	secrets := []corev1.Secret{
+		// Malformed .dockerconfigjson is ignored
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "bad-dockerconfigjson",
+				Namespace: "ns",
+			},
+			Type: corev1.SecretTypeDockerConfigJson,
+			Data: map[string][]byte{
+				corev1.DockerConfigJsonKey: []byte("bad-base64"),
+			},
+		},
+		// Malformed .dockercfg is ignored
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "bad-dockercfg",
+				Namespace: "ns",
+			},
+			Type: corev1.SecretTypeDockercfg,
+			Data: map[string][]byte{
+				corev1.DockerConfigKey: []byte("bad-base64"),
+			},
+		},
+		// Malformed registry URL is ignored
+		*dockerCfgSecretType.Create(t, "ns", "secret", `\tfake.registry.io`, authn.AuthConfig{
+			Username: "ignored", Password: "ignored",
+		}),
+		// Correct secret is used
+		*dockerCfgSecretType.Create(t, "ns", "secret", "fake.registry.io", authn.AuthConfig{
+			Username: "user", Password: "pass",
+		}),
+	}
+
+	kc, err := NewFromPullSecrets(context.Background(), secrets)
+	if err != nil {
+		t.Fatalf("NewFromPullSecrets() = %v", err)
+	}
+
+	expectedAuth := &authn.Basic{Username: "user", Password: "pass"}
+	testResolve(t, kc, registry(t, "fake.registry.io"), expectedAuth)
+}
+
 func TestImagePullSecretAttachedServiceAccount(t *testing.T) {
 	username, password := "foo", "bar"
 	client := fakeclient.NewSimpleClientset(&corev1.ServiceAccount{
@@ -411,6 +454,31 @@ func TestAuthWithGlobs(t *testing.T) {
 	testResolve(t, kc, repo(t, "fake.registry.io/repo"), authn.FromConfig(auth))
 	testResolve(t, kc, registry(t, "blah.registry.io"), authn.FromConfig(auth))
 	testResolve(t, kc, repo(t, "blah.registry.io/repo"), authn.FromConfig(auth))
+}
+
+func TestNoValidAuthsFound(t *testing.T) {
+	secrets := []corev1.Secret{
+		// Malformed .dockerconfigjson is ignored
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "bad-dockerconfigjson",
+				Namespace: "ns",
+			},
+			Type: corev1.SecretTypeDockerConfigJson,
+			Data: map[string][]byte{
+				corev1.DockerConfigJsonKey: []byte("bad-base64"),
+			},
+		},
+	}
+
+	kc, err := NewFromPullSecrets(context.Background(), secrets)
+	if kc != nil {
+		t.Fatal("NewFromPullSecrets() = expected nil keychain")
+	}
+	expectedErr := "could not find a valid secret"
+	if err == nil || fmt.Sprintf("%s", err) != expectedErr {
+		t.Fatalf("NewFromPullSecrets() = want error %q, got %q", expectedErr, err)
+	}
 }
 
 func testResolve(t *testing.T, kc authn.Keychain, target authn.Resource, expectedAuth authn.Authenticator) {
