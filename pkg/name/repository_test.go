@@ -29,6 +29,8 @@ var goodStrictValidationRepositoryNames = []string{
 	"index.docker.io/library/ubuntu",
 }
 
+var goodConsiderAsRepositoryName = "registry-1.docker.io-shared/library/ubuntu"
+
 var goodWeakValidationRepositoryNames = []string{
 	"namespace/pathcomponent/image",
 	"library/ubuntu",
@@ -57,6 +59,18 @@ func TestNewRepositoryStrictValidation(t *testing.T) {
 			t.Errorf("`%s` should be an invalid repository name, got Repository: %#v", name, repo)
 		}
 	}
+}
+
+func TestNewRepositoryConsiderAsRepository(t *testing.T) {
+	t.Parallel()
+
+	repository, err := NewRepository(goodConsiderAsRepositoryName, ConsiderAsRepository)
+	if err != nil {
+		t.Errorf("`%s` should be a valid Repository name, got error: %v", goodConsiderAsRepositoryName, err)
+	} else if repository.repository != goodConsiderAsRepositoryName {
+		t.Errorf("`%v` repository name should reproduce the original name. Wanted: %s Got: %s", repository, goodConsiderAsRepositoryName, repository.repository)
+	}
+
 }
 
 func TestNewRepository(t *testing.T) {
