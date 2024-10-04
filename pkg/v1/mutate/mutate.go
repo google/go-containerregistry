@@ -295,6 +295,12 @@ func extract(img v1.Image, w io.Writer) error {
 			// Some tools prepend everything with "./", so if we don't Clean the
 			// name, we may have duplicate entries, which angers tar-split.
 			header.Name = filepath.Clean(header.Name)
+			header.Name = filepath.ToSlash(header.Name)
+
+			if header.Name == "." {
+				continue
+			}
+
 			// force PAX format to remove Name/Linkname length limit of 100 characters
 			// required by USTAR and to not depend on internal tar package guess which
 			// prefers USTAR over PAX
