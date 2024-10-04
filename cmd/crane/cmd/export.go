@@ -28,7 +28,10 @@ import (
 
 // NewCmdExport creates a new cobra.Command for the export subcommand.
 func NewCmdExport(options *[]crane.Option) *cobra.Command {
-	return &cobra.Command{
+
+	imageIsLocalFile := false
+
+	exportCmd := &cobra.Command{
 		Use:   "export IMAGE|- TARBALL|-",
 		Short: "Export filesystem of a container image as a tarball",
 		Example: `  # Write tarball to stdout
@@ -53,7 +56,12 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
 			defer f.Close()
 
 			var img v1.Image
-			if src == "-" {
+			if imageIsLocalFile {
+				img, err = loadImageTarballOrDir(src)
+				if err != nil {
+					return fmt.Errorf("reading tarball from %q: %w", src, err)
+				}
+			} else if src == "-" {
 				tmpfile, err := os.CreateTemp("", "crane")
 				if err != nil {
 					log.Fatal(err)
@@ -90,6 +98,8 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
 			return crane.Export(img, f)
 		},
 	}
+	exportCmd.Flags().BoolVar(&imageIsLocalFile, "local-image", false, "If false, loads the image from a remote source; otherwise, loads the image from a local tarball file or directory.")
+	return exportCmd
 }
 
 func openFile(s string) (*os.File, error) {
