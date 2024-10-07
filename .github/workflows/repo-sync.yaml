@@ -16,5 +16,5 @@ jobs:
       - run: gh repo sync $REPO
         env:
           REPO: ${{ github.repository }}
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.EC_AUTOMATION_KEY }}
 
