@@ -61,6 +61,10 @@ func (m *MockClient) ImageTag(ctx context.Context, _, _ string) error {
 	return m.tagErr
 }
 
+func (m *MockClient) ImageRemove(context.Context, string, types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error) {
+	return nil, m.imageRemoveErr
+}
+
 func TestWriteImage(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
@@ -163,6 +167,9 @@ func TestWriteDefaultClient(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := Write(tag, empty.Image, WithContext(ctx)); err != nil {
+		t.Fatal(err)
+	}
+	if err := DeleteTag(tag, false, false, WithContext(ctx)); err != nil {
 		t.Fatal(err)
 	}
 }
