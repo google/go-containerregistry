@@ -102,4 +102,5 @@ type Client interface {
 	ImageTag(context.Context, string, string) error
 	ImageInspectWithRaw(context.Context, string) (types.ImageInspect, []byte, error)
 	ImageHistory(context.Context, string) ([]api.HistoryResponseItem, error)
+	ImageRemove(context.Context, string, types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error)
 }

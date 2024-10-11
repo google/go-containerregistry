@@ -82,6 +82,8 @@ type MockClient struct {
 	inspectBody []byte
 
 	tagErr error
+
+	imageRemoveErr error
 }
 
 func (m *MockClient) NegotiateAPIVersion(_ context.Context) {
