@@ -26,7 +26,7 @@ export PATH="${PATH}:${TMP_DIR}/bin"
 export GOPATH="${TMP_DIR}"
 pushd ${TMP_DIR}
 trap popd EXIT
-go install honnef.co/go/tools/cmd/staticcheck@v0.3.3
+go install honnef.co/go/tools/cmd/staticcheck@latest
 popd
 
 pushd ${PROJECT_ROOT}
