@@ -39,11 +39,12 @@ const whiteoutPrefix = ".wh."
 // Addendum contains layers and history to be appended
 // to a base image
 type Addendum struct {
-	Layer       v1.Layer
-	History     v1.History
-	URLs        []string
-	Annotations map[string]string
-	MediaType   types.MediaType
+	Layer        v1.Layer
+	History      v1.History
+	URLs         []string
+	Annotations  map[string]string
+	MediaType    types.MediaType
+	ArtifactType string
 }
 
 // AppendLayers applies layers to a base image.
@@ -533,6 +534,14 @@ func MediaType(img v1.Image, mt types.MediaType) v1.Image {
 	return &image{
 		base:      img,
 		mediaType: &mt,
+	}
+}
+
+// ArtifactType modifies the ArtifactType() of the given image.
+func ArtifactType(img v1.Image, at string) v1.Image {
+	return &image{
+		base:         img,
+		artifactType: &at,
 	}
 }
 

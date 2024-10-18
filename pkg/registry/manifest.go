@@ -379,6 +379,8 @@ func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request)
 	target := elem[len(elem)-1]
 	repo := strings.Join(elem[1:len(elem)-2], "/")
 
+	queryArtifactType := req.URL.Query().Get("artifactType")
+
 	// Validate that incoming target is a valid digest
 	if _, err := v1.NewHash(target); err != nil {
 		return &regError{
@@ -421,18 +423,29 @@ func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request)
 		if referenceDigest.String() != target {
 			continue
 		}
-		// At this point, we know the current digest references the target
 		var imageAsArtifact struct {
-			Config struct {
+			ArtifactType string `json:"artifactType"`
+			Config       struct {
 				MediaType string `json:"mediaType"`
 			} `json:"config"`
 		}
 		json.Unmarshal(manifest.blob, &imageAsArtifact)
+		artifactType := imageAsArtifact.ArtifactType
+		// match query artifact type if set
+		if queryArtifactType != "" {
+			if artifactType != queryArtifactType {
+				continue
+			}
+		}
+		// as per spec, if artifactType isn't set, use config media type instead
+		if artifactType == "" {
+			artifactType = imageAsArtifact.Config.MediaType
+		}
 		im.Manifests = append(im.Manifests, v1.Descriptor{
 			MediaType:    types.MediaType(manifest.contentType),
 			Size:         int64(len(manifest.blob)),
 			Digest:       h,
-			ArtifactType: imageAsArtifact.Config.MediaType,
+			ArtifactType: artifactType,
 		})
 	}
 	msg, _ := json.Marshal(&im)
