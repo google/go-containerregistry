@@ -39,7 +39,7 @@ type image struct {
 	diffIDMap       map[v1.Hash]v1.Layer
 	digestMap       map[v1.Hash]v1.Layer
 	subject         *v1.Descriptor
-
+	emptyConfig     bool
 	sync.Mutex
 }
 
@@ -60,39 +60,65 @@ func (i *image) compute() error {
 	if i.computed {
 		return nil
 	}
-	var configFile *v1.ConfigFile
-	if i.configFile != nil {
-		configFile = i.configFile
-	} else {
-		cf, err := i.base.ConfigFile()
-		if err != nil {
-			return err
-		}
-		configFile = cf.DeepCopy()
-	}
-	diffIDs := configFile.RootFS.DiffIDs
-	history := configFile.History
-
-	diffIDMap := make(map[v1.Hash]v1.Layer)
-	digestMap := make(map[v1.Hash]v1.Layer)
-
-	for _, add := range i.adds {
-		history = append(history, add.History)
-		if add.Layer != nil {
-			diffID, err := add.Layer.DiffID()
-			if err != nil {
-				return err
-			}
-			diffIDs = append(diffIDs, diffID)
-			diffIDMap[diffID] = add.Layer
-		}
-	}
-
 	m, err := i.base.Manifest()
 	if err != nil {
 		return err
 	}
 	manifest := m.DeepCopy()
+
+	if i.emptyConfig {
+		// as per https://github.com/opencontainers/image-spec/blob/main/manifest.md#guidelines-for-artifact-usage
+		manifest.Config.Digest = v1.Hash{Algorithm: "sha256", Hex: "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"}
+		manifest.Config.Size = 2
+		manifest.Config.Data = []byte("{}")
+	} else {
+		var configFile *v1.ConfigFile
+		if i.configFile != nil {
+			configFile = i.configFile
+		} else {
+			cf, err := i.base.ConfigFile()
+			if err != nil {
+				return err
+			}
+			configFile = cf.DeepCopy()
+		}
+		diffIDs := configFile.RootFS.DiffIDs
+		history := configFile.History
+
+		diffIDMap := make(map[v1.Hash]v1.Layer)
+		for _, add := range i.adds {
+			history = append(history, add.History)
+			if add.Layer != nil {
+				diffID, err := add.Layer.DiffID()
+				if err != nil {
+					return err
+				}
+				diffIDs = append(diffIDs, diffID)
+				diffIDMap[diffID] = add.Layer
+			}
+		}
+		configFile.RootFS.DiffIDs = diffIDs
+		configFile.History = history
+		rcfg, err := json.Marshal(configFile)
+		if err != nil {
+			return err
+		}
+		d, sz, err := v1.SHA256(bytes.NewBuffer(rcfg))
+		if err != nil {
+			return err
+		}
+		manifest.Config.Digest = d
+		manifest.Config.Size = sz
+		// If Data was set in the base image, we need to update it in the mutated image.
+		if m.Config.Data != nil {
+			manifest.Config.Data = rcfg
+		}
+		i.configFile = configFile
+		i.diffIDMap = diffIDMap
+	}
+
+	digestMap := make(map[v1.Hash]v1.Layer)
+
 	manifestLayers := manifest.Layers
 	for _, add := range i.adds {
 		if add.Layer == nil {
@@ -121,26 +147,7 @@ func (i *image) compute() error {
 		digestMap[desc.Digest] = add.Layer
 	}
 
-	configFile.RootFS.DiffIDs = diffIDs
-	configFile.History = history
-
 	manifest.Layers = manifestLayers
-
-	rcfg, err := json.Marshal(configFile)
-	if err != nil {
-		return err
-	}
-	d, sz, err := v1.SHA256(bytes.NewBuffer(rcfg))
-	if err != nil {
-		return err
-	}
-	manifest.Config.Digest = d
-	manifest.Config.Size = sz
-
-	// If Data was set in the base image, we need to update it in the mutated image.
-	if m.Config.Data != nil {
-		manifest.Config.Data = rcfg
-	}
 
 	// If the user wants to mutate the media type of the config
 	if i.configMediaType != nil {
@@ -162,9 +169,8 @@ func (i *image) compute() error {
 	}
 	manifest.Subject = i.subject
 
-	i.configFile = configFile
 	i.manifest = manifest
-	i.diffIDMap = diffIDMap
+
 	i.digestMap = digestMap
 	i.computed = true
 	return nil
