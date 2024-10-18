@@ -28,6 +28,7 @@ jobs:
 
         # Setup local registry
         go run ./cmd/registry &
+        sleep 3
 
         base=alpine
         platform=linux/amd64
