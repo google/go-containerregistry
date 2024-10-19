@@ -71,3 +71,28 @@ func TestAppendWithDockerBaseImage(t *testing.T) {
 		t.Errorf("MediaType(): want %q, got %q", want, got)
 	}
 }
+
+func TestAppendWithZstd(t *testing.T) {
+	base := mutate.MediaType(empty.Image, types.OCIManifestSchema1)
+	img, err := crane.Append(base, "testdata/content.tar.zst")
+
+	if err != nil {
+		t.Fatalf("crane.Append(): %v", err)
+	}
+
+	layers, err := img.Layers()
+
+	if err != nil {
+		t.Fatalf("img.Layers(): %v", err)
+	}
+
+	mediaType, err := layers[0].MediaType()
+
+	if err != nil {
+		t.Fatalf("layers[0].MediaType(): %v", err)
+	}
+
+	if got, want := mediaType, types.OCILayerZStd; got != want {
+		t.Errorf("MediaType(): want %q, got %q", want, got)
+	}
+}
