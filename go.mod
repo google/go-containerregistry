@@ -1,10 +1,10 @@
 module github.com/google/go-containerregistry
 
-go 1.18
+go 1.23.0
 
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.14.3
-	github.com/docker/cli v24.0.0+incompatible
+	github.com/docker/cli v27.1.1+incompatible
 	github.com/docker/distribution v2.8.2+incompatible
 	github.com/docker/docker v24.0.0+incompatible
 	github.com/google/go-cmp v0.5.9

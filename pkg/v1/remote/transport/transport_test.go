@@ -35,15 +35,13 @@ var (
 
 func TestTransportNoActionIfTransportIsAlreadyWrapper(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
 			http.Error(w, "Should not contact the server", http.StatusBadRequest)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	wTprt := &Wrapper{inner: tprt}
@@ -89,15 +87,13 @@ func TestTransportSelectionAnonymous(t *testing.T) {
 
 func TestTransportSelectionBasic(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("WWW-Authenticate", `Basic`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
@@ -121,15 +117,13 @@ func (a *badAuth) Authorization() (*authn.AuthConfig, error) {
 
 func TestTransportBadAuth(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	if _, err := NewWithContext(context.Background(), testReference.Context().Registry, &badAuth{}, tprt, []string{testReference.Scope(PullScope)}); err == nil {
@@ -167,9 +161,7 @@ func TestTransportSelectionBearer(t *testing.T) {
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
@@ -186,15 +178,13 @@ func TestTransportSelectionBearer(t *testing.T) {
 
 func TestTransportSelectionBearerMissingRealm(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("WWW-Authenticate", `Bearer service="gcr.io"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
@@ -207,7 +197,7 @@ func TestTransportSelectionBearerMissingRealm(t *testing.T) {
 func TestTransportSelectionBearerAuthError(t *testing.T) {
 	request := 0
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			request++
 			switch request {
 			case 1:
@@ -219,9 +209,7 @@ func TestTransportSelectionBearerAuthError(t *testing.T) {
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	basic := &authn.Basic{Username: "foo", Password: "bar"}
@@ -236,7 +224,7 @@ func TestTransportAlwaysTriesHttps(t *testing.T) {
 	// This ensures that we try https even for local registries.
 	count := 0
 	server := httptest.NewTLSServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			count++
 			w.Write([]byte(`{"token": "dfskdjhfkhsjdhfkjhsdf"}`))
 		}))

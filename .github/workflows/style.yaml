@@ -10,27 +10,25 @@ jobs:
     name: check goimports
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.19
-          check-latest: true
-      - uses: actions/checkout@v3
-      - uses: chainguard-dev/actions/goimports@5e21cb47971231c078a677dfe89a348371cb880c # main
+          go-version-file: go.mod
+      - uses: chainguard-dev/actions/goimports@main
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.19
-          check-latest: true
+          go-version-file: go.mod
 
       - uses: golangci/golangci-lint-action@v3.4.0
         with:
-          version: v1.51.2
+          version: v1.61.0
 
       - uses: reviewdog/action-misspell@v1
         if: ${{ always() }}
@@ -40,10 +38,10 @@ jobs:
           locale: "US"
           exclude: ./vendor/*
 
-      - uses: chainguard-dev/actions/trailing-space@5e21cb47971231c078a677dfe89a348371cb880c # main
+      - uses: chainguard-dev/actions/trailing-space@main
         if: ${{ always() }}
 
-      - uses: chainguard-dev/actions/eof-newline@5e21cb47971231c078a677dfe89a348371cb880c # main
+      - uses: chainguard-dev/actions/eof-newline@main
         if: ${{ always() }}
 
       - uses: get-woke/woke-action-reviewdog@v0

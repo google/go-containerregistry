@@ -36,7 +36,7 @@ func TestStatusCodeReturned(t *testing.T) {
 		Handler     http.Handler
 	}{{
 		Description: "Only returns teapot status",
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusTeapot)
 		}),
 	}, {
