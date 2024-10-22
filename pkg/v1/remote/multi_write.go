@@ -23,7 +23,7 @@ import (
 // efficiently as possible, by deduping shared layer blobs while uploading them
 // in parallel.
 func MultiWrite(todo map[name.Reference]Taggable, options ...Option) (rerr error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(nil, options...)
 	if err != nil {
 		return err
 	}

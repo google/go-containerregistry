@@ -99,7 +99,7 @@ type Pusher struct {
 }
 
 func NewPusher(options ...Option) (*Pusher, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(nil, options...)
 	if err != nil {
 		return nil, err
 	}

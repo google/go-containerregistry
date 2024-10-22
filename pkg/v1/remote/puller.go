@@ -32,7 +32,7 @@ type Puller struct {
 }
 
 func NewPuller(options ...Option) (*Puller, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(nil, options...)
 	if err != nil {
 		return nil, err
 	}

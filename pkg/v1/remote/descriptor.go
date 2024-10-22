@@ -79,7 +79,7 @@ func Get(ref name.Reference, options ...Option) (*Descriptor, error) {
 // Note that the server response will not have a body, so any errors encountered
 // should be retried with Get to get more details.
 func Head(ref name.Reference, options ...Option) (*v1.Descriptor, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func Head(ref name.Reference, options ...Option) (*v1.Descriptor, error) {
 // Handle options and fetch the manifest with the acceptable MediaTypes in the
 // Accept header.
 func get(ref name.Reference, acceptable []types.MediaType, options ...Option) (*Descriptor, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return nil, err
 	}

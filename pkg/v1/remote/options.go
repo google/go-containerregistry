@@ -16,6 +16,7 @@ package remote
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"io"
 	"net"
@@ -26,6 +27,7 @@ import (
 	"github.com/google/go-containerregistry/internal/retry"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
+	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
@@ -125,9 +127,37 @@ var DefaultTransport http.RoundTripper = &http.Transport{
 	MaxIdleConnsPerHost: 50,
 }
 
-func makeOptions(opts ...Option) (*options, error) {
+// create transport once to allow connection sharing.
+var defaultTransportInsecure = func() http.RoundTripper {
+	tr := DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	return tr
+}()
+
+func targetIsInsecure(target resource) bool {
+	switch target := target.(type) {
+	case name.Registry:
+		return target.IsInsecure()
+
+	case name.Repository:
+		return target.Registry.IsInsecure()
+
+	case name.Digest:
+		return target.Registry.IsInsecure()
+	}
+	return false
+}
+
+func makeOptions(target resource, opts ...Option) (*options, error) {
+	var tr http.RoundTripper
+	if target != nil && targetIsInsecure(target) {
+		tr = defaultTransportInsecure
+	} else {
+		tr = DefaultTransport
+	}
+
 	o := &options{
-		transport:        DefaultTransport,
+		transport:        tr,
 		platform:         defaultPlatform,
 		context:          context.Background(),
 		jobs:             defaultJobs,

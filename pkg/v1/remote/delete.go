@@ -20,7 +20,7 @@ import (
 
 // Delete removes the specified image reference from the remote registry.
 func Delete(ref name.Reference, options ...Option) error {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}

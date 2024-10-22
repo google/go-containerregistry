@@ -34,7 +34,7 @@ import (
 //
 // The subject manifest doesn't have to exist in the registry for there to be descriptors that refer to it.
 func Referrers(d name.Digest, options ...Option) (v1.ImageIndex, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(d, options...)
 	if err != nil {
 		return nil, err
 	}

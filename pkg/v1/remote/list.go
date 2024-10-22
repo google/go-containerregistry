@@ -36,7 +36,7 @@ func ListWithContext(ctx context.Context, repo name.Repository, options ...Optio
 // List calls /tags/list for the given repository, returning the list of tags
 // in the "tags" property.
 func List(repo name.Repository, options ...Option) ([]string, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(repo, options...)
 	if err != nil {
 		return nil, err
 	}
