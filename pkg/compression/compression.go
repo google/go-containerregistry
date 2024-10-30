@@ -15,6 +15,12 @@
 // Package compression abstracts over gzip and zstd.
 package compression
 
+import (
+	"fmt"
+
+	"github.com/google/go-containerregistry/pkg/v1/types"
+)
+
 // Compression is an enumeration of the supported compression algorithms
 type Compression string
 
@@ -24,3 +30,29 @@ const (
 	GZip Compression = "gzip"
 	ZStd Compression = "zstd"
 )
+
+func (compression Compression) ToMediaType(oci bool) (types.MediaType, error) {
+	if oci {
+		switch compression {
+		case ZStd:
+			return types.OCILayerZStd, nil
+		case GZip:
+			return types.OCILayer, nil
+		case None:
+			return types.OCIUncompressedLayer, nil
+		default:
+			return types.OCILayer, fmt.Errorf("unsupported compression: %s", compression)
+		}
+	} else {
+		switch compression {
+		case ZStd:
+			return types.DockerLayerZstd, nil
+		case GZip:
+			return types.DockerLayer, nil
+		case None:
+			return types.DockerUncompressedLayer, nil
+		default:
+			return types.DockerLayer, fmt.Errorf("unsupported compression: %s", compression)
+		}
+	}
+}

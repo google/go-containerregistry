@@ -473,8 +473,12 @@ func TestStreamingWriteLayer(t *testing.T) {
 			return tw.Close()
 		}())
 	}()
+	layer, err := stream.NewLayer(pr)
+	if err != nil {
+		t.Fatalf("stream.NewLayer: %v", err)
+	}
 	img, err := mutate.Append(empty.Image, mutate.Addendum{
-		Layer: stream.NewLayer(pr),
+		Layer: layer,
 	})
 	if err != nil {
 		t.Fatalf("creating random streaming image failed: %v", err)

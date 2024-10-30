@@ -35,6 +35,7 @@ const (
 	DockerManifestSchema2       MediaType = "application/vnd.docker.distribution.manifest.v2+json"
 	DockerManifestList          MediaType = "application/vnd.docker.distribution.manifest.list.v2+json"
 	DockerLayer                 MediaType = "application/vnd.docker.image.rootfs.diff.tar.gzip"
+	DockerLayerZstd             MediaType = "application/vnd.docker.image.rootfs.diff.tar.zstd"
 	DockerConfigJSON            MediaType = "application/vnd.docker.container.image.v1+json"
 	DockerPluginConfig          MediaType = "application/vnd.docker.plugin.v1+json"
 	DockerForeignLayer          MediaType = "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip"

@@ -44,7 +44,7 @@ type layer struct {
 	compressionLevel   int
 	annotations        map[string]string
 	estgzopts          []estargz.Option
-	mediaType          types.MediaType
+	oci                bool
 }
 
 // Descriptor implements partial.withDescriptor.
@@ -53,11 +53,17 @@ func (l *layer) Descriptor() (*v1.Descriptor, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	mediaType, err := l.MediaType()
+	if err != nil {
+		return nil, err
+	}
+
 	return &v1.Descriptor{
 		Size:        l.size,
 		Digest:      digest,
 		Annotations: l.annotations,
-		MediaType:   l.mediaType,
+		MediaType:   mediaType,
 	}, nil
 }
 
@@ -88,7 +94,7 @@ func (l *layer) Size() (int64, error) {
 
 // MediaType implements v1.Layer
 func (l *layer) MediaType() (types.MediaType, error) {
-	return l.mediaType, nil
+	return l.compression.ToMediaType(l.oci)
 }
 
 // LayerOption applies options to layer
@@ -123,10 +129,10 @@ func WithCompressionLevel(level int) LayerOption {
 	}
 }
 
-// WithMediaType is a functional option for overriding the layer's media type.
-func WithMediaType(mt types.MediaType) LayerOption {
+// WithOCIMediaType is a functional option for overriding the layer's media type.
+func WithOCIMediaType(oci bool) LayerOption {
 	return func(l *layer) {
-		l.mediaType = mt
+		l.oci = oci
 	}
 }
 
@@ -235,10 +241,8 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 	}
 
 	layer := &layer{
-		compression:      compression.GZip,
 		compressionLevel: gzip.BestSpeed,
 		annotations:      make(map[string]string, 1),
-		mediaType:        types.DockerLayer,
 	}
 
 	if estgz := os.Getenv("GGCR_EXPERIMENT_ESTARGZ"); estgz == "1" {
@@ -248,7 +252,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 
 	switch comp {
 	case compression.GZip:
-		layer.compressedopener = opener
+		layer.compression = comp
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
 			urc, err := opener()
 			if err != nil {
@@ -257,7 +261,7 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			return ggzip.UnzipReadCloser(urc)
 		}
 	case compression.ZStd:
-		layer.compressedopener = opener
+		layer.compression = comp
 		layer.uncompressedopener = func() (io.ReadCloser, error) {
 			urc, err := opener()
 			if err != nil {
@@ -266,40 +270,30 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			return zstd.UnzipReadCloser(urc)
 		}
 	default:
+		layer.compression = compression.GZip
 		layer.uncompressedopener = opener
-		layer.compressedopener = func() (io.ReadCloser, error) {
-			crc, err := opener()
-			if err != nil {
-				return nil, err
-			}
+	}
 
-			if layer.compression == compression.ZStd {
-				return zstd.ReadCloserLevel(crc, layer.compressionLevel), nil
-			}
-
-			return ggzip.ReadCloserLevel(crc, layer.compressionLevel), nil
+	layer.compressedopener = func() (io.ReadCloser, error) {
+		crc, err := opener()
+		if err != nil {
+			return nil, err
 		}
+
+		if comp == layer.compression {
+			// No need to recompress, underlying format already matches
+			return crc, nil
+		}
+
+		if layer.compression == compression.ZStd {
+			return zstd.ReadCloserLevel(crc, layer.compressionLevel), nil
+		}
+
+		return ggzip.ReadCloserLevel(crc, layer.compressionLevel), nil
 	}
 
 	for _, opt := range opts {
 		opt(layer)
-	}
-
-	// Warn if media type does not match compression
-	var mediaTypeMismatch = false
-	switch layer.compression {
-	case compression.GZip:
-		mediaTypeMismatch =
-			layer.mediaType != types.OCILayer &&
-				layer.mediaType != types.OCIRestrictedLayer &&
-				layer.mediaType != types.DockerLayer
-
-	case compression.ZStd:
-		mediaTypeMismatch = layer.mediaType != types.OCILayerZStd
-	}
-
-	if mediaTypeMismatch {
-		logs.Warn.Printf("Unexpected mediaType (%s) for selected compression in %s in LayerFromOpener().", layer.mediaType, layer.compression)
 	}
 
 	if layer.digest, layer.size, err = computeDigest(layer.compressedopener); err != nil {
