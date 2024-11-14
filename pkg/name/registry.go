@@ -77,6 +77,11 @@ func (r Registry) isRFC1918() bool {
 	return false
 }
 
+// IsInsecure checks whether the registry is insecure.
+func (r Registry) IsInsecure() bool {
+	return r.insecure
+}
+
 // Scheme returns https scheme for all the endpoints except localhost or when explicitly defined.
 func (r Registry) Scheme() string {
 	if r.insecure {
