@@ -16,11 +16,10 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-go@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
       with:
-        go-version: 1.19
-        check-latest: true
+        go-version-file: go.mod
 
     - name: crane append to an image, set the entrypoint, run it locally, roundtrip it
       shell: bash
@@ -29,6 +28,7 @@ jobs:
 
         # Setup local registry
         go run ./cmd/registry &
+        sleep 3
 
         base=alpine
         platform=linux/amd64
@@ -82,13 +82,13 @@ jobs:
         ./app/crane pull --platform=linux/arm64 --format=oci $remote $distroless
         ./app/crane push $distroless $local
         diff <(./app/crane manifest --platform linux/arm64 $remote) <(./app/crane manifest $local)
-                
+
     - name: crane pull image, and export it from stdin to filesystem tar to stdout
       shell: bash
       run: |
         set -euxo pipefail
-        
+
         ./app/crane pull ubuntu ubuntu.tar
         ./app/crane export - - < ubuntu.tar > filesystem.tar
         ls -la *.tar
-        
+
