@@ -22,12 +22,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/compare"
+	"github.com/google/go-containerregistry/pkg/v1/layout"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -351,7 +354,6 @@ func TestWriteSharedLayers(t *testing.T) {
 		wantDigests[d.Hex] = struct{}{}
 	}
 
-	const layerFileSuffix = ".tar.gz"
 	r := tar.NewReader(fp)
 	for {
 		hdr, err := r.Next()
@@ -361,14 +363,8 @@ func TestWriteSharedLayers(t *testing.T) {
 			}
 			t.Fatalf("Get tar header: %v", err)
 		}
-		if strings.HasSuffix(hdr.Name, layerFileSuffix) {
-			hex := hdr.Name[:len(hdr.Name)-len(layerFileSuffix)]
-			if _, ok := wantDigests[hex]; ok {
-				delete(wantDigests, hex)
-			} else {
-				t.Errorf("Found unwanted layer with digest %q", hex)
-			}
-		}
+		hex := path.Base(hdr.Name)
+		delete(wantDigests, hex)
 	}
 	if len(wantDigests) != 0 {
 		for hex := range wantDigests {
@@ -439,12 +435,12 @@ func TestComputeManifest(t *testing.T) {
 	// so mutated "gcr.io/baz/bat:latest" is before random "gcr.io/foo/bar:latest"
 	expected := []tarball.Descriptor{
 		{
-			Config:   mutatedConfig.String(),
+			Config:   fmt.Sprintf("blobs/sha256/%s", mutatedConfig.Hex),
 			RepoTags: []string{mutatedTag},
 			Layers:   mutatedLayersFilenames,
 		},
 		{
-			Config:   randConfig.String(),
+			Config:   fmt.Sprintf("blobs/sha256/%s", randConfig.Hex),
 			RepoTags: []string{randomTagWritten},
 			Layers:   randomLayersFilenames,
 		},
@@ -477,6 +473,101 @@ func TestComputeManifest_FailsOnNoRefs(t *testing.T) {
 	}
 }
 
+func TestLayout(t *testing.T) {
+	// Make a tempfile for tarball writes.
+	fp, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file.")
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+
+	// Make a random image
+	randImage, err := random.Image(256, 8)
+	if err != nil {
+		t.Fatalf("Error creating random image.")
+	}
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag.")
+	}
+	if err := tarball.WriteToFile(fp.Name(), tag, randImage); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
+	}
+
+	tmpdir, err := os.MkdirTemp("", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpdir)
+
+	if _, err := fp.Seek(0, io.SeekStart); err != nil {
+		t.Fatalf("Seek to start of file: %v", err)
+	}
+
+	tr := tar.NewReader(fp)
+	for {
+		hdr, err := tr.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatalf("Get tar header: %v", err)
+		}
+		t.Logf("creating %s", hdr.Name)
+		dst := filepath.Join(tmpdir, hdr.Name)
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(dst, os.ModePerm); err != nil {
+				t.Fatalf("MkdirAll(%q)", dst)
+			}
+		case tar.TypeReg:
+			f, err := os.Create(dst)
+			if err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+
+			if _, err := io.CopyN(f, tr, hdr.Size); err != nil {
+				t.Fatalf("Copy: %v", err)
+			}
+			if err := f.Close(); err != nil {
+				t.Fatalf("Close: %v", err)
+			}
+		default:
+			t.Fatalf("unexpected typeflag %q for %q", hdr.Typeflag, hdr.Name)
+		}
+	}
+
+	lp, err := layout.FromPath(tmpdir)
+	if err != nil {
+		t.Fatalf("layout.FromPath: %v", err)
+	}
+
+	idx, err := lp.ImageIndex()
+	if err != nil {
+		t.Fatalf("layout.ImageIndex: %v", err)
+	}
+
+	if err := validate.Index(idx); err != nil {
+		t.Fatalf("validate.Index: %v", err)
+	}
+
+	dig, err := randImage.Digest()
+	if err != nil {
+		t.Fatalf("Digest: %v", err)
+	}
+
+	got, err := idx.Image(dig)
+	if err != nil {
+		t.Fatalf("Image: %v", err)
+	}
+
+	if err := compare.Images(got, randImage); err != nil {
+		t.Errorf("compare.Images: %v", err)
+	}
+}
+
 func getLayersHashes(img v1.Image) ([]string, error) {
 	hashes := []string{}
 	layers, err := img.Layers()
@@ -496,7 +587,7 @@ func getLayersHashes(img v1.Image) ([]string, error) {
 func getLayersFilenames(hashes []string) []string {
 	filenames := []string{}
 	for _, h := range hashes {
-		filenames = append(filenames, fmt.Sprintf("%s.tar.gz", h))
+		filenames = append(filenames, fmt.Sprintf("blobs/sha256/%s", h))
 	}
 	return filenames
 }
