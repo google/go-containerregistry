@@ -18,9 +18,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
@@ -47,6 +49,9 @@ func NewCmdCatalog(options *[]crane.Option, _ ...string) *cobra.Command {
 func catalog(ctx context.Context, w io.Writer, src string, fullRef bool, o crane.Options) error {
 	reg, err := name.NewRegistry(src, o.Name...)
 	if err != nil {
+		if repo, err := name.NewRepository(src, o.Name...); err == nil {
+			logs.Warn.Printf("did you mean '%s catalog %s'?", os.Args[0], repo.RegistryStr())
+		}
 		return fmt.Errorf("parsing reg %q: %w", src, err)
 	}
 
