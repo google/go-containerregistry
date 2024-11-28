@@ -16,11 +16,11 @@ package daemon
 
 import (
 	"fmt"
-	"io"
-
+	"github.com/docker/docker/api/types"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"io"
 )
 
 // Tag adds a tag to an already existent image.
@@ -75,4 +75,19 @@ func Write(tag name.Tag, img v1.Image, options ...Option) (string, error) {
 		return response, fmt.Errorf("error reading load response body: %w", err)
 	}
 	return response, nil
+}
+
+// DeleteTag - Deletes given tag:
+//   - force - delete the image even if it is being used by stopped containers or has other tags
+//   - pruneChildren - deletes untagged parent images
+func DeleteTag(tag name.Tag, pruneChildren bool, force bool, options ...Option) error {
+	o, err := makeOptions(options...)
+	if err != nil {
+		return err
+	}
+	_, err = o.client.ImageRemove(o.ctx, tag.Name(), types.ImageRemoveOptions{PruneChildren: pruneChildren, Force: force})
+	if err != nil {
+		return fmt.Errorf("error deleting image %s: %w", tag.Name(), err)
+	}
+	return nil
 }
