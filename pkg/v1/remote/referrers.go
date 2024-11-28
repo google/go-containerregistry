@@ -89,6 +89,7 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 	}
 	idx := &remoteIndex{
 		fetcher:   *f,
+		ref:       d.Context().Digest(h.String()),
 		ctx:       ctx,
 		manifest:  b,
 		mediaType: types.OCIImageIndex,

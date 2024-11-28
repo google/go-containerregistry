@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/registry"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -185,6 +186,21 @@ func TestReferrers(t *testing.T) {
 		}
 		if d := cmp.Diff([]v1.Descriptor{leafDesc}, m3.Manifests); d != "" {
 			t.Fatalf("referrers diff after second push (-want,+got): %s", d)
+		}
+		// Verify we can get the underlying manifests.
+		indexManifests, err := partial.Manifests(index)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, manifest := range indexManifests {
+			if wrm, ok := manifest.(partial.WithRawManifest); ok {
+				if _, err := wrm.RawManifest(); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				t.Fatalf("expected WithRawManifest, got %T", manifest)
+			}
 		}
 
 		// Try applying filters and verify number of manifests and and annotations
