@@ -4,8 +4,7 @@
 [![GoDoc](https://godoc.org/github.com/google/go-containerregistry?status.svg)](https://godoc.org/github.com/google/go-containerregistry)
 [![Code Coverage](https://codecov.io/gh/google/go-containerregistry/branch/main/graph/badge.svg)](https://codecov.io/gh/google/go-containerregistry)
 
-## Introduction
-
+## Introductio
 This is a golang library for working with container registries.
 It's largely based on the [Python library of the same name](https://github.com/google/containerregistry).
 
