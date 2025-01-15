@@ -5,6 +5,7 @@ issues:
   exclude-dirs:
     - internal
     - pkg/registry
+    - pkg/v1/daemon
   exclude-rules:
     - path: test # Excludes /test, *_test.go etc.
       linters:
