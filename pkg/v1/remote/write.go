@@ -654,7 +654,7 @@ func WriteIndex(ref name.Reference, ii v1.ImageIndex, options ...Option) (rerr e
 
 // WriteLayer uploads the provided Layer to the specified repo.
 func WriteLayer(repo name.Repository, layer v1.Layer, options ...Option) (rerr error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(repo, options...)
 	if err != nil {
 		return err
 	}
@@ -691,7 +691,7 @@ func Tag(tag name.Tag, t Taggable, options ...Option) error {
 // should ensure that all blobs or manifests that are referenced by t exist
 // in the target registry.
 func Put(ref name.Reference, t Taggable, options ...Option) error {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}
@@ -700,7 +700,7 @@ func Put(ref name.Reference, t Taggable, options ...Option) error {
 
 // Push uploads the given Taggable to the specified reference.
 func Push(ref name.Reference, t Taggable, options ...Option) (rerr error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(ref.Context(), options...)
 	if err != nil {
 		return err
 	}

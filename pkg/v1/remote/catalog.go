@@ -32,7 +32,7 @@ type Catalogs struct {
 
 // CatalogPage calls /_catalog, returning the list of repositories on the registry.
 func CatalogPage(target name.Registry, last string, n int, options ...Option) ([]string, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(target, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func CatalogPage(target name.Registry, last string, n int, options ...Option) ([
 
 // Catalog calls /_catalog, returning the list of repositories on the registry.
 func Catalog(ctx context.Context, target name.Registry, options ...Option) ([]string, error) {
-	o, err := makeOptions(options...)
+	o, err := makeOptions(target, options...)
 	if err != nil {
 		return nil, err
 	}
