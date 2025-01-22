@@ -20,6 +20,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -71,7 +72,7 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	} else if os.Getenv("GGCR_REF_FALLBACK") != "" {
 		// The registry doesn't support the Referrers API endpoint, so we'll use the fallback tag scheme.
 		b, _, err = f.fetchManifest(ctx, fallbackTag(d), []types.MediaType{types.OCIImageIndex})
 		var terr *transport.Error
@@ -81,6 +82,9 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 		} else if err != nil {
 			return nil, err
 		}
+	} else {
+		// TODO just returning "empty" here doesn't feel quite right -- maybe transport.CheckError again but this time letting http.StatusBadRequest return an error?
+		return empty.Index, nil
 	}
 
 	h, sz, err := v1.SHA256(bytes.NewReader(b))
