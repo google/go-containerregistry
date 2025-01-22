@@ -20,9 +20,12 @@ import (
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/spf13/cobra"
 )
 
@@ -40,33 +43,51 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var workdir string
 	var ports []string
 	var newPlatform string
+	var ociEmptyBase bool
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
 		Short: "Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(c *cobra.Command, args []string) error {
-			// Pull image and get config.
 			ref := args[0]
+			var img v1.Image
+			var err error
 
-			if len(annotations) != 0 {
-				desc, err := crane.Head(ref, *options...)
+			if ref == "scratch" {
+				// you can not write over the original image if the original image is scratch
+				if newRef == "" {
+					return errors.New("you must specify tag when a scratch base is used")
+				}
+				// Use an empty image.
+				logs.Warn.Printf("scratch base specified, using empty image")
+				img = empty.Image
+				if ociEmptyBase {
+					img = mutate.MediaType(img, types.OCIManifestSchema1)
+					img = mutate.ConfigMediaType(img, types.OCIConfigJSON)
+				}
+			} else {
+				// Pull image and get config.
+				if len(annotations) != 0 {
+					desc, err := crane.Head(ref, *options...)
+					if err != nil {
+						return err
+					}
+					if desc.MediaType.IsIndex() {
+						return errors.New("mutating annotations on an index is not yet supported")
+					}
+				}
+
+				if newRepo != "" && newRef != "" {
+					return errors.New("repository can't be set when a tag is specified")
+				}
+
+				img, err = crane.Pull(ref, *options...)
 				if err != nil {
-					return err
-				}
-				if desc.MediaType.IsIndex() {
-					return errors.New("mutating annotations on an index is not yet supported")
+					return fmt.Errorf("pulling %s: %w", ref, err)
 				}
 			}
 
-			if newRepo != "" && newRef != "" {
-				return errors.New("repository can't be set when a tag is specified")
-			}
-
-			img, err := crane.Pull(ref, *options...)
-			if err != nil {
-				return fmt.Errorf("pulling %s: %w", ref, err)
-			}
 			if len(newLayers) != 0 {
 				img, err = crane.Append(img, newLayers...)
 				if err != nil {
@@ -198,6 +219,8 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringSliceVar(&ports, "exposed-ports", nil, "New ports to expose")
 	// Using "set-platform" to avoid clobbering "platform" persistent flag.
 	mutateCmd.Flags().StringVar(&newPlatform, "set-platform", "", "New platform to set in the form os/arch[/variant][:osversion] (e.g. linux/amd64)")
+	mutateCmd.Flags().BoolVar(&ociEmptyBase, "oci-empty-base", false, "If true, scratch base image will have OCI media types instead of Docker")
+
 	return mutateCmd
 }
 
