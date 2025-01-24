@@ -1,20 +1,22 @@
 module github.com/google/go-containerregistry/pkg/authn/kubernetes
 
-go 1.23.0
+go 1.22.0
+
+toolchain go1.23.5
 
 replace github.com/google/go-containerregistry => ../../../
 
 require (
 	github.com/google/go-cmp v0.6.0
-	github.com/google/go-containerregistry v0.20.2
-	k8s.io/api v0.32.0
-	k8s.io/apimachinery v0.32.0
-	k8s.io/client-go v0.32.0
+	github.com/google/go-containerregistry v0.20.3
+	k8s.io/api v0.31.5
+	k8s.io/apimachinery v0.31.5
+	k8s.io/client-go v0.31.5
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/docker/cli v27.5.0+incompatible // indirect
+	github.com/docker/cli v27.5.1+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.8.2 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
@@ -52,7 +54,7 @@ require (
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20241212222426-2c72e554b1e7 // indirect
 	k8s.io/utils v0.0.0-20241210054802-24370beab758 // indirect
-	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
+	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.5.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )

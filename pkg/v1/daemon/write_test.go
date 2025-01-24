@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -37,16 +37,16 @@ func (r *errReader) Read(_ []byte) (int, error) {
 	return 0, r.err
 }
 
-func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ bool) (api.LoadResponse, error) {
+func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ bool) (types.ImageLoadResponse, error) {
 	if !m.negotiated {
-		return api.LoadResponse{}, errors.New("you forgot to call NegotiateAPIVersion before calling ImageLoad")
+		return types.ImageLoadResponse{}, errors.New("you forgot to call NegotiateAPIVersion before calling ImageLoad")
 	}
 	if m.wantCtx != nil && m.wantCtx != ctx {
-		return api.LoadResponse{}, fmt.Errorf("ImageLoad: wrong context")
+		return types.ImageLoadResponse{}, fmt.Errorf("ImageLoad: wrong context")
 	}
 
 	_, _ = io.Copy(io.Discard, r)
-	return api.LoadResponse{
+	return types.ImageLoadResponse{
 		Body: m.loadBody,
 	}, m.loadErr
 }
