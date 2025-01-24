@@ -18,28 +18,35 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+# go directive in go.mod defines module compatibility
+export GOVERSION=1.22.0
+# gotoolchain directive in go.mod recommends compile toolchain version
+export GOTOOLCHAIN=go1.23.5
+# note, pinning k8s.io packages to v0.31.5 to avoid prerelease versions
+export K8SPACKAGES="k8s.io/apimachinery@v0.31.5 k8s.io/api@v0.31.5"
+
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 pushd ${PROJECT_ROOT}
 trap popd EXIT
 
-go get -u ./...
-go mod tidy -compat=1.18
+go get -u go@${GOVERSION} toolchain@${GOTOOLCHAIN} ./...
+go mod tidy -compat=${GOVERSION}
 go mod vendor
 
 cd ${PROJECT_ROOT}/pkg/authn/k8schain
-go get -u ./...
-go mod tidy -compat=1.18
+go get -u go@${GOVERSION} toolchain@${GOTOOLCHAIN} ${K8SPACKAGES} ./...
+go mod tidy -compat=${GOVERSION}
 go mod download
 
 cd ${PROJECT_ROOT}/pkg/authn/kubernetes
-go get -u ./...
-go mod tidy -compat=1.18
+go get -u go@${GOVERSION} toolchain@${GOTOOLCHAIN} ${K8SPACKAGES} ./...
+go mod tidy -compat=${GOVERSION}
 go mod download
 
 cd ${PROJECT_ROOT}/cmd/krane
-go get -u ./...
-go mod tidy -compat=1.18
+go get -u go@${GOVERSION} toolchain@${GOTOOLCHAIN} ./...
+go mod tidy -compat=${GOVERSION}
 go mod download
 
 cd ${PROJECT_ROOT}
