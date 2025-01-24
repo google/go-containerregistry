@@ -285,6 +285,7 @@ func (i *image) computeConfigFile(inspect api.ImageInspect) (*v1.ConfigFile, err
 	return &v1.ConfigFile{
 		Architecture:  inspect.Architecture,
 		Author:        inspect.Author,
+		Container:     inspect.Container,
 		Created:       v1.Time{Time: created},
 		DockerVersion: inspect.DockerVersion,
 		History:       history,
@@ -323,6 +324,7 @@ func (i *image) computeImageConfig(config *container.Config) v1.Config {
 		WorkingDir:      config.WorkingDir,
 		ArgsEscaped:     config.ArgsEscaped,
 		NetworkDisabled: config.NetworkDisabled,
+		MacAddress:      config.MacAddress,
 		StopSignal:      config.StopSignal,
 		Shell:           config.Shell,
 	}
