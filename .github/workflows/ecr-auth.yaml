@@ -28,7 +28,7 @@ jobs:
         run: go install .
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.3
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
           aws-region: ${{ env.AWS_REGION }}
@@ -67,7 +67,7 @@ jobs:
         run: go install .
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2.0.0
+        uses: aws-actions/configure-aws-credentials@v4.0.3
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
           aws-region: ${{ env.AWS_REGION }}
