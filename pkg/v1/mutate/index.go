@@ -208,7 +208,7 @@ func (i *index) RawManifest() ([]byte, error) {
 	if err := i.compute(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(i.manifest)
+	return json.MarshalIndent(i.manifest, "", "  ")
 }
 
 func (i *index) Manifests() ([]partial.Describable, error) {

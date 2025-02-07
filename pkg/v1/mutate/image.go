@@ -257,7 +257,7 @@ func (i *image) RawManifest() ([]byte, error) {
 	if err := i.compute(); err != nil {
 		return nil, err
 	}
-	return json.Marshal(i.manifest)
+	return json.MarshalIndent(i.manifest, "", "  ")
 }
 
 // LayerByDigest returns a Layer for interacting with a particular layer of
