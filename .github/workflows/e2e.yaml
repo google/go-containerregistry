@@ -92,3 +92,10 @@ jobs:
         ./app/crane export - - < ubuntu.tar > filesystem.tar
         ls -la *.tar
 
+    - name: crane export leaves filesystem clean in case of error
+      shell: bash
+      run: |
+        set -euxo pipefail
+
+        ./app/crane export this-image-does-not-exist export.tar
+        [[ -f export.tar ]] && echo "did not expect export.tar to exist" && exit 1
