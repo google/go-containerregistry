@@ -145,6 +145,11 @@ func TestReferrers(t *testing.T) {
 			t.Fatalf("referrers diff (-want,+got): %s", d)
 		}
 
+		// Verify the annotations are present in the descriptor
+		if got := m2.Manifests[0].Annotations["annotation-key"]; got != "annotation-value" {
+			t.Errorf("expected annotation 'annotation-key' to be 'annotation-value', got %q", got)
+		}
+
 		if leg.tryFallback {
 			// Get the referrers by querying the root image's fallback tag directly.
 			tag, err := name.ParseReference(fmt.Sprintf("%s/repo:sha256-%s", u.Host, rootDesc.Digest.Hex))
