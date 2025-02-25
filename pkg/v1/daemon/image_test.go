@@ -25,9 +25,9 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	api "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/client"
 
-	"github.com/docker/docker/api/types"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/compare"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -36,7 +36,7 @@ import (
 
 var imagePath = "../tarball/testdata/test_image_1.tar"
 
-var inspectResp = types.ImageInspect{
+var inspectResp = api.InspectResponse{
 	ID: "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
 	RepoTags: []string{
 		"bazel/v1/tarball:test_image_1",
@@ -49,7 +49,7 @@ var inspectResp = types.ImageInspect{
 	Size:         8,
 	VirtualSize:  8,
 	Config:       &container.Config{},
-	GraphDriver: types.GraphDriverData{
+	GraphDriver: storage.DriverData{
 		Data: map[string]string{
 			"MergedDir": "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/merged",
 			"UpperDir":  "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/diff",
@@ -57,7 +57,7 @@ var inspectResp = types.ImageInspect{
 		},
 		Name: "overlay2",
 	},
-	RootFS: types.RootFS{
+	RootFS: api.RootFS{
 		Type: "layers",
 		Layers: []string{
 			"sha256:8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
@@ -79,7 +79,7 @@ type MockClient struct {
 	saveBody io.ReadCloser
 
 	inspectErr  error
-	inspectResp types.ImageInspect
+	inspectResp api.InspectResponse
 	inspectBody []byte
 
 	tagErr error
@@ -101,7 +101,7 @@ func (m *MockClient) ImageSave(_ context.Context, _ []string, _ ...client.ImageS
 	return m.saveBody, m.saveErr
 }
 
-func (m *MockClient) ImageInspectWithRaw(_ context.Context, _ string) (types.ImageInspect, []byte, error) {
+func (m *MockClient) ImageInspectWithRaw(_ context.Context, _ string) (api.InspectResponse, []byte, error) {
 	return m.inspectResp, m.inspectBody, m.inspectErr
 }
 
