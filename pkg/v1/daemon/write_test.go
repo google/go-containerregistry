@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	api "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -37,7 +38,7 @@ func (r *errReader) Read(_ []byte) (int, error) {
 	return 0, r.err
 }
 
-func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ bool) (api.LoadResponse, error) {
+func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ ...client.ImageLoadOption) (api.LoadResponse, error) {
 	if !m.negotiated {
 		return api.LoadResponse{}, errors.New("you forgot to call NegotiateAPIVersion before calling ImageLoad")
 	}

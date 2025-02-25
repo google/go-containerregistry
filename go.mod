@@ -6,7 +6,7 @@ require (
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3
 	github.com/docker/cli v27.5.0+incompatible
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/docker/docker v27.5.0+incompatible
+	github.com/docker/docker v28.0.0+incompatible
 	github.com/google/go-cmp v0.6.0
 	github.com/klauspost/compress v1.17.11
 	github.com/mitchellh/go-homedir v1.1.0
