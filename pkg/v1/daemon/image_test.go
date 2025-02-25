@@ -25,6 +25,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	api "github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
 
 	"github.com/docker/docker/api/types"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -88,7 +89,7 @@ func (m *MockClient) NegotiateAPIVersion(_ context.Context) {
 	m.negotiated = true
 }
 
-func (m *MockClient) ImageSave(_ context.Context, _ []string) (io.ReadCloser, error) {
+func (m *MockClient) ImageSave(_ context.Context, _ []string, _ ...client.ImageSaveOption) (io.ReadCloser, error) {
 	if !m.negotiated {
 		return nil, errors.New("you forgot to call NegotiateAPIVersion before calling ImageSave")
 	}
@@ -104,7 +105,7 @@ func (m *MockClient) ImageInspectWithRaw(_ context.Context, _ string) (types.Ima
 	return m.inspectResp, m.inspectBody, m.inspectErr
 }
 
-func (m *MockClient) ImageHistory(_ context.Context, _ string) ([]api.HistoryResponseItem, error) {
+func (m *MockClient) ImageHistory(_ context.Context, _ string, _ ...client.ImageHistoryOption) ([]api.HistoryResponseItem, error) {
 	return []api.HistoryResponseItem{
 		{
 			CreatedBy: "bazel build ...",
