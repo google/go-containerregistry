@@ -100,5 +100,17 @@ type Client interface {
 	ImageLoad(context.Context, io.Reader, ...client.ImageLoadOption) (api.LoadResponse, error)
 	ImageTag(context.Context, string, string) error
 	ImageInspectWithRaw(context.Context, string) (api.InspectResponse, []byte, error)
+}
+
+// https://github.com/google/go-containerregistry/issues/2072
+// Docker v28.0 changed the API signature for ImageHistory, in ways that broke callers dependent on the old signature.
+// This is a temporary workaround to allow the daemon package to work with both pre- and post-28.0 clients.
+// After some time, we can remove this workaround and require a post-28.0 client with the variadic args.
+
+type clientPre28 interface {
+	ImageHistory(context.Context, string) ([]api.HistoryResponseItem, error)
+}
+
+type clientPost28 interface {
 	ImageHistory(context.Context, string, ...client.ImageHistoryOption) ([]api.HistoryResponseItem, error)
 }

@@ -17,6 +17,7 @@ package daemon
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -234,9 +235,20 @@ func (i *image) LayerByDiffID(h v1.Hash) (v1.Layer, error) {
 }
 
 func (i *image) configHistory(author string) ([]v1.History, error) {
-	historyItems, err := i.opener.client.ImageHistory(i.opener.ctx, i.ref.String())
-	if err != nil {
-		return nil, err
+	var historyItems []api.HistoryResponseItem
+	var err error
+	if pre28, ok := i.opener.client.(clientPre28); ok {
+		historyItems, err = pre28.ImageHistory(i.opener.ctx, i.ref.String())
+		if err != nil {
+			return nil, err
+		}
+	} else if post28, ok := i.opener.client.(clientPost28); ok {
+		historyItems, err = post28.ImageHistory(i.opener.ctx, i.ref.String())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("client does not implement ImageHistory: %T", i.opener.client)
 	}
 
 	history := make([]v1.History, len(historyItems))
