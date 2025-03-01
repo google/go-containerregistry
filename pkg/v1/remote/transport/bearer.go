@@ -242,20 +242,30 @@ func (bt *bearerTransport) Refresh(ctx context.Context, auth *authn.AuthConfig) 
 		content []byte
 		err     error
 	)
+
+	first, second := bt.refreshBasic, bt.refreshOauth
 	if auth.IdentityToken != "" {
 		// If the secret being stored is an identity token,
 		// the Username should be set to <token>, which indicates
 		// we are using an oauth flow.
-		content, err = bt.refreshOauth(ctx)
-		var terr *Error
-		if errors.As(err, &terr) && terr.StatusCode == http.StatusNotFound {
-			// Note: Not all token servers implement oauth2.
-			// If the request to the endpoint returns 404 using the HTTP POST method,
-			// refer to Token Documentation for using the HTTP GET method supported by all token servers.
-			content, err = bt.refreshBasic(ctx)
+		first, second = bt.refreshOauth, bt.refreshBasic
+	}
+
+	// Attempt the refresh functions, return the first error that doesn't
+	// have a status code that signals that the auth method is not supported.
+	for _, refreshFn := range []func(context.Context) ([]byte, error){first, second} {
+		content, err = refreshFn(ctx)
+		if err != nil {
+			var terr *Error
+			if errors.As(err, &terr) {
+				switch terr.StatusCode {
+				case http.StatusNotFound, http.StatusMethodNotAllowed:
+					continue
+				}
+			}
+			return nil, err
 		}
-	} else {
-		content, err = bt.refreshBasic(ctx)
+		break
 	}
 	if err != nil {
 		return nil, err
@@ -329,7 +339,6 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 		v.Set("grant_type", "refresh_token")
 		v.Set("refresh_token", auth.IdentityToken)
 	} else if auth.Username != "" && auth.Password != "" {
-		// TODO(#629): This is unreachable.
 		v.Set("grant_type", "password")
 		v.Set("username", auth.Username)
 		v.Set("password", auth.Password)
