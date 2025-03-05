@@ -8,7 +8,7 @@ This sub-command serves a registry implementation on an automatically chosen por
 
 The command blocks while the server accepts pushes and pulls.
 
-Contents are can be stored in memory (when the process exits, pushed data is lost.), and disk (--disk).
+Contents can be stored in memory (when the process exits, pushed data is lost) or to disk (--disk).
 
 ```
 crane registry serve [flags]
