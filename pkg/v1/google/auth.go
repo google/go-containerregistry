@@ -149,7 +149,7 @@ type gcloudSource struct {
 	exec func(ctx context.Context) *exec.Cmd
 }
 
-// Token implements oauath2.TokenSource.
+// Token implements oauth2.TokenSource.
 func (gs gcloudSource) Token() (*oauth2.Token, error) {
 	cmd := gs.exec(gs.ctx)
 	var out bytes.Buffer
