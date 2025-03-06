@@ -50,7 +50,7 @@ There are a lot of confusingly similar terms that come up when talking about ima
 In general...
 
 * A tag refers to an image manifest.
-* An image manifest references a config file and an orderered list of _compressed_ layers by sha256 digest.
+* An image manifest references a config file and an ordered list of _compressed_ layers by sha256 digest.
 * A config file references an ordered list of _uncompressed_ layers by sha256 digest and contains runtime configuration.
 * The sha256 digest of the config file is the [image id](https://github.com/opencontainers/image-spec/blob/master/config.md#imageid) for the image.
 
