@@ -32,7 +32,7 @@ func TestCheckPushPermission_Real(t *testing.T) {
 		name.MustParseReference("ubuntu"),
 		name.MustParseReference("google/cloud-sdk"),
 		name.MustParseReference("microsoft/dotnet:sdk"),
-		name.MustParseReference("gcr.io/non-existent-project/made-up"),
+		name.MustParseReference("gcr.io/nonexistent-project/made-up"),
 		name.MustParseReference("gcr.io/google-containers/foo"),
 		name.MustParseReference("quay.io/username/reponame"),
 	} {

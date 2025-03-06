@@ -133,7 +133,7 @@ func createAddendums(startHistory, startLayer int, history []v1.History, layers 
 			})
 		}
 	}
-	// In the event history was malformed or non-existent, append the remaining layers.
+	// In the event history was malformed or nonexistent, append the remaining layers.
 	for i := layerIndex; i < len(layers); i++ {
 		if i >= startLayer {
 			adds = append(adds, Addendum{Layer: layers[layerIndex]})
