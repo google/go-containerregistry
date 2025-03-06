@@ -114,4 +114,4 @@ however, it's possible to do _something_ useful with them via [`remote.Get`](htt
 which doesn't try to interpret what is returned by the registry.
 
 [`crane.Copy`](https://godoc.org/github.com/google/go-containerregistry/pkg/crane#Copy) takes advantage of this to implement support for copying schema 1 images,
-see [here](https://github.com/google/go-containerregistry/blob/main/pkg/internal/legacy/copy.go).
+see [legacy/copy.go](https://github.com/google/go-containerregistry/blob/ba53fa10e72c7373ef8068e21c9f102f0c20a940/pkg/internal/legacy/copy.go).
