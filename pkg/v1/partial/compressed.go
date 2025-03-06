@@ -54,7 +54,7 @@ func (cle *compressedLayerExtender) Uncompressed() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	// Often, the "compressed" bytes are not actually-compressed.
+	// Often, the "compressed" bytes are not actually compressed.
 	// Peek at the first two bytes to determine whether it's correct to
 	// wrap this with gzip.UnzipReadCloser or zstd.UnzipReadCloser.
 	cp, pr, err := compression.PeekCompression(rc)
