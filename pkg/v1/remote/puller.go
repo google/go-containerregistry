@@ -175,13 +175,13 @@ func (p *Puller) Catalog(ctx context.Context, reg name.Registry) ([]string, erro
 }
 
 func (p *Puller) catalog(ctx context.Context, reg name.Registry, pageSize int) ([]string, error) {
-	catalogger, err := p.catalogger(ctx, reg, pageSize)
+	cataloger, err := p.cataloger(ctx, reg, pageSize)
 	if err != nil {
 		return nil, err
 	}
 	repoList := []string{}
-	for catalogger.HasNext() {
-		repos, err := catalogger.Next(ctx)
+	for cataloger.HasNext() {
+		repos, err := cataloger.Next(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -190,12 +190,12 @@ func (p *Puller) catalog(ctx context.Context, reg name.Registry, pageSize int) (
 	return repoList, nil
 }
 
-// Catalogger lists repos in a registry and returns a Catalogger for paginating through the results.
-func (p *Puller) Catalogger(ctx context.Context, reg name.Registry) (*Catalogger, error) {
-	return p.catalogger(ctx, reg, p.o.pageSize)
+// Cataloger lists repos in a registry and returns a Cataloger for paginating through the results.
+func (p *Puller) Cataloger(ctx context.Context, reg name.Registry) (*Cataloger, error) {
+	return p.cataloger(ctx, reg, p.o.pageSize)
 }
 
-func (p *Puller) catalogger(ctx context.Context, reg name.Registry, pageSize int) (*Catalogger, error) {
+func (p *Puller) cataloger(ctx context.Context, reg name.Registry, pageSize int) (*Cataloger, error) {
 	f, err := p.fetcher(ctx, reg)
 	if err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func (p *Puller) catalogger(ctx context.Context, reg name.Registry, pageSize int
 	if err != nil {
 		return nil, err
 	}
-	return &Catalogger{
+	return &Cataloger{
 		f:        f,
 		reg:      reg,
 		pageSize: pageSize,
