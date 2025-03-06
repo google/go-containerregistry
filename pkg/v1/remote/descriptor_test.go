@@ -245,7 +245,7 @@ type errTransport struct{}
 func (errTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// This simulates a registry that returns a redirect upon the first
 	// request, and then returns an error upon subsequent requests. This helps
-	// test whether error redaction takes into account URLs in error messasges
+	// test whether error redaction takes into account URLs in error messages
 	// that are not the original request URL.
 	if req.URL.Host == "original.com" {
 		return &http.Response{
