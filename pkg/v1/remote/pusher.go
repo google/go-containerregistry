@@ -315,7 +315,7 @@ func (rw *repoWriter) writeManifest(ctx context.Context, ref name.Reference, t T
 	}
 
 	// For tags, we want to do this check outside of our Work.Do closure because
-	// we don't want to dedupe based on the manifest digest.
+	// we don't want to dedup based on the manifest digest.
 	_, byTag := ref.(name.Tag)
 	if byTag {
 		if exists, err := rw.manifestExists(ctx, ref, t); err != nil {
