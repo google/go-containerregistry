@@ -329,11 +329,12 @@ func (i *image) computeImageConfig(config *container.Config) v1.Config {
 
 	if config.Healthcheck != nil {
 		c.Healthcheck = &v1.HealthConfig{
-			Test:        config.Healthcheck.Test,
-			Interval:    config.Healthcheck.Interval,
-			Timeout:     config.Healthcheck.Timeout,
-			StartPeriod: config.Healthcheck.StartPeriod,
-			Retries:     config.Healthcheck.Retries,
+			Test:          config.Healthcheck.Test,
+			Interval:      config.Healthcheck.Interval,
+			Timeout:       config.Healthcheck.Timeout,
+			StartPeriod:   config.Healthcheck.StartPeriod,
+			StartInterval: config.Healthcheck.StartInterval,
+			Retries:       config.Healthcheck.Retries,
 		}
 	}
 
