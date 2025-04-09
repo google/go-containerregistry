@@ -1,6 +1,3 @@
-//go:build !arm64
-// +build !arm64
-
 // Copyright 2018 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -59,9 +56,8 @@ const (
 // out the gcloud dependency of gcloudSource. The exec package does this, too.
 //
 // See: https://www.joeshaw.org/testing-with-os-exec-and-testmain/
-//
-// TODO(#908): This doesn't work on arm64 or darwin for some reason.
 func TestMain(m *testing.M) {
+	gcloudBin = os.Args[0]
 	switch os.Getenv("GO_TEST_MODE") {
 	case "":
 		// Normal test mode
@@ -113,7 +109,7 @@ func TestGcloudErrors(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.env, func(t *testing.T) {
-			GetGcloudCmd = newGcloudCmdMock(tc.env)
+			getGcloudCmd = newGcloudCmdMock(tc.env)
 
 			if _, err := NewGcloudAuthenticator(ctx); err == nil {
 				t.Errorf("wanted error, got nil")
@@ -130,7 +126,7 @@ func TestGcloudSuccess(t *testing.T) {
 	var b bytes.Buffer
 	logs.Debug.SetOutput(&b)
 
-	GetGcloudCmd = newGcloudCmdMock("success")
+	getGcloudCmd = newGcloudCmdMock("success")
 
 	auth, err := NewGcloudAuthenticator(ctx)
 	if err != nil {
@@ -204,7 +200,7 @@ func TestKeychainGCRandAR(t *testing.T) {
 			Keychain = &googleKeychain{}
 
 			// Gcloud should succeed.
-			GetGcloudCmd = newGcloudCmdMock("success")
+			getGcloudCmd = newGcloudCmdMock("success")
 
 			if auth, err := Keychain.Resolve(mustRegistry(tc.host)); err != nil {
 				t.Errorf("expected success for %v, got: %v", tc.host, err)
@@ -215,7 +211,7 @@ func TestKeychainGCRandAR(t *testing.T) {
 			}
 
 			// Make gcloud fail to test that caching works.
-			GetGcloudCmd = newGcloudCmdMock("badoutput")
+			getGcloudCmd = newGcloudCmdMock("badoutput")
 
 			if auth, err := Keychain.Resolve(mustRegistry(tc.host)); err != nil {
 				t.Errorf("expected success for %v, got: %v", tc.host, err)
@@ -233,7 +229,7 @@ func TestKeychainError(t *testing.T) {
 		t.Fatalf("unexpected err os.Setenv: %v", err)
 	}
 
-	GetGcloudCmd = newGcloudCmdMock("badoutput")
+	getGcloudCmd = newGcloudCmdMock("badoutput")
 
 	// Reset the keychain to ensure we don't cache earlier results.
 	Keychain = &googleKeychain{}
