@@ -86,8 +86,10 @@ func NewRepository(name string, opts ...Option) (Repository, error) {
 		repo = parts[1]
 	}
 
-	if err := checkRepository(repo); err != nil {
-		return Repository{}, err
+	if !opt.ignoreValidation {
+		if err := checkRepository(repo); err != nil {
+			return Repository{}, err
+		}
 	}
 
 	reg, err := NewRegistry(registry, opts...)

@@ -117,8 +117,10 @@ func NewRegistry(name string, opts ...Option) (Registry, error) {
 		return Registry{}, newErrBadName("strict validation requires the registry to be explicitly defined")
 	}
 
-	if err := checkRegistry(name); err != nil {
-		return Registry{}, err
+	if !opt.ignoreValidation {
+		if err := checkRegistry(name); err != nil {
+			return Registry{}, err
+		}
 	}
 
 	if name == "" {
