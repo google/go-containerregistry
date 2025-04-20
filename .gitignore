@@ -8,5 +8,6 @@ dist/
 cmd/crane/crane
 cmd/gcrane/gcrane
 cmd/krane/krane
+cmd/crane/mcp/crane-mcp
 
 .DS_Store
