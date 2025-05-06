@@ -26,9 +26,9 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - uses: golangci/golangci-lint-action@v3.4.0
+      - uses: golangci/golangci-lint-action@v8
         with:
-          version: v1.61.0
+          version: v2.1.6
 
       - uses: reviewdog/action-misspell@v1
         if: ${{ always() }}
