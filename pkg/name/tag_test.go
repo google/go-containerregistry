@@ -40,6 +40,7 @@ var badTagNames = []string{
 	"gcr.io/project-id/bad_chars:c@n'tuse",
 	"gcr.io/project-id/wrong-length:white space",
 	"gcr.io/project-id/too-many-chars:thisisthetagthatneverendsitgoesonandonmyfriendsomepeoplestartedtaggingitnotknowingwhatitwasandtheyllcontinuetaggingitforeverjustbecausethisisthetagthatneverends",
+	"library/ubuntu:",
 }
 
 func TestNewTagStrictValidation(t *testing.T) {
