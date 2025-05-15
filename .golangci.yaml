@@ -1,45 +1,41 @@
-version: "2"
 run:
   timeout: 5m
 
+issues:
+  exclude-dirs:
+    - internal
+    - pkg/registry
+  exclude-rules:
+    - path: test # Excludes /test, *_test.go etc.
+      linters:
+        - gosec
+
 linters:
-  exclusions:
-    paths:
-      - internal
-      - pkg/registry
-    rules:
-      - path: test
-        linters:
-          - gosec
   enable:
-    - asciicheck
-    - depguard
-    - errorlint
-    - gosec
-    - importas
-    - misspell
-    - prealloc
-    - revive
-    - staticcheck
-    - tparallel
-    - unconvert
-    - unparam
-    - unused
-    - whitespace
+  - asciicheck
+  - depguard
+  - errorlint
+  - gofmt
+  - gosec
+  - goimports
+  - importas
+  - prealloc
+  - revive
+  - misspell
+  - stylecheck
+  - tparallel
+  - unconvert
+  - unparam
+  - unused
+  - whitespace
+
   disable:
-    - errcheck
-  settings:
-    depguard:
-      rules:
-        main:
-          deny:
-            - pkg: crypto/sha256
-              desc: use crypto.SHA256 instead
-formatters:
-  exclusions:
-    paths:
-      - internal
-      - pkg/registry
-  enable:
-    - gofmt
-    - goimports
+  - errcheck
+
+linters-settings:
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "crypto/sha256"
+            desc: use crypto.SHA256 instead
