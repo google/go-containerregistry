@@ -15,6 +15,7 @@
 package name
 
 import (
+	"encoding"
 	"encoding/json"
 	"net"
 	"net/url"
@@ -37,6 +38,11 @@ type Registry struct {
 	insecure bool
 	registry string
 }
+
+var _ encoding.TextMarshaler = (*Registry)(nil)
+var _ encoding.TextUnmarshaler = (*Registry)(nil)
+var _ json.Marshaler = (*Registry)(nil)
+var _ json.Unmarshaler = (*Registry)(nil)
 
 // RegistryStr returns the registry component of the Registry.
 func (r Registry) RegistryStr() string {

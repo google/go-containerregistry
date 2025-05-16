@@ -15,6 +15,7 @@
 package name
 
 import (
+	"encoding"
 	"encoding/json"
 	"strings"
 )
@@ -32,8 +33,11 @@ type Tag struct {
 	original string
 }
 
-// Ensure Tag implements Reference
 var _ Reference = (*Tag)(nil)
+var _ encoding.TextMarshaler = (*Tag)(nil)
+var _ encoding.TextUnmarshaler = (*Tag)(nil)
+var _ json.Marshaler = (*Tag)(nil)
+var _ json.Unmarshaler = (*Tag)(nil)
 
 // Context implements Reference.
 func (t Tag) Context() Repository {

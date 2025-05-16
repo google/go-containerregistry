@@ -15,6 +15,7 @@
 package name
 
 import (
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -31,6 +32,11 @@ type Repository struct {
 	Registry
 	repository string
 }
+
+var _ encoding.TextMarshaler = (*Repository)(nil)
+var _ encoding.TextUnmarshaler = (*Repository)(nil)
+var _ json.Marshaler = (*Repository)(nil)
+var _ json.Unmarshaler = (*Repository)(nil)
 
 // See https://docs.docker.com/docker-hub/official_repos
 func hasImplicitNamespace(repo string, reg Registry) bool {

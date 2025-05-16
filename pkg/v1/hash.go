@@ -16,6 +16,7 @@ package v1
 
 import (
 	"crypto"
+	"encoding"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -32,6 +33,11 @@ type Hash struct {
 	// Hex holds the hex portion of the content hash.
 	Hex string
 }
+
+var _ encoding.TextMarshaler = (*Hash)(nil)
+var _ encoding.TextUnmarshaler = (*Hash)(nil)
+var _ json.Marshaler = (*Hash)(nil)
+var _ json.Unmarshaler = (*Hash)(nil)
 
 // String reverses NewHash returning the string-form of the hash.
 func (h Hash) String() string {
