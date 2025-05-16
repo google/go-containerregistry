@@ -79,6 +79,21 @@ func (d *Digest) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// MarshalText formats the digest into a string for text serialization.
+func (d Digest) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}
+
+// UnmarshalText parses a text string into a Digest.
+func (d *Digest) UnmarshalText(data []byte) error {
+	n, err := NewDigest(string(data))
+	if err != nil {
+		return err
+	}
+	*d = n
+	return nil
+}
+
 // NewDigest returns a new Digest representing the given name.
 func NewDigest(name string, opts ...Option) (Digest, error) {
 	// Split on "@"
