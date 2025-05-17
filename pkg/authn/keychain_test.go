@@ -110,13 +110,15 @@ func TestPodmanConfig(t *testing.T) {
 
 	os.Unsetenv("DOCKER_CONFIG")
 	// At first, $DOCKER_CONFIG is unset and $HOME/.docker/config.json isn't
-	// found, but Podman auth $XDG_RUNTIME_DIR/containers/auth.json is configured.
-	// This should return Podman's auth $XDG_RUNTIME_DIR/containers/auth.json.
+	// found, but Podman auth $XDG_CONFIG_HOME/containers/auth.json is configured.
+	// This should return Podman's auth $XDG_CONFIG_HOME/containers/auth.json.
+	// Note: on non-Linux platforms, $XDG_CONFIG_HOME usually won't be defined,
+	// and the path resolution should fall back to ~/.config in this case.
 	p := filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
-	t.Setenv("XDG_RUNTIME_DIR", p)
+	t.Setenv("XDG_CONFIG_HOME", p)
 	writeConfig(t, filepath.Join(p, "containers"), "auth.json",
 		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`,
-			encode("XDG_RUNTIME_DIR-foo", "XDG_RUNTIME_DIR-bar")))
+			encode("XDG_CONFIG_HOME-foo", "XDG_CONFIG_HOME-bar")))
 	auth, err := DefaultKeychain.Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
@@ -126,6 +128,31 @@ func TestPodmanConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := &AuthConfig{
+		Username: "XDG_CONFIG_HOME-foo",
+		Password: "XDG_CONFIG_HOME-bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+
+	// Then, configure $XDG_RUNTIME_DIR/containers/auth.json. This should take
+	// precedence over $XDG_CONFIG_HOME/containers/auth.json, as it does in
+	// podman.
+	fresh++
+	p = filepath.Join(tmpdir, fmt.Sprintf("%d", fresh))
+	t.Setenv("XDG_RUNTIME_DIR", p)
+	writeConfig(t, filepath.Join(p, "containers"), "auth.json",
+		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`,
+			encode("XDG_RUNTIME_DIR-foo", "XDG_RUNTIME_DIR-bar")))
+	auth, err = DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err = auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want = &AuthConfig{
 		Username: "XDG_RUNTIME_DIR-foo",
 		Password: "XDG_RUNTIME_DIR-bar",
 	}
