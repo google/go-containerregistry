@@ -103,7 +103,7 @@ func TestNextLocation(t *testing.T) {
 			},
 			Request: &http.Request{
 				URL: &url.URL{
-					Scheme: ref.Registry.Scheme(),
+					Scheme: ref.Scheme(),
 					Host:   ref.RegistryStr(),
 				},
 			},

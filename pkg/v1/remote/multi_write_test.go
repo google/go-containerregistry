@@ -269,7 +269,7 @@ func TestMultiWrite_Retry(t *testing.T) {
 
 		// using a transport.Wrapper, meaning retry logic should not be wrapped
 		doesNotRetryTransport := &countTransport{inner: http.DefaultTransport}
-		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, authn.Anonymous, doesNotRetryTransport, nil)
+		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Registry, authn.Anonymous, doesNotRetryTransport, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -311,7 +311,7 @@ func TestMultiWrite_Retry(t *testing.T) {
 
 		tag1 := mustNewTag(t, u.Host+"/repo:tag1")
 		// using a transport.Wrapper, meaning retry logic should not be wrapped
-		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Repository.Registry, authn.Anonymous, http.DefaultTransport, nil)
+		transportWrapper, err := transport.NewWithContext(context.Background(), tag1.Registry, authn.Anonymous, http.DefaultTransport, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
