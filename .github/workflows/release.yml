@@ -4,6 +4,9 @@ on:
   push:
     tags: ['*']
 
+permissions:
+  contents: write
+
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
