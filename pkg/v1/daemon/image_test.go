@@ -23,10 +23,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
 	api "github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/storage"
 	"github.com/docker/docker/client"
+	specs "github.com/moby/docker-image-spec/specs-go/v1"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/compare"
@@ -48,7 +48,7 @@ var inspectResp = api.InspectResponse{
 	Os:           "linux",
 	Size:         8,
 	VirtualSize:  8,
-	Config:       &container.Config{},
+	Config:       &specs.DockerOCIImageConfig{},
 	GraphDriver: storage.DriverData{
 		Data: map[string]string{
 			"MergedDir": "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/merged",
