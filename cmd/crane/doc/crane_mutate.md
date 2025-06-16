@@ -17,6 +17,7 @@ crane mutate [flags]
       --exposed-ports strings       New ports to expose
   -h, --help                        help for mutate
   -l, --label stringToString        New labels to add (default [])
+      --oci-empty-base              If true, use an empty OCI image when the base image is not found
   -o, --output string               Path to new tarball of resulting image
       --repo string                 Repository to push the mutated image to. If provided, push by digest to this repository.
       --set-platform string         New platform to set in the form os/arch[/variant][:osversion] (e.g. linux/amd64)
