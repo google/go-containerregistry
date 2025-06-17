@@ -336,7 +336,7 @@ func WithFilter(key string, value string) Option {
 // when possible and avoid sending redundant HEAD requests.
 //
 // Reuse will take precedence over other options passed to most remote functions because
-// most options deal with setting up auth and transports, which Reuse intetionally skips.
+// most options deal with setting up auth and transports, which Reuse intentionally skips.
 func Reuse[I *Puller | *Pusher](i I) Option {
 	return func(o *options) error {
 		if puller, ok := any(i).(*Puller); ok {
