@@ -4,8 +4,8 @@ go 1.24
 
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3
+	github.com/distribution/distribution v2.8.3+incompatible
 	github.com/docker/cli v28.2.2+incompatible
-	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v28.2.2+incompatible
 	github.com/google/go-cmp v0.7.0
 	github.com/klauspost/compress v1.18.0

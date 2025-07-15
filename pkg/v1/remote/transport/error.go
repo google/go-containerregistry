@@ -25,7 +25,7 @@ import (
 )
 
 // Error implements error to support the following error specification:
-// https://github.com/docker/distribution/blob/master/docs/spec/api.md#errors
+// https://github.com/distribution/distribution/blob/main/docs/content/spec/api.md#errors
 type Error struct {
 	Errors []Diagnostic `json:"errors,omitempty"`
 	// The http status code returned.
@@ -111,7 +111,7 @@ func (d Diagnostic) String() string {
 type ErrorCode string
 
 // The set of error conditions a registry may return:
-// https://github.com/docker/distribution/blob/master/docs/spec/api.md#errors-2
+// https://github.com/distribution/distribution/blob/main/docs/content/spec/api.md#errors-2
 const (
 	BlobUnknownErrorCode         ErrorCode = "BLOB_UNKNOWN"
 	BlobUploadInvalidErrorCode   ErrorCode = "BLOB_UPLOAD_INVALID"
@@ -131,7 +131,7 @@ const (
 	TooManyRequestsErrorCode     ErrorCode = "TOOMANYREQUESTS"
 	UnknownErrorCode             ErrorCode = "UNKNOWN"
 
-	// This isn't defined by either docker or OCI spec, but is defined by docker/distribution:
+	// This isn't defined by either docker or OCI spec, but is defined by distribution/distribution:
 	// https://github.com/distribution/distribution/blob/6a977a5a754baa213041443f841705888107362a/registry/api/errcode/register.go#L60
 	UnavailableErrorCode ErrorCode = "UNAVAILABLE"
 )
@@ -170,7 +170,7 @@ func CheckError(resp *http.Response, codes ...int) error {
 }
 
 func makeError(resp *http.Response, body []byte) *Error {
-	// https://github.com/docker/distribution/blob/master/docs/spec/api.md#errors
+	// https://github.com/distribution/distribution/blob/main/docs/content/spec/api.md#errors
 	structuredError := &Error{}
 
 	// This can fail if e.g. the response body is not valid JSON. That's fine,

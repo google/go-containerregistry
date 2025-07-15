@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
+	authchallenge "github.com/distribution/distribution/registry/client/auth/challenge"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 )

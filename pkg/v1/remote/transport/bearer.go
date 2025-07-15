@@ -26,7 +26,7 @@ import (
 	"strings"
 	"sync"
 
-	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
+	authchallenge "github.com/distribution/distribution/registry/client/auth/challenge"
 
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/pkg/authn"
