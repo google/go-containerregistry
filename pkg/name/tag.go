@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	// TODO(dekkagaijin): use the docker/distribution regexes for validation.
+	// TODO(dekkagaijin): use the distribution/distribution regexes for validation.
 	tagChars = "abcdefghijklmnopqrstuvwxyz0123456789_-.ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	tagDelim = ":"
 )
