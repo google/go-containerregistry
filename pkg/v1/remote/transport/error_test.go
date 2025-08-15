@@ -234,3 +234,85 @@ func (e *errReadCloser) Read(_ []byte) (int, error) {
 func (e *errReadCloser) Close() error {
 	return e.err
 }
+
+func TestRetryError(t *testing.T) {
+	tests := []struct {
+		name      string
+		status    int
+		body      string
+		wantError string
+	}{
+		{
+			name:      "returned error",
+			status:    http.StatusInternalServerError,
+			body:      "boom",
+			wantError: "unexpected status code 500 Internal Server Error: boom",
+		},
+		{
+			name:      "empty body",
+			status:    http.StatusInternalServerError,
+			body:      "",
+			wantError: "unexpected status code 500 Internal Server Error",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			resp := &http.Response{
+				StatusCode: test.status,
+				Body:       io.NopCloser(bytes.NewBufferString(test.body)),
+			}
+
+			// Call retryError
+			err := retryError(resp)
+			if err == nil {
+				t.Fatal("retryError() = nil, wanted error")
+			}
+
+			// Verify the error is marked as temporary
+			var terr *Error
+			if !errors.As(err, &terr) {
+				t.Fatalf("retryError() = %T, wanted *Error", err)
+			}
+			if !terr.Temporary() {
+				t.Error("retryError() should return temporary error")
+			}
+
+			// Verify error message
+			if terr.Error() != test.wantError {
+				t.Errorf("retryError().Error() = %q, want %q", terr.Error(), test.wantError)
+			}
+
+			// Verify the response body can still be read
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("Failed to read response body after retryError: %v", err)
+			}
+			if string(body) != test.body {
+				t.Errorf("Response body after retryError = %q, want %q", string(body), test.body)
+			}
+
+			// Verify we can read it again (body should be rewindable)
+			body2, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("Failed to read response body second time: %v", err)
+			}
+			if string(body2) != "" {
+				t.Errorf("Second read should be empty, got %q", string(body2))
+			}
+		})
+	}
+}
+
+func TestRetryErrorReadError(t *testing.T) {
+	expectedErr := errors.New("read error")
+	resp := &http.Response{
+		StatusCode: http.StatusInternalServerError,
+		Body:       &errReadCloser{expectedErr},
+	}
+
+	err := retryError(resp)
+	if !errors.Is(err, expectedErr) {
+		t.Errorf("retryError() = %v, want %v", err, expectedErr)
+	}
+}
