@@ -1,6 +1,6 @@
 module github.com/google/go-containerregistry
 
-go 1.24
+go 1.24.6
 
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.16.3
