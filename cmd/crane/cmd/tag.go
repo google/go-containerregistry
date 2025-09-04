@@ -22,7 +22,7 @@ import (
 // NewCmdTag creates a new cobra.Command for the tag subcommand.
 func NewCmdTag(options *[]crane.Option) *cobra.Command {
 	return &cobra.Command{
-		Use:   "tag IMG TAG",
+		Use:   "tag IMG TAG [TAG...]",
 		Short: "Efficiently tag a remote image",
 		Long: `Tag remote image without downloading it.
 
@@ -34,13 +34,22 @@ crane cp registry.example.com/library/ubuntu:v0 registry.example.com/library/ubu
 crane tag registry.example.com/library/ubuntu:v0 v1
 ` + "```" + `
 
-2. We can skip layer existence checks because we know the manifest already exists. This makes "tag" slightly faster than "copy".`,
+2. We can skip layer existence checks because we know the manifest already exists. This makes "tag" slightly faster than "copy".
+
+You can also specify multiple tags to apply to the same image:
+` + "```" + `
+crane tag registry.example.com/library/ubuntu:v0 v1 v2 latest
+` + "```" + ``,
 		Example: `# Add a v1 tag to ubuntu
-crane tag ubuntu v1`,
-		Args: cobra.ExactArgs(2),
+crane tag ubuntu v1
+
+# Add multiple tags to ubuntu
+crane tag ubuntu v1 v2 latest`,
+		Args: cobra.MinimumNArgs(2),
 		RunE: func(_ *cobra.Command, args []string) error {
-			img, tag := args[0], args[1]
-			return crane.Tag(img, tag, *options...)
+			img := args[0]
+			tags := args[1:]
+			return crane.Tag(img, tags, *options...)
 		},
 	}
 }

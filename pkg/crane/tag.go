@@ -21,8 +21,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
 
-// Tag adds tag to the remote img.
-func Tag(img, tag string, opt ...Option) error {
+// Tag adds one or more tags to the remote img.
+func Tag(img string, tags any, opt ...Option) error {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(img, o.Name...)
 	if err != nil {
@@ -33,7 +33,27 @@ func Tag(img, tag string, opt ...Option) error {
 		return fmt.Errorf("fetching %q: %w", img, err)
 	}
 
-	dst := ref.Context().Tag(tag)
+	// Handle both single tag (string) and multiple tags ([]string) for backwards compatibility
+	var tagList []string
+	switch t := tags.(type) {
+	case string:
+		tagList = []string{t}
+	case []string:
+		tagList = t
+	default:
+		return fmt.Errorf("tags must be string or []string, got %T", tags)
+	}
 
-	return remote.Tag(dst, desc, o.Remote...)
+	// Apply each tag
+	for i, tag := range tagList {
+		dst := ref.Context().Tag(tag)
+		if err := remote.Tag(dst, desc, o.Remote...); err != nil {
+			if i > 0 {
+				return fmt.Errorf("tagging %q with %q failed (successfully tagged with %v): %w", img, tag, tagList[:i], err)
+			}
+			return fmt.Errorf("tagging %q with %q: %w", img, tag, err)
+		}
+	}
+
+	return nil
 }
