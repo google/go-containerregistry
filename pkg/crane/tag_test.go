@@ -107,7 +107,7 @@ func TestTagMultiple(t *testing.T) {
 	}
 
 	// Test multiple tags using slice.
-	if err := crane.Tag(src, tagNames); err != nil {
+	if err := crane.TagMultiple(src, tagNames); err != nil {
 		t.Fatalf("Tag multiple strings failed: %v", err)
 	}
 
@@ -172,7 +172,7 @@ func TestTagEmpty(t *testing.T) {
 
 	// Test empty slice - should be a no-op.
 	emptyTags := []string{}
-	if err := crane.Tag(src, emptyTags); err != nil {
+	if err := crane.TagMultiple(src, emptyTags); err != nil {
 		t.Fatalf("Tag with empty slice failed: %v", err)
 	}
 
@@ -208,21 +208,10 @@ func TestTagInvalidType(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test invalid type (int).
-	if err := crane.Tag(src, 42); err == nil {
-		t.Fatal("Expected error for invalid type, got nil")
-	} else if err.Error() != "tags must be string or []string, got int" {
-		t.Fatalf("Unexpected error message: %v", err)
-	}
-
-	// Test invalid type (nil).
-	if err := crane.Tag(src, nil); err == nil {
-		t.Fatal("Expected error for nil, got nil")
-	}
-
-	// Test invalid type (map).
-	if err := crane.Tag(src, map[string]string{"tag": "value"}); err == nil {
-		t.Fatal("Expected error for map type, got nil")
+	// Test that TagMultiple properly validates input (nil slice).
+	if err := crane.TagMultiple(src, nil); err != nil {
+		// This should succeed as a no-op for nil slice
+		t.Fatalf("TagMultiple with nil slice should succeed: %v", err)
 	}
 }
 
@@ -235,7 +224,7 @@ func TestTagWithInvalidImageRef(t *testing.T) {
 	}
 
 	// Test multiple tags with invalid reference.
-	if err := crane.Tag(invalidRef, []string{"tag1", "tag2"}); err == nil {
+	if err := crane.TagMultiple(invalidRef, []string{"tag1", "tag2"}); err == nil {
 		t.Fatal("Expected error for invalid image reference with multiple tags, got nil")
 	}
 }
@@ -257,7 +246,7 @@ func TestTagWithNonExistentImage(t *testing.T) {
 	}
 
 	// Test multiple tags with non-existent image.
-	if err := crane.Tag(nonExistent, []string{"tag1", "tag2"}); err == nil {
+	if err := crane.TagMultiple(nonExistent, []string{"tag1", "tag2"}); err == nil {
 		t.Fatal("Expected error for non-existent image with multiple tags, got nil")
 	}
 }
@@ -286,7 +275,7 @@ func TestTagFailurePartialApplication(t *testing.T) {
 	// Test multiple tags where one is invalid (contains invalid characters).
 	invalidTags := []string{"valid-tag", "invalid/tag/with/slashes", "another-valid-tag"}
 	
-	err = crane.Tag(src, invalidTags)
+	err = crane.TagMultiple(src, invalidTags)
 	if err == nil {
 		t.Fatal("Expected error for invalid tag name, got nil")
 	}
@@ -348,11 +337,11 @@ func TestTagIntegrationWithRemote(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Test that our Tag function works with images pushed via remote.Write.
+	// Test that our TagMultiple function works with images pushed via remote.Write.
 	testTags := []string{"integration-test-1", "integration-test-2"}
 	
-	if err := crane.Tag(src, testTags); err != nil {
-		t.Fatalf("Tag integration test failed: %v", err)
+	if err := crane.TagMultiple(src, testTags); err != nil {
+		t.Fatalf("TagMultiple integration test failed: %v", err)
 	}
 
 	// Verify tags were created correctly.

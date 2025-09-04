@@ -49,7 +49,7 @@ crane tag ubuntu v1 v2 latest`,
 		RunE: func(_ *cobra.Command, args []string) error {
 			img := args[0]
 			tags := args[1:]
-			return crane.Tag(img, tags, *options...)
+			return crane.TagMultiple(img, tags, *options...)
 		},
 	}
 }
