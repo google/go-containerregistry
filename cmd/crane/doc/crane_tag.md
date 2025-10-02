@@ -16,8 +16,13 @@ crane tag registry.example.com/library/ubuntu:v0 v1
 
 2. We can skip layer existence checks because we know the manifest already exists. This makes "tag" slightly faster than "copy".
 
+You can also specify multiple tags to apply to the same image:
 ```
-crane tag IMG TAG [flags]
+crane tag registry.example.com/library/ubuntu:v0 v1 v2 latest
+```
+
+```
+crane tag IMG TAG [TAG...] [flags]
 ```
 
 ### Examples
@@ -25,6 +30,9 @@ crane tag IMG TAG [flags]
 ```
 # Add a v1 tag to ubuntu
 crane tag ubuntu v1
+
+# Add multiple tags to ubuntu
+crane tag ubuntu v1 v2 latest
 ```
 
 ### Options

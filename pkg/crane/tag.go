@@ -23,6 +23,11 @@ import (
 
 // Tag adds tag to the remote img.
 func Tag(img, tag string, opt ...Option) error {
+	return TagMultiple(img, []string{tag}, opt...)
+}
+
+// TagMultiple adds one or more tags to the remote img.
+func TagMultiple(img string, tags []string, opt ...Option) error {
 	o := makeOptions(opt...)
 	ref, err := name.ParseReference(img, o.Name...)
 	if err != nil {
@@ -33,7 +38,16 @@ func Tag(img, tag string, opt ...Option) error {
 		return fmt.Errorf("fetching %q: %w", img, err)
 	}
 
-	dst := ref.Context().Tag(tag)
+	// Apply each tag
+	for i, tag := range tags {
+		dst := ref.Context().Tag(tag)
+		if err := remote.Tag(dst, desc, o.Remote...); err != nil {
+			if i > 0 {
+				return fmt.Errorf("tagging %q with %q failed (successfully tagged with %v): %w", img, tag, tags[:i], err)
+			}
+			return fmt.Errorf("tagging %q with %q: %w", img, tag, err)
+		}
+	}
 
-	return remote.Tag(dst, desc, o.Remote...)
+	return nil
 }
