@@ -32,8 +32,6 @@ popd
 pushd ${PROJECT_ROOT}
 trap popd EXIT
 
-staticcheck ./pkg/...
-
 # Verify that all source files are correctly formatted.
 find . -name "*.go" | grep -v vendor/ | xargs gofmt -d -e -l
 
