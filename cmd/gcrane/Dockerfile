@@ -1,4 +1,3 @@
-# Use a minimal base image from an approved source
 FROM gcr.io/distroless/static-debian12:nonroot
 
 # Copy the built gcrane binary from the build context
