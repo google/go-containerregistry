@@ -1,5 +1,5 @@
 # Use a minimal base image from an approved source
-FROM us-docker.pkg.dev/gke-release/distroless/static:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot
 
 # Copy the built gcrane binary from the build context
 COPY gcrane /usr/local/bin/gcrane
