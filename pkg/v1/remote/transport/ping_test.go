@@ -33,12 +33,12 @@ var (
 
 func TestPingNoChallenge(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
+		Proxy: func(*http.Request) (*url.URL, error) {
 			return url.Parse(server.URL)
 		},
 	}
@@ -57,15 +57,13 @@ func TestPingNoChallenge(t *testing.T) {
 
 func TestPingBasicChallengeNoParams(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("WWW-Authenticate", `BASIC`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	pr, err := Ping(context.Background(), testRegistry, tprt)
@@ -82,15 +80,13 @@ func TestPingBasicChallengeNoParams(t *testing.T) {
 
 func TestPingBearerChallengeWithParams(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="http://auth.example.com/token"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	pr, err := Ping(context.Background(), testRegistry, tprt)
@@ -107,16 +103,14 @@ func TestPingBearerChallengeWithParams(t *testing.T) {
 
 func TestPingMultipleChallenges(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Add("WWW-Authenticate", "Negotiate")
 			w.Header().Add("WWW-Authenticate", `Basic realm="http://auth.example.com/token"`)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	pr, err := Ping(context.Background(), testRegistry, tprt)
@@ -133,16 +127,14 @@ func TestPingMultipleChallenges(t *testing.T) {
 
 func TestPingMultipleNotSupportedChallenges(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Add("WWW-Authenticate", "Negotiate")
 			w.Header().Add("WWW-Authenticate", "Digest")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	pr, err := Ping(context.Background(), testRegistry, tprt)
@@ -156,15 +148,13 @@ func TestPingMultipleNotSupportedChallenges(t *testing.T) {
 
 func TestUnsupportedStatus(t *testing.T) {
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="http://auth.example.com/token`)
 			http.Error(w, "Forbidden", http.StatusForbidden)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	pr, err := Ping(context.Background(), testRegistry, tprt)
@@ -206,9 +196,7 @@ func TestPingHttpFallback(t *testing.T) {
 	defer server.Close()
 
 	tprt := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	fallbackDelay = 2 * time.Millisecond

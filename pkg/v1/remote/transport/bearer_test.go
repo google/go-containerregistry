@@ -60,7 +60,7 @@ func TestBearerRefresh(t *testing.T) {
 					if got, want := r.FormValue("service"), expectedService; got != want {
 						t.Errorf("FormValue(service); got %v, want %v", got, want)
 					}
-					w.Write([]byte(fmt.Sprintf(`{%q: %q}`, tc.tokenKey, expectedToken)))
+					fmt.Fprintf(w, `{%q: %q}`, tc.tokenKey, expectedToken)
 				}))
 			defer server.Close()
 
@@ -156,7 +156,7 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 				return
 			}
 			if strings.HasPrefix(hdr, "Basic ") {
-				w.Write([]byte(fmt.Sprintf(`{"token": %q}`, refreshedToken)))
+				fmt.Fprintf(w, `{"token": %q}`, refreshedToken)
 			}
 
 			w.Header().Set("WWW-Authenticate", "scope=foo")
@@ -229,7 +229,7 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 					t.Errorf("want %s got %s", initialToken, it)
 				}
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(fmt.Sprintf(`{"access_token": %q, "refresh_token": %q}`, accessToken, refreshToken)))
+				fmt.Fprintf(w, `{"access_token": %q, "refresh_token": %q}`, accessToken, refreshToken)
 				return
 			}
 
@@ -297,7 +297,7 @@ func TestBearerTransportOauth404Fallback(t *testing.T) {
 			hdr := r.Header.Get("Authorization")
 			if hdr == "Basic "+basicAuth {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(fmt.Sprintf(`{"access_token": %q}`, accessToken)))
+				fmt.Fprintf(w, `{"access_token": %q}`, accessToken)
 			}
 			if hdr == "Bearer "+accessToken {
 				w.WriteHeader(http.StatusOK)

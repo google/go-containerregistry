@@ -55,6 +55,7 @@ var badDigestNames = []string{
 	"repo@sha256:" + strings.Repeat(":", 64),
 	"repo@sha256:" + strings.Repeat("sh", 32),
 	"repo@sha256:" + validDigest + "@" + validDigest,
+	"library/nginx:@" + validDigest,
 }
 
 func TestNewDigestStrictValidation(t *testing.T) {

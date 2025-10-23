@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"path/filepath"
 	"strings"
 	"time"
@@ -166,16 +167,16 @@ func Annotations(f partial.WithRawManifest, anns map[string]string) partial.With
 	if img, ok := f.(v1.Image); ok {
 		return &image{
 			base:        img,
-			annotations: anns,
+			annotations: maps.Clone(anns),
 		}
 	}
 	if idx, ok := f.(v1.ImageIndex); ok {
 		return &index{
 			base:        idx,
-			annotations: anns,
+			annotations: maps.Clone(anns),
 		}
 	}
-	return arbitraryRawManifest{a: f, anns: anns}
+	return arbitraryRawManifest{a: f, anns: maps.Clone(anns)}
 }
 
 type arbitraryRawManifest struct {
@@ -328,7 +329,7 @@ func extract(img v1.Image, w io.Writer) error {
 
 			// mark file as handled. non-directory implicitly tombstones
 			// any entries with a matching (or child) name
-			fileMap[name] = tombstone || !(header.Typeflag == tar.TypeDir)
+			fileMap[name] = tombstone || (header.Typeflag != tar.TypeDir)
 			if !tombstone {
 				if err := tarWriter.WriteHeader(header); err != nil {
 					return err
@@ -345,10 +346,7 @@ func extract(img v1.Image, w io.Writer) error {
 }
 
 func inWhiteoutDir(fileMap map[string]bool, file string) bool {
-	for {
-		if file == "" {
-			break
-		}
+	for file != "" {
 		dirname := filepath.Dir(file)
 		if file == dirname {
 			break
@@ -359,13 +357,6 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 		file = dirname
 	}
 	return false
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
 
 // Time sets all timestamps in an image to the given timestamp.

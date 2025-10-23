@@ -105,9 +105,7 @@ func TestFindIndexes(t *testing.T) {
 	}
 
 	// just see if it finds all of the indexes
-	matcher := func(desc v1.Descriptor) bool {
-		return true
-	}
+	matcher := func(v1.Descriptor) bool { return true }
 	index := mutate.AppendManifests(base, adds...)
 	idxes, err := partial.FindIndexes(index, matcher)
 	switch {
