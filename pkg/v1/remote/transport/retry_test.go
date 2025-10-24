@@ -145,7 +145,7 @@ func TestRetryDefaults(t *testing.T) {
 func TestTimeoutContext(t *testing.T) {
 	tr := NewRetry(http.DefaultTransport)
 
-	slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	slowServer := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		// hanging request
 		time.Sleep(time.Second * 1)
 	}))

@@ -25,9 +25,9 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - uses: chainguard-dev/actions/boilerplate@5e21cb47971231c078a677dfe89a348371cb880c # main
+      - uses: chainguard-dev/actions/boilerplate@main
         with:
           extension: ${{ matrix.extension }}
           language: ${{ matrix.language }}

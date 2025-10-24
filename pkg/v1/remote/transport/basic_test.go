@@ -46,9 +46,7 @@ func TestBasicTransport(t *testing.T) {
 	defer server.Close()
 
 	inner := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	basic := &authn.Basic{Username: username, Password: password}
@@ -96,9 +94,7 @@ func TestBasicTransportRegistryToken(t *testing.T) {
 		defer server.Close()
 
 		inner := &http.Transport{
-			Proxy: func(req *http.Request) (*url.URL, error) {
-				return url.Parse(server.URL)
-			},
+			Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 		}
 
 		client := http.Client{Transport: &basicTransport{inner: inner, auth: tc.auth, target: "gcr.io"}}
@@ -125,9 +121,7 @@ func TestBasicTransportWithEmptyAuthnCred(t *testing.T) {
 	defer server.Close()
 
 	inner := &http.Transport{
-		Proxy: func(req *http.Request) (*url.URL, error) {
-			return url.Parse(server.URL)
-		},
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
 	}
 
 	client := http.Client{Transport: &basicTransport{inner: inner, auth: authn.Anonymous, target: "gcr.io"}}
