@@ -6,14 +6,16 @@ on:
 
 jobs:
   goreleaser:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Unshallow
         run: git fetch --prune --unshallow
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: 1.21
           check-latest: true
@@ -40,7 +42,7 @@ jobs:
       actions: read # To read the workflow path.
       id-token: write # To sign the provenance.
       contents: write # To add assets to a release.
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.5.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
     with:
       base64-subjects: "${{ needs.goreleaser.outputs.hashes }}"
       upload-assets: true # upload to a new release
@@ -51,7 +53,7 @@ jobs:
     permissions: read-all
     steps:
       - name: Install SLSA verifier
-        uses: slsa-framework/slsa-verifier/actions/installer@v2.2.0
+        uses: slsa-framework/slsa-verifier/actions/installer@v2.7.0
       - name: Download assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

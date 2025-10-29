@@ -14,11 +14,10 @@ jobs:
   krane:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version: 1.19
-          check-latest: true
+          go-version-file: go.mod
 
       - name: Install krane
         working-directory: ./cmd/krane
@@ -44,4 +43,4 @@ jobs:
           if [[ "$CRED1" == "$CRED2" ]] ; then
             echo "credentials are cached by infrastructure"
           fi
-          
+
