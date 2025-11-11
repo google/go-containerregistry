@@ -45,7 +45,7 @@ func (i emptyIndex) IndexManifest() (*v1.IndexManifest, error) {
 }
 
 func (i emptyIndex) RawManifest() ([]byte, error) {
-	return json.Marshal(base())
+	return json.MarshalIndent(base(), "", "  ")
 }
 
 func (i emptyIndex) Image(v1.Hash) (v1.Image, error) {
