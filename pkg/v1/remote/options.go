@@ -45,6 +45,7 @@ type options struct {
 	retryBackoff                   Backoff
 	retryPredicate                 retry.Predicate
 	retryStatusCodes               []int
+	resumable                      bool
 
 	// Only these options can overwrite Reuse()d options.
 	platform v1.Platform
@@ -170,6 +171,11 @@ func makeOptions(opts ...Option) (*options, error) {
 
 		// Wrap the transport in something that can retry network flakes.
 		o.transport = transport.NewRetry(o.transport, transport.WithRetryBackoff(o.retryBackoff), transport.WithRetryPredicate(predicate), transport.WithRetryStatusCodes(o.retryStatusCodes...))
+
+		if o.resumable {
+			o.transport = transport.NewResumable(o.transport)
+		}
+
 		// Wrap this last to prevent transport.New from double-wrapping.
 		if o.userAgent != "" {
 			o.transport = transport.NewUserAgent(o.transport, o.userAgent)
@@ -188,6 +194,13 @@ func makeOptions(opts ...Option) (*options, error) {
 func WithTransport(t http.RoundTripper) Option {
 	return func(o *options) error {
 		o.transport = t
+		return nil
+	}
+}
+
+func WithResumable() Option {
+	return func(o *options) error {
+		o.resumable = true
 		return nil
 	}
 }
