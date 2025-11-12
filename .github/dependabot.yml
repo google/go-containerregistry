@@ -4,3 +4,20 @@ updates:
   directory: /
   schedule:
     interval: weekly
+  groups:
+    actions:
+      patterns:
+      - *
+- package-ecosystem: gomod
+  vendor: true
+  directories:
+  - /
+  - /cmd/krane
+  - /pkg/authn/k8schain
+  - /pkg/authn/kubernetes
+  schedule:
+    interval: daily
+  groups:
+    deps:
+      patterns:
+      - *
