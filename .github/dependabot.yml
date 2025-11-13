@@ -9,9 +9,8 @@ updates:
       patterns:
       - "*"
 - package-ecosystem: gomod
+  directory: /
   vendor: true
-  directories:
-  - /
   schedule:
     interval: weekly
   groups:
