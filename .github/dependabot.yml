@@ -10,11 +10,10 @@ updates:
       - "*"
 - package-ecosystem: gomod
   directory: /
-  vendor: true
   schedule:
     interval: weekly
   groups:
-    deps:
+    root-deps:
       patterns:
       - "*"
 - package-ecosystem: gomod
@@ -25,6 +24,6 @@ updates:
   schedule:
     interval: weekly
   groups:
-    deps:
+    auxiliary-deps:
       patterns:
       - "*"
