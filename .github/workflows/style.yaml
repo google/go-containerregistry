@@ -48,4 +48,4 @@ jobs:
           github-token: ${{ secrets.github_token }}
           reporter: github-pr-check
           level: error
-          fail-on-error: true
+          fail-level: error
