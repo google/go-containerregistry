@@ -92,29 +92,30 @@ func (rb *resumableBody) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 
-resume:
-	if n, err = rb.rc.Read(p); n > 0 {
-		rb.transferred += int64(n)
-	}
-
-	if err == nil {
-		return
-	}
-
-	if errors.Is(err, io.EOF) && rb.total >= 0 && rb.transferred == rb.total {
-		return
-	}
-
-	if err = rb.resume(err); err == nil {
-		if n == 0 {
-			// zero bytes read, try reading again with new response.Body
-			goto resume
+	for {
+		if n, err = rb.rc.Read(p); n > 0 {
+			rb.transferred += int64(n)
 		}
 
-		// already read some bytes from previous response.Body, returns and waits for next Read operation
-	}
+		if err == nil {
+			return
+		}
 
-	return n, err
+		if errors.Is(err, io.EOF) && rb.total >= 0 && rb.transferred == rb.total {
+			return
+		}
+
+		if err = rb.resume(err); err == nil {
+			if n == 0 {
+				// zero bytes read, try reading again with new response.Body
+				continue
+			}
+
+			// already read some bytes from previous response.Body, returns and waits for next Read operation
+		}
+
+		return n, err
+	}
 }
 
 func (rb *resumableBody) Close() (err error) {
