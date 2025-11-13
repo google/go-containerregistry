@@ -22,51 +22,70 @@ func NewResumable(inner http.RoundTripper) http.RoundTripper {
 
 var (
 	contentRangeRe = regexp.MustCompile(`^bytes (\d+)-(\d+)/(\d+|\*)$`)
+	rangeRe        = regexp.MustCompile(`bytes=(\d+)-(\d+)?`)
 )
 
 type resumableTransport struct {
 	inner http.RoundTripper
 }
 
-func (rt *resumableTransport) RoundTrip(in *http.Request) (*http.Response, error) {
-	if in.Method != http.MethodGet {
-		return rt.inner.RoundTrip(in)
+func (rt *resumableTransport) RoundTrip(in *http.Request) (resp *http.Response, err error) {
+	var total, start, end int64
+	// check initial request, maybe resumable transport is already enabled
+	if contentRange := in.Header.Get("Range"); contentRange != "" {
+		if matches := rangeRe.FindStringSubmatch(contentRange); len(matches) == 3 {
+			if start, err = strconv.ParseInt(matches[1], 10, 64); err != nil {
+				return nil, fmt.Errorf("invalid content range %q: %w", contentRange, err)
+			}
+
+			if len(matches[2]) == 0 {
+				// request whole file
+				end = -1
+			} else if end, err = strconv.ParseInt(matches[2], 10, 64); err == nil {
+				if start > end {
+					return nil, fmt.Errorf("invalid content range %q", contentRange)
+				}
+			} else {
+				return nil, fmt.Errorf("invalid content range %q: %w", contentRange, err)
+			}
+		}
 	}
 
-	req := in.Clone(in.Context())
-	req.Header.Set("Range", "bytes=0-")
-	resp, err := rt.inner.RoundTrip(req)
-	if err != nil {
+	if resp, err = rt.inner.RoundTrip(in); err != nil {
 		return resp, err
 	}
 
+	if in.Method != http.MethodGet {
+		return resp, nil
+	}
+
 	switch resp.StatusCode {
+	case http.StatusOK:
+		if end != 0 {
+			// request range content, but unexpected status code, cant not resume for this request
+			return resp, nil
+		}
+
+		total = resp.ContentLength
 	case http.StatusPartialContent:
-	case http.StatusRequestedRangeNotSatisfiable:
-		// fallback to previous behavior
-		resp.Body.Close()
-		return rt.inner.RoundTrip(in)
+		// keep original response status code, which should be processed by original transport or operation
+		if start, _, total, err = parseContentRange(resp.Header.Get("Content-Range")); err != nil || total <= 0 {
+			return resp, nil
+		} else if end > 0 {
+			total = end + 1
+		}
 	default:
 		return resp, nil
 	}
 
-	var contentLength int64
-	if _, _, contentLength, err = parseContentRange(resp.Header.Get("Content-Range")); err != nil || contentLength <= 0 {
-		// fallback to previous behavior
-		resp.Body.Close()
-		return rt.inner.RoundTrip(in)
-	}
-
-	// modify response status to 200, ensure caller error checking works
-	resp.StatusCode = http.StatusOK
-	resp.Status = "200 OK"
-	resp.ContentLength = contentLength
-	resp.Body = &resumableBody{
-		rc:          resp.Body,
-		inner:       rt.inner,
-		req:         req,
-		total:       contentLength,
-		transferred: 0,
+	if total > 0 {
+		resp.Body = &resumableBody{
+			rc:          resp.Body,
+			inner:       rt.inner,
+			req:         in,
+			total:       total,
+			transferred: start,
+		}
 	}
 
 	return resp, nil
@@ -94,6 +113,10 @@ func (rb *resumableBody) Read(p []byte) (n int, err error) {
 
 	for {
 		if n, err = rb.rc.Read(p); n > 0 {
+			if rb.transferred+int64(n) >= rb.total {
+				n = int(rb.total - rb.transferred)
+				err = io.EOF
+			}
 			rb.transferred += int64(n)
 		}
 
@@ -101,7 +124,7 @@ func (rb *resumableBody) Read(p []byte) (n int, err error) {
 			return
 		}
 
-		if errors.Is(err, io.EOF) && rb.total >= 0 && rb.transferred == rb.total {
+		if errors.Is(err, io.EOF) && rb.total >= 0 && rb.transferred >= rb.total {
 			return
 		}
 
@@ -148,7 +171,8 @@ func (rb *resumableBody) resume(reason error) error {
 
 	if err = rb.validate(resp); err != nil {
 		resp.Body.Close()
-		return err
+		// wraps original error
+		return fmt.Errorf("%w, %v", reason, err)
 	}
 
 	if atomic.LoadUint32(&rb.closed) == 1 {
@@ -162,21 +186,21 @@ func (rb *resumableBody) resume(reason error) error {
 	return nil
 }
 
+const size100m = 100 << 20
+
 func (rb *resumableBody) validate(resp *http.Response) (err error) {
 	var start, total int64
 	switch resp.StatusCode {
 	case http.StatusPartialContent:
-		if start, _, total, err = parseContentRange(resp.Header.Get("Content-Range")); err != nil {
+		// donot using total size from Content-Range header, keep rb.total unchanged
+		if start, _, _, err = parseContentRange(resp.Header.Get("Content-Range")); err != nil {
 			return err
-		}
-
-		if total > rb.total {
-			rb.total = total
 		}
 
 		if start == rb.transferred {
 			break
 		} else if start < rb.transferred {
+			// incoming data is overlapped for somehow, just discard it
 			if _, err := io.CopyN(io.Discard, resp.Body, rb.transferred-start); err != nil {
 				return fmt.Errorf("discard overlapped data failed, %v", err)
 			}
@@ -185,6 +209,12 @@ func (rb *resumableBody) validate(resp *http.Response) (err error) {
 		}
 	case http.StatusOK:
 		if rb.transferred > 0 {
+			// range is not supported, and transferred data is too large, stop resuming
+			if rb.transferred > size100m {
+				return fmt.Errorf("too large data transferred: %d", rb.transferred)
+			}
+
+			// try resume from unsupported range request
 			if _, err = io.CopyN(io.Discard, resp.Body, rb.transferred); err != nil {
 				return err
 			}

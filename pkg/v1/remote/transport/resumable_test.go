@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -11,7 +12,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"regexp"
 	"strconv"
 	"testing"
 	"time"
@@ -23,50 +23,52 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-var rangeRe = regexp.MustCompile(`bytes=(\d+)-(\d+)?`)
-
 func handleResumableLayer(data []byte, w http.ResponseWriter, r *http.Request, t *testing.T) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
+	var (
+		contentLength, start, end int64
+		statusCode                = http.StatusOK
+		err                       error
+	)
+
+	contentLength = int64(len(data))
+	end = contentLength - 1
 	contentRange := r.Header.Get("Range")
-	if contentRange == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	matches := rangeRe.FindStringSubmatch(contentRange)
-	if len(matches) != 3 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	contentLength := int64(len(data))
-	start, err := strconv.ParseInt(matches[1], 10, 64)
-	if err != nil || start < 0 {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	if start >= int64(contentLength) {
-		w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
-		return
-	}
-
-	var end = int64(contentLength) - 1
-	if matches[2] != "" {
-		end, err = strconv.ParseInt(matches[2], 10, 64)
-		if err != nil || end < 0 {
+	if contentRange != "" {
+		matches := rangeRe.FindStringSubmatch(contentRange)
+		if len(matches) != 3 {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		if end >= int64(contentLength) {
+		if start, err = strconv.ParseInt(matches[1], 10, 64); err != nil || start < 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		if start >= int64(contentLength) {
 			w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
 			return
 		}
+
+		if matches[2] != "" {
+			end, err = strconv.ParseInt(matches[2], 10, 64)
+			if err != nil || end < 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			if end >= int64(contentLength) {
+				w.WriteHeader(http.StatusRequestedRangeNotSatisfiable)
+				return
+			}
+		}
+
+		statusCode = http.StatusPartialContent
 	}
 
 	var currentContentLength = end - start + 1
@@ -91,14 +93,19 @@ func handleResumableLayer(data []byte, w http.ResponseWriter, r *http.Request, t
 
 	end = start + currentContentLength - 1
 
-	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, contentLength))
-	w.Header().Set("Content-Length", strconv.FormatInt(currentContentLength, 10))
-	w.WriteHeader(http.StatusPartialContent)
+	if statusCode == http.StatusPartialContent {
+		w.Header().Set("Content-Length", strconv.FormatInt(currentContentLength, 10))
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, contentLength))
+	} else {
+		w.Header().Set("Content-Length", strconv.FormatInt(contentLength, 10))
+	}
+
+	w.WriteHeader(statusCode)
 	w.Write(data[start : end+1])
 	time.Sleep(time.Second)
 }
 
-func resumableRequest(client *http.Client, url string, size int64, digest string, overlap bool, t *testing.T) {
+func resumableRequest(client *http.Client, url string, leading, trailing []byte, size int64, digest string, overlap bool, t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
 		t.Fatalf("http.NewRequest(): %v", err)
@@ -106,6 +113,16 @@ func resumableRequest(client *http.Client, url string, size int64, digest string
 
 	if overlap {
 		req.Header.Set("X-Overlap", "true")
+	}
+
+	if len(leading) > 0 || len(trailing) > 0 {
+		var buf bytes.Buffer
+		buf.WriteString("bytes=")
+		buf.WriteString(fmt.Sprintf("%d-", len(leading)))
+		if len(trailing) > 0 {
+			buf.WriteString(fmt.Sprintf("%d", size-int64(len(trailing))-1))
+		}
+		req.Header.Set("Range", buf.String())
 	}
 
 	resp, err := client.Do(req.WithContext(t.Context()))
@@ -120,10 +137,17 @@ func resumableRequest(client *http.Client, url string, size int64, digest string
 	}
 
 	hash := sha256.New()
+	if len(leading) > 0 {
+		io.Copy(hash, bytes.NewReader(leading))
+	}
 
 	if _, err = io.Copy(hash, resp.Body); err != nil {
 		t.Errorf("unexpected error: %v", err)
 		return
+	}
+
+	if len(trailing) > 0 {
+		io.Copy(hash, bytes.NewReader(trailing))
 	}
 
 	actualDigest := "sha256:" + hex.EncodeToString(hash.Sum(nil))
@@ -248,23 +272,40 @@ func TestResumableTransport(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		digest       string
-		size         int64
-		timeout      bool
-		cancel       bool
-		nonResumable bool
-		overlap      bool
+		name              string
+		digest            string
+		leading, trailing int64
+		timeout           bool
+		cancel            bool
+		nonResumable      bool
+		overlap           bool
+		ranged            bool
 	}{
 		{
-			name:   "resumable",
-			digest: digest.String(),
-			size:   size,
+			name:    "resumable",
+			digest:  digest.String(),
+			leading: 0,
+		},
+		{
+			name:    "resumable-range-leading",
+			digest:  digest.String(),
+			leading: 3,
+		},
+		{
+			name:    "resumable-range-trailing",
+			digest:  digest.String(),
+			leading: 0,
+		},
+		{
+			name:     "resumable-range-leading-trailing",
+			digest:   digest.String(),
+			leading:  3,
+			trailing: 6,
 		},
 		{
 			name:    "resumable-overlap",
 			digest:  digest.String(),
-			size:    size,
+			leading: 0,
 			overlap: true,
 		},
 		{
@@ -290,8 +331,8 @@ func TestResumableTransport(t *testing.T) {
 				resumableStopByCancelRequest(client, url, t)
 			} else if tt.timeout {
 				resumableStopByTimeoutRequest(client, url, t)
-			} else if tt.digest != "" && tt.size > 0 {
-				resumableRequest(client, url, tt.size, tt.digest, tt.overlap, t)
+			} else if tt.digest != "" {
+				resumableRequest(client, url, data[:tt.leading], data[size-tt.trailing:], size, tt.digest, tt.overlap, t)
 			}
 		})
 	}
