@@ -18,8 +18,8 @@ import (
 	"context"
 	"io"
 
-	api "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
+	api "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 )
 
 // ImageOption is an alias for Option.
@@ -76,7 +76,7 @@ func WithUnbufferedOpener() Option {
 
 // WithClient is a functional option to allow injecting a docker client.
 //
-// By default, github.com/docker/docker/client.FromEnv is used.
+// By default, github.com/moby/moby/client.FromEnv is used.
 func WithClient(client Client) Option {
 	return func(o *options) {
 		o.client = client

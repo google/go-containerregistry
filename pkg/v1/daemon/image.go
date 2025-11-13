@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	api "github.com/docker/docker/api/types/image"
+	api "github.com/moby/moby/api/types/image"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
