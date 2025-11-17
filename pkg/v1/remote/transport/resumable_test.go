@@ -268,7 +268,12 @@ func TestResumableTransport(t *testing.T) {
 	}
 
 	client := &http.Client{
-		Transport: NewResumable(http.DefaultTransport.(*http.Transport).Clone()),
+		Transport: NewResumable(http.DefaultTransport.(*http.Transport).Clone(), Backoff{
+			Duration: 1.0 * time.Second,
+			Factor:   3.0,
+			Jitter:   0.1,
+			Steps:    3,
+		}),
 	}
 
 	tests := []struct {

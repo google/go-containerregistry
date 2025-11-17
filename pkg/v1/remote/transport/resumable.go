@@ -9,15 +9,24 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/logs"
 )
 
-// NewResumable creates a http.RoundTripper that resumes http GET from error,
-// and the inner should be wrapped with retry transport, otherwise, the
-// transport will abort if resume() returns error.
-func NewResumable(inner http.RoundTripper) http.RoundTripper {
-	return &resumableTransport{inner: inner}
+// NewResumable creates a http.RoundTripper that resumes http GET from error, and continue
+// transfer data from last successful transfer offset.
+func NewResumable(inner http.RoundTripper, backoff Backoff) http.RoundTripper {
+	if backoff.Steps <= 0 {
+		// resume once
+		backoff.Steps = 1
+	}
+
+	if backoff.Duration <= 0 {
+		backoff.Duration = 100 * time.Millisecond
+	}
+
+	return &resumableTransport{inner: inner, backoff: backoff}
 }
 
 var (
@@ -26,7 +35,8 @@ var (
 )
 
 type resumableTransport struct {
-	inner http.RoundTripper
+	inner   http.RoundTripper
+	backoff Backoff
 }
 
 func (rt *resumableTransport) RoundTrip(in *http.Request) (resp *http.Response, err error) {
@@ -85,6 +95,7 @@ func (rt *resumableTransport) RoundTrip(in *http.Request) (resp *http.Response, 
 			req:         in,
 			total:       total,
 			transferred: start,
+			backoff:     rt.backoff,
 		}
 	}
 
@@ -96,6 +107,8 @@ type resumableBody struct {
 
 	inner http.RoundTripper
 	req   *http.Request
+
+	backoff Backoff
 
 	transferred int64
 	total       int64
@@ -128,7 +141,7 @@ func (rb *resumableBody) Read(p []byte) (n int, err error) {
 			return
 		}
 
-		if err = rb.resume(err); err == nil {
+		if err = rb.resume(rb.backoff, err); err == nil {
 			if n == 0 {
 				// zero bytes read, try reading again with new response.Body
 				continue
@@ -149,41 +162,57 @@ func (rb *resumableBody) Close() (err error) {
 	return rb.rc.Close()
 }
 
-func (rb *resumableBody) resume(reason error) error {
+func (rb *resumableBody) resume(backoff Backoff, reason error) error {
+	if backoff.Steps <= 0 {
+		// resumable transport is disabled
+		return reason
+	}
+
 	if reason != nil {
 		logs.Debug.Printf("Resume http transporting from error: %v", reason)
 	}
 
-	ctx := rb.req.Context()
-	select {
-	case <-ctx.Done():
-		// context already done, stop resuming from error
-		return ctx.Err()
-	default:
+	var (
+		resp *http.Response
+		err  error
+	)
+
+	for backoff.Steps > 0 {
+		time.Sleep(backoff.Step())
+
+		ctx := rb.req.Context()
+		select {
+		case <-ctx.Done():
+			// context already done, stop resuming from error
+			return ctx.Err()
+		default:
+		}
+
+		req := rb.req.Clone(ctx)
+		req.Header.Set("Range", "bytes="+strconv.FormatInt(rb.transferred, 10)+"-")
+		if resp, err = rb.inner.RoundTrip(req); err != nil {
+			err = fmt.Errorf("unable to resume from '%v', %w", reason, err)
+			continue
+		}
+
+		if err = rb.validate(resp); err != nil {
+			resp.Body.Close()
+			// wraps original error
+			return fmt.Errorf("%w, %v", reason, err)
+		}
+
+		if atomic.LoadUint32(&rb.closed) == 1 {
+			resp.Body.Close()
+			return http.ErrBodyReadAfterClose
+		}
+
+		rb.rc.Close()
+		rb.rc = resp.Body
+
+		break
 	}
 
-	req := rb.req.Clone(ctx)
-	req.Header.Set("Range", "bytes="+strconv.FormatInt(rb.transferred, 10)+"-")
-	resp, err := rb.inner.RoundTrip(req)
-	if err != nil {
-		return err
-	}
-
-	if err = rb.validate(resp); err != nil {
-		resp.Body.Close()
-		// wraps original error
-		return fmt.Errorf("%w, %v", reason, err)
-	}
-
-	if atomic.LoadUint32(&rb.closed) == 1 {
-		resp.Body.Close()
-		return http.ErrBodyReadAfterClose
-	}
-
-	rb.rc.Close()
-	rb.rc = resp.Body
-
-	return nil
+	return err
 }
 
 const size100m = 100 << 20
