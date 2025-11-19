@@ -23,10 +23,10 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/storage"
-	"github.com/docker/docker/client"
 	specs "github.com/moby/docker-image-spec/specs-go/v1"
+	api "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/storage"
+	"github.com/moby/moby/client"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/compare"
