@@ -41,6 +41,8 @@ jobs:
 
       - uses: chainguard-dev/actions/eof-newline@main
         if: ${{ always() }}
+        with:
+          reviewdog_version: latest
 
       - uses: get-woke/woke-action-reviewdog@v0
         if: ${{ always() }}
