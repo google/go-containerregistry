@@ -557,7 +557,7 @@ func TestCanonical(t *testing.T) {
 	for _, s := range []string{
 		cf.Container,
 		cf.Config.Hostname,
-		cf.DockerVersion,
+		cf.DockerVersion, //nolint:staticcheck // Field will be removed in next release
 	} {
 		if s != "" {
 			t.Errorf("non-zeroed string: %v", s)
