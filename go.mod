@@ -4,7 +4,7 @@ go 1.24.0
 
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.18.1
-	github.com/docker/cli v29.0.2+incompatible
+	github.com/docker/cli v29.0.3+incompatible
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/google/go-cmp v0.7.0
