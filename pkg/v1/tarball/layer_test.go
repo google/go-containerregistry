@@ -292,6 +292,53 @@ func TestWithMediaType(t *testing.T) {
 	}
 }
 
+func TestWithDigestAndSize(t *testing.T) {
+	l, err := LayerFromFile("testdata/content.tar")
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+
+	gotDigest, err := l.Digest()
+	if err != nil {
+		t.Fatalf("Digest: %v", err)
+	}
+
+	gotSize, err := l.Size()
+	if err != nil {
+		t.Fatalf("Size: %v", err)
+	}
+
+	l, err = LayerFromFile("testdata/content.tar", WithDigest(gotDigest), WithSize(gotSize))
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+
+	if err = validate.Layer(l); err != nil {
+		t.Fatalf("validate.Layer(l): %v", err)
+	}
+}
+
+func TestWithDiffID(t *testing.T) {
+	l, err := LayerFromFile("testdata/content.tar")
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+
+	gotDiffID, err := l.DiffID()
+	if err != nil {
+		t.Fatalf("DiffID: %v", err)
+	}
+
+	l, err = LayerFromFile("testdata/content.tar", WithDiffID(gotDiffID))
+	if err != nil {
+		t.Fatalf("Unable to create layer from tar file: %v", err)
+	}
+
+	if err = validate.Layer(l); err != nil {
+		t.Fatalf("validate.Layer(l): %v", err)
+	}
+}
+
 func TestLayerFromReader(t *testing.T) {
 	setupFixtures(t)
 	defer teardownFixtures(t)
