@@ -12,7 +12,7 @@ jobs:
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Unshallow
         run: git fetch --prune --unshallow
       - uses: actions/setup-go@v6
