@@ -28,6 +28,13 @@ jobs:
       - uses: golangci/golangci-lint-action@v9.0.0
         with:
           version: v2.1.6
+
+      - uses: chainguard-dev/actions/trailing-space@main
+        if: ${{ always() }}
+
+      - uses: chainguard-dev/actions/eof-newline@main
+        if: ${{ always() }}
+
       - uses: reviewdog/action-misspell@v1
         if: ${{ always() }}
         with:
@@ -35,14 +42,6 @@ jobs:
           fail_on_error: true
           locale: "US"
           exclude: ./vendor/*
-
-      - uses: chainguard-dev/actions/trailing-space@main
-        if: ${{ always() }}
-
-      - uses: chainguard-dev/actions/eof-newline@main
-        if: ${{ always() }}
-        with:
-          reviewdog_version: latest
 
       - uses: get-woke/woke-action-reviewdog@v0
         if: ${{ always() }}
