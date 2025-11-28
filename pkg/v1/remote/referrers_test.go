@@ -69,11 +69,16 @@ func TestReferrers(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			mf, err := img.Manifest()
+			if err != nil {
+				t.Fatal(err)
+			}
 			return v1.Descriptor{
 				Digest:       d,
 				Size:         sz,
 				MediaType:    mt,
 				ArtifactType: "application/testing123",
+				Annotations:  mf.Annotations,
 			}
 		}
 
@@ -118,6 +123,7 @@ func TestReferrers(t *testing.T) {
 			t.Fatal(err)
 		}
 		leafImg = mutate.ConfigMediaType(leafImg, types.MediaType("application/testing123"))
+		leafImg = mutate.Annotations(leafImg, map[string]string{"annotation-key": "annotation-value"}).(v1.Image)
 		leafImg = mutate.Subject(leafImg, rootDesc).(v1.Image)
 		if err := remote.Write(leafRef, leafImg); err != nil {
 			t.Fatal(err)
@@ -187,7 +193,7 @@ func TestReferrers(t *testing.T) {
 			t.Fatalf("referrers diff after second push (-want,+got): %s", d)
 		}
 
-		// Try applying filters and verify number of manifests and and annotations
+		// Try applying filters and verify number of manifests and annotations
 		index, err = remote.Referrers(rootRefDigest,
 			remote.WithFilter("artifactType", "application/testing123"))
 		if err != nil {
