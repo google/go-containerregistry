@@ -135,7 +135,7 @@ func (w *writer) maybeUpdateScopes(ctx context.Context, ml *MountableLayer) erro
 	return nil
 }
 
-// nextLocation extracts the fully-qualified URL to which we should send the next request in an upload sequence.
+// nextLocation extracts the fully qualified URL to which we should send the next request in an upload sequence.
 func (w *writer) nextLocation(resp *http.Response) (string, error) {
 	loc := resp.Header.Get("Location")
 	if len(loc) == 0 {
