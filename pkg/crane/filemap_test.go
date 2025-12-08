@@ -131,20 +131,20 @@ func TestImage(t *testing.T) {
 		Digest  string
 	}{{
 		Name:   "Empty contents",
-		Digest: "sha256:98132f58b523c391a5788997327cac95e114e3a6609d01163189774510705399",
+		Digest: "sha256:5b19422c75ffd2fe40e5cf332959491f16efd4948e5a647dfa18ef0893f60879",
 	}, {
 		Name: "One file",
 		FileMap: map[string][]byte{
 			"/test": []byte("testy"),
 		},
-		Digest: "sha256:d905c03ac635172a96c12b8af6c90cfd028e3edaa3114b31a9e196ab38c16963",
+		Digest: "sha256:0a5a9b92cb817d5362b14d92173e9c2fb813a17f261a6ad55e6a952edf86f21a",
 	}, {
 		Name: "Two files",
 		FileMap: map[string][]byte{
 			"/test": []byte("testy"),
 			"/bar":  []byte("not useful"),
 		},
-		Digest: "sha256:20e7e4800e5eb167f170970936c08d9e1bcbe91372420eeb6ab8d1a07752c3a3",
+		Digest: "sha256:d2c82c35a82be1186df962cd85b0eb1ac71f34ff2b9dab125b976cccbf11016c",
 	}, {
 		Name: "Many files",
 		FileMap: map[string][]byte{
@@ -158,7 +158,7 @@ func TestImage(t *testing.T) {
 			"/8": []byte("8"),
 			"/9": []byte("9"),
 		},
-		Digest: "sha256:dfca2803510c8e3b83a3151f7c035c60cfa2a8a52465b802e18b85014de361f1",
+		Digest: "sha256:9fd84648d36fe2792dfa1b1fadb6ddb31ae0ade5154536013fd912e2ab424616",
 	}}
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
