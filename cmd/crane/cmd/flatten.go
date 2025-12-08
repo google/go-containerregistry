@@ -36,6 +36,7 @@ import (
 // NewCmdFlatten creates a new cobra.Command for the flatten subcommand.
 func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 	var dst string
+	var lastN int
 
 	flattenCmd := &cobra.Command{
 		Use:   "flatten",
@@ -67,7 +68,7 @@ func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 			}
 			repo := newRef.Context()
 
-			flat, err := flatten(ref, repo, cmd.Parent().Use, o)
+			flat, err := flatten(ref, repo, cmd.Parent().Use, o, lastN)
 			if err != nil {
 				log.Fatalf("flattening %s: %v", ref, err)
 			}
@@ -88,10 +89,17 @@ func NewCmdFlatten(options *[]crane.Option) *cobra.Command {
 		},
 	}
 	flattenCmd.Flags().StringVarP(&dst, "tag", "t", "", "New tag to apply to flattened image. If not provided, push by digest to the original image repository.")
+	flattenCmd.Flags().IntVarP(&lastN, "last-n-layers", "n", 0, "Only flatten the last N layers (0 = flatten all layers).")
+	flattenCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if lastN < 0 {
+			return fmt.Errorf("--last-n-layers (-n) must be >= 0")
+		}
+		return nil
+	}
 	return flattenCmd
 }
 
-func flatten(ref name.Reference, repo name.Repository, use string, o crane.Options) (partial.Describable, error) {
+func flatten(ref name.Reference, repo name.Repository, use string, o crane.Options, lastN int) (partial.Describable, error) {
 	desc, err := remote.Get(ref, o.Remote...)
 	if err != nil {
 		return nil, fmt.Errorf("pulling %s: %w", ref, err)
@@ -102,13 +110,13 @@ func flatten(ref name.Reference, repo name.Repository, use string, o crane.Optio
 		if err != nil {
 			return nil, err
 		}
-		return flattenIndex(idx, repo, use, o)
+		return flattenIndex(idx, repo, use, o, lastN)
 	} else if desc.MediaType.IsImage() {
 		img, err := desc.Image()
 		if err != nil {
 			return nil, err
 		}
-		return flattenImage(img, repo, use, o)
+		return flattenImage(img, repo, use, o, lastN)
 	}
 
 	return nil, fmt.Errorf("can't flatten %s", desc.MediaType)
@@ -124,7 +132,7 @@ func push(flat partial.Describable, ref name.Reference, o crane.Options) error {
 	return fmt.Errorf("can't push %T", flat)
 }
 
-func flattenIndex(old v1.ImageIndex, repo name.Repository, use string, o crane.Options) (partial.Describable, error) {
+func flattenIndex(old v1.ImageIndex, repo name.Repository, use string, o crane.Options, lastN int) (partial.Describable, error) {
 	m, err := old.IndexManifest()
 	if err != nil {
 		return nil, err
@@ -152,7 +160,7 @@ func flattenIndex(old v1.ImageIndex, repo name.Repository, use string, o crane.O
 			}
 		}
 
-		flattened, err := flattenChild(m, repo, use, o)
+		flattened, err := flattenChild(m, repo, use, o, lastN)
 		if err != nil {
 			return nil, err
 		}
@@ -187,18 +195,23 @@ func flattenIndex(old v1.ImageIndex, repo name.Repository, use string, o crane.O
 	return idx, nil
 }
 
-func flattenChild(old partial.Describable, repo name.Repository, use string, o crane.Options) (partial.Describable, error) {
+func flattenChild(old partial.Describable, repo name.Repository, use string, o crane.Options, lastN int) (partial.Describable, error) {
 	if idx, ok := old.(v1.ImageIndex); ok {
-		return flattenIndex(idx, repo, use, o)
+		return flattenIndex(idx, repo, use, o, lastN)
 	} else if img, ok := old.(v1.Image); ok {
-		return flattenImage(img, repo, use, o)
+		return flattenImage(img, repo, use, o, lastN)
 	}
 
 	logs.Warn.Printf("can't flatten %T, skipping", old)
 	return old, nil
 }
 
-func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Options) (partial.Describable, error) {
+func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Options, lastN int) (partial.Describable, error) {
+	// If lastN is > 0, use the partial flatten image function.
+	if lastN > 0 {
+		return partialFlattenImage(old, repo, use, o, lastN)
+	}
+
 	digest, err := old.Digest()
 	if err != nil {
 		return nil, fmt.Errorf("getting old digest: %w", err)
@@ -243,6 +256,154 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 			Comment:   string(oldHistory),
 		},
 	})
+	if err != nil {
+		return nil, fmt.Errorf("appending layers: %w", err)
+	}
+
+	// Retain any annotations from the original image.
+	if len(m.Annotations) != 0 {
+		img = mutate.Annotations(img, m.Annotations).(v1.Image)
+	}
+
+	return img, nil
+}
+
+// partialFlattenImage flattens only the last N layers of an image, keeping the
+// earlier layers intact. The final rootfs remains identical to the original
+// image, but the layer topology is changed to have the first K-N layers plus a
+// single merged layer for the last N layers.
+func partialFlattenImage(old v1.Image, repo name.Repository, use string, o crane.Options, lastN int) (partial.Describable, error) {
+	digest, err := old.Digest()
+	if err != nil {
+		return nil, fmt.Errorf("getting old digest: %w", err)
+	}
+	m, err := old.Manifest()
+	if err != nil {
+		return nil, fmt.Errorf("reading manifest: %w", err)
+	}
+	cf, err := old.ConfigFile()
+	if err != nil {
+		return nil, fmt.Errorf("getting config: %w", err)
+	}
+	// Keep a copy of the original history for later preservation.
+	origHistory := cf.History
+	origHistoryJSON, err := json.Marshal(origHistory)
+	if err != nil {
+		return nil, fmt.Errorf("marshal history: %w", err)
+	}
+
+	cf = cf.DeepCopy()
+
+	layers, err := old.Layers()
+	if err != nil {
+		return nil, fmt.Errorf("getting layers: %w", err)
+	}
+	k := len(layers)
+	if k == 0 {
+		return old, nil
+	}
+
+	// If lastN is not in a sensible range, return an error.
+	if lastN <= 0 || lastN > k {
+		return nil, fmt.Errorf("last-n-layers must be between 1 and %d, got %d", k, lastN)
+	}
+
+	keepLayers := layers[:k-lastN]
+	mergeLayers := layers[k-lastN:]
+
+	// --- Scheme 1: compute real diffIDs for the mergeLayers and use them in a
+	// temporary sub-image so mutate.Extract works correctly. ---
+	diffIDs := make([]v1.Hash, 0, len(mergeLayers))
+	for _, l := range mergeLayers {
+		d, err := l.DiffID()
+		if err != nil {
+			return nil, fmt.Errorf("computing diffID of merge layer: %w", err)
+		}
+		diffIDs = append(diffIDs, d)
+	}
+
+	// Construct a minimal config for the sub-image with genuine diffIDs.
+	subCfg := &v1.ConfigFile{}
+	subCfg.RootFS.Type = "layers"
+	subCfg.RootFS.DiffIDs = diffIDs
+
+	subImg, err := mutate.ConfigFile(empty.Image, subCfg)
+	if err != nil {
+		return nil, fmt.Errorf("configuring sub image: %w", err)
+	}
+
+	// Append the actual merge layers to the sub-image.
+	adds := make([]mutate.Addendum, 0, len(mergeLayers))
+	for _, l := range mergeLayers {
+		adds = append(adds, mutate.Addendum{Layer: l})
+	}
+	subImg, err = mutate.Append(subImg, adds...)
+	if err != nil {
+		return nil, fmt.Errorf("building sub image: %w", err)
+	}
+
+	// Extract the combined filesystem of the last N layers as a tar stream.
+	mergedTar := mutate.Extract(subImg)
+	defer mergedTar.Close()
+
+	// Create a single merged layer from that tar stream.
+	mergedLayer := stream.NewLayer(mergedTar, stream.WithCompressionLevel(gzip.BestCompression))
+
+	// Upload the merged layer to the target repository (so it's available as a blob).
+	if err := remote.WriteLayer(repo, mergedLayer, o.Remote...); err != nil {
+		return nil, fmt.Errorf("uploading merged layer: %w", err)
+	}
+
+	// Now construct the new image config: preserve non-layer fields, reset
+	// RootFS/History and set a new Created time. mutate.Append will derive the
+	// final diffIDs when layers are appended.
+	newCF := cf.DeepCopy()
+	newCF.RootFS.DiffIDs = nil
+	newCF.History = nil
+	newCF.Created = v1.Time{Time: time.Now().UTC()}
+
+	// Start a new image with that config.
+	img, err := mutate.ConfigFile(empty.Image, newCF)
+	if err != nil {
+		return nil, fmt.Errorf("mutating config: %w", err)
+	}
+
+	// Prepare addenda: keep the leading layers unchanged (propagate their
+	// history when possible), then append the merged layer with a history entry
+	// that embeds the original history to avoid losing information.
+	var addenda []mutate.Addendum
+
+	// Naive history propagation: reuse as many leading history entries as we
+	// have layers to keep. This is a pragmatic heuristic: precise mapping of
+	// history to layers (considering empty layers) can be more involved.
+	keepHistories := origHistory
+	if len(keepHistories) > len(keepLayers) {
+		keepHistories = keepHistories[:len(keepLayers)]
+	}
+
+	for i, l := range keepLayers {
+		var h v1.History
+		if i < len(keepHistories) {
+			h = keepHistories[i]
+		}
+		addenda = append(addenda, mutate.Addendum{
+			Layer:   l,
+			History: h,
+		})
+	}
+
+	mergedHistory := v1.History{
+		Created:   newCF.Created,
+		CreatedBy: fmt.Sprintf("%s flatten --last-n-layers=%d %s", use, lastN, digest),
+		Comment:   string(origHistoryJSON),
+	}
+	addenda = append(addenda, mutate.Addendum{
+		Layer:   mergedLayer,
+		History: mergedHistory,
+	})
+
+	// Append all addenda to our new image.
+	img, err = mutate.Append(img, addenda...)
 	if err != nil {
 		return nil, fmt.Errorf("appending layers: %w", err)
 	}
