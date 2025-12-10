@@ -232,10 +232,10 @@ func TestPingHttpFallback(t *testing.T) {
 }
 
 func TestPingHttpFixture(t *testing.T) {
-	var httpsPassed bool
+	var httpsPassed atomic.Bool
 	server := httptest.NewServer(
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			httpsPassed = true
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			httpsPassed.Store(true)
 			time.Sleep(time.Second * 3)
 			w.WriteHeader(http.StatusOK)
 		}))
@@ -243,7 +243,7 @@ func TestPingHttpFixture(t *testing.T) {
 
 	tprt := &http.Transport{
 		Proxy: func(req *http.Request) (*url.URL, error) {
-			if httpsPassed {
+			if httpsPassed.Load() {
 				return http.ProxyFromEnvironment(req)
 			}
 
