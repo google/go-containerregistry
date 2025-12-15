@@ -7,9 +7,9 @@ replace github.com/google/go-containerregistry => ../../../
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.20.3
-	k8s.io/api v0.34.2
-	k8s.io/apimachinery v0.34.2
-	k8s.io/client-go v0.34.2
+	k8s.io/api v0.34.3
+	k8s.io/apimachinery v0.34.3
+	k8s.io/client-go v0.34.3
 )
 
 require (
