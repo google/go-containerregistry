@@ -103,8 +103,8 @@ func (r *bytesCloser) Close() error {
 
 func (e redirectError) Error() string { return fmt.Sprintf("redirecting (%d): %s", e.Code, e.Location) }
 
-// errNotFound represents an error locating the blob.
-var errNotFound = errors.New("not found")
+// ErrNotFound represents an error locating the blob.
+var ErrNotFound = errors.New("not found")
 
 type memHandler struct {
 	m    map[string][]byte
@@ -119,7 +119,7 @@ func (m *memHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error)
 
 	b, found := m.m[h.String()]
 	if !found {
-		return 0, errNotFound
+		return 0, ErrNotFound
 	}
 	return int64(len(b)), nil
 }
@@ -130,7 +130,7 @@ func (m *memHandler) Get(_ context.Context, _ string, h v1.Hash) (io.ReadCloser,
 
 	b, found := m.m[h.String()]
 	if !found {
-		return nil, errNotFound
+		return nil, ErrNotFound
 	}
 	return &bytesCloser{bytes.NewReader(b)}, nil
 }
@@ -153,7 +153,7 @@ func (m *memHandler) Delete(_ context.Context, _ string, h v1.Hash) error {
 	defer m.lock.Unlock()
 
 	if _, found := m.m[h.String()]; !found {
-		return errNotFound
+		return ErrNotFound
 	}
 
 	delete(m.m, h.String())
@@ -206,7 +206,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		var size int64
 		if bsh, ok := b.blobHandler.(BlobStatHandler); ok {
 			size, err = bsh.Stat(req.Context(), repo, h)
-			if errors.Is(err, errNotFound) {
+			if errors.Is(err, ErrNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
 				var rerr redirectError
@@ -218,7 +218,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		} else {
 			rc, err := b.blobHandler.Get(req.Context(), repo, h)
-			if errors.Is(err, errNotFound) {
+			if errors.Is(err, ErrNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
 				var rerr redirectError
@@ -254,7 +254,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		var r io.Reader
 		if bsh, ok := b.blobHandler.(BlobStatHandler); ok {
 			size, err = bsh.Stat(req.Context(), repo, h)
-			if errors.Is(err, errNotFound) {
+			if errors.Is(err, ErrNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
 				var rerr redirectError
@@ -266,7 +266,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 
 			rc, err := b.blobHandler.Get(req.Context(), repo, h)
-			if errors.Is(err, errNotFound) {
+			if errors.Is(err, ErrNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
 				var rerr redirectError
@@ -283,7 +283,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 
 		} else {
 			tmp, err := b.blobHandler.Get(req.Context(), repo, h)
-			if errors.Is(err, errNotFound) {
+			if errors.Is(err, ErrNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
 				var rerr redirectError
