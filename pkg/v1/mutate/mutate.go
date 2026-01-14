@@ -277,68 +277,76 @@ func extract(img v1.Image, w io.Writer) error {
 	// whiteout layers more efficient, since we can just keep track of the removed
 	// files as we see .wh. layers and ignore those in previous layers.
 	for i := len(layers) - 1; i >= 0; i-- {
-		layer := layers[i]
-		layerReader, err := layer.Uncompressed()
-		if err != nil {
-			return fmt.Errorf("reading layer contents: %w", err)
-		}
-		defer layerReader.Close()
-		tarReader := tar.NewReader(layerReader)
-		for {
-			header, err := tarReader.Next()
-			if errors.Is(err, io.EOF) {
-				break
-			}
+		// enclose layer reading in a function/closure to close the layer reader on each
+		// iteration of the loop, rather than after the loop completes
+		err = func() error {
+			layer := layers[i]
+			layerReader, err := layer.Uncompressed()
 			if err != nil {
-				return fmt.Errorf("reading tar: %w", err)
+				return fmt.Errorf("reading layer contents: %w", err)
 			}
-
-			// Some tools prepend everything with "./", so if we don't Clean the
-			// name, we may have duplicate entries, which angers tar-split.
-			header.Name = filepath.Clean(header.Name)
-			// force PAX format to remove Name/Linkname length limit of 100 characters
-			// required by USTAR and to not depend on internal tar package guess which
-			// prefers USTAR over PAX
-			header.Format = tar.FormatPAX
-
-			basename := filepath.Base(header.Name)
-			dirname := filepath.Dir(header.Name)
-			tombstone := strings.HasPrefix(basename, whiteoutPrefix)
-			if tombstone {
-				basename = basename[len(whiteoutPrefix):]
-			}
-
-			// check if we have seen value before
-			// if we're checking a directory, don't filepath.Join names
-			var name string
-			if header.Typeflag == tar.TypeDir {
-				name = header.Name
-			} else {
-				name = filepath.Join(dirname, basename)
-			}
-
-			if _, ok := fileMap[name]; ok && !tombstone {
-				continue
-			}
-
-			// check for a whited out parent directory
-			if inWhiteoutDir(fileMap, name) {
-				continue
-			}
-
-			// mark file as handled. non-directory implicitly tombstones
-			// any entries with a matching (or child) name
-			fileMap[name] = tombstone || (header.Typeflag != tar.TypeDir)
-			if !tombstone {
-				if err := tarWriter.WriteHeader(header); err != nil {
-					return err
+			defer layerReader.Close()
+			tarReader := tar.NewReader(layerReader)
+			for {
+				header, err := tarReader.Next()
+				if errors.Is(err, io.EOF) {
+					break
 				}
-				if header.Size > 0 {
-					if _, err := io.CopyN(tarWriter, tarReader, header.Size); err != nil {
+				if err != nil {
+					return fmt.Errorf("reading tar: %w", err)
+				}
+
+				// Some tools prepend everything with "./", so if we don't Clean the
+				// name, we may have duplicate entries, which angers tar-split.
+				header.Name = filepath.Clean(header.Name)
+				// force PAX format to remove Name/Linkname length limit of 100 characters
+				// required by USTAR and to not depend on internal tar package guess which
+				// prefers USTAR over PAX
+				header.Format = tar.FormatPAX
+
+				basename := filepath.Base(header.Name)
+				dirname := filepath.Dir(header.Name)
+				tombstone := strings.HasPrefix(basename, whiteoutPrefix)
+				if tombstone {
+					basename = basename[len(whiteoutPrefix):]
+				}
+
+				// check if we have seen value before
+				// if we're checking a directory, don't filepath.Join names
+				var name string
+				if header.Typeflag == tar.TypeDir {
+					name = header.Name
+				} else {
+					name = filepath.Join(dirname, basename)
+				}
+
+				if _, ok := fileMap[name]; ok && !tombstone {
+					continue
+				}
+
+				// check for a whited out parent directory
+				if inWhiteoutDir(fileMap, name) {
+					continue
+				}
+
+				// mark file as handled. non-directory implicitly tombstones
+				// any entries with a matching (or child) name
+				fileMap[name] = tombstone || (header.Typeflag != tar.TypeDir)
+				if !tombstone {
+					if err := tarWriter.WriteHeader(header); err != nil {
 						return err
+					}
+					if header.Size > 0 {
+						if _, err := io.CopyN(tarWriter, tarReader, header.Size); err != nil {
+							return err
+						}
 					}
 				}
 			}
+			return nil
+		}()
+		if err != nil {
+			return err
 		}
 	}
 	return nil
