@@ -132,6 +132,15 @@ func TestDigestComponents(t *testing.T) {
 	if actualDigest != validDigest {
 		t.Errorf("DigestStr() was incorrect for %v. Wanted: `%s` Got: `%s`", digest, validDigest, actualDigest)
 	}
+
+	expectedTagStr := ""
+	expectedOk := false
+
+	tagStr, ok := digest.MaybeTagStr()
+	if tagStr != expectedTagStr || ok != expectedOk {
+		t.Errorf("MaybeTagStr() was incorrect for %v. Wanted: (`%s`, `%t`) Got: (`%s`, `%t`)", digest, expectedTagStr, expectedOk, tagStr, ok)
+	}
+
 }
 
 func TestDigestScopes(t *testing.T) {
@@ -151,6 +160,46 @@ func TestDigestScopes(t *testing.T) {
 	actualScope := digest.Scope(testAction)
 	if actualScope != expectedScope {
 		t.Errorf("scope was incorrect for %v. Wanted: `%s` Got: `%s`", digest, expectedScope, actualScope)
+	}
+}
+
+func TestMaybeTagStr(t *testing.T) {
+	t.Parallel()
+
+	testRegistry := "gcr.io"
+	testRepo := "project-id/image"
+	testTag := "1.0"
+
+	validations := map[string]Option{"strict": StrictValidation, "weak": WeakValidation}
+
+	digestNameStrWithTag := testRegistry + "/" + testRepo + ":" + testTag + "@" + validDigest
+	for valName, opt := range validations {
+		digest, err := NewDigest(digestNameStrWithTag, opt)
+		if err != nil {
+			t.Fatalf("`%s` should be a valid Digest name with validation: `%s`, got error: %v", digestNameStrWithTag, valName, err)
+		}
+
+		tagStr, ok := digest.MaybeTagStr()
+		expectedTagStr := testTag
+		expectedOk := true
+		if tagStr != expectedTagStr || ok != expectedOk {
+			t.Errorf("MaybeTagStr() was incorrect for %v with validation: `%s`. Wanted: (`%s`, `%t`) Got: (`%s`, `%t`)", digest, valName, expectedTagStr, expectedOk, tagStr, ok)
+		}
+	}
+
+	digestNameStrWithoutTag := testRegistry + "/" + testRepo + "@" + validDigest
+	for valName, opt := range validations {
+		digest, err := NewDigest(digestNameStrWithoutTag, opt)
+		if err != nil {
+			t.Fatalf("`%s` should be a valid Digest name with validation: `%s`, got error: %v", digestNameStrWithoutTag, valName, err)
+		}
+
+		tagStr, ok := digest.MaybeTagStr()
+		expectedTagStr := ""
+		expectedOk := false
+		if tagStr != expectedTagStr || ok != expectedOk {
+			t.Errorf("MaybeTagStr() was incorrect for %v with validation: `%s`. Wanted: (`%s`, `%t`) Got: (`%s`, `%t`)", digest, valName, expectedTagStr, expectedOk, tagStr, ok)
+		}
 	}
 }
 
