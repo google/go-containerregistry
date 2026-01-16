@@ -165,9 +165,11 @@ type blobs struct {
 	blobHandler BlobHandler
 
 	// Each upload gets a unique id that writes occur to until finalized.
-	uploads map[string][]byte
-	lock    sync.Mutex
-	log     *log.Logger
+	uploads         map[string][]byte
+	createdCallback func(repo string, digest v1.Hash)
+	deletedCallback func(repo string, digest v1.Hash)
+	lock            sync.Mutex
+	log             *log.Logger
 }
 
 func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
@@ -381,6 +383,9 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				}
 				return regErrInternal(err)
 			}
+			if b.createdCallback != nil {
+				b.createdCallback(repo, h)
+			}
 			resp.Header().Set("Docker-Content-Digest", h.String())
 			resp.WriteHeader(http.StatusCreated)
 			return nil
@@ -504,6 +509,9 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		}
 
 		delete(b.uploads, target)
+		if b.deletedCallback != nil {
+			b.deletedCallback(repo, h)
+		}
 		resp.Header().Set("Docker-Content-Digest", h.String())
 		resp.WriteHeader(http.StatusCreated)
 		return nil
