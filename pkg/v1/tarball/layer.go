@@ -130,6 +130,27 @@ func WithMediaType(mt types.MediaType) LayerOption {
 	}
 }
 
+// WithMediaType is a functional option for overriding the layer's diffID.
+func WithDiffID(diffID v1.Hash) LayerOption {
+	return func(l *layer) {
+		l.diffID = diffID
+	}
+}
+
+// WithDigest is a functional option for overriding the layer's digest.
+func WithDigest(digest v1.Hash) LayerOption {
+	return func(l *layer) {
+		l.digest = digest
+	}
+}
+
+// WithSize is a functional option for overriding the layer's size.
+func WithSize(size int64) LayerOption {
+	return func(l *layer) {
+		l.size = size
+	}
+}
+
 // WithCompressedCaching is a functional option that overrides the
 // logic for accessing the compressed bytes to memoize the result
 // and avoid expensive repeated gzips.
@@ -302,11 +323,13 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 		logs.Warn.Printf("Unexpected mediaType (%s) for selected compression in %s in LayerFromOpener().", layer.mediaType, layer.compression)
 	}
 
-	if layer.digest, layer.size, err = computeDigest(layer.compressedopener); err != nil {
-		return nil, err
+	empty := v1.Hash{}
+	if layer.digest == empty || layer.size == 0 {
+		if layer.digest, layer.size, err = computeDigest(layer.compressedopener); err != nil {
+			return nil, err
+		}
 	}
 
-	empty := v1.Hash{}
 	if layer.diffID == empty {
 		if layer.diffID, err = computeDiffID(layer.uncompressedopener); err != nil {
 			return nil, err
