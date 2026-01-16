@@ -245,6 +245,37 @@ func (f *fetcher) headManifest(ctx context.Context, ref name.Reference, acceptab
 	}, nil
 }
 
+// contextKey is a type for context keys used in this package
+type contextKey string
+
+const resumeOffsetKey contextKey = "resumeOffset"
+const resumeOffsetsKey contextKey = "resumeOffsets"
+
+// WithResumeOffset returns a context with the resume offset set for a single blob
+func WithResumeOffset(ctx context.Context, offset int64) context.Context {
+	return context.WithValue(ctx, resumeOffsetKey, offset)
+}
+
+// WithResumeOffsets returns a context with resume offsets for multiple blobs (keyed by digest)
+func WithResumeOffsets(ctx context.Context, offsets map[string]int64) context.Context {
+	return context.WithValue(ctx, resumeOffsetsKey, offsets)
+}
+
+// getResumeOffset retrieves the resume offset from context for a given digest
+func getResumeOffset(ctx context.Context, digest string) int64 {
+	// First check if there's a specific offset for this digest
+	if offsets, ok := ctx.Value(resumeOffsetsKey).(map[string]int64); ok {
+		if offset, found := offsets[digest]; found && offset > 0 {
+			return offset
+		}
+	}
+	// Fall back to single offset (for fetchBlob)
+	if offset, ok := ctx.Value(resumeOffsetKey).(int64); ok {
+		return offset
+	}
+	return 0
+}
+
 func (f *fetcher) fetchBlob(ctx context.Context, size int64, h v1.Hash) (io.ReadCloser, error) {
 	u := f.url("blobs", h.String())
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
@@ -252,23 +283,58 @@ func (f *fetcher) fetchBlob(ctx context.Context, size int64, h v1.Hash) (io.Read
 		return nil, err
 	}
 
+	// Check if we should resume from a specific offset
+	resumeOffset := getResumeOffset(ctx, h.String())
+	if resumeOffset > 0 {
+		// Add Range header to resume download
+		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", resumeOffset))
+	}
+
 	resp, err := f.client.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, redact.Error(err)
 	}
 
-	if err := transport.CheckError(resp, http.StatusOK); err != nil {
+	// Accept both 200 OK (full content) and 206 Partial Content (resumed)
+	if resumeOffset > 0 {
+		// If we requested a Range but got 200, the server doesn't support ranges
+		// We'll have to download from scratch
+		if resp.StatusCode == http.StatusOK {
+			// Server doesn't support range requests, will download full content
+			resumeOffset = 0
+		}
+	}
+
+	if err := transport.CheckError(resp, http.StatusOK, http.StatusPartialContent); err != nil {
 		resp.Body.Close()
 		return nil, err
 	}
 
-	// Do whatever we can.
-	// If we have an expected size and Content-Length doesn't match, return an error.
-	// If we don't have an expected size and we do have a Content-Length, use Content-Length.
+	// For partial content (resumed downloads), we can't verify the hash on the stream
+	// since we're only getting part of the file. The complete file will be verified
+	// after all bytes are written to disk.
+	if resumeOffset > 0 && resp.StatusCode == http.StatusPartialContent {
+		// Verify Content-Length matches expected remaining size
+		if hsize := resp.ContentLength; hsize != -1 {
+			if size != verify.SizeUnknown {
+				expectedRemaining := size - resumeOffset
+				if hsize != expectedRemaining {
+					resp.Body.Close()
+					return nil, fmt.Errorf("GET %s: Content-Length header %d does not match expected remaining size %d", u.String(), hsize, expectedRemaining)
+				}
+			}
+		}
+		// Return the body without verification - we'll verify the complete file later
+		return io.NopCloser(resp.Body), nil
+	}
+
+	// For full downloads, verify the stream
+	// Do whatever we can with size validation
 	if hsize := resp.ContentLength; hsize != -1 {
 		if size == verify.SizeUnknown {
 			size = hsize
 		} else if hsize != size {
+			resp.Body.Close()
 			return nil, fmt.Errorf("GET %s: Content-Length header %d does not match expected size %d", u.String(), hsize, size)
 		}
 	}
