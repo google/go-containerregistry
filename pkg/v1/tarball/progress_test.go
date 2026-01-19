@@ -45,7 +45,7 @@ func ExampleWithProgress() {
 		case update.Error != nil && errors.Is(update.Error, io.EOF):
 			fmt.Fprintf(os.Stderr, "receive error message: %v\n", err)
 			fmt.Printf("%d/%d", update.Complete, update.Total)
-			// Output: 4096/4096
+			// Output: 8192/8192
 			return
 		case update.Error != nil:
 			fmt.Printf("error writing tarball: %v\n", update.Error)

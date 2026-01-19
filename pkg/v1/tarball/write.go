@@ -28,7 +28,12 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
+
+const layoutFile = `{
+    "imageLayoutVersion": "1.0.0"
+}`
 
 // WriteToFile writes in the compressed format to a tarball, on disk.
 // This is just syntactic sugar wrapping tarball.Write with a new file.
@@ -99,12 +104,12 @@ func MultiRefWrite(refToImage map[name.Reference]v1.Image, w io.Writer, opts ...
 	}
 
 	imageToTags := dedupRefToImage(refToImage)
-	size, mBytes, err := getSizeAndManifest(imageToTags)
+	size, mBytes, iBytes, err := getSizeAndManifests(imageToTags)
 	if err != nil {
 		return sendUpdateReturn(o, err)
 	}
 
-	return writeImagesToTar(imageToTags, mBytes, size, w, o)
+	return writeImagesToTar(imageToTags, mBytes, iBytes, size, w, o)
 }
 
 // sendUpdateReturn return the passed in error message, also sending on update channel, if it exists
@@ -126,7 +131,7 @@ func sendProgressWriterReturn(pw *progressWriter, err error) error {
 }
 
 // writeImagesToTar writes the images to the tarball
-func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w io.Writer, o *writeOptions) (err error) {
+func writeImagesToTar(imageToTags map[v1.Image][]string, m, idx []byte, size int64, w io.Writer, o *writeOptions) (err error) {
 	if w == nil {
 		return sendUpdateReturn(o, errors.New("must pass valid writer"))
 	}
@@ -148,9 +153,40 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 	tf := tar.NewWriter(tw)
 	defer tf.Close()
 
+	if err := tf.WriteHeader(&tar.Header{
+		Name:     "blobs",
+		Mode:     0644,
+		Typeflag: tar.TypeDir,
+	}); err != nil {
+		return err
+	}
+
+	if err := tf.WriteHeader(&tar.Header{
+		Name:     "blobs/sha256",
+		Mode:     0644,
+		Typeflag: tar.TypeDir,
+	}); err != nil {
+		return err
+	}
+
 	seenLayerDigests := make(map[string]struct{})
 
 	for img := range imageToTags {
+		// Write the manifest.
+		dig, err := img.Digest()
+		if err != nil {
+			return sendProgressWriterReturn(pw, err)
+		}
+
+		mFile := fmt.Sprintf("blobs/%s/%s", dig.Algorithm, dig.Hex)
+		m, err := img.RawManifest()
+		if err != nil {
+			return sendProgressWriterReturn(pw, err)
+		}
+		if err := writeTarEntry(tf, mFile, bytes.NewReader(m), int64(len(m))); err != nil {
+			return sendProgressWriterReturn(pw, err)
+		}
+
 		// Write the config.
 		cfgName, err := img.ConfigName()
 		if err != nil {
@@ -160,7 +196,8 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 		if err != nil {
 			return sendProgressWriterReturn(pw, err)
 		}
-		if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		configFile := fmt.Sprintf("blobs/%s/%s", cfgName.Algorithm, cfgName.Hex)
+		if err := writeTarEntry(tf, configFile, bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 			return sendProgressWriterReturn(pw, err)
 		}
 
@@ -175,21 +212,13 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 			if err != nil {
 				return sendProgressWriterReturn(pw, err)
 			}
-			// Munge the file name to appease ancient technology.
-			//
-			// tar assumes anything with a colon is a remote tape drive:
-			// https://www.gnu.org/software/tar/manual/html_section/tar_45.html
-			// Drop the algorithm prefix, e.g. "sha256:"
-			hex := d.Hex
 
-			// gunzip expects certain file extensions:
-			// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
-			layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
+			layerFiles[i] = fmt.Sprintf("blobs/%s/%s", d.Algorithm, d.Hex)
 
-			if _, ok := seenLayerDigests[hex]; ok {
+			if _, ok := seenLayerDigests[d.Hex]; ok {
 				continue
 			}
-			seenLayerDigests[hex] = struct{}{}
+			seenLayerDigests[d.Hex] = struct{}{}
 
 			r, err := l.Compressed()
 			if err != nil {
@@ -205,7 +234,13 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 			}
 		}
 	}
+	if err := writeTarEntry(tf, "index.json", bytes.NewReader(idx), int64(len(idx))); err != nil {
+		return sendProgressWriterReturn(pw, err)
+	}
 	if err := writeTarEntry(tf, "manifest.json", bytes.NewReader(m), int64(len(m))); err != nil {
+		return sendProgressWriterReturn(pw, err)
+	}
+	if err := writeTarEntry(tf, "oci-layout", strings.NewReader(layoutFile), int64(len(layoutFile))); err != nil {
 		return sendProgressWriterReturn(pw, err)
 	}
 
@@ -230,6 +265,8 @@ func calculateManifest(imageToTags map[v1.Image][]string) (m Manifest, err error
 			return nil, err
 		}
 
+		configFile := fmt.Sprintf("blobs/%s/%s", cfgName.Algorithm, cfgName.Hex)
+
 		// Store foreign layer info.
 		layerSources := make(map[v1.Hash]v1.Descriptor)
 
@@ -244,16 +281,8 @@ func calculateManifest(imageToTags map[v1.Image][]string) (m Manifest, err error
 			if err != nil {
 				return nil, err
 			}
-			// Munge the file name to appease ancient technology.
-			//
-			// tar assumes anything with a colon is a remote tape drive:
-			// https://www.gnu.org/software/tar/manual/html_section/tar_45.html
-			// Drop the algorithm prefix, e.g. "sha256:"
-			hex := d.Hex
 
-			// gunzip expects certain file extensions:
-			// https://www.gnu.org/software/gzip/manual/html_node/Overview.html
-			layerFiles[i] = fmt.Sprintf("%s.tar.gz", hex)
+			layerFiles[i] = fmt.Sprintf("blobs/%s/%s", d.Algorithm, d.Hex)
 
 			// Add to LayerSources if it's a foreign layer.
 			desc, err := partial.BlobDescriptor(img, d)
@@ -271,7 +300,7 @@ func calculateManifest(imageToTags map[v1.Image][]string) (m Manifest, err error
 
 		// Generate the tar descriptor and write it.
 		m = append(m, Descriptor{
-			Config:       cfgName.String(),
+			Config:       configFile,
 			RepoTags:     tags,
 			Layers:       layerFiles,
 			LayerSources: layerSources,
@@ -286,34 +315,80 @@ func calculateManifest(imageToTags map[v1.Image][]string) (m Manifest, err error
 	return m, nil
 }
 
+// calculateIndex calculates the oci-layout style index
+func calculateIndex(imageToTags map[v1.Image][]string) (*v1.IndexManifest, error) {
+	if len(imageToTags) == 0 {
+		return nil, errors.New("set of images is empty")
+	}
+
+	idx := v1.IndexManifest{
+		SchemaVersion: 2,
+		MediaType:     types.OCIImageIndex,
+		Manifests:     make([]v1.Descriptor, 0, len(imageToTags)),
+	}
+
+	// TODO: Tags in here too.
+	for img := range imageToTags {
+		desc, err := partial.Descriptor(img)
+		if err != nil {
+			return nil, err
+		}
+
+		// Generate the tar descriptor and write it.
+		idx.Manifests = append(idx.Manifests, *desc)
+	}
+
+	// Sort by size because why not.
+	sort.Slice(idx.Manifests, func(i, j int) bool {
+		return idx.Manifests[i].Size < idx.Manifests[j].Size
+	})
+
+	return &idx, nil
+}
+
 // CalculateSize calculates the expected complete size of the output tar file
 func CalculateSize(refToImage map[name.Reference]v1.Image) (size int64, err error) {
 	imageToTags := dedupRefToImage(refToImage)
-	size, _, err = getSizeAndManifest(imageToTags)
+	size, _, _, err = getSizeAndManifests(imageToTags)
 	return size, err
 }
 
-func getSizeAndManifest(imageToTags map[v1.Image][]string) (int64, []byte, error) {
+func getSizeAndManifests(imageToTags map[v1.Image][]string) (int64, []byte, []byte, error) {
 	m, err := calculateManifest(imageToTags)
 	if err != nil {
-		return 0, nil, fmt.Errorf("unable to calculate manifest: %w", err)
+		return 0, nil, nil, fmt.Errorf("unable to calculate manifest: %w", err)
 	}
 	mBytes, err := json.Marshal(m)
 	if err != nil {
-		return 0, nil, fmt.Errorf("could not marshall manifest to bytes: %w", err)
+		return 0, nil, nil, fmt.Errorf("could not marshall manifest to bytes: %w", err)
 	}
 
-	size, err := calculateTarballSize(imageToTags, mBytes)
+	i, err := calculateIndex(imageToTags)
 	if err != nil {
-		return 0, nil, fmt.Errorf("error calculating tarball size: %w", err)
+		return 0, nil, nil, fmt.Errorf("calculating index: %w", err)
 	}
-	return size, mBytes, nil
+	iBytes, err := json.Marshal(i)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("marshaling index: %w", err)
+	}
+
+	size, err := calculateTarballSize(imageToTags, mBytes, iBytes)
+	if err != nil {
+		return 0, nil, nil, fmt.Errorf("error calculating tarball size: %w", err)
+	}
+	return size, mBytes, iBytes, nil
 }
 
 // calculateTarballSize calculates the size of the tar file
-func calculateTarballSize(imageToTags map[v1.Image][]string, mBytes []byte) (size int64, err error) {
+func calculateTarballSize(imageToTags map[v1.Image][]string, mBytes, iBytes []byte) (size int64, err error) {
 	seenLayerDigests := make(map[string]struct{})
 	for img, name := range imageToTags {
+		mSize, err := img.Size()
+		if err != nil {
+			return size, fmt.Errorf("unable to get manifest size for img %s: %w", name, err)
+		}
+		size += calculateSingleFileInTarSize(mSize)
+
 		manifest, err := img.Manifest()
 		if err != nil {
 			return size, fmt.Errorf("unable to get manifest for img %s: %w", name, err)
@@ -328,8 +403,14 @@ func calculateTarballSize(imageToTags map[v1.Image][]string, mBytes []byte) (siz
 			size += calculateSingleFileInTarSize(l.Size)
 		}
 	}
+
 	// add the manifest
 	size += calculateSingleFileInTarSize(int64(len(mBytes)))
+
+	// add OCI stuff
+	size += 1024 // for blobs/sha256 (if sha512 happens oh well this doesn't matter)
+	size += calculateSingleFileInTarSize(int64(len(layoutFile)))
+	size += calculateSingleFileInTarSize(int64(len(iBytes)))
 
 	// add the two padding blocks that indicate end of a tar file
 	size += 1024
