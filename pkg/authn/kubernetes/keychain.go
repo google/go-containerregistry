@@ -214,7 +214,7 @@ func NewFromPullSecrets(ctx context.Context, secrets []corev1.Secret) (authn.Key
 
 		}
 
-		// We reverse sort in to give more specific (aka longer) keys priority
+		// We reverse sort to give more specific (aka longer) keys priority
 		// when matching for creds
 		sort.Sort(sort.Reverse(sort.StringSlice(keyring.index)))
 	}
