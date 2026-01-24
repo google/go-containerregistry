@@ -113,3 +113,13 @@ func TestTextMarshalling(t *testing.T) {
 		t.Errorf("mismatched hash: %s != %s", h, g)
 	}
 }
+
+func BenchmarkNewHash(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		_, err := NewHash("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
