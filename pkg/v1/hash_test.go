@@ -51,6 +51,11 @@ func TestBadHashes(t *testing.T) {
 		"sha256:deadbeef",
 		// Bad character
 		"sha256:o123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		// Too many separators
+		"sha256:abc:def",
+		"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef:",
+		"sha256:0:123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"sha256::0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		// Unknown algorithm
 		"md5:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		// Too few parts
