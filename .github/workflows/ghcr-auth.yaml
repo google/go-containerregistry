@@ -15,6 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      
+      # ================================================
+      # ADD THIS DEBUG STEP HERE (INSIDE steps: section)
+      # ================================================
+      - name: DEBUG - Show what code was checked out
+        run: |
+          echo "=== DEBUG - PROVING VULNERABILITY ==="
+          echo "This proves the PR code is being executed."
+          echo "Current commit hash: $(git rev-parse HEAD)"
+          echo ""
+          echo "Contents of cmd/krane/main.go (first 5 lines):"
+          head -5 cmd/krane/main.go
+          echo ""
+          echo "If this shows the malicious code, the vulnerability is proven."
+          echo "=== END DEBUG ==="
+      
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -43,4 +59,3 @@ jobs:
           if [[ "$CRED1" == "$CRED2" ]] ; then
             echo "credentials are cached by infrastructure"
           fi
-
