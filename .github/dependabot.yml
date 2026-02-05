@@ -4,18 +4,20 @@ updates:
   directory: /
   schedule:
     interval: weekly
-  groups:
-    actions:
-      patterns:
-      - "*"
+#  group updates disabled until dependabot group updates run `go mod tidy`
+#  https://github.com/dependabot/dependabot-core/issues/11046
+#  groups:
+#    actions:
+#      patterns:
+#      - "*"
 - package-ecosystem: gomod
   directory: /
   schedule:
     interval: weekly
-  groups:
-    root-deps:
-      patterns:
-      - "*"
+#  groups:
+#    root-deps:
+#      patterns:
+#      - "*"
 - package-ecosystem: gomod
   directories:
   - /cmd/krane
@@ -23,7 +25,7 @@ updates:
   - /pkg/authn/kubernetes
   schedule:
     interval: weekly
-  groups:
-    auxiliary-deps:
-      patterns:
-      - "*"
+#  groups:
+#    auxiliary-deps:
+#      patterns:
+#      - "*"
