@@ -32,6 +32,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	var (
 		cachePath, format string
 		annotateRef       bool
+		resumable         bool
 	)
 
 	cmd := &cobra.Command{
@@ -47,6 +48,10 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 				ref, err := name.ParseReference(src, o.Name...)
 				if err != nil {
 					return fmt.Errorf("parsing reference %q: %w", src, err)
+				}
+
+				if resumable {
+					o.Remote = append(o.Remote, remote.WithResumable())
 				}
 
 				rmt, err := remote.Get(ref, o.Remote...)
@@ -133,6 +138,7 @@ func NewCmdPull(options *[]crane.Option) *cobra.Command {
 	cmd.Flags().StringVarP(&cachePath, "cache_path", "c", "", "Path to cache image layers")
 	cmd.Flags().StringVar(&format, "format", "tarball", fmt.Sprintf("Format in which to save images (%q, %q, or %q)", "tarball", "legacy", "oci"))
 	cmd.Flags().BoolVar(&annotateRef, "annotate-ref", false, "Preserves image reference used to pull as an annotation when used with --format=oci")
+	cmd.Flags().BoolVar(&resumable, "resumable", false, "Enable resumable transport for pulling images")
 
 	return cmd
 }
