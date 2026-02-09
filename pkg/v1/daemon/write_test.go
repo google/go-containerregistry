@@ -22,8 +22,8 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
+	api "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/client"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
