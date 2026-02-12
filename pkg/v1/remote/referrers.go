@@ -18,10 +18,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 
+	"github.com/google/go-containerregistry/internal/limitio"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -29,6 +29,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
+
+const maxReferrersBytes = 4 * 1024 * 1024
 
 // Referrers returns a list of descriptors that refer to the given manifest digest.
 //
@@ -67,7 +69,7 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 
 	var b []byte
 	if resp.StatusCode == http.StatusOK && resp.Header.Get("Content-Type") == string(types.OCIImageIndex) {
-		b, err = io.ReadAll(resp.Body)
+		b, err = limitio.ReadAll(resp.Body, maxReferrersBytes)
 		if err != nil {
 			return nil, err
 		}

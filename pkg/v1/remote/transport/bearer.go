@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -28,6 +27,7 @@ import (
 
 	authchallenge "github.com/docker/distribution/registry/client/auth/challenge"
 
+	"github.com/google/go-containerregistry/internal/limitio"
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -40,6 +40,8 @@ type Token struct {
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int    `json:"expires_in"`
 }
+
+const maxTokenBytes = 4 * 1024 * 1024
 
 // Exchange requests a registry Token with the given scopes.
 func Exchange(ctx context.Context, reg name.Registry, auth authn.Authenticator, t http.RoundTripper, scopes []string, pr *Challenge) (*Token, error) {
@@ -359,7 +361,7 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(resp.Body)
+	return limitio.ReadAll(resp.Body, maxTokenBytes)
 }
 
 // https://docs.docker.com/registry/spec/auth/token/
@@ -403,5 +405,5 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(resp.Body)
+	return limitio.ReadAll(resp.Body, maxTokenBytes)
 }
