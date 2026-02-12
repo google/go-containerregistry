@@ -17,6 +17,7 @@ package remote
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -195,6 +196,9 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 		urls = append(urls, *u)
 	}
 
+	// Check if we should resume from a specific offset
+	resumeOffset := getResumeOffset(ctx, rl.digest.String())
+
 	// The lastErr for most pulls will be the same (the first error), but for
 	// foreign layers we'll want to surface the last one, since we try to pull
 	// from the registry first, which would often fail.
@@ -206,18 +210,46 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 			return nil, err
 		}
 
+		// Add Range header for resumable downloads
+		if resumeOffset > 0 {
+			req.Header.Set("Range", fmt.Sprintf("bytes=%d-", resumeOffset))
+		}
+
 		resp, err := rl.ri.fetcher.Do(req.WithContext(ctx))
 		if err != nil {
 			lastErr = err
 			continue
 		}
 
-		if err := transport.CheckError(resp, http.StatusOK); err != nil {
+		// Accept both 200 OK (full content) and 206 Partial Content (resumed)
+		if err := transport.CheckError(resp, http.StatusOK, http.StatusPartialContent); err != nil {
 			resp.Body.Close()
 			lastErr = err
 			continue
 		}
 
+		// If we requested a range but got 200, server doesn't support ranges
+		// We'll get the full content
+		if resumeOffset > 0 && resp.StatusCode == http.StatusOK {
+			resumeOffset = 0
+		}
+
+		// For partial content (resumed downloads), we can't verify the hash on the stream
+		// since we're only getting part of the file. The complete file will be verified
+		// after all bytes are written to disk.
+		if resumeOffset > 0 && resp.StatusCode == http.StatusPartialContent {
+			// Verify we got the expected remaining size
+			expectedRemaining := d.Size - resumeOffset
+			if resp.ContentLength != -1 && resp.ContentLength != expectedRemaining {
+				resp.Body.Close()
+				lastErr = fmt.Errorf("partial content size mismatch: got %d, expected %d", resp.ContentLength, expectedRemaining)
+				continue
+			}
+			// Return the body without verification - we'll verify the complete file later
+			return io.NopCloser(resp.Body), nil
+		}
+
+		// For full downloads, verify the stream
 		return verify.ReadCloser(resp.Body, d.Size, rl.digest)
 	}
 
