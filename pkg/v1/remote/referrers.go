@@ -17,7 +17,9 @@ package remote
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -46,6 +48,63 @@ func fallbackTag(d name.Digest) name.Tag {
 	return d.Context().Tag(strings.Replace(d.DigestStr(), ":", "-", 1))
 }
 
+func filterByArtifactType(filter map[string]string, in []v1.Descriptor) []v1.Descriptor {
+	if filter == nil {
+		return in
+	}
+	v, ok := filter["artifactType"]
+	if !ok {
+		return in
+	}
+	out := make([]v1.Descriptor, 0, len(in))
+	for _, desc := range in {
+		if desc.ArtifactType == v {
+			out = append(out, desc)
+		}
+	}
+	return out
+}
+
+func (f *fetcher) filterReferrersBySubjectBinding(ctx context.Context, subject name.Digest, manifests []v1.Descriptor) []v1.Descriptor {
+	out := make([]v1.Descriptor, 0, len(manifests))
+	for _, desc := range manifests {
+		ref := subject.Context().Digest(desc.Digest.String())
+		acceptable := acceptableImageMediaTypes
+		switch desc.MediaType {
+		case types.OCIImageIndex, types.DockerManifestList:
+			acceptable = acceptableIndexMediaTypes
+		}
+
+		manifest, _, err := f.fetchManifest(ctx, ref, acceptable)
+		if err != nil {
+			continue
+		}
+
+		if mf, err := v1.ParseManifest(bytes.NewReader(manifest)); err == nil {
+			if mf.Subject == nil {
+				continue
+			}
+			if mf.Subject.Digest.String() != subject.DigestStr() {
+				continue
+			}
+			out = append(out, desc)
+			continue
+		}
+
+		if im, err := v1.ParseIndexManifest(bytes.NewReader(manifest)); err == nil {
+			if im.Subject == nil {
+				continue
+			}
+			if im.Subject.Digest.String() != subject.DigestStr() {
+				continue
+			}
+			out = append(out, desc)
+			continue
+		}
+	}
+	return out
+}
+
 func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, d name.Digest) (v1.ImageIndex, error) {
 	// Check the Referrers API endpoint first.
 	u := f.url("referrers", d.DigestStr())
@@ -66,11 +125,13 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 	}
 
 	var b []byte
+	usingReferrersAPI := false
 	if resp.StatusCode == http.StatusOK && resp.Header.Get("Content-Type") == string(types.OCIImageIndex) {
 		b, err = io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, err
 		}
+		usingReferrersAPI = true
 	} else {
 		// The registry doesn't support the Referrers API endpoint, so we'll use the fallback tag scheme.
 		b, _, err = f.fetchManifest(ctx, fallbackTag(d), []types.MediaType{types.OCIImageIndex})
@@ -83,6 +144,34 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 		}
 	}
 
+	ref := name.Reference(d)
+	if !usingReferrersAPI {
+		ref = fallbackTag(d)
+	}
+
+	if usingReferrersAPI {
+		im, err := v1.ParseIndexManifest(bytes.NewReader(b))
+		if err != nil {
+			return nil, err
+		}
+
+		// If the referrers index includes a subject, ensure it matches what we asked for.
+		if im.Subject != nil && im.Subject.Digest.String() != d.DigestStr() {
+			return nil, fmt.Errorf("referrers index subject digest %q does not match requested digest %q", im.Subject.Digest.String(), d.DigestStr())
+		}
+
+		// Apply cheap filtering before any network-dependent validation.
+		im.Manifests = filterByArtifactType(filter, im.Manifests)
+
+		// Defensively validate subject binding for each returned referrer manifest.
+		im.Manifests = f.filterReferrersBySubjectBinding(ctx, d, im.Manifests)
+
+		b, err = json.Marshal(im)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	h, sz, err := v1.SHA256(bytes.NewReader(b))
 	if err != nil {
 		return nil, err
@@ -90,6 +179,7 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 	idx := &remoteIndex{
 		fetcher:   *f,
 		ctx:       ctx,
+		ref:       ref,
 		manifest:  b,
 		mediaType: types.OCIImageIndex,
 		descriptor: &v1.Descriptor{
