@@ -59,7 +59,7 @@ type BlobHandler interface {
 // backend that can serve metadata about blobs.
 type BlobStatHandler interface {
 	// Stat returns the size of the blob, or errNotFound if the blob wasn't
-	// found, or redirectError if the blob can be found elsewhere.
+	// found, or RedirectError if the blob can be found elsewhere.
 	Stat(ctx context.Context, repo string, h v1.Hash) (int64, error)
 }
 
@@ -82,10 +82,10 @@ type BlobDeleteHandler interface {
 	Delete(ctx context.Context, repo string, h v1.Hash) error
 }
 
-// redirectError represents a signal that the blob handler doesn't have the blob
+// RedirectError represents a signal that the blob handler doesn't have the blob
 // contents, but that those contents are at another location which registry
 // clients should redirect to.
-type redirectError struct {
+type RedirectError struct {
 	// Location is the location to find the contents.
 	Location string
 
@@ -101,7 +101,7 @@ func (r *bytesCloser) Close() error {
 	return nil
 }
 
-func (e redirectError) Error() string { return fmt.Sprintf("redirecting (%d): %s", e.Code, e.Location) }
+func (e RedirectError) Error() string { return fmt.Sprintf("redirecting (%d): %s", e.Code, e.Location) }
 
 // errNotFound represents an error locating the blob.
 var errNotFound = errors.New("not found")
@@ -209,7 +209,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
-				var rerr redirectError
+				var rerr RedirectError
 				if errors.As(err, &rerr) {
 					http.Redirect(resp, req, rerr.Location, rerr.Code)
 					return nil
@@ -221,7 +221,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
-				var rerr redirectError
+				var rerr RedirectError
 				if errors.As(err, &rerr) {
 					http.Redirect(resp, req, rerr.Location, rerr.Code)
 					return nil
@@ -257,7 +257,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
-				var rerr redirectError
+				var rerr RedirectError
 				if errors.As(err, &rerr) {
 					http.Redirect(resp, req, rerr.Location, rerr.Code)
 					return nil
@@ -269,7 +269,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
-				var rerr redirectError
+				var rerr RedirectError
 				if errors.As(err, &rerr) {
 					http.Redirect(resp, req, rerr.Location, rerr.Code)
 					return nil
@@ -286,7 +286,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			if errors.Is(err, errNotFound) {
 				return regErrBlobUnknown
 			} else if err != nil {
-				var rerr redirectError
+				var rerr RedirectError
 				if errors.As(err, &rerr) {
 					http.Redirect(resp, req, rerr.Location, rerr.Code)
 					return nil
