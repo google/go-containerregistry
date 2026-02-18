@@ -23,6 +23,14 @@ linters:
           deny:
             - pkg: crypto/sha256
               desc: use crypto.SHA256 instead
+    revive:
+      enable-default-rules: true
+      rules:
+        - name: var-naming
+          arguments:
+          - []
+          - []
+          - - skip-package-name-checks: true
   exclusions:
     generated: lax
     presets:
