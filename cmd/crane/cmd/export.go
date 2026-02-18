@@ -40,7 +40,7 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
   # Read image from stdin
   crane export - ubuntu.tar`,
 		Args: cobra.RangeArgs(1, 2),
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) (err error) {
 			src, dst := args[0], "-"
 			if len(args) > 1 {
 				dst = args[1]
@@ -50,7 +50,12 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to open %s: %w", dst, err)
 			}
-			defer f.Close()
+			defer func() {
+				f.Close()
+				if err != nil {
+					os.Remove(f.Name())
+				}
+			}()
 
 			var img v1.Image
 			if src == "-" {
