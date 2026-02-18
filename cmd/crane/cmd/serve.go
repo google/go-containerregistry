@@ -89,7 +89,7 @@ Contents are can be stored in memory (when the process exits, pushed data is los
 				ReadHeaderTimeout: 5 * time.Second, // prevent slowloris, quiet linter
 				Handler:           registry.New(registry.WithBlobHandler(bh)),
 			}
-			log.Printf("serving on port %s", port)
+			log.Printf("serving on port %s", port) //nolint:gosec
 
 			errCh := make(chan error)
 			go func() { errCh <- s.Serve(listener) }()
