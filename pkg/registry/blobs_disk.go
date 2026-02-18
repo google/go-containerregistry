@@ -37,7 +37,7 @@ func (m *diskHandler) blobHashPath(h v1.Hash) string {
 func (m *diskHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error) {
 	fi, err := os.Stat(m.blobHashPath(h))
 	if errors.Is(err, os.ErrNotExist) {
-		return 0, errNotFound
+		return 0, ErrNotFound
 	} else if err != nil {
 		return 0, err
 	}
