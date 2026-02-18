@@ -476,7 +476,7 @@ func TestPullingManifestList(t *testing.T) {
 	}
 
 	if diff := cmp.Diff(*desc.Platform, fakePlatform); diff != "" {
-		t.Errorf("Desciptor() (-want +got) = %v", diff)
+		t.Errorf("Descriptor() (-want +got) = %v", diff)
 	}
 }
 
