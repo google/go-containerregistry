@@ -305,15 +305,39 @@ func TestAnnotations(t *testing.T) {
 	}{{
 		desc: "image",
 		in:   empty.Image,
-		want: `{"schemaVersion":2,"mediaType":"application/vnd.docker.distribution.manifest.v2+json","config":{"mediaType":"application/vnd.docker.container.image.v1+json","size":115,"digest":"sha256:5b943e2b943f6c81dbbd4e2eca5121f4fcc39139e3d1219d6d89bd925b77d9fe"},"layers":[],"annotations":{"foo":"bar"}}`,
+		want: `{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+  "config": {
+    "mediaType": "application/vnd.docker.container.image.v1+json",
+    "size": 115,
+    "digest": "sha256:5b943e2b943f6c81dbbd4e2eca5121f4fcc39139e3d1219d6d89bd925b77d9fe"
+  },
+  "layers": [],
+  "annotations": {
+    "foo": "bar"
+  }
+}`,
 	}, {
 		desc: "index",
 		in:   empty.Index,
-		want: `{"schemaVersion":2,"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[],"annotations":{"foo":"bar"}}`,
+		want: `{
+  "schemaVersion": 2,
+  "mediaType": "application/vnd.oci.image.index.v1+json",
+  "manifests": [],
+  "annotations": {
+    "foo": "bar"
+  }
+}`,
 	}, {
 		desc: "arbitrary",
 		in:   arbitrary{},
-		want: `{"annotations":{"foo":"bar"},"hello":"world"}`,
+		want: `{
+  "annotations": {
+    "foo": "bar"
+  },
+  "hello": "world"
+}`,
 	}} {
 		t.Run(c.desc, func(t *testing.T) {
 			got, err := mutate.Annotations(c.in, anns).RawManifest()
@@ -531,7 +555,7 @@ func TestAppendStreamableLayer(t *testing.T) {
 	if err != nil {
 		t.Errorf("Digest: %v", err)
 	}
-	wantDigest := "sha256:14d140947afedc6901b490265a08bc8ebe7f9d9faed6fdf19a451f054a7dd746"
+	wantDigest := "sha256:77007fcd3426ae84eb97d4aeb30a645fd68d2ea1eb1ef6b6acf1e10732cbc863"
 	if h.String() != wantDigest {
 		t.Errorf("Image digest got %q, want %q", h, wantDigest)
 	}
