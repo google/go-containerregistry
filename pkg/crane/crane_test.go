@@ -395,7 +395,7 @@ func TestCraneSaveLegacy(t *testing.T) {
 	}
 
 	if err := crane.SaveLegacy(img, "test/crane", tmp.Name()); err != nil {
-		t.Errorf("SaveOCI: %v", err)
+		t.Errorf("SaveLegacy: %v", err)
 	}
 }
 
@@ -409,7 +409,7 @@ func TestCraneSaveOCI(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := crane.SaveOCI(img, tmp); err != nil {
-		t.Errorf("SaveLegacy: %v", err)
+		t.Errorf("SaveOCI: %v", err)
 	}
 }
 
