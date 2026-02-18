@@ -229,7 +229,7 @@ func (l Path) writeBlob(hash v1.Hash, size int64, rc io.ReadCloser, renamer func
 	if renamer != nil {
 		// Delete temp file if an error is encountered before renaming
 		defer func() {
-			if err := os.Remove(w.Name()); err != nil && !errors.Is(err, os.ErrNotExist) {
+			if err := os.Remove(w.Name()); err != nil && !errors.Is(err, os.ErrNotExist) { //nolint:gosec
 				logs.Warn.Printf("error removing temporary file after encountering an error while writing blob: %v", err)
 			}
 		}()
@@ -269,7 +269,7 @@ func (l Path) writeBlob(hash v1.Hash, size int64, rc io.ReadCloser, renamer func
 		renameMutex.Lock()
 		defer renameMutex.Unlock()
 	}
-	return os.Rename(w.Name(), renamePath)
+	return os.Rename(w.Name(), renamePath) //nolint:gosec
 }
 
 // writeLayer writes the compressed layer to a blob. Unlike WriteBlob it will

@@ -23,6 +23,10 @@ linters:
           deny:
             - pkg: crypto/sha256
               desc: use crypto.SHA256 instead
+    gosec:
+      excludes:
+        - G117 # Exported sensitive fields
+        - G704 # SSRF taint (raised when constructing URLs)
     revive:
       enable-default-rules: true
       rules:

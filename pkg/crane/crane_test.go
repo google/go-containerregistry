@@ -273,11 +273,12 @@ func TestWithPlatform(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	imgs := []mutate.IndexAddendum{}
-	for _, plat := range []string{
+	plats := []string{
 		"linux/amd64",
 		"linux/arm",
-	} {
+	}
+	imgs := make([]mutate.IndexAddendum, 0, len(plats))
+	for _, plat := range plats {
 		img, err := crane.Image(map[string][]byte{
 			"platform.txt": []byte(plat),
 		})
