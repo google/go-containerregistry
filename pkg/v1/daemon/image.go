@@ -19,6 +19,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -41,16 +42,6 @@ type image struct {
 
 	once sync.Once
 	err  error
-}
-
-// Close removes the temporary file created by WithFileBufferedOpener.
-// For other buffer modes this is a no-op. Callers should type-assert
-// the v1.Image to io.Closer to call this method.
-func (i *image) Close() error {
-	if i.opener.tmpPath != "" {
-		return os.Remove(i.opener.tmpPath)
-	}
-	return nil
 }
 
 type imageOpener struct {
@@ -112,6 +103,12 @@ func (i *imageOpener) fileBackedOpener() (io.ReadCloser, error) {
 		}
 		f.Close()
 		i.tmpPath = f.Name()
+
+		// Best-effort cleanup in case callers forget to Close the image.
+		runtime.AddCleanup(i, func(path string) {
+			// Ignore errors (e.g., already removed by Close()).
+			_ = os.Remove(path)
+		}, i.tmpPath)
 	})
 
 	if i.err != nil {

@@ -238,14 +238,6 @@ func TestImageFileBuffered(t *testing.T) {
 		if _, err := os.Stat(img.opener.tmpPath); err != nil {
 			t.Fatalf("temp file should exist: %v", err)
 		}
-
-		// Close should remove the temp file.
-		if err := img.Close(); err != nil {
-			t.Fatalf("Close(): %v", err)
-		}
-		if _, err := os.Stat(img.opener.tmpPath); !os.IsNotExist(err) {
-			t.Errorf("temp file should be removed after Close(), got err: %v", err)
-		}
 	})
 
 	t.Run("save error", func(t *testing.T) {
@@ -291,27 +283,6 @@ func TestImageFileBuffered(t *testing.T) {
 		}
 	})
 
-	t.Run("close noop for other modes", func(t *testing.T) {
-		mc := &MockClient{
-			path:        imagePath,
-			inspectResp: inspectResp,
-		}
-
-		tag, err := name.NewTag("unused", name.WeakValidation)
-		if err != nil {
-			t.Fatalf("error creating test name: %s", err)
-		}
-
-		for _, opt := range []Option{WithBufferedOpener(), WithUnbufferedOpener()} {
-			dmn, err := Image(tag, WithClient(mc), opt)
-			if err != nil {
-				t.Fatalf("Image(): %v", err)
-			}
-			if err := dmn.(*image).Close(); err != nil {
-				t.Errorf("Close() should be no-op, got: %v", err)
-			}
-		}
-	})
 }
 
 func TestImageDefaultClient(t *testing.T) {

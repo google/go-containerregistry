@@ -86,9 +86,8 @@ func WithUnbufferedOpener() Option {
 
 // WithFileBufferedOpener buffers the image to a temporary file on disk.
 // This avoids holding the entire image in memory while still only
-// performing a single image save. Callers should type-assert the
-// returned v1.Image to io.Closer and call Close() to remove the
-// temporary file when done.
+// performing a single image save. The temporary file is cleaned up via
+// runtime.AddCleanup on the imageOpener.
 func WithFileBufferedOpener() Option {
 	return func(o *options) {
 		o.bufferMode = bufferFile
