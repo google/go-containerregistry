@@ -105,6 +105,7 @@ func (i *imageOpener) fileBackedOpener() (io.ReadCloser, error) {
 
 		if _, err := io.Copy(f, rc); err != nil {
 			f.Close()
+			// #nosec G703 -- f is created via os.CreateTemp; path is not user-controlled.
 			os.Remove(f.Name())
 			i.err = err
 			return
