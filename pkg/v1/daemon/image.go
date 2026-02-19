@@ -96,7 +96,6 @@ func (i *imageOpener) fileBackedOpener() (io.ReadCloser, error) {
 
 		if _, err := io.Copy(f, rc); err != nil {
 			f.Close()
-			// #nosec G703 -- f is created via os.CreateTemp; path is not user-controlled.
 			os.Remove(f.Name())
 			i.err = err
 			return
@@ -104,9 +103,7 @@ func (i *imageOpener) fileBackedOpener() (io.ReadCloser, error) {
 		f.Close()
 		i.tmpPath = f.Name()
 
-		// Best-effort cleanup in case callers forget to Close the image.
 		runtime.AddCleanup(i, func(path string) {
-			// Ignore errors (e.g., already removed by Close()).
 			_ = os.Remove(path)
 		}, i.tmpPath)
 	})
