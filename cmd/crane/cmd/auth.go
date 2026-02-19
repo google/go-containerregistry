@@ -271,7 +271,7 @@ func login(opts loginOptions) error {
 	if err := cf.Save(); err != nil {
 		return err
 	}
-	log.Printf("logged in via %s", cf.Filename) //nolint:gosec
+	log.Printf("logged in via %s", cf.Filename)
 	return nil
 }
 
@@ -307,7 +307,7 @@ func NewCmdAuthLogout(argv ...string) *cobra.Command {
 			if err := cf.Save(); err != nil {
 				return err
 			}
-			log.Printf("logged out via %s", cf.Filename) //nolint:gosec
+			log.Printf("logged out via %s", cf.Filename)
 			return nil
 		},
 	}

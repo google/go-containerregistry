@@ -48,7 +48,7 @@ func Authorization(ctx context.Context, authn Authenticator) (*AuthConfig, error
 // Inlined what we use from github.com/docker/cli/cli/config/types
 type AuthConfig struct {
 	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"` //nolint:gosec
+	Password string `json:"password,omitempty"`
 	Auth     string `json:"auth,omitempty"`
 
 	// IdentityToken is used to authenticate the user and get
