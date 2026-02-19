@@ -18,6 +18,7 @@ crane [flags]
 
 ### SEE ALSO
 
+* [crane annotate](crane_annotate.md)	 - Modify image or index annotations. The manifest is updated there on the registry.
 * [crane append](crane_append.md)	 - Append contents of a tarball to a remote image
 * [crane auth](crane_auth.md)	 - Log in or access credentials
 * [crane blob](crane_blob.md)	 - Read a blob from the registry
