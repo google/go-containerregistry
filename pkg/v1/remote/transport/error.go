@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -189,6 +190,8 @@ func retryError(resp *http.Response) error {
 	if err != nil {
 		return err
 	}
+	_ = resp.Body.Close()
+	resp.Body = io.NopCloser(bytes.NewReader(b))
 
 	rerr := makeError(resp, b)
 	rerr.temporary = true
