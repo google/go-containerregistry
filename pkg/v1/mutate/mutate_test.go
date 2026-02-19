@@ -28,6 +28,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
@@ -220,6 +221,10 @@ func TestAppendLayers(t *testing.T) {
 		t.Fatalf("failed to append a layer: %v", err)
 	}
 
+	if !canGetLayerByDiffID(t, layer, result) {
+		t.Fatal("could not get layer by diffID before fetching manifest, config, or layers")
+	}
+
 	if manifestsAreEqual(t, source, result) {
 		t.Fatal("appending a layer did not mutate the manifest")
 	}
@@ -246,6 +251,12 @@ func TestAppendLayers(t *testing.T) {
 	if err := validate.Image(result); err != nil {
 		t.Errorf("validate.Image() = %v", err)
 	}
+}
+
+func canGetLayerByDiffID(t *testing.T, layer v1.Layer, result v1.Image) bool {
+	diffID := getDiffID(t, layer)
+	_, err := result.LayerByDiffID(diffID)
+	return err == nil
 }
 
 func TestMutateConfig(t *testing.T) {
@@ -718,6 +729,17 @@ func getLayers(t *testing.T, i v1.Image) []v1.Layer {
 	}
 
 	return l
+}
+
+func getDiffID(t *testing.T, l v1.Layer) v1.Hash {
+	t.Helper()
+
+	diffID, err := l.DiffID()
+	if err != nil {
+		t.Fatalf("Error fetching layer diffID: %v", err)
+	}
+
+	return diffID
 }
 
 func getConfigFile(t *testing.T, i v1.Image) *v1.ConfigFile {
