@@ -75,6 +75,12 @@ func pingSingle(ctx context.Context, reg name.Registry, t http.RoundTripper, sch
 		resp.Body.Close()
 	}()
 
+	// Check actual registry scheme detected, in case of redirecting to different scheme,
+	// update the scheme so subsequent logic (and the returned Challenge) reflects it.
+	if resp.Request != nil && resp.Request.URL != nil && resp.Request.URL.Scheme != "" {
+		scheme = resp.Request.URL.Scheme
+	}
+
 	insecure := scheme == "http"
 
 	switch resp.StatusCode {

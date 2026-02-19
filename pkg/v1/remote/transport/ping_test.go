@@ -231,6 +231,36 @@ func TestPingHttpFallback(t *testing.T) {
 	}
 }
 
+func TestPingHttpFixture(t *testing.T) {
+	var httpsPassed atomic.Bool
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			httpsPassed.Store(true)
+			time.Sleep(time.Second * 3)
+			w.WriteHeader(http.StatusOK)
+		}))
+	defer server.Close()
+
+	tprt := &http.Transport{
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			if httpsPassed.Load() {
+				return http.ProxyFromEnvironment(req)
+			}
+
+			return url.Parse(server.URL)
+		},
+	}
+
+	challenge, err := Ping(context.Background(), mustInsecureRegistry("us.gcr.io"), tprt)
+	if err != nil {
+		t.Fatalf("Ping(): %v", err)
+	}
+
+	if challenge.Insecure {
+		t.Fatalf("Insecure fixture is not working")
+	}
+}
+
 func mustRegistry(r string) name.Registry {
 	reg, err := name.NewRegistry(r)
 	if err != nil {
