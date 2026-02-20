@@ -282,7 +282,6 @@ func TestImageFileBuffered(t *testing.T) {
 			t.Errorf("expected read error, got: %v", err)
 		}
 	})
-
 }
 
 func TestImageDefaultClient(t *testing.T) {

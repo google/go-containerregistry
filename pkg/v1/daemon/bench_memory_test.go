@@ -43,11 +43,6 @@ func loadAndAccess(t *testing.T, opts ...Option) {
 		t.Fatalf("Layers: %v", err)
 	}
 	t.Logf("loaded %d layers", len(layers))
-
-	// Clean up if file-backed.
-	if c, ok := img.(io.Closer); ok {
-		defer c.Close()
-	}
 }
 
 func TestBenchMemoryBacked(t *testing.T) {
