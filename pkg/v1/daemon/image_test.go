@@ -201,6 +201,89 @@ func TestImage(t *testing.T) {
 	}
 }
 
+func TestImageFileBuffered(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mc := &MockClient{
+			path:        imagePath,
+			inspectResp: inspectResp,
+		}
+
+		tag, err := name.NewTag("unused", name.WeakValidation)
+		if err != nil {
+			t.Fatalf("error creating test name: %s", err)
+		}
+
+		ref, err := tarball.ImageFromPath(imagePath, nil)
+		if err != nil {
+			t.Fatalf("error loading test image: %s", err)
+		}
+
+		dmn, err := Image(tag, WithClient(mc), WithFileBufferedOpener())
+		if err != nil {
+			t.Fatalf("Image(): %v", err)
+		}
+
+		if err := compare.Images(ref, dmn); err != nil {
+			t.Errorf("compare.Images: %v", err)
+		}
+		if err := validate.Image(dmn); err != nil {
+			t.Errorf("validate.Image: %v", err)
+		}
+
+		// The concrete *image should have a temp file after access.
+		img := dmn.(*image)
+		if img.opener.tmpPath == "" {
+			t.Fatal("expected tmpPath to be set after image access")
+		}
+		if _, err := os.Stat(img.opener.tmpPath); err != nil {
+			t.Fatalf("temp file should exist: %v", err)
+		}
+	})
+
+	t.Run("save error", func(t *testing.T) {
+		mc := &MockClient{
+			saveBody:    io.NopCloser(strings.NewReader("Loaded")),
+			saveErr:     fmt.Errorf("save failed"),
+			inspectResp: inspectResp,
+		}
+
+		tag, err := name.NewTag("unused", name.WeakValidation)
+		if err != nil {
+			t.Fatalf("error creating test name: %s", err)
+		}
+
+		dmn, err := Image(tag, WithClient(mc), WithFileBufferedOpener())
+		if err != nil {
+			t.Fatalf("Image(): %v", err)
+		}
+
+		if _, err := dmn.Layers(); err == nil || !strings.Contains(err.Error(), "save failed") {
+			t.Errorf("expected save error, got: %v", err)
+		}
+	})
+
+	t.Run("read error", func(t *testing.T) {
+		mc := &MockClient{
+			inspectResp: inspectResp,
+			saveBody:    io.NopCloser(&errReader{fmt.Errorf("read failed")}),
+		}
+
+		tag, err := name.NewTag("unused", name.WeakValidation)
+		if err != nil {
+			t.Fatalf("error creating test name: %s", err)
+		}
+
+		dmn, err := Image(tag, WithClient(mc), WithFileBufferedOpener())
+		if err != nil {
+			t.Fatalf("Image(): %v", err)
+		}
+
+		if _, err := dmn.Layers(); err == nil || !strings.Contains(err.Error(), "read failed") {
+			t.Errorf("expected read error, got: %v", err)
+		}
+	})
+}
+
 func TestImageDefaultClient(t *testing.T) {
 	wantErr := fmt.Errorf("bad client")
 	defaultClient = func() (Client, error) {
