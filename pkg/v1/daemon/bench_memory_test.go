@@ -17,7 +17,6 @@
 package daemon
 
 import (
-	"io"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
