@@ -273,11 +273,12 @@ func TestWithPlatform(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	imgs := []mutate.IndexAddendum{}
-	for _, plat := range []string{
+	plats := []string{
 		"linux/amd64",
 		"linux/arm",
-	} {
+	}
+	imgs := make([]mutate.IndexAddendum, 0, len(plats))
+	for _, plat := range plats {
 		img, err := crane.Image(map[string][]byte{
 			"platform.txt": []byte(plat),
 		})
@@ -394,7 +395,7 @@ func TestCraneSaveLegacy(t *testing.T) {
 	}
 
 	if err := crane.SaveLegacy(img, "test/crane", tmp.Name()); err != nil {
-		t.Errorf("SaveOCI: %v", err)
+		t.Errorf("SaveLegacy: %v", err)
 	}
 }
 
@@ -408,7 +409,7 @@ func TestCraneSaveOCI(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := crane.SaveOCI(img, tmp); err != nil {
-		t.Errorf("SaveLegacy: %v", err)
+		t.Errorf("SaveOCI: %v", err)
 	}
 }
 

@@ -51,6 +51,11 @@ func TestBadHashes(t *testing.T) {
 		"sha256:deadbeef",
 		// Bad character
 		"sha256:o123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		// Too many separators
+		"sha256:abc:def",
+		"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef:",
+		"sha256:0:123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"sha256::0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		// Unknown algorithm
 		"md5:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		// Too few parts
@@ -111,5 +116,15 @@ func TestTextMarshalling(t *testing.T) {
 
 	if h.String() != g.String() {
 		t.Errorf("mismatched hash: %s != %s", h, g)
+	}
+}
+
+func BenchmarkNewHash(b *testing.B) {
+	b.ReportAllocs()
+	for b.Loop() {
+		_, err := NewHash("sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+		if err != nil {
+			b.Fatal(err)
+		}
 	}
 }
