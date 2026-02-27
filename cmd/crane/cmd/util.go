@@ -15,7 +15,6 @@
 package cmd
 
 import (
-	"os"
 	"strings"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -84,13 +83,4 @@ func parsePlatform(platform string) (*v1.Platform, error) {
 	}
 
 	return v1.ParsePlatform(platform)
-}
-
-// isLocalReference checks if the reference is a local file path.
-// It returns true if the path exists, or if it looks like a path (starts with . or / or \ on Windows).
-func isLocalReference(ref string) bool {
-	if _, err := os.Stat(ref); err == nil {
-		return true
-	}
-	return strings.HasPrefix(ref, ".") || strings.HasPrefix(ref, "/") || strings.HasPrefix(ref, string(os.PathSeparator))
 }

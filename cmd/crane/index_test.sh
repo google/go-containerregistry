@@ -148,6 +148,49 @@ else
         echo "FAIL: Remote index contains $COUNT manifests (expected >= 4)."
         exit 1
     fi
+
+    # Remote Test 3: Create index with Docker media types
+    echo "Remote Test 3: Create index with Docker media types..."
+    TAG_DOCKER="$REPO:index-docker"
+    $CRANE_CMD index append -m "$TEST_DIR/alpine.tar" -t "$TAG_DOCKER" --docker-empty-base
+    # Use crane manifest to verify the top-level media type.
+    MANIFEST=$($CRANE_CMD manifest "$TAG_DOCKER")
+    if echo "$MANIFEST" | grep -q "application/vnd.docker.distribution.manifest.list.v2+json"; then
+        echo "PASS: Index has Docker manifest list media type."
+    else
+        echo "FAIL: Index does not have Docker manifest list media type."
+        echo "$MANIFEST"
+        exit 1
+    fi
+fi
+
+# Test 7: Mixed sources and flattening control
+echo "Test 7: Mixed sources and flattening control..."
+# Append a local tarball AND a remote image to a new local index.
+# We also use --flatten=false to verify nested index support.
+$CRANE_CMD index append "$TEST_DIR/nested-index" \
+    -m "$TEST_DIR/busybox.tar" \
+    -m "gcr.io/distroless/base:latest" \
+    --flatten=false
+
+LIST_OUTPUT=$($CRANE_CMD index list "$TEST_DIR/nested-index")
+echo "$LIST_OUTPUT"
+# Should contain exactly 2 manifests: one image (from busybox.tar) and one index (distroless/base).
+COUNT=$(echo "$LIST_OUTPUT" | grep -c "sha256:")
+if [ "$COUNT" -eq 2 ]; then
+    echo "PASS: Nested index contains 2 manifests."
+else
+    echo "FAIL: Nested index contains $COUNT manifests (expected 2)."
+    exit 1
+fi
+
+# Verify platform metadata is present for the local image.
+# busybox.tar should have platform info (e.g. linux/amd64)
+if echo "$LIST_OUTPUT" | grep -q "linux/"; then
+    echo "PASS: Platform metadata found in list output."
+else
+    echo "FAIL: No platform metadata found in list output."
+    exit 1
 fi
 
 echo "All tests passed!"
