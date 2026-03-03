@@ -17,12 +17,14 @@ package transport
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
+	"github.com/google/go-containerregistry/internal/limitio"
 	"github.com/google/go-containerregistry/internal/redact"
 )
+
+const maxErrorBodyBytes = 4 * 1024 * 1024
 
 // Error implements error to support the following error specification:
 // https://github.com/distribution/distribution/blob/aac2f6c8b7c5a6c60190848bab5cbeed2b5ba0a9/docs/spec/api.md#errors
@@ -161,7 +163,7 @@ func CheckError(resp *http.Response, codes ...int) error {
 		}
 	}
 
-	b, err := io.ReadAll(resp.Body)
+	b, err := limitio.ReadAll(resp.Body, maxErrorBodyBytes)
 	if err != nil {
 		return err
 	}
@@ -185,7 +187,7 @@ func makeError(resp *http.Response, body []byte) *Error {
 }
 
 func retryError(resp *http.Response) error {
-	b, err := io.ReadAll(resp.Body)
+	b, err := limitio.ReadAll(resp.Body, maxErrorBodyBytes)
 	if err != nil {
 		return err
 	}
