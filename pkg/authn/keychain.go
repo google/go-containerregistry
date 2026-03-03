@@ -95,9 +95,13 @@ func (dk *defaultKeychain) ResolveContext(_ context.Context, target Resource) (A
 
 	// First, check $HOME/.docker/config.json
 	foundDockerConfig := false
+	configHome := os.Getenv("XDG_CONFIG_HOME")
 	home, err := homedir.Dir()
 	if err == nil {
 		foundDockerConfig = fileExists(filepath.Join(home, ".docker/config.json"))
+		if configHome == "" {
+			configHome = filepath.Join(home, ".config")
+		}
 	}
 	// If $HOME/.docker/config.json isn't found, check $DOCKER_CONFIG (if set)
 	if !foundDockerConfig && os.Getenv("DOCKER_CONFIG") != "" {
@@ -107,7 +111,8 @@ func (dk *defaultKeychain) ResolveContext(_ context.Context, target Resource) (A
 	// config.Load, which may fail if the config can't be parsed.
 	//
 	// If neither was found, look for Podman's auth at
-	// $REGISTRY_AUTH_FILE or $XDG_RUNTIME_DIR/containers/auth.json
+	// $REGISTRY_AUTH_FILE, $XDG_RUNTIME_DIR/containers/auth.json,
+	// $XDG_CONFIG_HOME/containers/auth.json, or ~/.config/containers/auth.json
 	// and attempt to load it as a Docker config.
 	//
 	// If neither are found, fallback to Anonymous.
@@ -129,6 +134,16 @@ func (dk *defaultKeychain) ResolveContext(_ context.Context, target Resource) (A
 		}
 	} else if path := filepath.Clean(filepath.Join(os.Getenv("XDG_RUNTIME_DIR"), "containers/auth.json")); fileExists(path) {
 		f, err := os.Open(path)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+		cf, err = config.LoadFromReader(f)
+		if err != nil {
+			return nil, err
+		}
+	} else if configHome != "" && fileExists(filepath.Join(configHome, "containers/auth.json")) {
+		f, err := os.Open(filepath.Join(configHome, "containers/auth.json"))
 		if err != nil {
 			return nil, err
 		}
