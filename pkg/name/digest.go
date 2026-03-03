@@ -31,6 +31,7 @@ type Digest struct {
 	Repository
 	digest   string
 	original string
+	tag      *string
 }
 
 var _ Reference = (*Digest)(nil)
@@ -62,6 +63,15 @@ func (d Digest) Name() string {
 // String returns the original input string.
 func (d Digest) String() string {
 	return d.original
+}
+
+// MaybeTagStr returns the tag string (if one was provided).  Use bool return value to determine if a tag was present.
+func (d Digest) MaybeTagStr() (string, bool) {
+	if d.tag != nil {
+		return *d.tag, true
+	} else {
+		return "", false
+	}
 }
 
 // MarshalJSON formats the digest into a string for JSON serialization.
@@ -116,8 +126,17 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 		return Digest{}, err
 	}
 
+	var tagStr *string
 	tag, err := NewTag(base, opts...)
 	if err == nil {
+
+		// Check and see if the TagStr was provided in the original base
+		// If not then it's a default tag and should be ignored
+		maybeTag := tag.TagStr()
+		if strings.HasSuffix(base, tagDelim+maybeTag) {
+			tagStr = &maybeTag
+		}
+
 		base = tag.Repository.Name()
 	}
 
@@ -129,5 +148,6 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 		Repository: repo,
 		digest:     dig,
 		original:   name,
+		tag:        tagStr,
 	}, nil
 }
