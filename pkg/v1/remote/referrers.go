@@ -20,6 +20,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -61,7 +62,11 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 	}
 	defer resp.Body.Close()
 
-	if err := transport.CheckError(resp, http.StatusOK, http.StatusNotFound, http.StatusBadRequest, http.StatusNotAcceptable); err != nil {
+	codes := []int{http.StatusOK}
+	if os.Getenv("GGCR_REF_FALLBACK") != "" {
+		codes = append(codes, http.StatusNotFound, http.StatusBadRequest)
+	}
+	if err := transport.CheckError(resp, codes...); err != nil {
 		return nil, err
 	}
 
