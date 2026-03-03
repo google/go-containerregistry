@@ -17,6 +17,8 @@ package remote
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -745,5 +747,47 @@ func TestData(t *testing.T) {
 	}
 	if err := validate.Image(rmt); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestImageResumable(t *testing.T) {
+	ref, err := name.ParseReference("ghcr.io/labring/fastgpt:v4.9.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	image, err := Image(ref, WithResumable())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	layers, err := image.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, layer := range layers {
+		digest, err := layer.Digest()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rc, err := layer.Compressed()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		hash := sha256.New()
+		_, err = io.Copy(hash, rc)
+		rc.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if digest.Hex == hex.EncodeToString(hash.Sum(nil)) {
+			t.Logf("digest matches: %s", digest)
+		} else {
+			t.Errorf("digest mismatch: %s != %s", digest, hex.EncodeToString(hash.Sum(nil)))
+		}
 	}
 }

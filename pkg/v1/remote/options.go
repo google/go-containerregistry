@@ -45,6 +45,8 @@ type options struct {
 	retryBackoff                   Backoff
 	retryPredicate                 retry.Predicate
 	retryStatusCodes               []int
+	resumable                      bool
+	resumableBackoff               Backoff
 
 	// Only these options can overwrite Reuse()d options.
 	platform v1.Platform
@@ -135,6 +137,7 @@ func makeOptions(opts ...Option) (*options, error) {
 		retryPredicate:   defaultRetryPredicate,
 		retryBackoff:     defaultRetryBackoff,
 		retryStatusCodes: defaultRetryStatusCodes,
+		resumableBackoff: defaultRetryBackoff,
 	}
 
 	for _, option := range opts {
@@ -170,6 +173,11 @@ func makeOptions(opts ...Option) (*options, error) {
 
 		// Wrap the transport in something that can retry network flakes.
 		o.transport = transport.NewRetry(o.transport, transport.WithRetryBackoff(o.retryBackoff), transport.WithRetryPredicate(predicate), transport.WithRetryStatusCodes(o.retryStatusCodes...))
+
+		if o.resumable {
+			o.transport = transport.NewResumable(o.transport, o.resumableBackoff)
+		}
+
 		// Wrap this last to prevent transport.New from double-wrapping.
 		if o.userAgent != "" {
 			o.transport = transport.NewUserAgent(o.transport, o.userAgent)
@@ -188,6 +196,25 @@ func makeOptions(opts ...Option) (*options, error) {
 func WithTransport(t http.RoundTripper) Option {
 	return func(o *options) error {
 		o.transport = t
+		return nil
+	}
+}
+
+// WithResumable is a functional option for enabling resumable downloads. and it will wrap retry transport by default.
+// If configures retry and resumable backoff, should be aware of all backoff will be applied.
+func WithResumable() Option {
+	return func(o *options) error {
+		o.resumable = true
+		return nil
+	}
+}
+
+// WithResumableBackoff is a functional option for overriding the default resumable backoff for remote operations.
+// Resumable backoff will resume failed requests after a delay, unlike retry actions, resumable backoff will ignore
+// transport.RoundTripper.RoundTrip errors.
+func WithResumableBackoff(backoff Backoff) Option {
+	return func(o *options) error {
+		o.resumableBackoff = backoff
 		return nil
 	}
 }
