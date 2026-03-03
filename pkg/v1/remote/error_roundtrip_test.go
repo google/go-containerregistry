@@ -125,3 +125,52 @@ func TestBlobStatusCodeReturned(t *testing.T) {
 		t.Errorf("Incorrect status code received, got %v, wanted %v", terr.StatusCode, http.StatusTeapot)
 	}
 }
+
+func TestRetryPreservesStructuredErrors(t *testing.T) {
+	// Test that structured registry errors are preserved when retries are enabled
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/" {
+			return
+		}
+		// Return a structured registry error
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"errors":[{"code":"MANIFEST_UNKNOWN","message":"manifest unknown","detail":"unknown tag=v1.0.0"}]}`))
+	})
+
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	ref, err := name.NewTag(strings.TrimPrefix(server.URL+"/test:v1.0.0", "http://"))
+	if err != nil {
+		t.Fatalf("Unable to parse tag: %v", err)
+	}
+
+	// Test without retry - should get structured error
+	_, err = remote.Image(ref)
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+	withoutRetryMsg := err.Error()
+
+	// Test with retry - should still get structured error (not generic 404)
+	_, err = remote.Image(ref, remote.WithRetryStatusCodes(http.StatusNotFound))
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+	withRetryMsg := err.Error()
+
+	// Both should contain the structured error message
+	expectedSubstring := "MANIFEST_UNKNOWN: manifest unknown; unknown tag=v1.0.0"
+	if !strings.Contains(withoutRetryMsg, expectedSubstring) {
+		t.Errorf("Without retry error %q should contain %q", withoutRetryMsg, expectedSubstring)
+	}
+	if !strings.Contains(withRetryMsg, expectedSubstring) {
+		t.Errorf("With retry error %q should contain %q", withRetryMsg, expectedSubstring)
+	}
+
+	// The retry case should NOT contain generic "unexpected status code 404"
+	if strings.Contains(withRetryMsg, "unexpected status code 404 Not Found") {
+		t.Errorf("With retry error should not contain generic 404 message, got: %q", withRetryMsg)
+	}
+}
