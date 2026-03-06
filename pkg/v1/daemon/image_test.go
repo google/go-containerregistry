@@ -23,10 +23,10 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/storage"
-	"github.com/docker/docker/client"
 	specs "github.com/moby/docker-image-spec/specs-go/v1"
+	api "github.com/moby/moby/api/types/image"
+	"github.com/moby/moby/api/types/storage"
+	"github.com/moby/moby/client"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/compare"
@@ -36,31 +36,32 @@ import (
 
 var imagePath = "../tarball/testdata/test_image_1.tar"
 
-var inspectResp = api.InspectResponse{
-	ID: "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
-	RepoTags: []string{
-		"bazel/v1/tarball:test_image_1",
-		"test_image_2:latest",
-	},
-	Created:      "1970-01-01T00:00:00Z",
-	Author:       "Bazel",
-	Architecture: "amd64",
-	Os:           "linux",
-	Size:         8,
-	VirtualSize:  8,
-	Config:       &specs.DockerOCIImageConfig{},
-	GraphDriver: storage.DriverData{
-		Data: map[string]string{
-			"MergedDir": "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/merged",
-			"UpperDir":  "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/diff",
-			"WorkDir":   "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/work",
+var inspectResp = client.ImageInspectResult{
+	InspectResponse: api.InspectResponse{
+		ID: "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
+		RepoTags: []string{
+			"bazel/v1/tarball:test_image_1",
+			"test_image_2:latest",
 		},
-		Name: "overlay2",
-	},
-	RootFS: api.RootFS{
-		Type: "layers",
-		Layers: []string{
-			"sha256:8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
+		Created:      "1970-01-01T00:00:00Z",
+		Author:       "Bazel",
+		Architecture: "amd64",
+		Os:           "linux",
+		Size:         8,
+		Config:       &specs.DockerOCIImageConfig{},
+		GraphDriver: &storage.DriverData{
+			Data: map[string]string{
+				"MergedDir": "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/merged",
+				"UpperDir":  "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/diff",
+				"WorkDir":   "/var/lib/docker/overlay2/988ecd005d048fd47b241dd57687231859563ba65a1dfd01ae1771ebfc4cb7c5/work",
+			},
+			Name: "overlay2",
+		},
+		RootFS: api.RootFS{
+			Type: "layers",
+			Layers: []string{
+				"sha256:8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
+			},
 		},
 	},
 }
@@ -79,19 +80,21 @@ type MockClient struct {
 	saveBody io.ReadCloser
 
 	inspectErr  error
-	inspectResp api.InspectResponse
-	inspectBody []byte
+	inspectResp client.ImageInspectResult
 
 	tagErr error
 }
 
-func (m *MockClient) NegotiateAPIVersion(_ context.Context) {
-	m.negotiated = true
+func (m *MockClient) Ping(_ context.Context, opts client.PingOptions) (client.PingResult, error) {
+	if opts.NegotiateAPIVersion {
+		m.negotiated = true
+	}
+	return client.PingResult{}, nil
 }
 
-func (m *MockClient) ImageSave(_ context.Context, _ []string, _ ...client.ImageSaveOption) (io.ReadCloser, error) {
+func (m *MockClient) ImageSave(_ context.Context, _ []string, _ ...client.ImageSaveOption) (client.ImageSaveResult, error) {
 	if !m.negotiated {
-		return nil, errors.New("you forgot to call NegotiateAPIVersion before calling ImageSave")
+		return nil, errors.New("you forgot to call Ping before calling ImageSave")
 	}
 
 	if m.path != "" {
@@ -101,18 +104,20 @@ func (m *MockClient) ImageSave(_ context.Context, _ []string, _ ...client.ImageS
 	return m.saveBody, m.saveErr
 }
 
-func (m *MockClient) ImageInspectWithRaw(_ context.Context, _ string) (api.InspectResponse, []byte, error) {
-	return m.inspectResp, m.inspectBody, m.inspectErr
+func (m *MockClient) ImageInspect(_ context.Context, _ string, _ ...client.ImageInspectOption) (client.ImageInspectResult, error) {
+	return m.inspectResp, m.inspectErr
 }
 
-func (m *MockClient) ImageHistory(_ context.Context, _ string, _ ...client.ImageHistoryOption) ([]api.HistoryResponseItem, error) {
-	return []api.HistoryResponseItem{
-		{
-			CreatedBy: "bazel build ...",
-			ID:        "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
-			Size:      8,
-			Tags: []string{
-				"bazel/v1/tarball:test_image_1",
+func (m *MockClient) ImageHistory(_ context.Context, _ string, _ ...client.ImageHistoryOption) (client.ImageHistoryResult, error) {
+	return client.ImageHistoryResult{
+		Items: []api.HistoryResponseItem{
+			{
+				CreatedBy: "bazel build ...",
+				ID:        "sha256:6e0b05049ed9c17d02e1a55e80d6599dbfcce7f4f4b022e3c673e685789c470e",
+				Size:      8,
+				Tags: []string{
+					"bazel/v1/tarball:test_image_1",
+				},
 			},
 		},
 	}, nil
