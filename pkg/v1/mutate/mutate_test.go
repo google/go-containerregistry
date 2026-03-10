@@ -221,7 +221,10 @@ func buildImageWithEntries(t *testing.T, entries []tar.Header) v1.Image {
 		t.Fatal(err)
 	}
 
-	layer, err := tarball.LayerFromReader(&buf)
+	b := buf.Bytes()
+	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(b)), nil
+	})
 	if err != nil {
 		t.Fatalf("creating layer: %v", err)
 	}
