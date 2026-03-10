@@ -141,12 +141,12 @@ func TestExtractRejectsPathTraversal(t *testing.T) {
 			wantName: []string{"safe.txt"},
 		},
 		{
-			name: "absolute path",
+			name: "absolute path is normalized to relative",
 			entries: []tar.Header{
 				{Name: "safe.txt", Typeflag: tar.TypeReg, Size: 0},
 				{Name: "/etc/shadow", Typeflag: tar.TypeReg, Size: 0},
 			},
-			wantName: []string{"safe.txt"},
+			wantName: []string{"safe.txt", "etc/shadow"},
 		},
 		{
 			name: "symlink escape via absolute linkname",
