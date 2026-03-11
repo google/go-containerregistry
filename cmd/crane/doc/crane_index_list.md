@@ -1,15 +1,15 @@
-## crane index
+## crane index list
 
-Modify an image index.
+List the manifests in an index.
 
 ```
-crane index [flags]
+crane index list [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for index
+  -h, --help   help for list
 ```
 
 ### Options inherited from parent commands
@@ -23,8 +23,5 @@ crane index [flags]
 
 ### SEE ALSO
 
-* [crane](crane.md)	 - Crane is a tool for managing container images
-* [crane index append](crane_index_append.md)	 - Append manifests to a remote index.
-* [crane index filter](crane_index_filter.md)	 - Modifies a remote index by filtering based on platform.
-* [crane index list](crane_index_list.md)	 - List the manifests in an index.
+* [crane index](crane_index.md)	 - Modify an image index.
 
