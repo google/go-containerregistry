@@ -122,7 +122,7 @@ else
     echo "Remote Test 1: Create new remote index $TAG_1 from local alpine.tar..."
     # Note: We need --tag because we are creating from scratch (or implicit empty base)
     $CRANE_CMD index append -m "$TEST_DIR/alpine.tar" -t "$TAG_1"
-    
+
     # Verify
     LIST_OUTPUT=$($CRANE_CMD index list "$TAG_1")
     COUNT=$(echo "$LIST_OUTPUT" | grep -c "sha256:")
@@ -138,7 +138,7 @@ else
     # We use TAG_1 as base, and update it in place (or we could use -t to same tag)
     # Using positional arg as base
     $CRANE_CMD index append "$TAG_1" -m "gcr.io/distroless/static:latest" -t "$TAG_1"
-    
+
     # Verify
     LIST_OUTPUT=$($CRANE_CMD index list "$TAG_1")
     COUNT=$(echo "$LIST_OUTPUT" | grep -c "sha256:")

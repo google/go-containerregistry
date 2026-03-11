@@ -241,11 +241,11 @@ func appendLocal(baseRef string, adds []mutate.IndexAddendum) error {
 
 	for _, add := range adds {
 		opts := []layout.Option{}
-		if add.Descriptor.Platform != nil {
-			opts = append(opts, layout.WithPlatform(*add.Descriptor.Platform))
+		if add.Platform != nil {
+			opts = append(opts, layout.WithPlatform(*add.Platform))
 		}
 
-		if add.Descriptor.MediaType.IsImage() {
+		if add.MediaType.IsImage() {
 			img, ok := add.Add.(v1.Image)
 			if !ok {
 				return fmt.Errorf("internal error: add.Add is not v1.Image: %T", add.Add)
@@ -253,7 +253,7 @@ func appendLocal(baseRef string, adds []mutate.IndexAddendum) error {
 			if err := p.AppendImage(img, opts...); err != nil {
 				return err
 			}
-		} else if add.Descriptor.MediaType.IsIndex() {
+		} else if add.MediaType.IsIndex() {
 			idx, ok := add.Add.(v1.ImageIndex)
 			if !ok {
 				return fmt.Errorf("internal error: add.Add is not v1.ImageIndex: %T", add.Add)
@@ -262,7 +262,7 @@ func appendLocal(baseRef string, adds []mutate.IndexAddendum) error {
 				return err
 			}
 		} else {
-			return fmt.Errorf("unexpected media type for local append: %s", add.Descriptor.MediaType)
+			return fmt.Errorf("unexpected media type for local append: %s", add.MediaType)
 		}
 	}
 	return nil
@@ -403,7 +403,7 @@ func resolveManifest(ref string, o crane.Options) (partial.WithRawManifest, v1.D
 		if err != nil {
 			return nil, v1.Descriptor{}, err
 		}
-		d.Descriptor.Platform = cf.Platform()
+		d.Platform = cf.Platform()
 		remoteImg = i
 	} else if d.MediaType.IsIndex() {
 		idx, err := d.ImageIndex()
