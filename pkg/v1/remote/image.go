@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/google/go-containerregistry/internal/limitio"
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/internal/verify"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -30,6 +31,8 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
+
+const maxConfigBytes = 8 * 1024 * 1024
 
 var acceptableImageMediaTypes = []types.MediaType{
 	types.DockerManifestSchema2,
@@ -126,7 +129,7 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 	}
 	defer body.Close()
 
-	r.config, err = io.ReadAll(body)
+	r.config, err = limitio.ReadAll(body, maxConfigBytes)
 	if err != nil {
 		return nil, err
 	}
