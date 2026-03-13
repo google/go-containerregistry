@@ -88,10 +88,17 @@ func fromChallenge(reg name.Registry, auth authn.Authenticator, t http.RoundTrip
 	if pr.Insecure {
 		scheme = "http"
 	}
+	realmURL, err := parseRealmURL(realm, pr.Insecure)
+	if err != nil {
+		return nil, err
+	}
+	if !realmHostMatchesRegistryDomain(reg, realmURL) {
+		return nil, fmt.Errorf("realm host mismatch: %q (domain %q) != %q (domain %q)", realmURL.Hostname(), effectiveDomain(realmURL.Hostname()), reg.RegistryStr(), effectiveDomain(reg.RegistryStr()))
+	}
 	return &bearerTransport{
 		inner:    t,
 		basic:    auth,
-		realm:    realm,
+		realm:    realmURL.String(),
 		registry: reg,
 		service:  service,
 		scopes:   scopes,
@@ -280,6 +287,10 @@ func matchesHost(host string, in *http.Request, scheme string) bool {
 	return canonicalHeaderHost == canonicalRegistryHost || canonicalURLHost == canonicalRegistryHost
 }
 
+func realmHostMatchesRegistryDomain(reg name.Registry, realmURL *url.URL) bool {
+	return effectiveDomain(realmURL.Hostname()) == effectiveDomain(reg.RegistryStr())
+}
+
 func canonicalAddress(host, scheme string) (address string) {
 	// The host may be any one of:
 	// - hostname
@@ -303,6 +314,47 @@ func canonicalAddress(host, scheme string) (address string) {
 	}
 
 	return net.JoinHostPort(host, portMap[scheme])
+}
+
+func effectiveDomain(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return host
+	}
+
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	host = strings.TrimSuffix(host, ".")
+	host = strings.ToLower(host)
+
+	if ip := net.ParseIP(host); ip != nil {
+		return host
+	}
+
+	parts := strings.Split(host, ".")
+	if len(parts) < 2 {
+		return host
+	}
+	return parts[len(parts)-2] + "." + parts[len(parts)-1]
+}
+
+func parseRealmURL(realm string, insecure bool) (*url.URL, error) {
+	u, err := url.Parse(realm)
+	if err != nil {
+		return nil, fmt.Errorf("invalid realm url: %w", err)
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return nil, fmt.Errorf("invalid realm url: missing scheme or host")
+	}
+	if u.Scheme != "https" && u.Scheme != "http" {
+		return nil, fmt.Errorf("invalid realm url scheme: %q", u.Scheme)
+	}
+	if !insecure && u.Scheme != "https" {
+		return nil, fmt.Errorf("invalid realm url scheme for secure registry: %q", u.Scheme)
+	}
+	return u, nil
 }
 
 // https://docs.docker.com/registry/spec/auth/oauth/
