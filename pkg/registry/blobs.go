@@ -302,13 +302,19 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		}
 
 		if rangeHeader != "" {
-			start, end := int64(0), int64(0)
+			start, end := int64(0), size-1
+			// Try parsing as "bytes=start-end" first
 			if _, err := fmt.Sscanf(rangeHeader, "bytes=%d-%d", &start, &end); err != nil {
-				return &regError{
-					Status:  http.StatusRequestedRangeNotSatisfiable,
-					Code:    "BLOB_UNKNOWN",
-					Message: "We don't understand your Range",
+				// Try parsing as "bytes=start-" (open-ended range)
+				if _, err := fmt.Sscanf(rangeHeader, "bytes=%d-", &start); err != nil {
+					return &regError{
+						Status:  http.StatusRequestedRangeNotSatisfiable,
+						Code:    "BLOB_UNKNOWN",
+						Message: "We don't understand your Range",
+					}
 				}
+				// For open-ended range, end is the last byte of the blob
+				end = size - 1
 			}
 
 			n := (end + 1) - start
