@@ -1,5 +1,4 @@
 //go:build !arm64
-// +build !arm64
 
 // Copyright 2018 Google LLC All Rights Reserved.
 //

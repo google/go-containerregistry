@@ -494,7 +494,7 @@ func getLayersHashes(img v1.Image) ([]string, error) {
 }
 
 func getLayersFilenames(hashes []string) []string {
-	filenames := []string{}
+	filenames := make([]string, 0, len(hashes))
 	for _, h := range hashes {
 		filenames = append(filenames, fmt.Sprintf("%s.tar.gz", h))
 	}
