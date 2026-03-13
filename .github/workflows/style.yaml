@@ -35,7 +35,7 @@ jobs:
       - uses: chainguard-dev/actions/eof-newline@main
         if: ${{ always() }}
 
-      - uses: reviewdog/action-misspell@v1
+      - uses: reviewdog/action-misspell@v1.27.0
         if: ${{ always() }}
         with:
           github_token: ${{ secrets.github_token }}
