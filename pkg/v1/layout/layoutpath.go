@@ -20,7 +20,6 @@ import "path/filepath"
 type Path string
 
 func (l Path) path(elem ...string) string {
-	complete := make([]string, 0, len(elem)+1)
-	complete = append(complete, string(l))
+	complete := []string{string(l)} //nolint:prealloc
 	return filepath.Join(append(complete, elem...)...)
 }
