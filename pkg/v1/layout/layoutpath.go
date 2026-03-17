@@ -20,6 +20,7 @@ import "path/filepath"
 type Path string
 
 func (l Path) path(elem ...string) string {
-	complete := []string{string(l)}
+	complete := make([]string, 0, len(elem) + 1)
+	complete = append(complete, string(l))
 	return filepath.Join(append(complete, elem...)...)
 }

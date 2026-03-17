@@ -219,7 +219,7 @@ func TestRegistryScheme(t *testing.T) {
 		domain: "index.docker.io",
 		scheme: "https",
 	}, {
-		domain: "::1",
+		domain: "[::1]",
 		scheme: "http",
 	}, {
 		domain: "10.2.3.4:5000",
