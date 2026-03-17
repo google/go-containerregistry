@@ -424,7 +424,7 @@ func TestCraneFilesystem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	name := "/some/file"
+	name := "some/file"
 	content := []byte("sentinel")
 
 	tw := tar.NewWriter(tmp)
