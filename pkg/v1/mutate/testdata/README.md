@@ -8,3 +8,10 @@ want to rebuild it for some reason:
 ```
 touch whiteout/.wh.foo.txt
 ```
+
+# whiteout\_dir.tar
+
+```
+touch whiteout_dir/.wh.a
+```
+

@@ -23,6 +23,20 @@ linters:
           deny:
             - pkg: crypto/sha256
               desc: use crypto.SHA256 instead
+    gosec:
+      excludes:
+        - G117 # Exported sensitive fields
+        - G703 # Path taint (from arguments)
+        - G704 # SSRF taint (raised when constructing URLs)
+        - G706 # Log taint (from arguments)
+    revive:
+      enable-default-rules: true
+      rules:
+        - name: var-naming
+          arguments:
+          - []
+          - []
+          - - skip-package-name-checks: true
   exclusions:
     generated: lax
     presets:
