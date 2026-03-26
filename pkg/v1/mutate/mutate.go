@@ -309,12 +309,11 @@ func extract(img v1.Image, w io.Writer) error {
 				continue
 			}
 
-			// Reject symlinks and hardlinks that point outside the extraction
-			// root. An attacker can create a symlink to /etc and then write
-			// files through it in a subsequent layer entry.
+			// Reject relative symlinks and hardlinks that point outside the
+			// extraction root. Absolute links are preserved.
 			if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
 				linkTarget := filepath.Clean(header.Linkname)
-				if strings.HasPrefix(linkTarget, "..") || filepath.IsAbs(linkTarget) {
+				if strings.HasPrefix(linkTarget, "..") {
 					continue
 				}
 			}

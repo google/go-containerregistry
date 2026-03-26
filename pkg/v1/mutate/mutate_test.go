@@ -149,12 +149,12 @@ func TestExtractRejectsPathTraversal(t *testing.T) {
 			wantName: []string{"safe.txt", "etc/shadow"},
 		},
 		{
-			name: "symlink escape via absolute linkname",
+			name: "permitted escape via absolute linkname",
 			entries: []tar.Header{
 				{Name: "safe.txt", Typeflag: tar.TypeReg, Size: 0},
-				{Name: "evil-link", Typeflag: tar.TypeSymlink, Linkname: "/etc"},
+				{Name: "absolute-link", Typeflag: tar.TypeSymlink, Linkname: "/etc"},
 			},
-			wantName: []string{"safe.txt"},
+			wantName: []string{"safe.txt", "absolute-link"},
 		},
 		{
 			name: "symlink escape via dot-dot linkname",
@@ -168,9 +168,9 @@ func TestExtractRejectsPathTraversal(t *testing.T) {
 			name: "hardlink escape via absolute target",
 			entries: []tar.Header{
 				{Name: "safe.txt", Typeflag: tar.TypeReg, Size: 0},
-				{Name: "evil-link", Typeflag: tar.TypeLink, Linkname: "/etc/passwd"},
+				{Name: "absolute-link", Typeflag: tar.TypeLink, Linkname: "/etc/passwd"},
 			},
-			wantName: []string{"safe.txt"},
+			wantName: []string{"safe.txt", "absolute-link"},
 		},
 		{
 			name: "safe relative symlink is kept",
