@@ -1,5 +1,10 @@
 module github.com/google/go-containerregistry/cmd/krane
 
+// The go directive declares the minimum Go version required for this module.
+//
+// DO NOT change this version unless support for older Go versions is dropped
+// or the module requires newer Go features. To update the version used for CI
+// and releases, update the ".go-version" file at the root of this repository.
 go 1.25.0
 
 replace github.com/google/go-containerregistry => ../../
