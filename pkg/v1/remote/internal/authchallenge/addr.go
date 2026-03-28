@@ -1,4 +1,4 @@
-package challenge
+package authchallenge
 
 import (
 	"net/url"
