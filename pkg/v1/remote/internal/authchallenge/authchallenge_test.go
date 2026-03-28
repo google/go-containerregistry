@@ -48,7 +48,7 @@ func TestAuthChallengeNormalization(t *testing.T) {
 }
 
 func testAuthChallengeNormalization(t *testing.T, host string) {
-	scm := NewSimpleManager()
+	scm := &simpleManager{}
 
 	url, err := url.Parse(fmt.Sprintf("http://%s/v2/", host))
 	if err != nil {
@@ -83,7 +83,7 @@ func testAuthChallengeNormalization(t *testing.T, host string) {
 }
 
 func testAuthChallengeConcurrent(t *testing.T, host string) {
-	scm := NewSimpleManager()
+	scm := &simpleManager{}
 
 	url, err := url.Parse(fmt.Sprintf("http://%s/v2/", host))
 	if err != nil {
