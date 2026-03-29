@@ -62,6 +62,26 @@ func TestExtractWhiteout(t *testing.T) {
 	}
 }
 
+func TestExtractWhiteoutDir(t *testing.T) {
+	img, err := tarball.ImageFromPath("testdata/whiteout_dir.tar", nil)
+	if err != nil {
+		t.Errorf("Error loading image: %v", err)
+	}
+	tarPath, _ := filepath.Abs("img.tar")
+	defer os.Remove(tarPath)
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		header, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		name := header.Name
+		if filepath.Base(name) == "foo" {
+			t.Errorf("whiteout file found in tar: %v", name)
+		}
+	}
+}
+
 func TestExtractOverwrittenFile(t *testing.T) {
 	img, err := tarball.ImageFromPath("testdata/overwritten_file.tar", nil)
 	if err != nil {
@@ -104,6 +124,115 @@ func TestExtractPartialRead(t *testing.T) {
 	if err := rc.Close(); err != nil {
 		t.Errorf("rc.Close: %v", err)
 	}
+}
+
+func TestExtractRejectsPathTraversal(t *testing.T) {
+	tests := []struct {
+		name     string
+		entries  []tar.Header
+		wantName []string // names expected in output; absent means filtered
+	}{
+		{
+			name: "path traversal via dot-dot prefix",
+			entries: []tar.Header{
+				{Name: "safe.txt", Typeflag: tar.TypeReg, Size: 0},
+				{Name: "../../etc/passwd", Typeflag: tar.TypeReg, Size: 0},
+			},
+			wantName: []string{"safe.txt"},
+		},
+		{
+			name: "absolute path is normalized to relative",
+			entries: []tar.Header{
+				{Name: "safe.txt", Typeflag: tar.TypeReg, Size: 0},
+				{Name: "/etc/shadow", Typeflag: tar.TypeReg, Size: 0},
+			},
+			wantName: []string{"safe.txt", "etc/shadow"},
+		},
+		{
+			name: "permitted escape via absolute linkname",
+			entries: []tar.Header{
+				{Name: "safe.txt", Typeflag: tar.TypeReg, Size: 0},
+				{Name: "absolute-link", Typeflag: tar.TypeSymlink, Linkname: "/etc"},
+			},
+			wantName: []string{"safe.txt", "absolute-link"},
+		},
+		{
+			name: "symlink escape via dot-dot linkname",
+			entries: []tar.Header{
+				{Name: "safe.txt", Typeflag: tar.TypeReg, Size: 0},
+				{Name: "evil-link", Typeflag: tar.TypeSymlink, Linkname: "../../etc"},
+			},
+			wantName: []string{"safe.txt"},
+		},
+		{
+			name: "hardlink escape via absolute target",
+			entries: []tar.Header{
+				{Name: "safe.txt", Typeflag: tar.TypeReg, Size: 0},
+				{Name: "absolute-link", Typeflag: tar.TypeLink, Linkname: "/etc/passwd"},
+			},
+			wantName: []string{"safe.txt", "absolute-link"},
+		},
+		{
+			name: "safe relative symlink is kept",
+			entries: []tar.Header{
+				{Name: "dir/target.txt", Typeflag: tar.TypeReg, Size: 0},
+				{Name: "dir/link.txt", Typeflag: tar.TypeSymlink, Linkname: "target.txt"},
+			},
+			wantName: []string{"dir/target.txt", "dir/link.txt"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			img := buildImageWithEntries(t, tc.entries)
+			tr := tar.NewReader(mutate.Extract(img))
+
+			var got []string
+			for {
+				hdr, err := tr.Next()
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				if err != nil {
+					t.Fatalf("reading tar: %v", err)
+				}
+				got = append(got, hdr.Name)
+			}
+
+			if !reflect.DeepEqual(got, tc.wantName) {
+				t.Errorf("extracted names = %v, want %v", got, tc.wantName)
+			}
+		})
+	}
+}
+
+// buildImageWithEntries creates a single-layer image containing the given tar entries.
+func buildImageWithEntries(t *testing.T, entries []tar.Header) v1.Image {
+	t.Helper()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for _, h := range entries {
+		h.Format = tar.FormatPAX
+		if err := tw.WriteHeader(&h); err != nil {
+			t.Fatalf("writing tar header %q: %v", h.Name, err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	b := buf.Bytes()
+	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(b)), nil
+	})
+	if err != nil {
+		t.Fatalf("creating layer: %v", err)
+	}
+	img, err := mutate.AppendLayers(empty.Image, layer)
+	if err != nil {
+		t.Fatalf("appending layer: %v", err)
+	}
+	return img
 }
 
 // invalidImage is an image which returns an error when Layers() is called.
