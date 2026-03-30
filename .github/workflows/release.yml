@@ -4,6 +4,9 @@ on:
   push:
     tags: ['*']
 
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   goreleaser:
     permissions:
@@ -17,8 +20,9 @@ jobs:
         run: git fetch --prune --unshallow
       - uses: actions/setup-go@v6
         with:
-          go-version: 1.25
-          check-latest: true
+          go-version-file: '.go-version'
+          check-latest: true # no-op if full version is specified
+          cache: false
       - uses: goreleaser/goreleaser-action@v7.0.0
         id: run-goreleaser
         with:
