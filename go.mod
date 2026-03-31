@@ -10,7 +10,6 @@ go 1.25.0
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.18.2
 	github.com/docker/cli v29.3.1+incompatible
-	github.com/docker/distribution v2.8.3+incompatible
 	github.com/google/go-cmp v0.7.0
 	github.com/klauspost/compress v1.18.5
 	github.com/mitchellh/go-homedir v1.1.0
