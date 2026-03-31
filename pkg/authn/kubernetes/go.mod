@@ -1,5 +1,10 @@
 module github.com/google/go-containerregistry/pkg/authn/kubernetes
 
+// The go directive declares the minimum Go version required for this module.
+//
+// DO NOT change this version unless support for older Go versions is dropped
+// or the module requires newer Go features. To update the version used for CI
+// and releases, update the ".go-version" file at the root of this repository.
 go 1.25.0
 
 replace github.com/google/go-containerregistry => ../../../
@@ -7,14 +12,14 @@ replace github.com/google/go-containerregistry => ../../../
 require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-containerregistry v0.21.2
-	k8s.io/api v0.35.2
-	k8s.io/apimachinery v0.35.2
-	k8s.io/client-go v0.35.2
+	k8s.io/api v0.35.3
+	k8s.io/apimachinery v0.35.3
+	k8s.io/client-go v0.35.3
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/docker/cli v29.3.0+incompatible // indirect
+	github.com/docker/cli v29.3.1+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
