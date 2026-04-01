@@ -115,8 +115,8 @@ $ curl -H "$(crane auth token -H ubuntu)" https://index.docker.io/v2/library/ubu
 }
 
 type credentials struct {
-	Username string `json:"username,omitempty"`
-	Secret   string `json:"secret,omitempty"`
+	Username string `json:"Username,omitempty"`
+	Secret   string `json:"Secret,omitempty"`
 }
 
 // https://github.com/docker/cli/blob/2291f610ae73533e6e0749d4ef1e360149b1e46b/cli/config/credentials/native_store.go#L100-L109
@@ -142,10 +142,10 @@ func NewCmdAuthGet(options []crane.Option, argv ...string) *cobra.Command {
 	baseCmd := strings.Join(argv, " ")
 	eg := fmt.Sprintf(`  # Read configured credentials for reg.example.com
   $ echo "reg.example.com" | %s get
-  {"username":"AzureDiamond","password":"hunter2"}
+  {"Username":"AzureDiamond","Secret":"hunter2"}
   # or
   $ %s get reg.example.com
-  {"username":"AzureDiamond","password":"hunter2"}`, baseCmd, baseCmd)
+  {"Username":"AzureDiamond","Secret":"hunter2"}`, baseCmd, baseCmd)
 
 	return &cobra.Command{
 		Use:     "get [REGISTRY_ADDR]",
@@ -271,7 +271,7 @@ func login(opts loginOptions) error {
 	if err := cf.Save(); err != nil {
 		return err
 	}
-	log.Printf("logged in via %s", cf.Filename) //nolint:gosec
+	log.Printf("logged in via %s", cf.Filename)
 	return nil
 }
 
@@ -307,7 +307,7 @@ func NewCmdAuthLogout(argv ...string) *cobra.Command {
 			if err := cf.Save(); err != nil {
 				return err
 			}
-			log.Printf("logged out via %s", cf.Filename) //nolint:gosec
+			log.Printf("logged out via %s", cf.Filename)
 			return nil
 		},
 	}
