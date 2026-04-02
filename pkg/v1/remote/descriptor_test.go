@@ -175,7 +175,7 @@ func TestHeadSchema1(t *testing.T) {
 	}
 
 	if desc.Size != int64(len(response)) {
-		t.Errorf("Descriptor.Size = %q, expected %q", desc.Size, len(response))
+		t.Errorf("Descriptor.Size = %d, expected %d", desc.Size, len(response))
 	}
 }
 

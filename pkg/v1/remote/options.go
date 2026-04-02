@@ -169,8 +169,7 @@ func makeOptions(opts ...Option) (*options, error) {
 		}
 
 		// Wrap the transport in something that can retry network flakes.
-		o.transport = transport.NewRetry(o.transport, transport.WithRetryPredicate(predicate), transport.WithRetryStatusCodes(o.retryStatusCodes...))
-
+		o.transport = transport.NewRetry(o.transport, transport.WithRetryBackoff(o.retryBackoff), transport.WithRetryPredicate(predicate), transport.WithRetryStatusCodes(o.retryStatusCodes...))
 		// Wrap this last to prevent transport.New from double-wrapping.
 		if o.userAgent != "" {
 			o.transport = transport.NewUserAgent(o.transport, o.userAgent)

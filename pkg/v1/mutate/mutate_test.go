@@ -62,6 +62,26 @@ func TestExtractWhiteout(t *testing.T) {
 	}
 }
 
+func TestExtractWhiteoutDir(t *testing.T) {
+	img, err := tarball.ImageFromPath("testdata/whiteout_dir.tar", nil)
+	if err != nil {
+		t.Errorf("Error loading image: %v", err)
+	}
+	tarPath, _ := filepath.Abs("img.tar")
+	defer os.Remove(tarPath)
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		header, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		name := header.Name
+		if filepath.Base(name) == "foo" {
+			t.Errorf("whiteout file found in tar: %v", name)
+		}
+	}
+}
+
 func TestExtractOverwrittenFile(t *testing.T) {
 	img, err := tarball.ImageFromPath("testdata/overwritten_file.tar", nil)
 	if err != nil {
@@ -561,7 +581,7 @@ func TestCanonical(t *testing.T) {
 	for _, s := range []string{
 		cf.Container,
 		cf.Config.Hostname,
-		cf.DockerVersion,
+		cf.DockerVersion, //nolint:staticcheck // Field will be removed in next release
 	} {
 		if s != "" {
 			t.Errorf("non-zeroed string: %v", s)

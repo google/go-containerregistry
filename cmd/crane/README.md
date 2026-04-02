@@ -27,7 +27,7 @@ A collection of useful things you can do with `crane` is [here](recipes.md).
 
    ```sh
    $ OS=Linux       # or Darwin, Windows
-   $ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x
+   $ ARCH=x86_64    # or arm64, x86_64, armv6, i386, s390x, riscv64
    $ curl -sL "https://github.com/google/go-containerregistry/releases/download/${VERSION}/go-containerregistry_${OS}_${ARCH}.tar.gz" > go-containerregistry.tar.gz
    ```
 

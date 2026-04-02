@@ -25,6 +25,7 @@ builds:
     - arm64
     - 386
     - s390x
+    - riscv64
     - ppc64le
   goos:
     - linux
@@ -52,6 +53,7 @@ builds:
     - arm64
     - 386
     - s390x
+    - riscv64
     - ppc64le
   goos:
     - linux
@@ -80,6 +82,7 @@ builds:
     - arm64
     - 386
     - s390x
+    - riscv64
     - ppc64le
   goos:
     - linux
