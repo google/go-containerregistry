@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path"
 	"strings"
 	"testing"
 
@@ -598,7 +597,10 @@ func TestPullingForeignLayer(t *testing.T) {
 	img, err = mutate.Append(img, mutate.Addendum{
 		Layer: foreignLayer,
 		URLs: []string{
-			"http://" + path.Join(fu.Host, foreignPath),
+			// Use "localhost" instead of the raw 127.0.0.1 IP so the URL
+			// passes foreign-layer SSRF validation (IP literals in
+			// private ranges are blocked; DNS names are not).
+			"http://localhost:" + fu.Port() + foreignPath,
 		},
 	})
 	if err != nil {
@@ -745,5 +747,116 @@ func TestData(t *testing.T) {
 	}
 	if err := validate.Image(rmt); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestValidateForeignURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		rawURL  string
+		wantErr bool
+	}{
+		{"public https", "https://cdn.example.com/layer.tar.gz", false},
+		{"public http", "http://cdn.example.com/layer.tar.gz", false},
+		{"loopback v4", "http://127.0.0.1/layer", true},
+		{"loopback v6", "http://[::1]/layer", true},
+		{"link-local v4", "http://169.254.169.254/latest/meta-data/", true},
+		{"private 10.x", "http://10.0.0.1/internal", true},
+		{"private 172.16.x", "http://172.16.0.1/internal", true},
+		{"private 192.168.x", "http://192.168.1.1/internal", true},
+		{"unspecified v4", "http://0.0.0.0/layer", true},
+		{"unspecified v6", "http://[::]/layer", true},
+		{"ftp scheme", "ftp://example.com/layer", true},
+		{"file scheme", "file:///etc/passwd", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			u, err := url.Parse(tc.rawURL)
+			if err != nil {
+				t.Fatalf("url.Parse(%q) = %v", tc.rawURL, err)
+			}
+			err = validateForeignURL(u)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("validateForeignURL(%q) error = %v, wantErr %v", tc.rawURL, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestPullingForeignLayerSSRF(t *testing.T) {
+	// Verify that foreign layer URLs pointing to private IPs are rejected
+	// when pulling an image from a registry.
+	img := randomImage(t)
+	expectedRepo := "foo/bar"
+
+	foreignLayer, err := random.Layer(1024, types.DockerForeignLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Append a foreign layer with a URL pointing to the cloud metadata service.
+	img, err = mutate.Append(img, mutate.Addendum{
+		Layer: foreignLayer,
+		URLs:  []string{"http://169.254.169.254/latest/meta-data/iam/security-credentials/"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, mustConfigName(t, img))
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	foreignLayerDigest := mustManifest(t, img).Layers[1].Digest
+	foreignLayerPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, foreignLayerDigest)
+	layerDigest := mustManifest(t, img).Layers[0].Digest
+	layerPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, layerDigest)
+
+	layer, err := img.LayerByDigest(layerDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case configPath:
+			w.Write(mustRawConfigFile(t, img))
+		case manifestPath:
+			w.Write(mustRawManifest(t, img))
+		case layerPath:
+			compressed, err := layer.Compressed()
+			if err != nil {
+				t.Fatal(err)
+			}
+			io.Copy(w, compressed)
+			w.WriteHeader(http.StatusOK)
+		case foreignLayerPath:
+			w.WriteHeader(http.StatusNotFound)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+	rmt, err := Image(tag, WithTransport(http.DefaultTransport))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// LayerByDigest returns a lazy layer; Compressed() triggers the actual fetch
+	// and URL validation.
+	l, err := rmt.LayerByDigest(foreignLayerDigest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = l.Compressed()
+	if err == nil {
+		t.Error("expected error fetching foreign layer with link-local URL, got nil")
 	}
 }
