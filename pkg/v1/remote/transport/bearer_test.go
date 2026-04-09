@@ -559,3 +559,33 @@ func TestInsufficientScope(t *testing.T) {
 		t.Error("didn't refresh insufficient scope")
 	}
 }
+
+func TestValidateRealmURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		realm    string
+		insecure bool
+		wantErr  bool
+	}{
+		{"valid https", "https://auth.example.com/token", false, false},
+		{"valid http insecure", "http://auth.example.com/token", true, false},
+		{"http not allowed for secure", "http://auth.example.com/token", false, true},
+		{"loopback v4", "https://127.0.0.1/token", false, true},
+		{"loopback v6", "https://[::1]/token", false, true},
+		{"private 10.x", "https://10.0.0.1/token", false, true},
+		{"private 192.168.x", "https://192.168.1.1/token", false, true},
+		{"link-local", "https://169.254.169.254/token", false, true},
+		{"unspecified v4", "https://0.0.0.0/token", false, true},
+		{"unspecified v6", "https://[::]/token", false, true},
+		{"ftp scheme", "ftp://example.com/token", false, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateRealmURL(tc.realm, tc.insecure)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("validateRealmURL(%q, %v) error = %v, wantErr %v", tc.realm, tc.insecure, err, tc.wantErr)
+			}
+		})
+	}
+}
