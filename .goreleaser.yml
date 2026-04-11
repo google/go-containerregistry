@@ -1,11 +1,5 @@
-# This is an example goreleaser.yaml file with some sane defaults.
-# Make sure to check the documentation at http://goreleaser.com
-# before:
-#   hooks:
-#     # You may remove this if you don't use go modules.
-#     - go mod download
-#     # you may remove this if you don't need go generate
-#     - go generate ./...
+version: 2
+
 builds:
 - id: crane
   env:
@@ -104,7 +98,7 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  version_template: "{{ .Tag }}-next"
 changelog:
   sort: asc
   filters:

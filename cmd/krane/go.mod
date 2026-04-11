@@ -1,6 +1,11 @@
 module github.com/google/go-containerregistry/cmd/krane
 
-go 1.25.7
+// The go directive declares the minimum Go version required for this module.
+//
+// DO NOT change this version unless support for older Go versions is dropped
+// or the module requires newer Go features. To update the version used for CI
+// and releases, update the ".go-version" file at the root of this repository.
+go 1.25.0
 
 replace github.com/google/go-containerregistry => ../../
 
@@ -39,13 +44,12 @@ require (
 	github.com/aws/smithy-go v1.24.1 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.18.2 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/docker/cli v29.3.0+incompatible // indirect
-	github.com/docker/distribution v2.8.3+incompatible // indirect
+	github.com/docker/cli v29.4.0+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.5 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.18.4 // indirect
+	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
@@ -56,6 +60,6 @@ require (
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 	gotest.tools/v3 v3.1.0 // indirect
 )
