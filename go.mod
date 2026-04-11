@@ -9,13 +9,13 @@ go 1.25.0
 
 require (
 	github.com/containerd/stargz-snapshotter/estargz v0.18.2
-	github.com/docker/cli v29.3.1+incompatible
+	github.com/docker/cli v29.4.0+incompatible
 	github.com/google/go-cmp v0.7.0
 	github.com/klauspost/compress v1.18.5
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/moby/docker-image-spec v1.3.1
-	github.com/moby/moby/api v1.54.0
-	github.com/moby/moby/client v0.3.0
+	github.com/moby/moby/api v1.54.1
+	github.com/moby/moby/client v0.4.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/spf13/cobra v1.10.2
