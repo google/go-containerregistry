@@ -31,12 +31,14 @@ import (
 
 var (
 	testReference, _ = name.NewTag("localhost:8080/user/image:latest", name.StrictValidation)
+	testRegistryHost = testReference.Context().Registry.RegistryStr()
+	testRealm        = fmt.Sprintf("http://%s", testRegistryHost)
 )
 
 func TestTransportNoActionIfTransportIsAlreadyWrapper(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
+			w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer realm=%q", testRealm))
 			http.Error(w, "Should not contact the server", http.StatusBadRequest)
 		}))
 	defer server.Close()
@@ -118,7 +120,7 @@ func (a *badAuth) Authorization() (*authn.AuthConfig, error) {
 func TestTransportBadAuth(t *testing.T) {
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
+			w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer realm=%q", testRealm))
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
@@ -141,7 +143,7 @@ func TestTransportSelectionBearer(t *testing.T) {
 				// This is an https request that fails, causing us to fall back to http.
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			case 2:
-				w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
+				w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer realm=%q", testRealm))
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			case 3:
 				hdr := r.Header.Get("Authorization")
@@ -194,6 +196,36 @@ func TestTransportSelectionBearerMissingRealm(t *testing.T) {
 	}
 }
 
+func TestTransportSelectionBearerRealmHostMismatch(t *testing.T) {
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="http://other-registry.example/token"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		}))
+	defer server.Close()
+	tprt := &http.Transport{
+		Proxy: func(*http.Request) (*url.URL, error) { return url.Parse(server.URL) },
+	}
+
+	basic := &authn.Basic{Username: "foo", Password: "bar"}
+	tp, err := NewWithContext(context.Background(), testReference.Context().Registry, basic, tprt, []string{testReference.Scope(PullScope)})
+	if err == nil || !strings.Contains(err.Error(), "effective domain") {
+		t.Errorf("NewWithContext() = %v, %v", tp, err)
+	}
+}
+
+func TestRealmHostMatchesRegistryDomain_AllowsSiblingSubdomain(t *testing.T) {
+	if !realmHostMatchesRegistryDomain("auth.docker.io", "registry-1.docker.io") {
+		t.Fatalf("expected sibling Docker Hub hosts to match")
+	}
+}
+
+func TestValidateRealmURLRejectsHTTPForSecureRegistry(t *testing.T) {
+	if _, err := validateRealmURL("http://auth.docker.io/token", "registry-1.docker.io", false); err == nil {
+		t.Fatalf("expected error for http realm with secure registry")
+	}
+}
+
 func TestTransportSelectionBearerAuthError(t *testing.T) {
 	request := 0
 	server := httptest.NewServer(
@@ -201,7 +233,7 @@ func TestTransportSelectionBearerAuthError(t *testing.T) {
 			request++
 			switch request {
 			case 1:
-				w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
+				w.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer realm=%q", testRealm))
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			case 2:
 				http.Error(w, "Oops", http.StatusInternalServerError)

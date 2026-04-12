@@ -83,10 +83,11 @@ func fromChallenge(reg name.Registry, auth authn.Authenticator, t http.RoundTrip
 		return nil, fmt.Errorf("malformed www-authenticate, missing realm: %v", pr.Parameters)
 	}
 	// Validate the realm URL before storing it. A malicious or compromised
-	// registry can supply a realm pointing at an internal service or cloud
-	// metadata endpoint (e.g. 169.254.169.254), causing SSRF when the client
-	// subsequently fetches a token.
-	if err := validateRealmURL(realm, pr.Insecure); err != nil {
+	// registry can supply a realm pointing at an unexpected token service,
+	// causing the client to send credential-bearing token requests to the
+	// wrong trust domain.
+	realmURL, err := validateRealmURL(realm, reg.RegistryStr(), pr.Insecure)
+	if err != nil {
 		return nil, fmt.Errorf("invalid realm in www-authenticate: %w", err)
 	}
 	service := pr.Parameters["service"]
@@ -97,7 +98,7 @@ func fromChallenge(reg name.Registry, auth authn.Authenticator, t http.RoundTrip
 	return &bearerTransport{
 		inner:    t,
 		basic:    auth,
-		realm:    realm,
+		realm:    realmURL.String(),
 		registry: reg,
 		service:  service,
 		scopes:   scopes,
@@ -105,36 +106,37 @@ func fromChallenge(reg name.Registry, auth authn.Authenticator, t http.RoundTrip
 	}, nil
 }
 
-// validateRealmURL returns an error if the realm URL uses a disallowed scheme
-// or resolves to a private / link-local IP address. This prevents a crafted
-// WWW-Authenticate header from redirecting token fetches to internal services.
-func validateRealmURL(realm string, insecure bool) error {
+// validateRealmURL returns the parsed realm URL if its scheme, host, and
+// trust-domain binding are acceptable for exchanging registry credentials.
+func validateRealmURL(realm, registryHost string, insecure bool) (*url.URL, error) {
 	u, err := url.Parse(realm)
 	if err != nil {
-		return fmt.Errorf("parsing realm %q: %w", realm, err)
+		return nil, fmt.Errorf("parsing realm %q: %w", realm, err)
 	}
 	switch u.Scheme {
 	case "https":
 		// always allowed
 	case "http":
 		if !insecure {
-			return fmt.Errorf("realm scheme %q not allowed for a secure registry; use https", u.Scheme)
+			return nil, fmt.Errorf("realm scheme %q not allowed for a secure registry; use https", u.Scheme)
 		}
 	default:
-		return fmt.Errorf("realm scheme %q not allowed; must be https (or http for insecure registries)", u.Scheme)
+		return nil, fmt.Errorf("realm scheme %q not allowed; must be https (or http for insecure registries)", u.Scheme)
 	}
 	// Reject IP literals that resolve to private or link-local ranges.
 	// This blocks direct references to RFC 1918 addresses, loopback, and
 	// link-local ranges including the cloud instance metadata service
-	// (169.254.169.254 / fd00:ec2::254).  DNS-based SSRF is out of scope
-	// here; callers should apply network-level controls if needed.
+	// (169.254.169.254 / fd00:ec2::254).
 	host := u.Hostname()
 	if ip := net.ParseIP(host); ip != nil {
 		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() {
-			return fmt.Errorf("realm host %q is a private or link-local address", host)
+			return nil, fmt.Errorf("realm host %q is a private or link-local address", host)
 		}
 	}
-	return nil
+	if !realmHostMatchesRegistryDomain(host, registryHost) {
+		return nil, fmt.Errorf("realm host %q (effective domain %q) does not match registry %q (effective domain %q)", host, effectiveDomain(host), registryHost, effectiveDomain(registryHost))
+	}
+	return u, nil
 }
 
 type bearerTransport struct {
@@ -318,6 +320,10 @@ func matchesHost(host string, in *http.Request, scheme string) bool {
 	return canonicalHeaderHost == canonicalRegistryHost || canonicalURLHost == canonicalRegistryHost
 }
 
+func realmHostMatchesRegistryDomain(realmHost, registryHost string) bool {
+	return effectiveDomain(realmHost) == effectiveDomain(registryHost)
+}
+
 func canonicalAddress(host, scheme string) (address string) {
 	// The host may be any one of:
 	// - hostname
@@ -341,6 +347,30 @@ func canonicalAddress(host, scheme string) (address string) {
 	}
 
 	return net.JoinHostPort(host, portMap[scheme])
+}
+
+// effectiveDomain uses the last two labels as a lightweight trust-domain key.
+// This preserves common registry/auth-subdomain flows without adding new deps.
+func effectiveDomain(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return host
+	}
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	host = strings.Trim(host, "[]")
+	host = strings.TrimSuffix(host, ".")
+	host = strings.ToLower(host)
+
+	if ip := net.ParseIP(host); ip != nil {
+		return host
+	}
+	parts := strings.Split(host, ".")
+	if len(parts) < 2 {
+		return host
+	}
+	return parts[len(parts)-2] + "." + parts[len(parts)-1]
 }
 
 // https://docs.docker.com/registry/spec/auth/oauth/
