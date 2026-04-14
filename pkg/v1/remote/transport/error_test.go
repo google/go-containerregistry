@@ -259,8 +259,8 @@ func TestRetryErrorRestoresBody(t *testing.T) {
 	if finalErr == nil {
 		t.Fatal("CheckError() returned nil after retryError, wanted structured error")
 	}
-	terr, ok := finalErr.(*Error)
-	if !ok {
+	var terr *Error
+	if !errors.As(finalErr, &terr) {
 		t.Fatalf("CheckError() returned %T, wanted *Error", finalErr)
 	}
 	if len(terr.Errors) == 0 || terr.Errors[0].Code != ManifestUnknownErrorCode {
