@@ -66,6 +66,25 @@ type writer struct {
 	scopes   []string
 }
 
+// makeDeleteClient returns an HTTP client whose token includes the "delete"
+// action so that registries requiring an explicit delete permission grant
+// access for manifest deletion.
+func makeDeleteClient(ctx context.Context, repo name.Repository, o *options) (*http.Client, error) {
+	auth := o.auth
+	if o.keychain != nil {
+		kauth, err := authn.Resolve(ctx, o.keychain, repo)
+		if err != nil {
+			return nil, err
+		}
+		auth = kauth
+	}
+	tr, err := transport.NewWithContext(ctx, repo.Registry, auth, o.transport, []string{repo.Scope(transport.DeleteScope)})
+	if err != nil {
+		return nil, err
+	}
+	return &http.Client{Transport: tr}, nil
+}
+
 func makeWriter(ctx context.Context, repo name.Repository, ls []v1.Layer, o *options) (*writer, error) {
 	auth := o.auth
 	if o.keychain != nil {
