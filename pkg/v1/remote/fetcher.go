@@ -162,11 +162,20 @@ func (f *fetcher) fetchManifest(ctx context.Context, ref name.Reference, accepta
 	}
 
 	var artifactType string
+	var annotations map[string]string
 	mf, _ := v1.ParseManifest(bytes.NewReader(manifest))
 	// Failing to parse as a manifest should just be ignored.
 	// The manifest might not be valid, and that's okay.
-	if mf != nil && !mf.Config.MediaType.IsConfig() {
-		artifactType = string(mf.Config.MediaType)
+	if mf != nil {
+		// Per the OCI distribution spec, artifactType on the descriptor is
+		// set to the manifest's artifactType if present, otherwise it falls
+		// back to the config descriptor's mediaType.
+		if mf.ArtifactType != "" {
+			artifactType = mf.ArtifactType
+		} else {
+			artifactType = string(mf.Config.MediaType)
+		}
+		annotations = mf.Annotations
 	}
 
 	// Do nothing for tags; I give up.
@@ -183,6 +192,7 @@ func (f *fetcher) fetchManifest(ctx context.Context, ref name.Reference, accepta
 		Size:         size,
 		MediaType:    mediaType,
 		ArtifactType: artifactType,
+		Annotations:  annotations,
 	}
 
 	return manifest, &desc, nil
