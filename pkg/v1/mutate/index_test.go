@@ -182,17 +182,17 @@ func TestIndexImmutability(t *testing.T) {
 	})
 }
 
-// TestAppend_ArtifactType tests that appending an image manifest that has a
-// non-standard config.mediaType to an index, results in the image's
-// config.mediaType being hoisted into the descriptor inside the index,
-// as artifactType.
+// TestAppend_ArtifactType tests that appending an image manifest to an
+// index results in the image's artifactType being set in the descriptor
+// inside the index. Per the OCI distribution spec, if artifactType is
+// not set in the manifest, it falls back to config.mediaType.
 func TestAppend_ArtifactType(t *testing.T) {
 	for _, c := range []struct {
 		desc, configMediaType, wantArtifactType string
 	}{{
-		desc:             "standard config.mediaType, no artifactType",
+		desc:             "standard config.mediaType, artifactType falls back to config.mediaType",
 		configMediaType:  string(types.DockerConfigJSON),
-		wantArtifactType: "",
+		wantArtifactType: string(types.DockerConfigJSON),
 	}, {
 		desc:             "non-standard config.mediaType, want artifactType",
 		configMediaType:  "application/vnd.custom.something",
