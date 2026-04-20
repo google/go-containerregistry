@@ -98,7 +98,7 @@ func TestDeleteBadStatus(t *testing.T) {
 // Container Registry require the explicit "delete" action to be requested in
 // the Bearer token scope.
 func TestDeleteRequestsDeleteScope(t *testing.T) {
-	// Sanity-check the DeleteScope constant itself.
+	// Quick check on the DeleteScope constant itself.
 	if !strings.Contains(transport.DeleteScope, "delete") {
 		t.Errorf("DeleteScope = %q; want it to include \"delete\"", transport.DeleteScope)
 	}
