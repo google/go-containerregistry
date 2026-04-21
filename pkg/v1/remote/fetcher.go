@@ -40,8 +40,9 @@ const (
 
 // fetcher implements methods for reading from a registry.
 type fetcher struct {
-	target resource
-	client *http.Client
+	target  resource
+	client  *http.Client
+	limiter *pullLimiter
 }
 
 func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, error) {
@@ -68,8 +69,9 @@ func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, er
 		return nil, err
 	}
 	return &fetcher{
-		target: target,
-		client: &http.Client{Transport: tr},
+		target:  target,
+		client:  &http.Client{Transport: tr},
+		limiter: o.limiter,
 	}, nil
 }
 
@@ -257,18 +259,30 @@ func (f *fetcher) headManifest(ctx context.Context, ref name.Reference, acceptab
 
 func (f *fetcher) fetchBlob(ctx context.Context, size int64, h v1.Hash) (io.ReadCloser, error) {
 	u := f.url("blobs", h.String())
+	return f.fetchBlobURL(ctx, u, size, h)
+}
+
+func (f *fetcher) fetchBlobURL(ctx context.Context, u url.URL, size int64, h v1.Hash) (io.ReadCloser, error) {
+	release, err := f.limiter.acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {
+		release()
 		return nil, err
 	}
 
 	resp, err := f.client.Do(req.WithContext(ctx))
 	if err != nil {
+		release()
 		return nil, redact.Error(err)
 	}
 
 	if err := transport.CheckError(resp, http.StatusOK); err != nil {
 		resp.Body.Close()
+		release()
 		return nil, err
 	}
 
@@ -279,11 +293,22 @@ func (f *fetcher) fetchBlob(ctx context.Context, size int64, h v1.Hash) (io.Read
 		if size == verify.SizeUnknown {
 			size = hsize
 		} else if hsize != size {
+			resp.Body.Close()
+			release()
 			return nil, fmt.Errorf("GET %s: Content-Length header %d does not match expected size %d", u.String(), hsize, size)
 		}
 	}
 
-	return verify.ReadCloser(resp.Body, size, h)
+	rc, err := verify.ReadCloser(resp.Body, size, h)
+	if err != nil {
+		resp.Body.Close()
+		release()
+		return nil, err
+	}
+	return &limitedReadCloser{
+		ReadCloser: rc,
+		release:    release,
+	}, nil
 }
 
 func (f *fetcher) headBlob(ctx context.Context, h v1.Hash) (*http.Response, error) {
