@@ -45,6 +45,7 @@ type options struct {
 	retryBackoff                   Backoff
 	retryPredicate                 retry.Predicate
 	retryStatusCodes               []int
+	limiter                        *pullLimiter
 
 	// Only these options can overwrite Reuse()d options.
 	platform v1.Platform
@@ -142,6 +143,7 @@ func makeOptions(opts ...Option) (*options, error) {
 			return nil, err
 		}
 	}
+	o.limiter = newPullLimiter(o.jobs)
 
 	switch {
 	case o.auth != nil && o.keychain != nil:
