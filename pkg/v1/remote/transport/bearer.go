@@ -130,8 +130,8 @@ func validateRealmURL(realm string, insecure bool) error {
 	// here; callers should apply network-level controls if needed.
 	host := u.Hostname()
 	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() {
-			return fmt.Errorf("realm host %q is a private or link-local address", host)
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
+			return fmt.Errorf("realm host %q is a private, loopback, or link-local address", host)
 		}
 	}
 	return nil

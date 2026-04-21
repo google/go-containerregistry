@@ -17,7 +17,9 @@ package remote
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -30,6 +32,27 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
+
+// validateForeignURL checks that a foreign layer URL does not reference a
+// private, loopback, link-local, or unspecified IP address. This prevents a
+// malicious registry from using foreign layer descriptors to trigger requests
+// to internal services (SSRF). DNS-based SSRF is out of scope; callers should
+// apply network-level controls if needed.
+func validateForeignURL(u *url.URL) error {
+	switch u.Scheme {
+	case "https", "http":
+		// allowed
+	default:
+		return fmt.Errorf("foreign layer URL scheme %q not allowed; must be https or http", u.Scheme)
+	}
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
+			return fmt.Errorf("foreign layer URL host %q is a private, loopback, or link-local address", host)
+		}
+	}
+	return nil
+}
 
 var acceptableImageMediaTypes = []types.MediaType{
 	types.DockerManifestSchema2,
@@ -190,6 +213,9 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 	for _, s := range d.URLs {
 		u, err := url.Parse(s)
 		if err != nil {
+			return nil, err
+		}
+		if err := validateForeignURL(u); err != nil {
 			return nil, err
 		}
 		urls = append(urls, *u)
