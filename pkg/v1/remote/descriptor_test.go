@@ -93,6 +93,79 @@ func TestGetSchema1(t *testing.T) {
 	}
 }
 
+func TestGetSchema1DigestUsesBodyHash(t *testing.T) {
+	expectedRepo := "foo/bar"
+	manifest := []byte("schema1 manifest body")
+	bodyDigest, _, err := v1.SHA256(strings.NewReader(string(manifest)))
+	if err != nil {
+		t.Fatalf("SHA256() = %v", err)
+	}
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, bodyDigest.String())
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case manifestPath:
+			if r.Method != http.MethodGet {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			w.Header().Set("Content-Type", string(types.DockerManifestSchema1Signed))
+			w.Header().Set("Docker-Content-Digest", fakeDigest)
+			w.Write(manifest)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	digest := mustNewDigest(t, fmt.Sprintf("%s/%s@%s", u.Host, expectedRepo, bodyDigest.String()))
+	desc, err := Get(digest)
+	if err != nil {
+		t.Fatalf("Get(%s) = %v", digest, err)
+	}
+
+	if desc.Digest != bodyDigest {
+		t.Errorf("Descriptor.Digest = %q, want body digest %q", desc.Digest, bodyDigest)
+	}
+}
+
+func TestGetSchema1DigestRejectsHeaderOverride(t *testing.T) {
+	expectedRepo := "foo/bar"
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/%s", expectedRepo, fakeDigest)
+	manifest := []byte("schema1 manifest body")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case manifestPath:
+			if r.Method != http.MethodGet {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			w.Header().Set("Content-Type", string(types.DockerManifestSchema1Signed))
+			w.Header().Set("Docker-Content-Digest", fakeDigest)
+			w.Write(manifest)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	digest := mustNewDigest(t, fmt.Sprintf("%s/%s@%s", u.Host, expectedRepo, fakeDigest))
+	if _, err := Get(digest); err == nil {
+		t.Fatalf("Get(%s): expected error, got nil", digest)
+	}
+}
+
 func TestGetImageAsIndex(t *testing.T) {
 	expectedRepo := "foo/bar"
 	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
