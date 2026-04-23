@@ -104,6 +104,23 @@ func TestExtractOverwrittenFile(t *testing.T) {
 	}
 }
 
+func TestExtractClosesLayerBeforeOpeningNext(t *testing.T) {
+	tokens := make(chan struct{}, 4)
+	layers := make([]v1.Layer, cap(tokens)+1)
+	for i := range layers {
+		layers[i] = tokenLimitedLayer{tokens: tokens}
+	}
+
+	rc := mutate.Extract(tokenLimitedImage{layers: layers})
+	defer rc.Close()
+	if _, err := io.Copy(io.Discard, rc); err != nil {
+		t.Fatalf("mutate.Extract() = %v", err)
+	}
+	if got := len(tokens); got != 0 {
+		t.Fatalf("open layer readers after extraction: got %d, want 0", got)
+	}
+}
+
 // TestExtractError tests that if there are any errors encountered
 func TestExtractError(t *testing.T) {
 	rc := mutate.Extract(invalidImage{})
@@ -787,4 +804,44 @@ func (m mockLayer) Compressed() (io.ReadCloser, error) {
 }
 func (m mockLayer) Uncompressed() (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader("uncompressed")), nil
+}
+
+type tokenLimitedImage struct {
+	v1.Image
+	layers []v1.Layer
+}
+
+func (i tokenLimitedImage) Layers() ([]v1.Layer, error) {
+	return i.layers, nil
+}
+
+type tokenLimitedLayer struct {
+	mockLayer
+	tokens chan struct{}
+}
+
+func (l tokenLimitedLayer) Uncompressed() (io.ReadCloser, error) {
+	select {
+	case l.tokens <- struct{}{}:
+		return &tokenReleasingReadCloser{
+			Reader:  bytes.NewReader(nil),
+			release: func() { <-l.tokens },
+		}, nil
+	default:
+		return nil, errors.New("layer reader opened before previous readers were closed")
+	}
+}
+
+type tokenReleasingReadCloser struct {
+	io.Reader
+	release func()
+	closed  bool
+}
+
+func (rc *tokenReleasingReadCloser) Close() error {
+	if !rc.closed {
+		rc.closed = true
+		rc.release()
+	}
+	return nil
 }
