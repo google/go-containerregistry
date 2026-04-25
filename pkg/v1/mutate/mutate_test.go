@@ -537,6 +537,79 @@ func TestAppendStreamableLayer(t *testing.T) {
 	}
 }
 
+// TestExtractSymlinkFiltering verifies that Extract preserves relative symlinks
+// that stay within the rootfs, while dropping absolute symlinks and relative
+// symlinks whose resolved path escapes the rootfs boundary.
+func TestExtractSymlinkFiltering(t *testing.T) {
+	// Build a tar layer with several symlink entries.
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	entries := []struct {
+		name     string
+		typeflag byte
+		linkname string
+	}{
+		// Safe relative symlink: usr/local/bin/ld.so -> ../lib/ld-linux.so.2
+		// resolves to usr/local/lib/ld-linux.so.2, inside rootfs.
+		{name: "usr/local/bin/ld.so", typeflag: tar.TypeSymlink, linkname: "../lib/ld-linux.so.2"},
+		// Safe relative symlink: var/lock -> ../run/lock (tailscale/glibc pattern).
+		{name: "usr/local/lib/containers/app/var/lock", typeflag: tar.TypeSymlink, linkname: "../run/lock"},
+		// Unsafe: absolute target always escapes rootfs.
+		{name: "usr/local/bin/evil-abs", typeflag: tar.TypeSymlink, linkname: "/etc/passwd"},
+		// Unsafe: relative target resolves outside rootfs.
+		{name: "etc/foo", typeflag: tar.TypeSymlink, linkname: "../../../tmp/evil"},
+	}
+	for _, e := range entries {
+		if err := tw.WriteHeader(&tar.Header{
+			Typeflag: e.typeflag,
+			Name:     e.name,
+			Linkname: e.linkname,
+		}); err != nil {
+			t.Fatalf("WriteHeader: %v", err)
+		}
+	}
+	tw.Close()
+
+	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	})
+	if err != nil {
+		t.Fatalf("LayerFromOpener: %v", err)
+	}
+	img, err := mutate.AppendLayers(empty.Image, layer)
+	if err != nil {
+		t.Fatalf("AppendLayers: %v", err)
+	}
+
+	extracted := map[string]string{}
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("reading extracted tar: %v", err)
+		}
+		if hdr.Typeflag == tar.TypeSymlink || hdr.Typeflag == tar.TypeLink {
+			extracted[hdr.Name] = hdr.Linkname
+		}
+	}
+
+	// These safe relative symlinks must be preserved.
+	for _, name := range []string{"usr/local/bin/ld.so", "usr/local/lib/containers/app/var/lock"} {
+		if _, ok := extracted[name]; !ok {
+			t.Errorf("safe relative symlink %q was incorrectly dropped", name)
+		}
+	}
+	// These unsafe symlinks must be filtered out.
+	for _, name := range []string{"usr/local/bin/evil-abs", "etc/foo"} {
+		if target, ok := extracted[name]; ok {
+			t.Errorf("unsafe symlink %q -> %q was not dropped", name, target)
+		}
+	}
+}
+
 func TestCanonical(t *testing.T) {
 	source := sourceImage(t)
 	img, err := mutate.Canonical(source)

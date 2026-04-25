@@ -297,6 +297,22 @@ func extract(img v1.Image, w io.Writer) error {
 			// name, we may have duplicate entries, which angers tar-split.
 			header.Name = filepath.Clean(header.Name)
 
+			// Reject symlinks and hardlinks whose targets escape the image
+			// rootfs. Absolute targets always point to host paths. Relative
+			// targets are resolved against the symlink's own directory: if the
+			// clean result starts with ".." the link would leave the rootfs.
+			// Relative symlinks that stay within the rootfs (common for glibc,
+			// C toolchains, etc.) are preserved unchanged.
+			if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
+				if filepath.IsAbs(header.Linkname) {
+					continue
+				}
+				resolved := filepath.Clean(filepath.Join(filepath.Dir(header.Name), header.Linkname))
+				if strings.HasPrefix(resolved, "..") {
+					continue
+				}
+			}
+
 			// force PAX format to remove Name/Linkname length limit of 100 characters
 			// required by USTAR and to not depend on internal tar package guess which
 			// prefers USTAR over PAX
