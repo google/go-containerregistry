@@ -538,8 +538,8 @@ func TestAppendStreamableLayer(t *testing.T) {
 }
 
 // TestExtractSymlinkFiltering verifies that Extract preserves relative symlinks
-// that stay within the rootfs, while dropping absolute symlinks and relative
-// symlinks whose resolved path escapes the rootfs boundary.
+// that stay within the rootfs and absolute symlinks (left for callers to handle),
+// while dropping relative symlinks whose resolved path escapes the rootfs boundary.
 func TestExtractSymlinkFiltering(t *testing.T) {
 	// Build a tar layer with several symlink entries.
 	var buf bytes.Buffer
@@ -554,8 +554,8 @@ func TestExtractSymlinkFiltering(t *testing.T) {
 		{name: "usr/local/bin/ld.so", typeflag: tar.TypeSymlink, linkname: "../lib/ld-linux.so.2"},
 		// Safe relative symlink: var/lock -> ../run/lock (tailscale/glibc pattern).
 		{name: "usr/local/lib/containers/app/var/lock", typeflag: tar.TypeSymlink, linkname: "../run/lock"},
-		// Unsafe: absolute target always escapes rootfs.
-		{name: "usr/local/bin/evil-abs", typeflag: tar.TypeSymlink, linkname: "/etc/passwd"},
+		// Absolute target: preserved (see #2238 for ongoing discussion).
+		{name: "usr/local/bin/abs-link", typeflag: tar.TypeSymlink, linkname: "/etc/passwd"},
 		// Unsafe: relative target resolves outside rootfs.
 		{name: "etc/foo", typeflag: tar.TypeSymlink, linkname: "../../../tmp/evil"},
 	}
@@ -596,14 +596,14 @@ func TestExtractSymlinkFiltering(t *testing.T) {
 		}
 	}
 
-	// These safe relative symlinks must be preserved.
-	for _, name := range []string{"usr/local/bin/ld.so", "usr/local/lib/containers/app/var/lock"} {
+	// These symlinks must be preserved: safe relative ones and absolute ones.
+	for _, name := range []string{"usr/local/bin/ld.so", "usr/local/lib/containers/app/var/lock", "usr/local/bin/abs-link"} {
 		if _, ok := extracted[name]; !ok {
-			t.Errorf("safe relative symlink %q was incorrectly dropped", name)
+			t.Errorf("symlink %q was incorrectly dropped", name)
 		}
 	}
-	// These unsafe symlinks must be filtered out.
-	for _, name := range []string{"usr/local/bin/evil-abs", "etc/foo"} {
+	// Relative targets that escape the rootfs must be filtered out.
+	for _, name := range []string{"etc/foo"} {
 		if target, ok := extracted[name]; ok {
 			t.Errorf("unsafe symlink %q -> %q was not dropped", name, target)
 		}

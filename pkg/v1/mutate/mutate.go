@@ -297,19 +297,19 @@ func extract(img v1.Image, w io.Writer) error {
 			// name, we may have duplicate entries, which angers tar-split.
 			header.Name = filepath.Clean(header.Name)
 
-			// Reject symlinks and hardlinks whose targets escape the image
-			// rootfs. Absolute targets always point to host paths. Relative
-			// targets are resolved against the symlink's own directory: if the
-			// clean result starts with ".." the link would leave the rootfs.
-			// Relative symlinks that stay within the rootfs (common for glibc,
-			// C toolchains, etc.) are preserved unchanged.
+			// Reject relative symlinks and hardlinks whose targets escape the
+			// image rootfs. Relative targets are resolved against the symlink's
+			// own directory: if the clean result starts with ".." the link would
+			// leave the rootfs. Relative symlinks that stay within the rootfs
+			// (common for glibc, C toolchains, etc.) are preserved unchanged.
+			// Absolute targets are left as-is; see #2238 for ongoing discussion
+			// on whether they should be pruned.
 			if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
-				if filepath.IsAbs(header.Linkname) {
-					continue
-				}
-				resolved := filepath.Clean(filepath.Join(filepath.Dir(header.Name), header.Linkname)) //nolint:gosec // G305: path is only used for validation, not file I/O
-				if strings.HasPrefix(resolved, "..") {
-					continue
+				if !filepath.IsAbs(header.Linkname) {
+					resolved := filepath.Clean(filepath.Join(filepath.Dir(header.Name), header.Linkname)) //nolint:gosec // G305: path is only used for validation, not file I/O
+					if strings.HasPrefix(resolved, "..") {
+						continue
+					}
 				}
 			}
 
