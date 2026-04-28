@@ -307,7 +307,7 @@ func extract(img v1.Image, w io.Writer) error {
 				if filepath.IsAbs(header.Linkname) {
 					continue
 				}
-				resolved := filepath.Clean(filepath.Join(filepath.Dir(header.Name), header.Linkname))
+				resolved := filepath.Clean(filepath.Join(filepath.Dir(header.Name), header.Linkname)) //nolint:gosec // G305: path is only used for validation, not file I/O
 				if strings.HasPrefix(resolved, "..") {
 					continue
 				}
