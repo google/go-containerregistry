@@ -15,7 +15,9 @@
 package registry_test
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -24,6 +26,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
@@ -81,4 +84,59 @@ func TestDiskPush(t *testing.T) {
 		}
 		t.Logf("Found %s", dig)
 	}
+}
+
+func TestDiskStatCorruptBlob(t *testing.T) {
+	dir := t.TempDir()
+	h := writeEmptyBlobAtDigest(t, dir)
+
+	bh := registry.NewDiskBlobHandler(dir)
+	bsh, ok := bh.(registry.BlobStatHandler)
+	if !ok {
+		t.Fatal("NewDiskBlobHandler() does not implement Stat")
+	}
+	if _, err := bsh.Stat(context.Background(), "foo/bar", h); err == nil {
+		t.Fatal("Stat() succeeded for corrupt blob, wanted error")
+	}
+}
+
+func TestDiskCorruptBlobReturnsBlobUnknown(t *testing.T) {
+	dir := t.TempDir()
+	h := writeEmptyBlobAtDigest(t, dir)
+
+	reg := registry.New(registry.WithBlobHandler(registry.NewDiskBlobHandler(dir)))
+	srv := httptest.NewServer(reg)
+	defer srv.Close()
+
+	for _, method := range []string{http.MethodHead, http.MethodGet} {
+		req, err := http.NewRequest(method, srv.URL+"/v2/foo/bar/blobs/"+h.String(), nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("%s corrupt blob status: got %d, want %d", method, resp.StatusCode, http.StatusNotFound)
+		}
+	}
+}
+
+func writeEmptyBlobAtDigest(t *testing.T, dir string) v1.Hash {
+	t.Helper()
+
+	h, _, err := v1.SHA256(strings.NewReader("blob contents"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, h.Algorithm), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, h.Algorithm, h.Hex), nil, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	return h
 }
