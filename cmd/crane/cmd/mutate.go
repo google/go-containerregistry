@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -40,6 +41,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var workdir string
 	var ports []string
 	var newPlatform string
+	var healthcheck string
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
@@ -143,6 +145,15 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.OSVersion = platform.OSVersion
 			}
 
+			// Set healthcheck.
+			if healthcheck != "" {
+				var hc v1.HealthConfig
+				if err := json.Unmarshal([]byte(healthcheck), &hc); err != nil {
+					return fmt.Errorf("unmarshaling healthcheck: %w", err)
+				}
+				cfg.Config.Healthcheck = &hc
+			}
+
 			// Mutate and write image.
 			img, err = mutate.ConfigFile(img, cfg)
 			if err != nil {
@@ -198,6 +209,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringSliceVar(&ports, "exposed-ports", nil, "New ports to expose")
 	// Using "set-platform" to avoid clobbering "platform" persistent flag.
 	mutateCmd.Flags().StringVar(&newPlatform, "set-platform", "", "New platform to set in the form os/arch[/variant][:osversion] (e.g. linux/amd64)")
+	mutateCmd.Flags().StringVar(&healthcheck, "healthcheck", "", "JSON string to set as healthcheck (e.g. '{\"Test\":[\"CMD-SHELL\", \"curl -f http://localhost/ || exit 1\"], \"Interval\": \"5s\"}')")
 	return mutateCmd
 }
 
