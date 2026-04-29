@@ -252,5 +252,16 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 		img = mutate.Annotations(img, m.Annotations).(v1.Image)
 	}
 
+	// Propagate the original media type (e.g. OCI vs Docker) so that all
+	// manifests in an index use a consistent media type family. Without this,
+	// an OCI image index would reference Docker-typed image manifests, which
+	// confuses registries and tooling that assumes the index and its children
+	// share the same media-type convention.
+	mt, err := old.MediaType()
+	if err != nil {
+		return nil, fmt.Errorf("getting media type: %w", err)
+	}
+	img = mutate.MediaType(img, mt)
+
 	return img, nil
 }
