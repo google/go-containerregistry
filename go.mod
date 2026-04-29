@@ -12,7 +12,6 @@ require (
 	github.com/docker/cli v29.4.1+incompatible
 	github.com/google/go-cmp v0.7.0
 	github.com/klauspost/compress v1.18.5
-	github.com/mitchellh/go-homedir v1.1.0
 	github.com/moby/docker-image-spec v1.3.1
 	github.com/moby/moby/api v1.54.2
 	github.com/moby/moby/client v0.4.1
