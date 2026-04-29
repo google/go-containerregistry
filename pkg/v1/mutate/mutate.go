@@ -305,6 +305,22 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 		// name, we may have duplicate entries, which angers tar-split.
 		header.Name = filepath.Clean(header.Name)
 
+    // Reject relative symlinks and hardlinks whose targets escape the
+    // image rootfs. Relative targets are resolved against the symlink's
+    // own directory: if the clean result starts with ".." the link would
+    // leave the rootfs. Relative symlinks that stay within the rootfs
+    // (common for glibc, C toolchains, etc.) are preserved unchanged.
+    // Absolute targets are left as-is; see #2238 for ongoing discussion
+    // on whether they should be pruned.
+    if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
+      if !filepath.IsAbs(header.Linkname) {
+        resolved := filepath.Clean(filepath.Join(filepath.Dir(header.Name), header.Linkname)) //nolint:gosec // G305: path is only used for validation, not file I/O
+        if strings.HasPrefix(resolved, "..") {
+          continue
+        }
+      }
+    }
+
 		// force PAX format to remove Name/Linkname length limit of 100 characters
 		// required by USTAR and to not depend on internal tar package guess which
 		// prefers USTAR over PAX
