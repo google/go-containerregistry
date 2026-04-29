@@ -48,7 +48,7 @@ func (g graph) order() []string {
 	return order
 }
 
-// path constructs an examplary path that looks something like:
+// path constructs an example path that looks something like:
 //
 //	knative.dev/pkg/apis/duck
 //	knative.dev/pkg/apis  # Also: [knative.dev/pkg/kmeta knative.dev/pkg/tracker]
