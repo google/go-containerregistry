@@ -149,18 +149,19 @@ func (f *fetcher) fetchManifest(ctx context.Context, ref name.Reference, accepta
 	}
 
 	mediaType := types.MediaType(resp.Header.Get("Content-Type"))
-	contentDigest, err := v1.NewHash(resp.Header.Get("Docker-Content-Digest"))
-	if err == nil && mediaType == types.DockerManifestSchema1Signed {
-		// If we can parse the digest from the header, and it's a signed schema 1
-		// manifest, let's use that for the digest to appease older registries.
-		digest = contentDigest
-	}
+	contentDigest, contentDigestErr := v1.NewHash(resp.Header.Get("Docker-Content-Digest"))
 
-	// Validate the digest matches what we asked for, if pulling by digest.
+	// Validate the computed body digest for digest pulls. Older schema1 registries
+	// may report a header digest that does not match the response body, but digest
+	// references must still validate the returned content by body hash.
 	if dgst, ok := ref.(name.Digest); ok {
 		if digest.String() != dgst.DigestStr() {
 			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), ref)
 		}
+	} else if contentDigestErr == nil && mediaType == types.DockerManifestSchema1Signed {
+		// For tag pulls, preserve the historical schema1 header behavior to
+		// remain compatible with older registries.
+		digest = contentDigest
 	}
 
 	var artifactType string
