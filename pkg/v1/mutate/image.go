@@ -52,6 +52,19 @@ func (i *image) MediaType() (types.MediaType, error) {
 	return i.base.MediaType()
 }
 
+// isImageConfig reports whether the given media type represents a container
+// image config that uses Docker-style RootFS.DiffIDs and History fields.
+// Non-image OCI artifacts (Helm charts, WASM modules, etc.) use custom config
+// media types that do not contain these fields.
+func isImageConfig(mt types.MediaType) bool {
+	switch mt {
+	case types.DockerConfigJSON, types.OCIConfigJSON:
+		return true
+	default:
+		return false
+	}
+}
+
 func (i *image) compute() error {
 	i.Lock()
 	defer i.Unlock()
@@ -60,6 +73,30 @@ func (i *image) compute() error {
 	if i.computed {
 		return nil
 	}
+
+	m, err := i.base.Manifest()
+	if err != nil {
+		return err
+	}
+	manifest := m.DeepCopy()
+
+	diffIDMap := make(map[v1.Hash]v1.Layer)
+	digestMap := make(map[v1.Hash]v1.Layer)
+
+	// Determine effective config media type (user override takes precedence).
+	cfgMediaType := manifest.Config.MediaType
+	if i.configMediaType != nil {
+		cfgMediaType = *i.configMediaType
+	}
+
+	// For non-image OCI artifacts (Helm charts, WASM, etc.), the config is
+	// not a Docker/OCI image config. We must preserve the original config
+	// blob as-is and derive layers from the manifest, not from RootFS.DiffIDs.
+	// See https://github.com/google/go-containerregistry/issues/2251
+	if !isImageConfig(cfgMediaType) {
+		return i.computeArtifact(manifest, diffIDMap, digestMap, m)
+	}
+
 	var configFile *v1.ConfigFile
 	if i.configFile != nil {
 		configFile = i.configFile
@@ -73,9 +110,6 @@ func (i *image) compute() error {
 	diffIDs := configFile.RootFS.DiffIDs
 	history := configFile.History
 
-	diffIDMap := make(map[v1.Hash]v1.Layer)
-	digestMap := make(map[v1.Hash]v1.Layer)
-
 	for _, add := range i.adds {
 		history = append(history, add.History)
 		if add.Layer != nil {
@@ -88,11 +122,6 @@ func (i *image) compute() error {
 		}
 	}
 
-	m, err := i.base.Manifest()
-	if err != nil {
-		return err
-	}
-	manifest := m.DeepCopy()
 	manifestLayers := manifest.Layers
 	for _, add := range i.adds {
 		if add.Layer == nil {
@@ -170,6 +199,69 @@ func (i *image) compute() error {
 	return nil
 }
 
+// computeArtifact handles compute() for non-Docker OCI artifacts whose config
+// is not an image config. It preserves the original config blob and derives
+// layers from the manifest descriptors rather than RootFS.DiffIDs.
+func (i *image) computeArtifact(manifest *v1.Manifest, diffIDMap map[v1.Hash]v1.Layer, digestMap map[v1.Hash]v1.Layer, originalManifest *v1.Manifest) error {
+	// Preserve the original config file struct for ConfigFile() calls,
+	// but do NOT re-marshal it (that would corrupt the config blob digest).
+	if i.configFile == nil {
+		cf, err := i.base.ConfigFile()
+		if err != nil {
+			return err
+		}
+		i.configFile = cf.DeepCopy()
+	}
+
+	manifestLayers := manifest.Layers
+	for _, add := range i.adds {
+		if add.Layer == nil {
+			continue
+		}
+		desc, err := partial.Descriptor(add.Layer)
+		if err != nil {
+			return err
+		}
+		if len(add.Annotations) != 0 {
+			desc.Annotations = add.Annotations
+		}
+		if len(add.URLs) != 0 {
+			desc.URLs = add.URLs
+		}
+		if add.MediaType != "" {
+			desc.MediaType = add.MediaType
+		}
+		manifestLayers = append(manifestLayers, *desc)
+		digestMap[desc.Digest] = add.Layer
+	}
+	manifest.Layers = manifestLayers
+
+	// Do NOT recompute the config digest. The original config blob is
+	// preserved as-is so the manifest continues to reference the correct blob.
+
+	if i.configMediaType != nil {
+		manifest.Config.MediaType = *i.configMediaType
+	}
+	if i.mediaType != nil {
+		manifest.MediaType = *i.mediaType
+	}
+	if i.annotations != nil {
+		if manifest.Annotations == nil {
+			manifest.Annotations = map[string]string{}
+		}
+		for k, v := range i.annotations {
+			manifest.Annotations[k] = v
+		}
+	}
+	manifest.Subject = i.subject
+
+	i.manifest = manifest
+	i.diffIDMap = diffIDMap
+	i.digestMap = digestMap
+	i.computed = true
+	return nil
+}
+
 // Layers returns the ordered collection of filesystem layers that comprise this image.
 // The order of the list is oldest/base layer first, and most-recent/top layer last.
 func (i *image) Layers() ([]v1.Layer, error) {
@@ -187,6 +279,21 @@ func (i *image) Layers() ([]v1.Layer, error) {
 		return layers, nil
 	} else if err != nil {
 		return nil, err
+	}
+
+	// For non-image OCI artifacts, RootFS.DiffIDs is empty so partial.DiffIDs
+	// returns nothing. Fall back to the base image's layers plus any added layers.
+	if i.manifest != nil && !isImageConfig(i.manifest.Config.MediaType) {
+		layers, err := i.base.Layers()
+		if err != nil {
+			return nil, err
+		}
+		for _, add := range i.adds {
+			if add.Layer != nil {
+				layers = append(layers, add.Layer)
+			}
+		}
+		return layers, nil
 	}
 
 	diffIDs, err := partial.DiffIDs(i)
@@ -220,10 +327,17 @@ func (i *image) ConfigFile() (*v1.ConfigFile, error) {
 	return i.configFile.DeepCopy(), nil
 }
 
-// RawConfigFile returns the serialized bytes of ConfigFile()
+// RawConfigFile returns the serialized bytes of ConfigFile().
+// For non-image OCI artifacts, returns the original raw config to preserve
+// the config blob digest.
 func (i *image) RawConfigFile() ([]byte, error) {
 	if err := i.compute(); err != nil {
 		return nil, err
+	}
+	// If the manifest config is not a standard image config, return the
+	// original raw bytes to avoid corrupting the digest via re-marshaling.
+	if i.manifest != nil && !isImageConfig(i.manifest.Config.MediaType) {
+		return i.base.RawConfigFile()
 	}
 	return json.Marshal(i.configFile)
 }
