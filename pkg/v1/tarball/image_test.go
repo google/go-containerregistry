@@ -15,7 +15,10 @@
 package tarball
 
 import (
+	"archive/tar"
+	"bytes"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -135,6 +138,41 @@ func TestLayerLink(t *testing.T) {
 	}
 	if len(bs) == 0 {
 		t.Errorf("layer.Uncompressed() returned a link file")
+	}
+}
+
+func TestSymlinkCycle(t *testing.T) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	if err := tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeSymlink,
+		Name:     "manifest.json",
+		Linkname: "config.json",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeSymlink,
+		Name:     "config.json",
+		Linkname: "manifest.json",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	content := buf.Bytes()
+	opener := func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(content)), nil
+	}
+
+	_, err := LoadManifest(opener)
+	if err == nil {
+		t.Fatal("expected error for symlink cycle, got nil")
+	}
+	if !strings.Contains(err.Error(), "link cycle") {
+		t.Fatalf("expected link cycle error, got: %v", err)
 	}
 }
 

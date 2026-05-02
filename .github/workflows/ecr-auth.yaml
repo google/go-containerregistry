@@ -10,6 +10,9 @@ permissions:
   # This lets us mint identity tokens.
   id-token: write
 
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   krane:
     runs-on: ubuntu-latest
@@ -21,14 +24,14 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version-file: go.mod
+          go-version-file: '.go-version'
 
       - name: Install krane
         working-directory: ./cmd/krane
         run: go install .
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6.0.0
+        uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
           aws-region: ${{ env.AWS_REGION }}
@@ -60,14 +63,14 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
-          go-version-file: go.mod
+          go-version-file: '.go-version'
 
       - name: Install crane
         working-directory: ./cmd/crane
         run: go install .
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6.0.0
+        uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
           aws-region: ${{ env.AWS_REGION }}

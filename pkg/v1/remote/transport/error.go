@@ -15,6 +15,7 @@
 package transport
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -189,6 +190,11 @@ func retryError(resp *http.Response) error {
 	if err != nil {
 		return err
 	}
+
+	// Restore the body so that a subsequent CheckError call (after the
+	// retry loop exhausts its retries) can still read and parse the
+	// structured registry error from the response.
+	resp.Body = io.NopCloser(bytes.NewReader(b))
 
 	rerr := makeError(resp, b)
 	rerr.temporary = true

@@ -9,6 +9,9 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  GOTOOLCHAIN: local
+
 jobs:
   bump-deps:
     name: Bump Deps
@@ -21,7 +24,7 @@ jobs:
     - uses: actions/checkout@v6
     - uses: actions/setup-go@v6
       with:
-        go-version-file: go.mod
+        go-version-file: '.go-version'
 
     - run: ./hack/bump-deps.sh
     - name: Create Pull Request

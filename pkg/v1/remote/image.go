@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"net/http"
 	"net/url"
 	"sync"
 
@@ -27,7 +26,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
-	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -201,24 +199,12 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 	// TODO: Maybe we don't want to try pulling from the registry first?
 	var lastErr error
 	for _, u := range urls {
-		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-		if err != nil {
-			return nil, err
-		}
-
-		resp, err := rl.ri.fetcher.Do(req.WithContext(ctx))
+		rc, err := rl.ri.fetcher.fetchBlobURL(ctx, u, d.Size, rl.digest)
 		if err != nil {
 			lastErr = err
 			continue
 		}
-
-		if err := transport.CheckError(resp, http.StatusOK); err != nil {
-			resp.Body.Close()
-			lastErr = err
-			continue
-		}
-
-		return verify.ReadCloser(resp.Body, d.Size, rl.digest)
+		return rc, nil
 	}
 
 	return nil, lastErr
