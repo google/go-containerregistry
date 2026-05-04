@@ -640,8 +640,9 @@ func TestNonImageArtifactPreservesConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Layers() failed on artifact: %v", err)
 	}
-	// Empty image has no layers; that's fine, it shouldn't error.
-	_ = layers
+	if len(layers) != 0 {
+		t.Errorf("expected 0 layers for empty artifact, got %d", len(layers))
+	}
 
 	// Manifest should be valid and reference the correct config type.
 	manifest, err := img.Manifest()
