@@ -202,7 +202,7 @@ func (i *image) compute() error {
 // computeArtifact handles compute() for non-Docker OCI artifacts whose config
 // is not an image config. It preserves the original config blob and derives
 // layers from the manifest descriptors rather than RootFS.DiffIDs.
-func (i *image) computeArtifact(manifest *v1.Manifest, diffIDMap map[v1.Hash]v1.Layer, digestMap map[v1.Hash]v1.Layer, originalManifest *v1.Manifest) error {
+func (i *image) computeArtifact(manifest *v1.Manifest, diffIDMap map[v1.Hash]v1.Layer, digestMap map[v1.Hash]v1.Layer, _ *v1.Manifest) error {
 	// Preserve the original config file struct for ConfigFile() calls,
 	// but do NOT re-marshal it (that would corrupt the config blob digest).
 	if i.configFile == nil {
