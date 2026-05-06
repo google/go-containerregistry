@@ -560,6 +560,44 @@ func TestInsufficientScope(t *testing.T) {
 	}
 }
 
+// TestTokenServerRedirectSSRF verifies that a malicious token server cannot
+// redirect token-fetch requests to private/loopback addresses, bypassing the
+// initial validateRealmURL check.
+func TestTokenServerRedirectSSRF(t *testing.T) {
+	// internalServer simulates an internal service that should never be reached.
+	internalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Return a response that looks like a valid token so the test can detect
+		// whether the client actually followed the redirect.
+		fmt.Fprintf(w, `{"token": "should-not-reach-this"}`)
+	}))
+	defer internalServer.Close()
+
+	// tokenServer issues a redirect to the internalServer on every request.
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, internalServer.URL+"/token", http.StatusFound)
+	}))
+	defer tokenServer.Close()
+
+	registry, err := name.NewRegistry("registry.example.com", name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bt := &bearerTransport{
+		inner:    http.DefaultTransport,
+		basic:    &authn.Basic{Username: "foo", Password: "bar"},
+		registry: registry,
+		realm:    tokenServer.URL + "/token",
+		scopes:   []string{"repo:example/image:pull"},
+		service:  "registry.example.com",
+		scheme:   "http",
+	}
+
+	if err := bt.refresh(context.Background()); err == nil {
+		t.Error("refresh() should have been rejected when token server redirects to loopback address")
+	}
+}
+
 func TestValidateRealmURLUnspecified(t *testing.T) {
 	// 0.0.0.0 and :: resolve to localhost on most OSes.
 	// They should be blocked like other private addresses.
