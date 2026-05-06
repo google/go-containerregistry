@@ -17,7 +17,9 @@ package remote
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"sync"
 
@@ -28,6 +30,40 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
+
+// validateForeignURL returns an error if the foreign layer URL uses a
+// disallowed scheme or points to a private/link-local IP address.  A malicious
+// manifest can embed arbitrary URLs in the descriptor's "urls" field; without
+// validation the client would follow them, causing SSRF against internal
+// services (e.g. the cloud instance-metadata endpoint 169.254.169.254).
+//
+// The logic mirrors transport.validateRealmURL: HTTPS is always allowed; HTTP
+// is only allowed when the registry itself was reached over HTTP (insecure).
+// DNS-based SSRF remains out of scope, matching the design decision in
+// transport.validateRealmURL.
+func validateForeignURL(rawURL string, insecure bool) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("parsing foreign layer URL %q: %w", rawURL, err)
+	}
+	switch u.Scheme {
+	case "https":
+		// always allowed
+	case "http":
+		if !insecure {
+			return fmt.Errorf("foreign layer URL scheme %q not allowed for a secure registry; use https", u.Scheme)
+		}
+	default:
+		return fmt.Errorf("foreign layer URL scheme %q not allowed; must be https (or http for insecure registries)", u.Scheme)
+	}
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
+			return fmt.Errorf("foreign layer URL host %q is a private or link-local address", host)
+		}
+	}
+	return nil
+}
 
 var acceptableImageMediaTypes = []types.MediaType{
 	types.DockerManifestSchema2,
@@ -185,7 +221,11 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 	// We don't want to log binary layers -- this can break terminals.
 	ctx := redact.NewContext(rl.ctx, "omitting binary blobs from logs")
 
+	insecure := rl.ri.fetcher.target.Scheme() == "http"
 	for _, s := range d.URLs {
+		if err := validateForeignURL(s, insecure); err != nil {
+			return nil, err
+		}
 		u, err := url.Parse(s)
 		if err != nil {
 			return nil, err

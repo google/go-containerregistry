@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path"
 	"strings"
 	"testing"
 
@@ -595,10 +594,13 @@ func TestPullingForeignLayer(t *testing.T) {
 		t.Fatalf("url.Parse(%v) = %v", foreignServer.URL, err)
 	}
 
+	// Use "localhost" (not "127.0.0.1") so the hostname is not an IP literal
+	// and is not rejected by validateForeignURL's private-address check.
+	// DNS-based SSRF is explicitly out of scope for this validation.
 	img, err = mutate.Append(img, mutate.Addendum{
 		Layer: foreignLayer,
 		URLs: []string{
-			"http://" + path.Join(fu.Host, foreignPath),
+			"http://localhost:" + fu.Port() + foreignPath,
 		},
 	})
 	if err != nil {
@@ -745,5 +747,103 @@ func TestData(t *testing.T) {
 	}
 	if err := validate.Image(rmt); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestValidateForeignURL(t *testing.T) {
+	tests := []struct {
+		url      string
+		insecure bool
+		wantErr  bool
+	}{
+		// public HTTPS — always allowed
+		{"https://cdn.example.com/layer.tar.gz", false, false},
+		{"https://8.8.8.8/layer.tar.gz", false, false},
+		// public HTTP — only for insecure registries
+		{"http://cdn.example.com/layer.tar.gz", true, false},
+		{"http://cdn.example.com/layer.tar.gz", false, true},
+		// loopback — rejected even for insecure
+		{"http://127.0.0.1/layer.tar.gz", true, true},
+		{"https://127.0.0.1/layer.tar.gz", false, true},
+		{"https://[::1]/layer.tar.gz", false, true},
+		// link-local (cloud metadata)
+		{"https://169.254.169.254/latest/meta-data/", false, true},
+		{"http://169.254.169.254/latest/meta-data/", true, true},
+		// private RFC 1918
+		{"https://10.0.0.1/layer.tar.gz", false, true},
+		{"https://192.168.1.1/layer.tar.gz", false, true},
+		// unspecified
+		{"https://0.0.0.0/layer.tar.gz", false, true},
+		// disallowed schemes
+		{"ftp://cdn.example.com/layer.tar.gz", false, true},
+		{"file:///etc/passwd", false, true},
+	}
+	for _, tt := range tests {
+		err := validateForeignURL(tt.url, tt.insecure)
+		if tt.wantErr && err == nil {
+			t.Errorf("validateForeignURL(%q, insecure=%v) should have been rejected", tt.url, tt.insecure)
+		}
+		if !tt.wantErr && err != nil {
+			t.Errorf("validateForeignURL(%q, insecure=%v) unexpected error: %v", tt.url, tt.insecure, err)
+		}
+	}
+}
+
+// TestPullingForeignLayerSSRF verifies that a manifest whose foreign-layer URL
+// points to a private or loopback address is rejected before any network
+// request is made, preventing SSRF.
+func TestPullingForeignLayerSSRF(t *testing.T) {
+	img := randomImage(t)
+	expectedRepo := "foo/bar"
+
+	foreignLayer, err := random.Layer(1024, types.DockerForeignLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Embed a foreign layer URL pointing to the AWS metadata endpoint.
+	img, err = mutate.Append(img, mutate.Addendum{
+		Layer: foreignLayer,
+		URLs:  []string{"http://169.254.169.254/latest/meta-data/iam/security-credentials/"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, mustConfigName(t, img))
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case configPath:
+			w.Write(mustRawConfigFile(t, img))
+		case manifestPath:
+			w.Write(mustRawManifest(t, img))
+		default:
+			t.Fatalf("unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+	rmt, err := Image(tag, WithTransport(http.DefaultTransport))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Pulling the foreign layer must be rejected.
+	layers, err := rmt.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = layers[1].Compressed()
+	if err == nil {
+		t.Error("Compressed() should have been rejected for a foreign layer URL pointing to a private address")
 	}
 }
