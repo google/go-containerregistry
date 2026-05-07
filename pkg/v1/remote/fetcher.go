@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -70,9 +71,38 @@ func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, er
 	}
 	return &fetcher{
 		target:  target,
-		client:  &http.Client{Transport: tr},
+		client: &http.Client{
+			Transport:     tr,
+			CheckRedirect: checkRedirectSSRF,
+		},
 		limiter: o.limiter,
 	}, nil
+}
+
+// checkRedirectSSRF rejects HTTP redirects that cross from a public host to a
+// private or link-local IP literal. This prevents a malicious registry from
+// issuing a 302 to a cloud instance metadata service (e.g. 169.254.169.254)
+// or another internal network address during blob or manifest downloads.
+//
+// Same-host redirects and redirects to non-IP hostnames (including DNS names
+// that may resolve to private addresses) are allowed. The first redirect in
+// the chain uses the original request URL as the "origin host" via
+// req.Response.Request, falling back to req.URL when no prior response exists.
+func checkRedirectSSRF(req *http.Request, via []*http.Request) error {
+	if len(via) == 0 || req.Response == nil {
+		return nil
+	}
+	origHost := via[0].URL.Hostname()
+	destHost := req.URL.Hostname()
+	if destHost == origHost {
+		return nil // same-host redirect is always allowed
+	}
+	if ip := net.ParseIP(destHost); ip != nil {
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
+			return fmt.Errorf("SSRF protection: redirect from %q to private/link-local host %q denied", origHost, destHost)
+		}
+	}
+	return nil
 }
 
 func (f *fetcher) Do(req *http.Request) (*http.Response, error) {
