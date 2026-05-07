@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -167,7 +168,29 @@ func (w *writer) nextLocation(resp *http.Response) (string, error) {
 
 	// If the location header returned is just a url path, then fully qualify it.
 	// We cannot simply call w.url, since there might be an embedded query string.
-	return resp.Request.URL.ResolveReference(u).String(), nil
+	resolved := resp.Request.URL.ResolveReference(u)
+
+	// Reject Location headers that redirect to a DIFFERENT host that resolves to
+	// a private or link-local IP literal. A malicious or compromised registry can
+	// respond to a blob upload initiation (POST /v2/.../blobs/uploads/) with a
+	// crafted Location header pointing at an internal service, causing the client
+	// to send subsequent PATCH/PUT requests (including the layer data as the body)
+	// to that internal address. Pre-signed blob URLs from cloud storage providers
+	// (GCS, S3, Azure Blob) use public hostnames, so legitimate cross-host
+	// redirects are unaffected.
+	//
+	// Same-host redirects (e.g. a different path on the registry itself) are
+	// always allowed regardless of whether the registry IP is private.
+	origHost := resp.Request.URL.Hostname()
+	if destHost := resolved.Hostname(); destHost != origHost {
+		if ip := net.ParseIP(destHost); ip != nil {
+			if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
+				return "", fmt.Errorf("SSRF protection: Location header redirects to private/link-local host %q", destHost)
+			}
+		}
+	}
+
+	return resolved.String(), nil
 }
 
 // checkExistingBlob checks if a blob exists already in the repository by making a
