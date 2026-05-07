@@ -397,7 +397,7 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 }
 
 // https://docs.docker.com/registry/spec/auth/token/
@@ -441,5 +441,5 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 }
