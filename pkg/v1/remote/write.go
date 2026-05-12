@@ -66,6 +66,25 @@ type writer struct {
 	scopes   []string
 }
 
+// makeDeleteClient returns an HTTP client whose token includes the "delete"
+// action so that registries requiring an explicit delete permission grant
+// access for manifest deletion.
+func makeDeleteClient(ctx context.Context, repo name.Repository, o *options) (*http.Client, error) {
+	auth := o.auth
+	if o.keychain != nil {
+		kauth, err := authn.Resolve(ctx, o.keychain, repo)
+		if err != nil {
+			return nil, err
+		}
+		auth = kauth
+	}
+	tr, err := transport.NewWithContext(ctx, repo.Registry, auth, o.transport, []string{repo.Scope(transport.DeleteScope)})
+	if err != nil {
+		return nil, err
+	}
+	return &http.Client{Transport: tr}, nil
+}
+
 func makeWriter(ctx context.Context, repo name.Repository, ls []v1.Layer, o *options) (*writer, error) {
 	auth := o.auth
 	if o.keychain != nil {
@@ -555,9 +574,10 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 		return err
 	}
 	var mf struct {
-		MediaType types.MediaType `json:"mediaType"`
-		Subject   *v1.Descriptor  `json:"subject,omitempty"`
-		Config    struct {
+		MediaType    types.MediaType `json:"mediaType"`
+		Subject      *v1.Descriptor  `json:"subject,omitempty"`
+		ArtifactType string          `json:"artifactType,omitempty"`
+		Config       struct {
 			MediaType types.MediaType `json:"mediaType"`
 		} `json:"config"`
 	}
@@ -599,10 +619,14 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 				return err
 			}
 			desc := v1.Descriptor{
-				ArtifactType: string(mf.Config.MediaType),
-				MediaType:    mf.MediaType,
-				Digest:       h,
-				Size:         size,
+				MediaType: mf.MediaType,
+				Digest:    h,
+				Size:      size,
+			}
+			if mf.ArtifactType != "" {
+				desc.ArtifactType = mf.ArtifactType
+			} else {
+				desc.ArtifactType = string(mf.Config.MediaType)
 			}
 			if err := w.commitSubjectReferrers(ctx,
 				ref.Context().Digest(mf.Subject.Digest.String()),
@@ -634,7 +658,7 @@ func scopesForUploadingImage(repo name.Repository, layers []v1.Layer) []string {
 		}
 	}
 
-	scopes := make([]string, 0)
+	scopes := make([]string, 0, len(scopeSet)+1)
 	// Push scope should be the first element because a few registries just look at the first scope to determine access.
 	scopes = append(scopes, repo.Scope(transport.PushScope))
 

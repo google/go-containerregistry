@@ -62,6 +62,26 @@ func TestExtractWhiteout(t *testing.T) {
 	}
 }
 
+func TestExtractWhiteoutDir(t *testing.T) {
+	img, err := tarball.ImageFromPath("testdata/whiteout_dir.tar", nil)
+	if err != nil {
+		t.Errorf("Error loading image: %v", err)
+	}
+	tarPath, _ := filepath.Abs("img.tar")
+	defer os.Remove(tarPath)
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		header, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		name := header.Name
+		if filepath.Base(name) == "foo" {
+			t.Errorf("whiteout file found in tar: %v", name)
+		}
+	}
+}
+
 func TestExtractOverwrittenFile(t *testing.T) {
 	img, err := tarball.ImageFromPath("testdata/overwritten_file.tar", nil)
 	if err != nil {
@@ -84,6 +104,23 @@ func TestExtractOverwrittenFile(t *testing.T) {
 	}
 }
 
+func TestExtractClosesLayerBeforeOpeningNext(t *testing.T) {
+	tokens := make(chan struct{}, 4)
+	layers := make([]v1.Layer, cap(tokens)+1)
+	for i := range layers {
+		layers[i] = tokenLimitedLayer{tokens: tokens}
+	}
+
+	rc := mutate.Extract(tokenLimitedImage{layers: layers})
+	defer rc.Close()
+	if _, err := io.Copy(io.Discard, rc); err != nil {
+		t.Fatalf("mutate.Extract() = %v", err)
+	}
+	if got := len(tokens); got != 0 {
+		t.Fatalf("open layer readers after extraction: got %d, want 0", got)
+	}
+}
+
 // TestExtractError tests that if there are any errors encountered
 func TestExtractError(t *testing.T) {
 	rc := mutate.Extract(invalidImage{})
@@ -103,6 +140,138 @@ func TestExtractPartialRead(t *testing.T) {
 	}
 	if err := rc.Close(); err != nil {
 		t.Errorf("rc.Close: %v", err)
+	}
+}
+
+// TestExtractRoundTrip builds an image layer containing every common filesystem
+// object type (regular files, directories, symlinks, hard links, various
+// permission modes) and verifies that mutate.Extract preserves all entries.
+//
+// This prevents regressions like #2244 where a security fix inadvertently
+// dropped legitimate symlinks during extraction.
+func TestExtractRoundTrip(t *testing.T) {
+	// Build a tar layer with diverse filesystem objects.
+	type entry struct {
+		header *tar.Header
+		body   string // only for regular files
+	}
+	entries := []entry{
+		// Directories
+		{header: &tar.Header{Name: "app/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "app/bin/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "app/lib/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "app/node_modules/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "app/node_modules/.bin/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "restricted/", Typeflag: tar.TypeDir, Mode: 0o700}},
+
+		// Regular files with various permissions
+		{header: &tar.Header{Name: "app/main.js", Typeflag: tar.TypeReg, Mode: 0o644}, body: "console.log('hello')\n"},
+		{header: &tar.Header{Name: "app/bin/run.sh", Typeflag: tar.TypeReg, Mode: 0o755}, body: "#!/bin/sh\n\n"},
+		{header: &tar.Header{Name: "restricted/secret.key", Typeflag: tar.TypeReg, Mode: 0o600}, body: "secret\n"},
+		{header: &tar.Header{Name: "app/lib/utils.js", Typeflag: tar.TypeReg, Mode: 0o644}, body: "// ok\n"},
+
+		// Relative symlinks (the most common case, e.g. node_modules/.bin)
+		{header: &tar.Header{Name: "app/node_modules/.bin/acorn", Typeflag: tar.TypeSymlink, Linkname: "../acorn/bin/acorn"}},
+		{header: &tar.Header{Name: "app/node_modules/.bin/eslint", Typeflag: tar.TypeSymlink, Linkname: "../eslint/bin/eslint.js"}},
+
+		// Absolute symlink (pointing within the image)
+		{header: &tar.Header{Name: "app/link-to-main", Typeflag: tar.TypeSymlink, Linkname: "/app/main.js"}},
+
+		// Symlink to a directory
+		{header: &tar.Header{Name: "app/modules", Typeflag: tar.TypeSymlink, Linkname: "node_modules"}},
+
+		// Hard link
+		{header: &tar.Header{Name: "app/main-hardlink.js", Typeflag: tar.TypeLink, Linkname: "app/main.js"}},
+	}
+
+	// Write entries into a tar archive.
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for _, e := range entries {
+		if e.body != "" {
+			e.header.Size = int64(len(e.body))
+		}
+		if err := tw.WriteHeader(e.header); err != nil {
+			t.Fatalf("writing header for %s: %v", e.header.Name, err)
+		}
+		if e.body != "" {
+			if _, err := tw.Write([]byte(e.body)); err != nil {
+				t.Fatalf("writing body for %s: %v", e.header.Name, err)
+			}
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
+
+	// Build a single-layer image from the tar.
+	tarBytes := buf.Bytes()
+	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(tarBytes)), nil
+	})
+	if err != nil {
+		t.Fatalf("creating layer: %v", err)
+	}
+	img, err := mutate.AppendLayers(empty.Image, layer)
+	if err != nil {
+		t.Fatalf("appending layer: %v", err)
+	}
+
+	// Extract and collect all entries from the flattened output.
+	extracted := map[string]*tar.Header{}
+	extractedBodies := map[string]string{}
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("reading extracted tar: %v", err)
+		}
+		extracted[hdr.Name] = hdr
+		if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
+			var b bytes.Buffer
+			if _, err := io.Copy(&b, tr); err != nil {
+				t.Fatalf("reading body of %s: %v", hdr.Name, err)
+			}
+			extractedBodies[hdr.Name] = b.String()
+		}
+	}
+
+	// Verify every input entry is present in the output with correct metadata.
+	for _, e := range entries {
+		name := filepath.Clean(e.header.Name)
+		got, ok := extracted[name]
+		if !ok {
+			t.Errorf("entry %q not found in extracted output", name)
+			continue
+		}
+
+		if got.Typeflag != e.header.Typeflag {
+			t.Errorf("%s: typeflag = %d, want %d", name, got.Typeflag, e.header.Typeflag)
+		}
+
+		// Verify symlink and hard link targets are preserved.
+		if e.header.Typeflag == tar.TypeSymlink || e.header.Typeflag == tar.TypeLink {
+			if got.Linkname != e.header.Linkname {
+				t.Errorf("%s: linkname = %q, want %q", name, got.Linkname, e.header.Linkname)
+			}
+		}
+
+		// Verify file permissions.
+		if e.header.Typeflag == tar.TypeReg || e.header.Typeflag == tar.TypeDir {
+			if got.Mode != e.header.Mode {
+				t.Errorf("%s: mode = %o, want %o", name, got.Mode, e.header.Mode)
+			}
+		}
+
+		// Verify file contents.
+		if e.body != "" {
+			if extractedBodies[name] != e.body {
+				t.Errorf("%s: body = %q, want %q", name, extractedBodies[name], e.body)
+			}
+		}
 	}
 }
 
@@ -767,4 +936,44 @@ func (m mockLayer) Compressed() (io.ReadCloser, error) {
 }
 func (m mockLayer) Uncompressed() (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader("uncompressed")), nil
+}
+
+type tokenLimitedImage struct {
+	v1.Image
+	layers []v1.Layer
+}
+
+func (i tokenLimitedImage) Layers() ([]v1.Layer, error) {
+	return i.layers, nil
+}
+
+type tokenLimitedLayer struct {
+	mockLayer
+	tokens chan struct{}
+}
+
+func (l tokenLimitedLayer) Uncompressed() (io.ReadCloser, error) {
+	select {
+	case l.tokens <- struct{}{}:
+		return &tokenReleasingReadCloser{
+			Reader:  bytes.NewReader(nil),
+			release: func() { <-l.tokens },
+		}, nil
+	default:
+		return nil, errors.New("layer reader opened before previous readers were closed")
+	}
+}
+
+type tokenReleasingReadCloser struct {
+	io.Reader
+	release func()
+	closed  bool
+}
+
+func (rc *tokenReleasingReadCloser) Close() error {
+	if !rc.closed {
+		rc.closed = true
+		rc.release()
+	}
+	return nil
 }

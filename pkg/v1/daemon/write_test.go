@@ -22,8 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	api "github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
+	"github.com/moby/moby/client"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -38,28 +37,26 @@ func (r *errReader) Read(_ []byte) (int, error) {
 	return 0, r.err
 }
 
-func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ ...client.ImageLoadOption) (api.LoadResponse, error) {
+func (m *MockClient) ImageLoad(ctx context.Context, r io.Reader, _ ...client.ImageLoadOption) (client.ImageLoadResult, error) {
 	if !m.negotiated {
-		return api.LoadResponse{}, errors.New("you forgot to call NegotiateAPIVersion before calling ImageLoad")
+		return nil, errors.New("you forgot to call NegotiateAPIVersion before calling ImageLoad")
 	}
 	if m.wantCtx != nil && m.wantCtx != ctx {
-		return api.LoadResponse{}, fmt.Errorf("ImageLoad: wrong context")
+		return nil, fmt.Errorf("ImageLoad: wrong context")
 	}
 
 	_, _ = io.Copy(io.Discard, r)
-	return api.LoadResponse{
-		Body: m.loadBody,
-	}, m.loadErr
+	return m.loadBody, m.loadErr
 }
 
-func (m *MockClient) ImageTag(ctx context.Context, _, _ string) error {
+func (m *MockClient) ImageTag(ctx context.Context, _ client.ImageTagOptions) (client.ImageTagResult, error) {
 	if !m.negotiated {
-		return errors.New("you forgot to call NegotiateAPIVersion before calling ImageTag")
+		return client.ImageTagResult{}, errors.New("you forgot to call NegotiateAPIVersion before calling ImageTag")
 	}
 	if m.wantCtx != nil && m.wantCtx != ctx {
-		return fmt.Errorf("ImageTag: wrong context")
+		return client.ImageTagResult{}, fmt.Errorf("ImageTag: wrong context")
 	}
-	return m.tagErr
+	return client.ImageTagResult{}, m.tagErr
 }
 
 func TestWriteImage(t *testing.T) {

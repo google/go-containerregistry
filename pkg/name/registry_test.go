@@ -201,8 +201,14 @@ func TestRegistryScheme(t *testing.T) {
 		domain string
 		scheme string
 	}{{
-		domain: "foo.svc.local:1234",
+		domain: "foo.svc.localhost:1234",
 		scheme: "http",
+	}, {
+		domain: "foo.svc.local:1234",
+		scheme: "https",
+	}, {
+		domain: "registry.local",
+		scheme: "https",
 	}, {
 		domain: "127.0.0.1:1234",
 		scheme: "http",

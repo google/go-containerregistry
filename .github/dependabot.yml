@@ -9,21 +9,14 @@ updates:
       patterns:
       - "*"
 - package-ecosystem: gomod
-  directory: /
-  schedule:
-    interval: weekly
-  groups:
-    root-deps:
-      patterns:
-      - "*"
-- package-ecosystem: gomod
   directories:
+  - /
   - /cmd/krane
   - /pkg/authn/k8schain
   - /pkg/authn/kubernetes
   schedule:
     interval: weekly
   groups:
-    auxiliary-deps:
+    go-deps:
       patterns:
       - "*"

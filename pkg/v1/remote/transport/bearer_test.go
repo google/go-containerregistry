@@ -559,3 +559,35 @@ func TestInsufficientScope(t *testing.T) {
 		t.Error("didn't refresh insufficient scope")
 	}
 }
+
+func TestValidateRealmURLUnspecified(t *testing.T) {
+	// 0.0.0.0 and :: resolve to localhost on most OSes.
+	// They should be blocked like other private addresses.
+	tests := []struct {
+		realm   string
+		wantErr bool
+	}{
+		{"https://0.0.0.0/token", true},
+		{"https://0.0.0.0:8443/token", true},
+		{"https://[::]/token", true},
+		{"https://[::]:8443/token", true},
+		// existing checks still work
+		{"https://127.0.0.1/token", true},
+		{"https://[::1]/token", true},
+		{"https://10.0.0.1/token", true},
+		{"https://192.168.1.1/token", true},
+		{"https://169.254.169.254/token", true},
+		// public IPs are fine
+		{"https://8.8.8.8/token", false},
+		{"https://registry.example.com/token", false},
+	}
+	for _, tt := range tests {
+		err := validateRealmURL(tt.realm, false)
+		if tt.wantErr && err == nil {
+			t.Errorf("validateRealmURL(%q) should have been rejected", tt.realm)
+		}
+		if !tt.wantErr && err != nil {
+			t.Errorf("validateRealmURL(%q) unexpected error: %v", tt.realm, err)
+		}
+	}
+}
