@@ -33,6 +33,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/internal/authchallenge"
 )
 
+// maxTokenBodySize limits bearer token response body reads to prevent OOM
+// when a token endpoint returns an unexpectedly large body.
+const maxTokenBodySize = 64 * 1024 // 64 KiB
+
 type Token struct {
 	Token        string `json:"token"`
 	AccessToken  string `json:"access_token,omitempty"`
@@ -397,7 +401,7 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxTokenBodySize))
 }
 
 // https://docs.docker.com/registry/spec/auth/token/
@@ -441,5 +445,5 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxTokenBodySize))
 }
