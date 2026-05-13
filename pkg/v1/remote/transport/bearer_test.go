@@ -565,7 +565,7 @@ func TestInsufficientScope(t *testing.T) {
 // initial validateRealmURL check.
 func TestTokenServerRedirectSSRF(t *testing.T) {
 	// internalServer simulates an internal service that should never be reached.
-	internalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	internalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		fmt.Fprintf(w, `{"token": "should-not-reach-this"}`)
 	}))
 	defer internalServer.Close()
