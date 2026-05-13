@@ -17,10 +17,7 @@ package remote
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
-	"net"
-	"net/http"
 	"net/url"
 	"sync"
 
@@ -31,74 +28,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
-
-// validateForeignURL returns an error if the foreign layer URL uses a
-// disallowed scheme or points to a private/link-local IP address.  A malicious
-// manifest can embed arbitrary URLs in the descriptor's "urls" field; without
-// validation the client would follow them, causing SSRF against internal
-// services (e.g. the cloud instance-metadata endpoint 169.254.169.254).
-//
-// The logic mirrors transport.validateRealmURL: HTTPS is always allowed; HTTP
-// is only allowed when the registry itself was reached over HTTP (insecure).
-// DNS-based SSRF remains out of scope, matching the design decision in
-// transport.validateRealmURL.
-//
-// Note: validateForeignURL is also called inside the CheckRedirect hook used
-// by fetchForeignBlobURL to prevent a redirect-based bypass where a public URL
-// redirects to a private address.
-func validateForeignURL(rawURL string, insecure bool) error {
-	u, err := url.Parse(rawURL)
-	if err != nil {
-		return fmt.Errorf("parsing foreign layer URL %q: %w", rawURL, err)
-	}
-	switch u.Scheme {
-	case "https":
-		// always allowed
-	case "http":
-		if !insecure {
-			return fmt.Errorf("foreign layer URL scheme %q not allowed for a secure registry; use https", u.Scheme)
-		}
-	default:
-		return fmt.Errorf("foreign layer URL scheme %q not allowed; must be https (or http for insecure registries)", u.Scheme)
-	}
-	host := u.Hostname()
-	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
-			return fmt.Errorf("foreign layer URL host %q is a private or link-local address", host)
-		}
-	}
-	return nil
-}
-
-// fetchForeignBlobURL fetches a foreign-layer blob URL using the fetcher's
-// transport but with a CheckRedirect hook that validates every redirect
-// destination through validateForeignURL.  This prevents a redirect-based SSRF
-// bypass where the initial URL is on a public host but the server issues a 302
-// to a private or link-local address (e.g. 169.254.169.254).
-func (f *fetcher) fetchForeignBlobURL(ctx context.Context, u url.URL, size int64, h v1.Hash, insecure bool) (io.ReadCloser, error) {
-	// Build a one-shot client with redirect validation.  Reuse the same
-	// transport (and thus the same auth / TLS config) as the registry client.
-	safeClient := &http.Client{
-		Transport: f.client.Transport,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			return validateForeignURL(req.URL.String(), insecure)
-		},
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := safeClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("GET %s: unexpected status %s", u.String(), resp.Status)
-	}
-	return verify.ReadCloser(resp.Body, size, h)
-}
 
 var acceptableImageMediaTypes = []types.MediaType{
 	types.DockerManifestSchema2,
@@ -241,7 +170,7 @@ func (rl *remoteImageLayer) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
-	urls := []url.URL{rl.ri.fetcher.url("blobs", rl.digest.String())}
+	u := rl.ri.fetcher.url("blobs", rl.digest.String())
 
 	// Add alternative layer sources from URLs (usually none).
 	d, err := partial.BlobDescriptor(rl, rl.digest)
@@ -258,41 +187,31 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 
 	insecure := rl.ri.fetcher.target.Scheme() == "http"
 
-	type layerURL struct {
-		u       url.URL
-		foreign bool // true if sourced from the descriptor's "urls" field
-	}
-	layerURLs := []layerURL{{u: urls[0]}} // first entry is always the registry blob URL
-
-	for _, s := range d.URLs {
-		if err := validateForeignURL(s, insecure); err != nil {
-			return nil, err
-		}
-		u, err := url.Parse(s)
-		if err != nil {
-			return nil, err
-		}
-		layerURLs = append(layerURLs, layerURL{u: *u, foreign: true})
-	}
-
 	// The lastErr for most pulls will be the same (the first error), but for
 	// foreign layers we'll want to surface the last one, since we try to pull
 	// from the registry first, which would often fail.
 	// TODO: Maybe we don't want to try pulling from the registry first?
 	var lastErr error
-	for _, lu := range layerURLs {
-		var (
-			rc  io.ReadCloser
-			err error
-		)
-		if lu.foreign {
-			// Use fetchForeignBlobURL so that any HTTP redirect from the
-			// foreign server is also validated against private-IP ranges,
-			// preventing a redirect-based SSRF bypass.
-			rc, err = rl.ri.fetcher.fetchForeignBlobURL(ctx, lu.u, d.Size, rl.digest, insecure)
-		} else {
-			rc, err = rl.ri.fetcher.fetchBlobURL(ctx, lu.u, d.Size, rl.digest)
+	rc, err := rl.ri.fetcher.fetchBlobURL(ctx, u, d.Size, rl.digest)
+	if err == nil {
+		return rc, nil
+	}
+	lastErr = err
+
+	foreignURLs := make([]url.URL, 0, len(d.URLs))
+	for _, s := range d.URLs {
+		if err := validateForeignURL(s, insecure); err != nil {
+			return nil, err
 		}
+		fu, err := url.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+		foreignURLs = append(foreignURLs, *fu)
+	}
+
+	for _, fu := range foreignURLs {
+		rc, err := rl.ri.fetcher.fetchForeignBlobURL(ctx, fu, d.Size, rl.digest, insecure)
 		if err != nil {
 			lastErr = err
 			continue
