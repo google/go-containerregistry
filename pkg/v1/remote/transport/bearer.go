@@ -33,6 +33,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/internal/authchallenge"
 )
 
+// maxTokenBodySize limits bearer token response body reads to prevent OOM
+// when a token endpoint returns an unexpectedly large body.
+const maxTokenBodySize = 64 * 1024 // 64 KiB
+
 type Token struct {
 	Token        string `json:"token"`
 	AccessToken  string `json:"access_token,omitempty"`
@@ -130,7 +134,7 @@ func validateRealmURL(realm string, insecure bool) error {
 	// here; callers should apply network-level controls if needed.
 	host := u.Hostname()
 	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() {
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
 			return fmt.Errorf("realm host %q is a private or link-local address", host)
 		}
 	}
@@ -397,7 +401,7 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxTokenBodySize))
 }
 
 // https://docs.docker.com/registry/spec/auth/token/
@@ -441,5 +445,5 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(resp.Body)
+	return io.ReadAll(io.LimitReader(resp.Body, maxTokenBodySize))
 }

@@ -23,7 +23,7 @@ jobs:
           go-version-file: '.go-version'
           check-latest: true # no-op if full version is specified
           cache: false
-      - uses: goreleaser/goreleaser-action@v7.0.0
+      - uses: goreleaser/goreleaser-action@v7.2.1
         id: run-goreleaser
         with:
           version: "~> v2"
