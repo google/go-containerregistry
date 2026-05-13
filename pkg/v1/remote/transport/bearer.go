@@ -105,12 +105,8 @@ func fromChallenge(reg name.Registry, auth authn.Authenticator, t http.RoundTrip
 	}, nil
 }
 
-// realmRedirectCheck returns an http.Client.CheckRedirect function that applies
-// the same private-address and scheme restrictions as validateRealmURL to every
-// redirect hop during a token-fetch request. Without this guard a malicious
-// token server can issue an HTTP redirect to an internal service (e.g. the
-// cloud instance-metadata endpoint at 169.254.169.254), effectively bypassing
-// the initial validateRealmURL check and causing SSRF.
+// realmRedirectCheck mimics the default http.Client redirect policy but also
+// validates each redirect URL with validateRealmURL.
 func realmRedirectCheck(insecure bool) func(*http.Request, []*http.Request) error {
 	return func(req *http.Request, via []*http.Request) error {
 		if len(via) >= 10 {
@@ -392,7 +388,8 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 		v.Set("access_type", "offline")
 	}
 
-	client := http.Client{Transport: bt.inner, CheckRedirect: realmRedirectCheck(bt.scheme == "http")}
+	allowInsecure := bt.scheme == "http"
+	client := http.Client{Transport: bt.inner, CheckRedirect: realmRedirectCheck(allowInsecure)}
 	req, err := http.NewRequest(http.MethodPost, u.String(), strings.NewReader(v.Encode()))
 	if err != nil {
 		return nil, err
@@ -429,7 +426,8 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 		auth:   bt.basic,
 		target: u.Host,
 	}
-	client := http.Client{Transport: b, CheckRedirect: realmRedirectCheck(bt.scheme == "http")}
+	allowInsecure := bt.scheme == "http"
+	client := http.Client{Transport: b, CheckRedirect: realmRedirectCheck(allowInsecure)}
 
 	v := u.Query()
 	bt.mx.RLock()

@@ -566,8 +566,6 @@ func TestInsufficientScope(t *testing.T) {
 func TestTokenServerRedirectSSRF(t *testing.T) {
 	// internalServer simulates an internal service that should never be reached.
 	internalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Return a response that looks like a valid token so the test can detect
-		// whether the client actually followed the redirect.
 		fmt.Fprintf(w, `{"token": "should-not-reach-this"}`)
 	}))
 	defer internalServer.Close()
