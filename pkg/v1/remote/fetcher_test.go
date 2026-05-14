@@ -134,7 +134,7 @@ func TestPullingForeignLayerSSRFViaRedirect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	victim := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	victim := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"AccessKeyId":"ASIA_LEAKED","SecretAccessKey":"LEAKED_SECRET"}`))
 	}))

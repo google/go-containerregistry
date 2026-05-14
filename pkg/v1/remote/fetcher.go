@@ -363,7 +363,7 @@ func validateForeignURL(rawURL string, insecure bool) error {
 func (f *fetcher) fetchForeignBlobURL(ctx context.Context, u url.URL, size int64, h v1.Hash, insecure bool) (io.ReadCloser, error) {
 	safeClient := &http.Client{
 		Transport: f.client.Transport,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
 			return validateForeignURL(req.URL.String(), insecure)
 		},
 	}
