@@ -133,12 +133,12 @@ func TestNextLocationSSRFProtection(t *testing.T) {
 
 	// Redirects to private/link-local IPs on a DIFFERENT host must be rejected.
 	blocked := []string{
-		"http://169.254.169.254/latest/meta-data/",         // AWS IMDS link-local
-		"http://192.168.1.1/admin",                          // RFC 1918 private
-		"http://10.0.0.1/internal",                          // RFC 1918 private
-		"http://127.0.0.1:9999/secret",                      // loopback
-		"http://0.0.0.0/anything",                           // unspecified
-		"http://[fd00:ec2::254]/latest/meta-data/",          // GCP/AWS IPv6 IMDS
+		"http://169.254.169.254/latest/meta-data/", // AWS IMDS link-local
+		"http://192.168.1.1/admin",                 // RFC 1918 private
+		"http://10.0.0.1/internal",                 // RFC 1918 private
+		"http://127.0.0.1:9999/secret",             // loopback
+		"http://0.0.0.0/anything",                  // unspecified
+		"http://[fd00:ec2::254]/latest/meta-data/", // GCP/AWS IPv6 IMDS
 	}
 	for _, loc := range blocked {
 		resp := makeResp("registry.example.com", loc)
