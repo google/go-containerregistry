@@ -35,14 +35,14 @@ func TestCheckRedirectSSRF(t *testing.T) {
 
 	// Cross-host redirects to private/link-local/loopback IPs must be blocked.
 	blocked := []struct{ orig, dest string }{
-		{"registry.example.com", "http://169.254.169.254/latest/meta-data/"},  // AWS/GCP IMDS link-local
-		{"registry.example.com", "http://192.168.1.1/admin"},                  // RFC 1918 private
-		{"registry.example.com", "http://10.0.0.1/internal"},                  // RFC 1918 private
-		{"registry.example.com", "http://172.16.0.1/secret"},                  // RFC 1918 private
-		{"registry.example.com", "http://127.0.0.1:9999/creds"},               // loopback
-		{"registry.example.com", "http://0.0.0.0/anything"},                   // unspecified
-		{"registry.example.com", "http://[fd00:ec2::254]/latest/meta-data/"},  // IPv6 IMDS
-		{"registry.example.com", "http://[::1]/internal"},                     // IPv6 loopback
+		{"registry.example.com", "http://169.254.169.254/latest/meta-data/"}, // AWS/GCP IMDS link-local
+		{"registry.example.com", "http://192.168.1.1/admin"},                 // RFC 1918 private
+		{"registry.example.com", "http://10.0.0.1/internal"},                 // RFC 1918 private
+		{"registry.example.com", "http://172.16.0.1/secret"},                 // RFC 1918 private
+		{"registry.example.com", "http://127.0.0.1:9999/creds"},              // loopback
+		{"registry.example.com", "http://0.0.0.0/anything"},                  // unspecified
+		{"registry.example.com", "http://[fd00:ec2::254]/latest/meta-data/"}, // IPv6 IMDS
+		{"registry.example.com", "http://[::1]/internal"},                    // IPv6 loopback
 	}
 	for _, tc := range blocked {
 		req, via := makeReq(tc.dest, tc.orig)

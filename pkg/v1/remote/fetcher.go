@@ -70,7 +70,7 @@ func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, er
 		return nil, err
 	}
 	return &fetcher{
-		target:  target,
+		target: target,
 		client: &http.Client{
 			Transport:     tr,
 			CheckRedirect: checkRedirectSSRF,
