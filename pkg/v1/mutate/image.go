@@ -121,7 +121,6 @@ func (i *image) compute() error {
 		configFile.History = history
 	}
 
-	// Append added layers to the manifest (shared by both paths).
 	manifestLayers := manifest.Layers
 	for _, add := range i.adds {
 		if add.Layer == nil {
@@ -195,25 +194,10 @@ func (i *image) compute() error {
 // Layers returns the ordered collection of filesystem layers that comprise this image.
 // The order of the list is oldest/base layer first, and most-recent/top layer last.
 func (i *image) Layers() ([]v1.Layer, error) {
-	if err := i.compute(); errors.Is(err, stream.ErrNotComputed) {
-		// Image contains a streamable layer which has not yet been
-		// consumed. Just return the layers we have in case the caller
-		// is going to consume the layers.
-		layers, err := i.base.Layers()
-		if err != nil {
-			return nil, err
-		}
-		for _, add := range i.adds {
-			layers = append(layers, add.Layer)
-		}
-		return layers, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	// For non-image OCI artifacts, RootFS.DiffIDs is empty so partial.DiffIDs
-	// returns nothing. Fall back to the base layers plus any added layers.
-	if i.manifest != nil && !isImageConfig(i.manifest.Config.MediaType) {
+	if err := i.compute(); errors.Is(err, stream.ErrNotComputed) || (i.manifest != nil && !isImageConfig(i.manifest.Config.MediaType)) {
+		// Stream not yet consumed, or non-image OCI artifact (RootFS.DiffIDs
+		// is empty so partial.DiffIDs returns nothing). Fall back to the base
+		// layers plus any added layers.
 		layers, err := i.base.Layers()
 		if err != nil {
 			return nil, err
@@ -224,6 +208,8 @@ func (i *image) Layers() ([]v1.Layer, error) {
 			}
 		}
 		return layers, nil
+	} else if err != nil {
+		return nil, err
 	}
 
 	diffIDs, err := partial.DiffIDs(i)
