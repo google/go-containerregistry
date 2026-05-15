@@ -619,6 +619,60 @@ func TestMutateMediaType(t *testing.T) {
 	}
 }
 
+// TestNonImageArtifactPreservesConfig verifies that mutating an OCI artifact
+// with a non-Docker config type (e.g., Helm chart, WASM module) preserves the
+// original config blob and correctly returns layers.
+// Regression test for https://github.com/google/go-containerregistry/issues/2251
+func TestNonImageArtifactPreservesConfig(t *testing.T) {
+	// Start with an empty image and set a non-image config media type
+	// to simulate a Helm chart or WASM artifact.
+	helmConfigType := types.MediaType("application/vnd.cncf.helm.config.v1+json")
+	img := mutate.ConfigMediaType(empty.Image, helmConfigType)
+	img = mutate.MediaType(img, types.OCIManifestSchema1)
+
+	// Add an annotation to trigger compute().
+	img = mutate.Annotations(img, map[string]string{
+		"org.opencontainers.image.title": "test-artifact",
+	}).(v1.Image)
+
+	// Layers() should not panic or return an error.
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("Layers() failed on artifact: %v", err)
+	}
+	if len(layers) != 0 {
+		t.Errorf("expected 0 layers for empty artifact, got %d", len(layers))
+	}
+
+	// Manifest should be valid and reference the correct config type.
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("Manifest() failed: %v", err)
+	}
+	if manifest.Config.MediaType != helmConfigType {
+		t.Errorf("config media type = %v, want %v", manifest.Config.MediaType, helmConfigType)
+	}
+
+	// The config digest should not have been corrupted by re-marshaling
+	// through the Docker ConfigFile struct.
+	rawCfg, err := img.RawConfigFile()
+	if err != nil {
+		t.Fatalf("RawConfigFile() failed: %v", err)
+	}
+	d, _, err := v1.SHA256(bytes.NewReader(rawCfg))
+	if err != nil {
+		t.Fatalf("SHA256 failed: %v", err)
+	}
+	if manifest.Config.Digest != d {
+		t.Errorf("config digest mismatch: manifest says %v, raw config hashes to %v", manifest.Config.Digest, d)
+	}
+
+	// Annotations should be present.
+	if manifest.Annotations["org.opencontainers.image.title"] != "test-artifact" {
+		t.Errorf("annotation not found in manifest")
+	}
+}
+
 func TestAppendStreamableLayer(t *testing.T) {
 	img, err := mutate.AppendLayers(
 		sourceImage(t),
