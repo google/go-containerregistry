@@ -1050,3 +1050,137 @@ func (rc *tokenReleasingReadCloser) Close() error {
 	}
 	return nil
 }
+
+// duplicateDiffIDLayer wraps a v1.Layer so that the wrapper reports the
+// inner layer's DiffID but its own (distinct) Digest, Size, and Compressed
+// stream. This models the real-world case behind #2034: two layers built
+// from the same uncompressed tar but with different compression settings
+// share a diff ID and have distinct blob digests.
+type duplicateDiffIDLayer struct {
+	v1.Layer
+	digest     v1.Hash
+	compressed []byte
+}
+
+func (d *duplicateDiffIDLayer) Digest() (v1.Hash, error) { return d.digest, nil }
+func (d *duplicateDiffIDLayer) Size() (int64, error)     { return int64(len(d.compressed)), nil }
+func (d *duplicateDiffIDLayer) Compressed() (io.ReadCloser, error) {
+	return io.NopCloser(bytes.NewReader(d.compressed)), nil
+}
+
+// TestAppendLayers_DuplicateDiffID is a regression test for #2034: when a
+// base image layer and an appended layer share a diff ID but have different
+// blob digests, Layers() must return both as distinct entries (one per
+// manifest descriptor). Walking the rootfs diff IDs and resolving each via
+// LayerByDiffID — the old behavior — collapsed the duplicate-diff-ID entry
+// to a single layer, which broke downstream pushers that uploaded blobs
+// based on Layers() (resulting in MANIFEST_BLOB_UNKNOWN at push time).
+func TestAppendLayers_DuplicateDiffID(t *testing.T) {
+	base, err := random.Image(1024, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseLayers, err := base.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseLayer := baseLayers[0]
+
+	baseDigest, err := baseLayer.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseDiffID, err := baseLayer.DiffID()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Construct an appended layer that reports baseLayer's diff ID but a
+	// fabricated, distinct digest. We don't care that the bytes are
+	// "really" a valid recompression — the bug is in how Layers() resolves
+	// per-occurrence layers from the manifest, not how the blob is
+	// validated.
+	appendBlob := []byte("a different compressed blob for the same uncompressed content")
+	fakeDigest := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("ab", 32)}
+	if fakeDigest == baseDigest {
+		t.Fatalf("test setup invariant broken: fabricated digest collides with base")
+	}
+	appended := &duplicateDiffIDLayer{
+		Layer:      baseLayer,
+		digest:     fakeDigest,
+		compressed: appendBlob,
+	}
+
+	result, err := mutate.AppendLayers(base, appended)
+	if err != nil {
+		t.Fatalf("AppendLayers failed: %v", err)
+	}
+
+	// Quick check: the manifest must list both digests in order.
+	m, err := result.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(m.Layers), 2; got != want {
+		t.Fatalf("manifest layers: got %d, want %d", got, want)
+	}
+	if m.Layers[0].Digest != baseDigest {
+		t.Errorf("manifest layers[0].Digest: got %s, want %s", m.Layers[0].Digest, baseDigest)
+	}
+	if m.Layers[1].Digest != fakeDigest {
+		t.Errorf("manifest layers[1].Digest: got %s, want %s", m.Layers[1].Digest, fakeDigest)
+	}
+
+	// The bug: Layers() previously walked diffIDs and resolved via
+	// LayerByDiffID, which collapsed both entries to the appended layer.
+	// Both slots returned a layer with digest=fakeDigest.
+	layers, err := result.Layers()
+	if err != nil {
+		t.Fatalf("Layers() failed: %v", err)
+	}
+	if got, want := len(layers), 2; got != want {
+		t.Fatalf("Layers(): got %d, want %d", got, want)
+	}
+
+	d0, err := layers[0].Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d0 != baseDigest {
+		t.Errorf("Layers()[0].Digest(): got %s, want %s (base) — duplicate-diff-ID collapse regression", d0, baseDigest)
+	}
+
+	d1, err := layers[1].Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d1 != fakeDigest {
+		t.Errorf("Layers()[1].Digest(): got %s, want %s (appended)", d1, fakeDigest)
+	}
+
+	// Round-trip check: both layers must also be retrievable via
+	// LayerByDigest using the digests reported in the manifest.
+	if _, err := result.LayerByDigest(baseDigest); err != nil {
+		t.Errorf("LayerByDigest(base): %v", err)
+	}
+	if _, err := result.LayerByDigest(fakeDigest); err != nil {
+		t.Errorf("LayerByDigest(appended): %v", err)
+	}
+
+	// The diff IDs must match — confirming the test setup actually
+	// exercises the duplicate-diff-ID case.
+	id0, err := layers[0].DiffID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := layers[1].DiffID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id0 != id1 {
+		t.Fatalf("test setup invariant: expected duplicate diff IDs, got %s and %s", id0, id1)
+	}
+	if id0 != baseDiffID {
+		t.Fatalf("test setup invariant: expected base diff ID %s, got %s", baseDiffID, id0)
+	}
+}

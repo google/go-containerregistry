@@ -189,13 +189,16 @@ func (i *image) Layers() ([]v1.Layer, error) {
 		return nil, err
 	}
 
-	diffIDs, err := partial.DiffIDs(i)
-	if err != nil {
-		return nil, err
-	}
-	ls := make([]v1.Layer, 0, len(diffIDs))
-	for _, h := range diffIDs {
-		l, err := i.LayerByDiffID(h)
+	// Walk manifest layer descriptors by digest rather than rootfs diff
+	// IDs. Two layers can legitimately share a diff ID — same uncompressed
+	// content, different compression — and produce distinct digests. The
+	// manifest preserves the per-occurrence digest; LayerByDiffID does not,
+	// which previously caused duplicate-diff-ID layers to collapse to a
+	// single entry in the returned slice and break blob upload for
+	// downstream pushers (see #2034).
+	ls := make([]v1.Layer, 0, len(i.manifest.Layers))
+	for _, desc := range i.manifest.Layers {
+		l, err := i.LayerByDigest(desc.Digest)
 		if err != nil {
 			return nil, err
 		}
