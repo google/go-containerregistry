@@ -120,6 +120,48 @@ func TestNextLocation(t *testing.T) {
 	}
 }
 
+func TestNextLocationSSRFProtection(t *testing.T) {
+	// Registry is on a public host.
+	ref := mustNewTag(t, "registry.example.com/foo/bar:latest")
+	w := &writer{repo: ref.Context()}
+	makeResp := func(host, location string) *http.Response {
+		return &http.Response{
+			Header:  http.Header{"Location": {location}},
+			Request: &http.Request{URL: &url.URL{Scheme: "https", Host: host}},
+		}
+	}
+
+	// Redirects to private/link-local IPs on a DIFFERENT host must be rejected.
+	blocked := []string{
+		"http://169.254.169.254/latest/meta-data/", // AWS IMDS link-local
+		"http://192.168.1.1/admin",                 // RFC 1918 private
+		"http://10.0.0.1/internal",                 // RFC 1918 private
+		"http://127.0.0.1:9999/secret",             // loopback
+		"http://0.0.0.0/anything",                  // unspecified
+		"http://[fd00:ec2::254]/latest/meta-data/", // GCP/AWS IPv6 IMDS
+	}
+	for _, loc := range blocked {
+		resp := makeResp("registry.example.com", loc)
+		if _, err := w.nextLocation(resp); err == nil {
+			t.Errorf("nextLocation(%q): expected SSRF error, got nil", loc)
+		}
+	}
+
+	// Same-host redirect (different path) must be allowed even if host is a
+	// loopback address (e.g. local test registries).
+	sameHostCases := []struct{ host, location string }{
+		{"registry.example.com", "/v2/foo/bar/blobs/uploads/12345"},
+		{"registry.example.com", "https://registry.example.com/v2/foo/bar/blobs/uploads/12345"},
+		{"127.0.0.1:5000", "http://127.0.0.1:5000/v2/foo/bar/blobs/uploads/12345"},
+	}
+	for _, tc := range sameHostCases {
+		resp := makeResp(tc.host, tc.location)
+		if _, err := w.nextLocation(resp); err != nil {
+			t.Errorf("nextLocation(host=%q, loc=%q): unexpected error: %v", tc.host, tc.location, err)
+		}
+	}
+}
+
 type closer interface {
 	Close()
 }
