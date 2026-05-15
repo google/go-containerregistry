@@ -361,6 +361,57 @@ func (f *fetcher) headBlob(ctx context.Context, h v1.Hash) (*http.Response, erro
 	return resp, nil
 }
 
+// validateForeignURL rejects foreign layer URLs that use a disallowed scheme
+// or resolve to a private / link-local IP address (SSRF protection). DNS-based
+// SSRF is out of scope, matching transport.validateRealmURL.
+func validateForeignURL(rawURL string, insecure bool) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("parsing foreign layer URL %q: %w", rawURL, err)
+	}
+	switch u.Scheme {
+	case "https":
+	case "http":
+		if !insecure {
+			return fmt.Errorf("foreign layer URL scheme %q not allowed for a secure registry; use https", u.Scheme)
+		}
+	default:
+		return fmt.Errorf("foreign layer URL scheme %q not allowed; must be https (or http for insecure registries)", u.Scheme)
+	}
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
+			return fmt.Errorf("foreign layer URL host %q is a private or link-local address", host)
+		}
+	}
+	return nil
+}
+
+// fetchForeignBlobURL fetches a foreign-layer blob, validating every redirect
+// destination through validateForeignURL (SSRF protection).
+func (f *fetcher) fetchForeignBlobURL(ctx context.Context, u url.URL, size int64, h v1.Hash, insecure bool) (io.ReadCloser, error) {
+	safeClient := &http.Client{
+		Transport: f.client.Transport,
+		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+			return validateForeignURL(req.URL.String(), insecure)
+		},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := safeClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("GET %s: unexpected status %s", u.String(), resp.Status)
+	}
+	return verify.ReadCloser(resp.Body, size, h)
+}
+
 func (f *fetcher) blobExists(ctx context.Context, h v1.Hash) (bool, error) {
 	u := f.url("blobs", h.String())
 	req, err := http.NewRequest(http.MethodHead, u.String(), nil)

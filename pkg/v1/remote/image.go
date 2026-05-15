@@ -170,7 +170,7 @@ func (rl *remoteImageLayer) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
-	urls := []url.URL{rl.ri.fetcher.url("blobs", rl.digest.String())}
+	u := rl.ri.fetcher.url("blobs", rl.digest.String())
 
 	// Add alternative layer sources from URLs (usually none).
 	d, err := partial.BlobDescriptor(rl, rl.digest)
@@ -185,21 +185,33 @@ func (rl *remoteImageLayer) Compressed() (io.ReadCloser, error) {
 	// We don't want to log binary layers -- this can break terminals.
 	ctx := redact.NewContext(rl.ctx, "omitting binary blobs from logs")
 
-	for _, s := range d.URLs {
-		u, err := url.Parse(s)
-		if err != nil {
-			return nil, err
-		}
-		urls = append(urls, *u)
-	}
+	insecure := rl.ri.fetcher.target.Scheme() == "http"
 
 	// The lastErr for most pulls will be the same (the first error), but for
 	// foreign layers we'll want to surface the last one, since we try to pull
 	// from the registry first, which would often fail.
 	// TODO: Maybe we don't want to try pulling from the registry first?
 	var lastErr error
-	for _, u := range urls {
-		rc, err := rl.ri.fetcher.fetchBlobURL(ctx, u, d.Size, rl.digest)
+	rc, err := rl.ri.fetcher.fetchBlobURL(ctx, u, d.Size, rl.digest)
+	if err == nil {
+		return rc, nil
+	}
+	lastErr = err
+
+	foreignURLs := make([]url.URL, 0, len(d.URLs))
+	for _, s := range d.URLs {
+		if err := validateForeignURL(s, insecure); err != nil {
+			return nil, err
+		}
+		fu, err := url.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+		foreignURLs = append(foreignURLs, *fu)
+	}
+
+	for _, fu := range foreignURLs {
+		rc, err := rl.ri.fetcher.fetchForeignBlobURL(ctx, fu, d.Size, rl.digest, insecure)
 		if err != nil {
 			lastErr = err
 			continue
