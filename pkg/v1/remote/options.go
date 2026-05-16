@@ -93,6 +93,7 @@ var fastBackoff = Backoff{
 
 var defaultRetryStatusCodes = []int{
 	http.StatusRequestTimeout,
+	http.StatusTooManyRequests, // 429: OCI distribution-spec rate limit; TooManyRequestsErrorCode is already classified temporary in transport/error.go
 	http.StatusInternalServerError,
 	http.StatusBadGateway,
 	http.StatusServiceUnavailable,
