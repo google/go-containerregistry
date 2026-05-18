@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -221,6 +222,7 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 	// Clear layer-specific config file information.
 	cf.RootFS.DiffIDs = []v1.Hash{}
 	cf.History = []v1.History{}
+	cf.Created = v1.Time{Time: time.Now().UTC()}
 
 	img, err := mutate.ConfigFile(empty.Image, cf)
 	if err != nil {
@@ -236,6 +238,7 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 	img, err = mutate.Append(img, mutate.Addendum{
 		Layer: layer,
 		History: v1.History{
+			Created:   cf.Created,
 			CreatedBy: fmt.Sprintf("%s flatten %s", use, digest),
 			Comment:   string(oldHistory),
 		},
@@ -248,6 +251,17 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 	if len(m.Annotations) != 0 {
 		img = mutate.Annotations(img, m.Annotations).(v1.Image)
 	}
+
+	// Propagate the original media type (e.g. OCI vs Docker) so that all
+	// manifests in an index use a consistent media type family. Without this,
+	// an OCI image index would reference Docker-typed image manifests, which
+	// confuses registries and tooling that assumes the index and its children
+	// share the same media-type convention.
+	mt, err := old.MediaType()
+	if err != nil {
+		return nil, fmt.Errorf("getting media type: %w", err)
+	}
+	img = mutate.MediaType(img, mt)
 
 	return img, nil
 }

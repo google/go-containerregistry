@@ -156,13 +156,17 @@ func (p *Pusher) Upload(ctx context.Context, repo name.Repository, l v1.Layer) e
 }
 
 func (p *Pusher) Delete(ctx context.Context, ref name.Reference) error {
-	w, err := p.writer(ctx, ref.Context(), p.o)
+	// Use a transport scoped for delete. Requesting DeleteScope (which
+	// includes the "delete" action) allows registries that require an
+	// explicit delete permission—such as IBM Cloud Container Registry—to
+	// grant access.
+	client, err := makeDeleteClient(ctx, ref.Context(), p.o)
 	if err != nil {
 		return err
 	}
 
 	u := url.URL{
-		Scheme: ref.Context().Registry.Scheme(),
+		Scheme: ref.Context().Scheme(),
 		Host:   ref.Context().RegistryStr(),
 		Path:   fmt.Sprintf("/v2/%s/manifests/%s", ref.Context().RepositoryStr(), ref.Identifier()),
 	}
@@ -172,7 +176,7 @@ func (p *Pusher) Delete(ctx context.Context, ref name.Reference) error {
 		return err
 	}
 
-	resp, err := w.w.client.Do(req.WithContext(ctx))
+	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
 		return err
 	}

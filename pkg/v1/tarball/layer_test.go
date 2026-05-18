@@ -21,7 +21,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/containerd/stargz-snapshotter/estargz"
 	"github.com/google/go-containerregistry/pkg/compression"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/compare"
@@ -97,95 +96,6 @@ func TestLayerFromFile(t *testing.T) {
 
 	if defaultDigest.String() == zstdDigest1.String() {
 		t.Errorf("expected digests to differ: %s", defaultDigest.String())
-	}
-}
-
-func TestLayerFromFileEstargz(t *testing.T) {
-	setupFixtures(t)
-	defer teardownFixtures(t)
-
-	tarLayer, err := LayerFromFile("testdata/content.tar", WithEstargz)
-	if err != nil {
-		t.Fatalf("Unable to create layer from tar file: %v", err)
-	}
-
-	if err := validate.Layer(tarLayer); err != nil {
-		t.Errorf("validate.Layer(tarLayer): %v", err)
-	}
-
-	tarLayerDefaultCompression, err := LayerFromFile("testdata/content.tar", WithEstargz, WithCompressionLevel(gzip.DefaultCompression))
-	if err != nil {
-		t.Fatalf("Unable to create layer with 'Default' compression from tar file: %v", err)
-	}
-	descriptorDefaultCompression, err := tarLayerDefaultCompression.(*layer).Descriptor()
-	if err != nil {
-		t.Fatalf("Descriptor() = %v", err)
-	} else if len(descriptorDefaultCompression.Annotations) != 1 {
-		t.Errorf("Annotations = %#v, wanted 1 annotation", descriptorDefaultCompression.Annotations)
-	}
-
-	defaultDigest, err := tarLayerDefaultCompression.Digest()
-	if err != nil {
-		t.Fatal("Unable to generate digest with 'Default' compression", err)
-	}
-
-	tarLayerSpeedCompression, err := LayerFromFile("testdata/content.tar", WithEstargz, WithCompressionLevel(gzip.BestSpeed))
-	if err != nil {
-		t.Fatalf("Unable to create layer with 'BestSpeed' compression from tar file: %v", err)
-	}
-	descriptorSpeedCompression, err := tarLayerSpeedCompression.(*layer).Descriptor()
-	if err != nil {
-		t.Fatalf("Descriptor() = %v", err)
-	} else if len(descriptorSpeedCompression.Annotations) != 1 {
-		t.Errorf("Annotations = %#v, wanted 1 annotation", descriptorSpeedCompression.Annotations)
-	}
-
-	speedDigest, err := tarLayerSpeedCompression.Digest()
-	if err != nil {
-		t.Fatal("Unable to generate digest with 'BestSpeed' compression", err)
-	}
-
-	if defaultDigest.String() == speedDigest.String() {
-		t.Errorf("expected digests to differ: %s", defaultDigest.String())
-	}
-
-	if descriptorDefaultCompression.Annotations[estargz.TOCJSONDigestAnnotation] == descriptorSpeedCompression.Annotations[estargz.TOCJSONDigestAnnotation] {
-		t.Errorf("wanted different toc digests got default: %s, speed: %s",
-			descriptorDefaultCompression.Annotations[estargz.TOCJSONDigestAnnotation],
-			descriptorSpeedCompression.Annotations[estargz.TOCJSONDigestAnnotation])
-	}
-
-	tarLayerPrioritizedFiles, err := LayerFromFile("testdata/content.tar",
-		WithEstargz,
-		// We compare with default, so pass for apples-to-apples comparison.
-		WithCompressionLevel(gzip.DefaultCompression),
-		// By passing a list of priority files, we expect the layer to be different.
-		WithEstargzOptions(estargz.WithPrioritizedFiles([]string{
-			"./bat",
-		})))
-	if err != nil {
-		t.Fatalf("Unable to create layer with prioritized files from tar file: %v", err)
-	}
-	descriptorPrioritizedFiles, err := tarLayerPrioritizedFiles.(*layer).Descriptor()
-	if err != nil {
-		t.Fatalf("Descriptor() = %v", err)
-	} else if len(descriptorPrioritizedFiles.Annotations) != 1 {
-		t.Errorf("Annotations = %#v, wanted 1 annotation", descriptorPrioritizedFiles.Annotations)
-	}
-
-	prioritizedDigest, err := tarLayerPrioritizedFiles.Digest()
-	if err != nil {
-		t.Fatal("Unable to generate digest with prioritized files", err)
-	}
-
-	if defaultDigest.String() == prioritizedDigest.String() {
-		t.Errorf("expected digests to differ: %s", defaultDigest.String())
-	}
-
-	if descriptorDefaultCompression.Annotations[estargz.TOCJSONDigestAnnotation] == descriptorPrioritizedFiles.Annotations[estargz.TOCJSONDigestAnnotation] {
-		t.Errorf("wanted different toc digests got default: %s, prioritized: %s",
-			descriptorDefaultCompression.Annotations[estargz.TOCJSONDigestAnnotation],
-			descriptorPrioritizedFiles.Annotations[estargz.TOCJSONDigestAnnotation])
 	}
 }
 

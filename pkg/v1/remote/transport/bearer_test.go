@@ -60,7 +60,7 @@ func TestBearerRefresh(t *testing.T) {
 					if got, want := r.FormValue("service"), expectedService; got != want {
 						t.Errorf("FormValue(service); got %v, want %v", got, want)
 					}
-					w.Write([]byte(fmt.Sprintf(`{%q: %q}`, tc.tokenKey, expectedToken)))
+					fmt.Fprintf(w, `{%q: %q}`, tc.tokenKey, expectedToken)
 				}))
 			defer server.Close()
 
@@ -156,7 +156,7 @@ func TestBearerTransportTokenRefresh(t *testing.T) {
 				return
 			}
 			if strings.HasPrefix(hdr, "Basic ") {
-				w.Write([]byte(fmt.Sprintf(`{"token": %q}`, refreshedToken)))
+				fmt.Fprintf(w, `{"token": %q}`, refreshedToken)
 			}
 
 			w.Header().Set("WWW-Authenticate", "scope=foo")
@@ -229,7 +229,7 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 					t.Errorf("want %s got %s", initialToken, it)
 				}
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(fmt.Sprintf(`{"access_token": %q, "refresh_token": %q}`, accessToken, refreshToken)))
+				fmt.Fprintf(w, `{"access_token": %q, "refresh_token": %q}`, accessToken, refreshToken)
 				return
 			}
 
@@ -297,7 +297,7 @@ func TestBearerTransportOauth404Fallback(t *testing.T) {
 			hdr := r.Header.Get("Authorization")
 			if hdr == "Basic "+basicAuth {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(fmt.Sprintf(`{"access_token": %q}`, accessToken)))
+				fmt.Fprintf(w, `{"access_token": %q}`, accessToken)
 			}
 			if hdr == "Bearer "+accessToken {
 				w.WriteHeader(http.StatusOK)
@@ -557,5 +557,73 @@ func TestInsufficientScope(t *testing.T) {
 
 	if !passed {
 		t.Error("didn't refresh insufficient scope")
+	}
+}
+
+// TestTokenServerRedirectSSRF verifies that a malicious token server cannot
+// redirect token-fetch requests to private/loopback addresses, bypassing the
+// initial validateRealmURL check.
+func TestTokenServerRedirectSSRF(t *testing.T) {
+	// internalServer simulates an internal service that should never be reached.
+	internalServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprintf(w, `{"token": "should-not-reach-this"}`)
+	}))
+	defer internalServer.Close()
+
+	// tokenServer issues a redirect to the internalServer on every request.
+	tokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, internalServer.URL+"/token", http.StatusFound)
+	}))
+	defer tokenServer.Close()
+
+	registry, err := name.NewRegistry("registry.example.com", name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bt := &bearerTransport{
+		inner:    http.DefaultTransport,
+		basic:    &authn.Basic{Username: "foo", Password: "bar"},
+		registry: registry,
+		realm:    tokenServer.URL + "/token",
+		scopes:   []string{"repo:example/image:pull"},
+		service:  "registry.example.com",
+		scheme:   "http",
+	}
+
+	if err := bt.refresh(context.Background()); err == nil {
+		t.Error("refresh() should have been rejected when token server redirects to loopback address")
+	}
+}
+
+func TestValidateRealmURLUnspecified(t *testing.T) {
+	// 0.0.0.0 and :: resolve to localhost on most OSes.
+	// They should be blocked like other private addresses.
+	tests := []struct {
+		realm   string
+		wantErr bool
+	}{
+		{"https://0.0.0.0/token", true},
+		{"https://0.0.0.0:8443/token", true},
+		{"https://[::]/token", true},
+		{"https://[::]:8443/token", true},
+		// existing checks still work
+		{"https://127.0.0.1/token", true},
+		{"https://[::1]/token", true},
+		{"https://10.0.0.1/token", true},
+		{"https://192.168.1.1/token", true},
+		{"https://169.254.169.254/token", true},
+		// public IPs are fine
+		{"https://8.8.8.8/token", false},
+		{"https://registry.example.com/token", false},
+	}
+	for _, tt := range tests {
+		err := validateRealmURL(tt.realm, false)
+		if tt.wantErr && err == nil {
+			t.Errorf("validateRealmURL(%q) should have been rejected", tt.realm)
+		}
+		if !tt.wantErr && err != nil {
+			t.Errorf("validateRealmURL(%q) unexpected error: %v", tt.realm, err)
+		}
 	}
 }
