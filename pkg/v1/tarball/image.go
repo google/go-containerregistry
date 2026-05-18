@@ -374,6 +374,9 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		if err != nil {
 			return nil, err
 		}
+		if i >= len(cfg.RootFS.DiffIDs) {
+			return nil, fmt.Errorf("tarball manifest references %d layer(s) but config has %d rootfs.diff_ids; the config may not describe a runnable image (for example, a buildkit cacheconfig)", len(c.imgDescriptor.Layers), len(cfg.RootFS.DiffIDs))
+		}
 		diffid := cfg.RootFS.DiffIDs[i]
 		if d, ok := c.imgDescriptor.LayerSources[diffid]; ok {
 			// If it's a foreign layer, just append the descriptor so we can avoid
