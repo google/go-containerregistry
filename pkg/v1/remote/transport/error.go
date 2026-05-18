@@ -151,6 +151,7 @@ var temporaryErrorCodes = map[ErrorCode]struct{}{
 
 var temporaryStatusCodes = map[int]struct{}{
 	http.StatusRequestTimeout:      {},
+	http.StatusTooManyRequests:     {}, // matches TooManyRequestsErrorCode in temporaryErrorCodes
 	http.StatusInternalServerError: {},
 	http.StatusBadGateway:          {},
 	http.StatusServiceUnavailable:  {},

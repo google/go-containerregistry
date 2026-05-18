@@ -618,12 +618,82 @@ func TestValidateRealmURLUnspecified(t *testing.T) {
 		{"https://registry.example.com/token", false},
 	}
 	for _, tt := range tests {
-		err := validateRealmURL(tt.realm, false)
+		err := validateRealmURL(tt.realm, "", false)
 		if tt.wantErr && err == nil {
 			t.Errorf("validateRealmURL(%q) should have been rejected", tt.realm)
 		}
 		if !tt.wantErr && err != nil {
 			t.Errorf("validateRealmURL(%q) unexpected error: %v", tt.realm, err)
 		}
+	}
+}
+
+// TestValidateRealmURLSameHost verifies the same-host exception: a realm URL
+// pointing at the same host the user is already talking to is allowed even
+// when that host is private/loopback/link-local. See
+// https://github.com/google/go-containerregistry/issues/2258.
+func TestValidateRealmURLSameHost(t *testing.T) {
+	tests := []struct {
+		name         string
+		realm        string
+		registryHost string
+		insecure     bool
+		wantErr      bool
+	}{
+		{
+			name:         "same loopback host:port allowed",
+			realm:        "http://127.0.0.1:5000/auth",
+			registryHost: "127.0.0.1:5000",
+			insecure:     true,
+		},
+		{
+			name:         "same loopback host but different port still blocked",
+			realm:        "http://127.0.0.1:8080/auth",
+			registryHost: "127.0.0.1:5000",
+			insecure:     true,
+			wantErr:      true,
+		},
+		{
+			name:         "same private host (no port) allowed",
+			realm:        "https://10.0.0.1/auth",
+			registryHost: "10.0.0.1",
+		},
+		{
+			name:         "same IPv6 loopback host:port allowed",
+			realm:        "http://[::1]:5000/auth",
+			registryHost: "[::1]:5000",
+			insecure:     true,
+		},
+		{
+			name:         "cross-host loopback redirect still blocked",
+			realm:        "http://127.0.0.1:5000/auth",
+			registryHost: "registry.example.com",
+			insecure:     true,
+			wantErr:      true,
+		},
+		{
+			name:         "cross-host metadata redirect still blocked",
+			realm:        "https://169.254.169.254/auth",
+			registryHost: "registry.example.com",
+			wantErr:      true,
+		},
+		{
+			name:         "scheme check still applies on same host",
+			realm:        "http://127.0.0.1:5000/auth",
+			registryHost: "127.0.0.1:5000",
+			insecure:     false,
+			wantErr:      true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateRealmURL(tt.realm, tt.registryHost, tt.insecure)
+			if tt.wantErr && err == nil {
+				t.Errorf("validateRealmURL(%q, %q) should have returned an error", tt.realm, tt.registryHost)
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("validateRealmURL(%q, %q) unexpected error: %v", tt.realm, tt.registryHost, err)
+			}
+		})
 	}
 }
