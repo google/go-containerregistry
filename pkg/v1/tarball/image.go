@@ -374,6 +374,25 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 		if err != nil {
 			return nil, err
 		}
+		if i >= len(cfg.RootFS.DiffIDs) {
+			// Config formats like buildkit cacheconfig don't have DiffIDs.
+			// Fall through to read the layer from the tar directly.
+			l, err := extractFileFromTar(c.opener, p)
+			if err != nil {
+				return nil, err
+			}
+			defer l.Close()
+			sha, size, err := v1.SHA256(l)
+			if err != nil {
+				return nil, err
+			}
+			c.manifest.Layers = append(c.manifest.Layers, v1.Descriptor{
+				MediaType: types.DockerLayer,
+				Size:      size,
+				Digest:    sha,
+			})
+			continue
+		}
 		diffid := cfg.RootFS.DiffIDs[i]
 		if d, ok := c.imgDescriptor.LayerSources[diffid]; ok {
 			// If it's a foreign layer, just append the descriptor so we can avoid
