@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
@@ -242,5 +243,127 @@ func TestExists(t *testing.T) {
 	}
 	if got, want := ok, true; got != want {
 		t.Errorf("Exists() = %t != %t", got, want)
+	}
+}
+
+// TestArtifactType_Fallback tests that partial.ArtifactType falls back to
+// config.mediaType when the manifest has no explicit artifactType.
+func TestArtifactType_Fallback(t *testing.T) {
+	for _, tc := range []struct {
+		desc             string
+		configMediaType  types.MediaType
+		wantArtifactType string
+	}{{
+		desc:             "standard config mediaType",
+		configMediaType:  types.DockerConfigJSON,
+		wantArtifactType: string(types.DockerConfigJSON),
+	}, {
+		desc:             "OCI config mediaType",
+		configMediaType:  types.OCIConfigJSON,
+		wantArtifactType: string(types.OCIConfigJSON),
+	}, {
+		desc:             "custom config mediaType",
+		configMediaType:  "application/vnd.custom.thing",
+		wantArtifactType: "application/vnd.custom.thing",
+	}} {
+		t.Run(tc.desc, func(t *testing.T) {
+			img, err := random.Image(1, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			img = mutate.ConfigMediaType(img, tc.configMediaType)
+
+			got, err := partial.ArtifactType(img)
+			if err != nil {
+				t.Fatalf("partial.ArtifactType: %v", err)
+			}
+			if got != tc.wantArtifactType {
+				t.Errorf("ArtifactType: got %q, want %q", got, tc.wantArtifactType)
+			}
+		})
+	}
+}
+
+// TestDescriptor_ArtifactType_Fallback tests that partial.Descriptor falls
+// back to config.mediaType when the manifest has no explicit artifactType.
+func TestDescriptor_ArtifactType_Fallback(t *testing.T) {
+	for _, tc := range []struct {
+		desc             string
+		configMediaType  types.MediaType
+		wantArtifactType string
+	}{{
+		desc:             "standard config mediaType",
+		configMediaType:  types.DockerConfigJSON,
+		wantArtifactType: string(types.DockerConfigJSON),
+	}, {
+		desc:             "custom config mediaType",
+		configMediaType:  "application/vnd.custom.thing",
+		wantArtifactType: "application/vnd.custom.thing",
+	}} {
+		t.Run(tc.desc, func(t *testing.T) {
+			img, err := random.Image(1, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			img = mutate.ConfigMediaType(img, tc.configMediaType)
+
+			desc, err := partial.Descriptor(img)
+			if err != nil {
+				t.Fatalf("partial.Descriptor: %v", err)
+			}
+			if got := desc.ArtifactType; got != tc.wantArtifactType {
+				t.Errorf("ArtifactType: got %q, want %q", got, tc.wantArtifactType)
+			}
+		})
+	}
+}
+
+// fakeWithManifest is a test helper that implements partial.WithManifest
+// with a caller-controlled v1.Manifest.
+type fakeWithManifest struct {
+	manifest *v1.Manifest
+}
+
+func (f fakeWithManifest) Manifest() (*v1.Manifest, error) {
+	return f.manifest, nil
+}
+
+func (f fakeWithManifest) RawManifest() ([]byte, error) {
+	return nil, nil
+}
+
+// TestArtifactType_ExplicitArtifactType tests that partial.ArtifactType
+// returns the manifest's explicit artifactType when set, rather than
+// falling back to config.mediaType.
+func TestArtifactType_ExplicitArtifactType(t *testing.T) {
+	fake := fakeWithManifest{
+		manifest: &v1.Manifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIManifestSchema1,
+			Config: v1.Descriptor{
+				MediaType: types.OCIConfigJSON,
+			},
+			ArtifactType: "application/vnd.my.custom.artifact",
+		},
+	}
+	got, err := partial.ArtifactType(fake)
+	if err != nil {
+		t.Fatalf("partial.ArtifactType: %v", err)
+	}
+	if want := "application/vnd.my.custom.artifact"; got != want {
+		t.Errorf("ArtifactType: got %q, want %q", got, want)
+	}
+}
+
+// TestArtifactType_NilManifest tests that partial.ArtifactType returns
+// empty string when the manifest is nil.
+func TestArtifactType_NilManifest(t *testing.T) {
+	fake := fakeWithManifest{manifest: nil}
+	got, err := partial.ArtifactType(fake)
+	if err != nil {
+		t.Fatalf("partial.ArtifactType: %v", err)
+	}
+	if got != "" {
+		t.Errorf("ArtifactType: got %q, want empty", got)
 	}
 }

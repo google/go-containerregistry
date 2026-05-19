@@ -16,6 +16,7 @@ package remote
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -254,4 +255,181 @@ func (errTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		}, nil
 	}
 	return nil, fmt.Errorf("error reaching %s", req.URL.String())
+}
+
+// TestGet_ArtifactTypeAndAnnotations tests that Get returns the correct
+// artifactType and annotations on the descriptor, following the OCI
+// distribution spec:
+//   - If artifactType is set in the manifest, use it.
+//   - Otherwise, fall back to config.mediaType.
+//   - Annotations from the manifest are copied to the descriptor.
+func TestGet_ArtifactTypeAndAnnotations(t *testing.T) {
+	// We need a valid digest in config descriptors so that
+	// v1.ParseManifest can unmarshal the JSON without error.
+	cfgDigest, err := v1.NewHash(fakeDigest)
+	if err != nil {
+		t.Fatalf("v1.NewHash: %v", err)
+	}
+
+	for _, tc := range []struct {
+		desc             string
+		manifest         v1.Manifest
+		wantArtifactType string
+		wantAnnotations  map[string]string
+	}{{
+		desc: "no artifactType, standard config mediaType falls back to config.mediaType",
+		manifest: v1.Manifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIManifestSchema1,
+			Config: v1.Descriptor{
+				MediaType: types.OCIConfigJSON,
+				Digest:    cfgDigest,
+				Size:      1,
+			},
+		},
+		wantArtifactType: string(types.OCIConfigJSON),
+	}, {
+		desc: "no artifactType, custom config mediaType falls back to config.mediaType",
+		manifest: v1.Manifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIManifestSchema1,
+			Config: v1.Descriptor{
+				MediaType: "application/vnd.custom.thing",
+				Digest:    cfgDigest,
+				Size:      1,
+			},
+		},
+		wantArtifactType: "application/vnd.custom.thing",
+	}, {
+		desc: "explicit artifactType takes precedence over config.mediaType",
+		manifest: v1.Manifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIManifestSchema1,
+			Config: v1.Descriptor{
+				MediaType: types.OCIConfigJSON,
+				Digest:    cfgDigest,
+				Size:      1,
+			},
+			ArtifactType: "application/vnd.my.artifact",
+		},
+		wantArtifactType: "application/vnd.my.artifact",
+	}, {
+		desc: "annotations are copied to the descriptor",
+		manifest: v1.Manifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIManifestSchema1,
+			Config: v1.Descriptor{
+				MediaType: types.OCIConfigJSON,
+				Digest:    cfgDigest,
+				Size:      1,
+			},
+			Annotations: map[string]string{
+				"org.opencontainers.image.created": "2024-01-01T00:00:00Z",
+				"org.opencontainers.image.authors": "test",
+			},
+		},
+		wantArtifactType: string(types.OCIConfigJSON),
+		wantAnnotations: map[string]string{
+			"org.opencontainers.image.created": "2024-01-01T00:00:00Z",
+			"org.opencontainers.image.authors": "test",
+		},
+	}, {
+		desc: "artifactType and annotations together",
+		manifest: v1.Manifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIManifestSchema1,
+			Config: v1.Descriptor{
+				MediaType: types.OCIConfigJSON,
+				Digest:    cfgDigest,
+				Size:      1,
+			},
+			ArtifactType: "application/vnd.my.artifact",
+			Annotations: map[string]string{
+				"foo": "bar",
+			},
+		},
+		wantArtifactType: "application/vnd.my.artifact",
+		wantAnnotations: map[string]string{
+			"foo": "bar",
+		},
+	}} {
+		t.Run(tc.desc, func(t *testing.T) {
+			manifestBytes, err := json.Marshal(tc.manifest)
+			if err != nil {
+				t.Fatalf("json.Marshal: %v", err)
+			}
+
+			expectedRepo := "foo/bar"
+			manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/v2/":
+					w.WriteHeader(http.StatusOK)
+				case manifestPath:
+					w.Header().Set("Content-Type", string(types.OCIManifestSchema1))
+					w.Write(manifestBytes)
+				default:
+					t.Fatalf("Unexpected path: %v", r.URL.Path)
+				}
+			}))
+			defer server.Close()
+			u, err := url.Parse(server.URL)
+			if err != nil {
+				t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+			}
+
+			tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+			desc, err := Get(tag)
+			if err != nil {
+				t.Fatalf("Get(%s) = %v", tag, err)
+			}
+
+			if got := desc.ArtifactType; got != tc.wantArtifactType {
+				t.Errorf("ArtifactType: got %q, want %q", got, tc.wantArtifactType)
+			}
+
+			if diff := cmp.Diff(tc.wantAnnotations, desc.Annotations); diff != "" {
+				t.Errorf("Annotations (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestGet_NonManifestMediaType tests that non-parseable manifests don't
+// produce an artifactType or annotations (the parse failure is silently ignored).
+func TestGet_NonManifestMediaType(t *testing.T) {
+	expectedRepo := "foo/bar"
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case manifestPath:
+			w.Header().Set("Content-Type", string(types.DockerManifestSchema1Signed))
+			w.Header().Set("Docker-Content-Digest", fakeDigest)
+			w.Write([]byte("not valid json"))
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+	desc, err := Get(tag)
+	if err != nil {
+		t.Fatalf("Get(%s) = %v", tag, err)
+	}
+
+	if got := desc.ArtifactType; got != "" {
+		t.Errorf("ArtifactType: got %q, want empty", got)
+	}
+	if desc.Annotations != nil {
+		t.Errorf("Annotations: got %v, want nil", desc.Annotations)
+	}
 }

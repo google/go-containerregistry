@@ -142,6 +142,57 @@ func TestRetryDefaults(t *testing.T) {
 	}
 }
 
+// TestRetryTransport_TooManyRequests covers two invariants that consumers
+// (including pkg/gcrane/copy.go's outer retry loop) depend on once 429 is
+// in the default retry list:
+//
+//  1. A 429 response is wrapped into a temporary *Error and retried up to
+//     the configured Steps.
+//  2. After retries exhaust, the *Error surfaced to the caller still has
+//     StatusCode == 429 so callers like gcrane's hasStatusCode helper can
+//     route their own application-level backoff (GCRBackoff) on top.
+func TestRetryTransport_TooManyRequests(t *testing.T) {
+	mt := mockTransport{
+		resps: []*http.Response{
+			resp(http.StatusTooManyRequests),
+			resp(http.StatusTooManyRequests),
+			resp(http.StatusTooManyRequests),
+		},
+	}
+
+	tr := NewRetry(&mt,
+		WithRetryBackoff(retry.Backoff{Steps: 3}),
+		WithRetryPredicate(retry.IsTemporary),
+		WithRetryStatusCodes(http.StatusTooManyRequests),
+	)
+
+	req, err := http.NewRequestWithContext(context.Background(), "GET", "example.com", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _ := tr.RoundTrip(req)
+
+	if mt.count != 3 {
+		t.Errorf("expected 3 attempts (1 + 2 retries), got %d", mt.count)
+	}
+	if out == nil || out.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("final response should still surface 429 status; got %v", out)
+	}
+}
+
+// TestTemporaryStatusCodes_Includes429 keeps temporaryStatusCodes (the
+// raw-status fallback path) in sync with temporaryErrorCodes (the
+// parsed-body path), which already contains TooManyRequestsErrorCode.
+// A registry returning 429 with no structured body should still be
+// classified temporary so downstream consumers retrying on
+// transport.Error.Temporary() behave consistently with consumers that
+// retry on a TOOMANYREQUESTS error code in the body.
+func TestTemporaryStatusCodes_Includes429(t *testing.T) {
+	if _, ok := temporaryStatusCodes[http.StatusTooManyRequests]; !ok {
+		t.Fatal("temporaryStatusCodes should contain http.StatusTooManyRequests for parity with temporaryErrorCodes[TooManyRequestsErrorCode]")
+	}
+}
+
 func TestTimeoutContext(t *testing.T) {
 	tr := NewRetry(http.DefaultTransport)
 
