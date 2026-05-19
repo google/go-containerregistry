@@ -191,16 +191,7 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 			}
 			seenLayerDigests[hex] = struct{}{}
 
-			r, err := l.Compressed()
-			if err != nil {
-				return sendProgressWriterReturn(pw, err)
-			}
-			blobSize, err := l.Size()
-			if err != nil {
-				return sendProgressWriterReturn(pw, err)
-			}
-
-			if err := writeTarEntry(tf, layerFiles[i], r, blobSize); err != nil {
+			if err := writeLayer(tf, layerFiles[i], l); err != nil {
 				return sendProgressWriterReturn(pw, err)
 			}
 		}
@@ -366,6 +357,24 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 }
 
 // writeTarEntry writes a file to the provided writer with a corresponding tar header
+// writeLayer streams a layer's compressed blob into the tar writer at name,
+// ensuring the layer reader is closed as soon as it has been written. Closing
+// the reader releases any pull-limiter slot held by remote-backed layers
+// (see remote.WithJobs / pkg/v1/remote.limiter), so leaving readers open here
+// could deadlock the write loop after defaultJobs layers.
+func writeLayer(tf *tar.Writer, name string, l v1.Layer) error {
+	r, err := l.Compressed()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	blobSize, err := l.Size()
+	if err != nil {
+		return err
+	}
+	return writeTarEntry(tf, name, r, blobSize)
+}
+
 func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	hdr := &tar.Header{
 		Mode:     0644,
