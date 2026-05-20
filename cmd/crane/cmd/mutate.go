@@ -101,14 +101,13 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				return err
 			}
 
-			// Set entrypoint.
-			if len(entrypoint) > 0 {
+			// Set entrypoint and/or cmd only when the user passed those flags,
+			// so overriding one doesn't silently wipe the other inherited from
+			// the base image. Matches Dockerfile ENTRYPOINT/CMD semantics.
+			if c.Flags().Changed("entrypoint") {
 				cfg.Config.Entrypoint = entrypoint
-				cfg.Config.Cmd = nil // This matches Docker's behavior.
 			}
-
-			// Set cmd.
-			if len(cmd) > 0 {
+			if c.Flags().Changed("cmd") {
 				cfg.Config.Cmd = cmd
 			}
 
