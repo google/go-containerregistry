@@ -18,6 +18,7 @@ import (
 	"runtime"
 
 	"github.com/google/go-containerregistry/pkg/gcrane"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/spf13/cobra"
 )
 
@@ -33,10 +34,22 @@ func NewCmdCopy() *cobra.Command {
 		RunE: func(cc *cobra.Command, args []string) error {
 			src, dst := args[0], args[1]
 			ctx := cc.Context()
-			if recursive {
-				return gcrane.CopyRepository(ctx, src, dst, gcrane.WithJobs(jobs), gcrane.WithUserAgent(userAgent()), gcrane.WithContext(ctx))
+			opts := []gcrane.Option{
+				gcrane.WithUserAgent(userAgent()),
+				gcrane.WithContext(ctx),
 			}
-			return gcrane.Copy(src, dst, gcrane.WithUserAgent(userAgent()), gcrane.WithContext(ctx))
+			platform, err := rootPlatform(cc)
+			if err != nil {
+				return err
+			}
+			if platform != nil {
+				opts = append(opts, gcrane.WithPlatform(platform))
+			}
+			if recursive {
+				opts = append(opts, gcrane.WithJobs(jobs))
+				return gcrane.CopyRepository(ctx, src, dst, opts...)
+			}
+			return gcrane.Copy(src, dst, opts...)
 		},
 	}
 
@@ -44,4 +57,18 @@ func NewCmdCopy() *cobra.Command {
 	cmd.Flags().IntVarP(&jobs, "jobs", "j", runtime.GOMAXPROCS(0), "The maximum number of concurrent copies")
 
 	return cmd
+}
+
+// rootPlatform reads the persistent --platform flag inherited from the crane
+// root command. "all" and the empty string both mean "no platform filter".
+func rootPlatform(cmd *cobra.Command) (*v1.Platform, error) {
+	f := cmd.Root().PersistentFlags().Lookup("platform")
+	if f == nil {
+		return nil, nil
+	}
+	s := f.Value.String()
+	if s == "" || s == "all" {
+		return nil, nil
+	}
+	return v1.ParsePlatform(s)
 }
