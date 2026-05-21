@@ -357,24 +357,6 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 }
 
 // writeTarEntry writes a file to the provided writer with a corresponding tar header
-// writeLayer streams a layer's compressed blob into the tar writer at name,
-// ensuring the layer reader is closed as soon as it has been written. Closing
-// the reader releases any pull-limiter slot held by remote-backed layers
-// (see remote.WithJobs / pkg/v1/remote.limiter), so leaving readers open here
-// could deadlock the write loop after defaultJobs layers.
-func writeLayer(tf *tar.Writer, name string, l v1.Layer) error {
-	r, err := l.Compressed()
-	if err != nil {
-		return err
-	}
-	defer r.Close()
-	blobSize, err := l.Size()
-	if err != nil {
-		return err
-	}
-	return writeTarEntry(tf, name, r, blobSize)
-}
-
 func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	hdr := &tar.Header{
 		Mode:     0644,
@@ -387,6 +369,23 @@ func writeTarEntry(tf *tar.Writer, path string, r io.Reader, size int64) error {
 	}
 	_, err := io.Copy(tf, r)
 	return err
+}
+
+// writeLayer streams a layer's compressed blob into the tar writer and closes
+// the reader before returning. The close releases any pull-limiter slot held
+// by a remote-backed layer (remote.WithJobs); leaving it open would deadlock
+// the write loop after defaultJobs layers.
+func writeLayer(tf *tar.Writer, name string, l v1.Layer) error {
+	r, err := l.Compressed()
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	blobSize, err := l.Size()
+	if err != nil {
+		return err
+	}
+	return writeTarEntry(tf, name, r, blobSize)
 }
 
 // ComputeManifest get the manifest.json that will be written to the tarball
