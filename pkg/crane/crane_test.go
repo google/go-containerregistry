@@ -25,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -411,6 +412,85 @@ func TestCraneSaveOCI(t *testing.T) {
 	if err := crane.SaveOCI(img, tmp); err != nil {
 		t.Errorf("SaveOCI: %v", err)
 	}
+}
+
+func TestCraneLoadOCILayoutTarball(t *testing.T) {
+	t.Parallel()
+
+	layoutDir := t.TempDir()
+	tarPath := filepath.Join(t.TempDir(), "image.tar")
+
+	img, err := random.Image(1024, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest, err := img.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := crane.SaveOCI(img, layoutDir); err != nil {
+		t.Fatalf("SaveOCI: %v", err)
+	}
+	if err := writeTarFromDir(tarPath, layoutDir); err != nil {
+		t.Fatalf("writeTarFromDir: %v", err)
+	}
+
+	img, err = crane.Load(tarPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := img.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d != digest {
+		t.Errorf("digest mismatch: %v != %v", d, digest)
+	}
+}
+
+func writeTarFromDir(tarPath, root string) error {
+	f, err := os.Create(tarPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	tw := tar.NewWriter(f)
+	defer tw.Close()
+
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if path == root {
+			return nil
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		header, err := tar.FileInfoHeader(info, "")
+		if err != nil {
+			return err
+		}
+		header.Name = filepath.ToSlash(rel)
+		if err := tw.WriteHeader(header); err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		_, copyErr := io.Copy(tw, f)
+		closeErr := f.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		return closeErr
+	})
 }
 
 func TestCraneFilesystem(t *testing.T) {
