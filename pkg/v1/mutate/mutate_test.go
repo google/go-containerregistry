@@ -28,6 +28,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/go-containerregistry/internal/verify"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
@@ -1237,4 +1238,147 @@ func TestAppendLayers_DuplicateDiffID(t *testing.T) {
 	if id0 != baseDiffID {
 		t.Fatalf("test setup invariant: expected base diff ID %s, got %s", baseDiffID, id0)
 	}
+}
+
+// makeTarBytes builds a single-file tar archive in memory and returns the
+// raw (uncompressed) tar bytes.
+func makeTarBytes(t *testing.T, name, body string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     name,
+		Mode:     0o644,
+		Size:     int64(len(body)),
+		Typeflag: tar.TypeReg,
+	}); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if _, err := tw.Write([]byte(body)); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar Close: %v", err)
+	}
+	return buf.Bytes()
+}
+
+// verifyingLayer is a v1.Layer whose Uncompressed stream is wrapped by
+// internal/verify against expectDiffID -- exactly how layers loaded from a
+// tarball or a registry are constructed. When expectDiffID does not match
+// the bytes in tarBytes, the layer models content that disagrees with the
+// digest recorded in the image manifest.
+type verifyingLayer struct {
+	v1.Layer
+	tarBytes     []byte
+	expectDiffID v1.Hash
+}
+
+func (l *verifyingLayer) Uncompressed() (io.ReadCloser, error) {
+	return verify.ReadCloser(io.NopCloser(bytes.NewReader(l.tarBytes)), int64(len(l.tarBytes)), l.expectDiffID)
+}
+
+// layersImage overrides Layers() on an embedded image so mutate operations
+// see the supplied layers instead of the real ones.
+type layersImage struct {
+	v1.Image
+	layers []v1.Layer
+}
+
+func (i layersImage) Layers() ([]v1.Layer, error) { return i.layers, nil }
+
+// TestExtractVerifiesLayerDigest is a regression test for layer-digest
+// verification in mutate.Extract. Extract reads each layer through a
+// tar.Reader, which stops at the tar end-of-archive marker before the
+// underlying verifying reader reaches io.EOF. The digest check in
+// internal/verify only fires at io.EOF, so without an explicit drain Extract
+// accepts a layer whose contents do not match the manifest's layer digest.
+// crane export / crane edit build on Extract and inherit the same path.
+func TestExtractVerifiesLayerDigest(t *testing.T) {
+	tarBytes := makeTarBytes(t, "app/hello.txt", "hello world")
+	goodDiffID, _, err := v1.SHA256(bytes.NewReader(tarBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A well-formed but incorrect digest: same algorithm, different hex.
+	badDiffID := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("00", 32)}
+	if badDiffID == goodDiffID {
+		t.Fatal("test setup: fabricated digest collides with real digest")
+	}
+
+	t.Run("digest mismatch is rejected", func(t *testing.T) {
+		img := layersImage{layers: []v1.Layer{
+			&verifyingLayer{tarBytes: tarBytes, expectDiffID: badDiffID},
+		}}
+		_, err := io.Copy(io.Discard, mutate.Extract(img))
+		if err == nil {
+			t.Fatal("Extract accepted a layer whose contents do not match its digest")
+		}
+		if !strings.Contains(err.Error(), "checksum") {
+			t.Fatalf("Extract error = %v, want a digest verification error", err)
+		}
+	})
+
+	t.Run("matching digest extracts cleanly", func(t *testing.T) {
+		img := layersImage{layers: []v1.Layer{
+			&verifyingLayer{tarBytes: tarBytes, expectDiffID: goodDiffID},
+		}}
+		tr := tar.NewReader(mutate.Extract(img))
+		var names []string
+		for {
+			hdr, err := tr.Next()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				t.Fatalf("Extract of honest layer failed: %v", err)
+			}
+			names = append(names, hdr.Name)
+		}
+		if len(names) != 1 || names[0] != "app/hello.txt" {
+			t.Fatalf("extracted entries = %v, want [app/hello.txt]", names)
+		}
+	})
+}
+
+// TestTimeVerifiesLayerDigest is the same regression test for mutate.Time,
+// which reads layers through layerTime using the same early-stopping
+// tar.Reader loop.
+func TestTimeVerifiesLayerDigest(t *testing.T) {
+	tarBytes := makeTarBytes(t, "app/hello.txt", "hello world")
+	goodDiffID, _, err := v1.SHA256(bytes.NewReader(tarBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	badDiffID := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("00", 32)}
+	if badDiffID == goodDiffID {
+		t.Fatal("test setup: fabricated digest collides with real digest")
+	}
+
+	// Time needs a config file; borrow one from a random single-layer image
+	// and override only Layers().
+	base, err := random.Image(256, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("digest mismatch is rejected", func(t *testing.T) {
+		img := layersImage{Image: base, layers: []v1.Layer{
+			&verifyingLayer{tarBytes: tarBytes, expectDiffID: badDiffID},
+		}}
+		if _, err := mutate.Time(img, time.Unix(0, 0)); err == nil {
+			t.Fatal("Time accepted a layer whose contents do not match its digest")
+		} else if !strings.Contains(err.Error(), "checksum") {
+			t.Fatalf("Time error = %v, want a digest verification error", err)
+		}
+	})
+
+	t.Run("matching digest succeeds", func(t *testing.T) {
+		img := layersImage{Image: base, layers: []v1.Layer{
+			&verifyingLayer{tarBytes: tarBytes, expectDiffID: goodDiffID},
+		}}
+		if _, err := mutate.Time(img, time.Unix(0, 0)); err != nil {
+			t.Fatalf("Time of honest layer failed: %v", err)
+		}
+	})
 }

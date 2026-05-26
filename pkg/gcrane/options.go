@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/google"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 )
@@ -91,6 +92,14 @@ func WithContext(ctx context.Context) Option {
 		o.remote = append(o.remote, remote.WithContext(ctx))
 		o.google = append(o.google, google.WithContext(ctx))
 		o.crane = append(o.crane, crane.WithContext(ctx))
+	}
+}
+
+// WithPlatform is a functional option for selecting a single platform from
+// a multi-platform image. A nil platform copies the index unchanged.
+func WithPlatform(platform *v1.Platform) Option {
+	return func(o *options) {
+		o.crane = append(o.crane, crane.WithPlatform(platform))
 	}
 }
 
