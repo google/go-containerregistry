@@ -58,18 +58,22 @@ func (l Path) openBlob(h v1.Hash) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	closeFile := true
+	defer func() {
+		if closeFile {
+			f.Close()
+		}
+	}()
 	stat, err := f.Stat()
 	if err != nil {
-		f.Close()
 		return nil, err
 	}
 	if !stat.Mode().IsRegular() {
-		f.Close()
 		return nil, fmt.Errorf("layout blob %s is not a regular file", h)
 	}
 	if !os.SameFile(info, stat) {
-		f.Close()
 		return nil, fmt.Errorf("layout blob %s changed while opening", h)
 	}
+	closeFile = false
 	return f, nil
 }
