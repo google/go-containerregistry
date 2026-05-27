@@ -123,6 +123,24 @@ func TestRepositoryBadDefaulting(t *testing.T) {
 	}
 }
 
+func TestRepositoryDefaultPrefix(t *testing.T) {
+	repo, err := NewRepository("ubuntu", WithDefaultRepositoryPrefix("base"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := repo.Name(), "index.docker.io/base/ubuntu"; got != want {
+		t.Errorf("repo.Name(): got %s want %s", got, want)
+	}
+
+	repo, err = NewRepository("ubuntu", WithDefaultRegistry("registry.example.com"), WithDefaultRepositoryPrefix("base"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := repo.Name(), "registry.example.com/base/ubuntu"; got != want {
+		t.Errorf("repo.Name(): got %s want %s", got, want)
+	}
+}
+
 func TestRepositoryChildren(t *testing.T) {
 	repo, err := NewRepository("example.com/repo", Insecure)
 	if err != nil {
