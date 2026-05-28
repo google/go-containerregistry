@@ -216,6 +216,9 @@ func TestRegistryScheme(t *testing.T) {
 		domain: "127.0.0.1",
 		scheme: "http",
 	}, {
+		domain: "localhost",
+		scheme: "http",
+	}, {
 		domain: "localhost:8080",
 		scheme: "http",
 	}, {
