@@ -46,12 +46,6 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
 				dst = args[1]
 			}
 
-			f, err := openFile(dst)
-			if err != nil {
-				return fmt.Errorf("failed to open %s: %w", dst, err)
-			}
-			defer f.Close()
-
 			var img v1.Image
 			if src == "-" {
 				tmpfile, err := os.CreateTemp("", "crane")
@@ -86,6 +80,12 @@ func NewCmdExport(options *[]crane.Option) *cobra.Command {
 					}
 				}
 			}
+
+			f, err := openFile(dst)
+			if err != nil {
+				return fmt.Errorf("failed to open %s: %w", dst, err)
+			}
+			defer f.Close()
 
 			return crane.Export(img, f)
 		},
