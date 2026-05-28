@@ -782,28 +782,6 @@ func (fake *FakeImage) SizeReturnsOnCall(i int, result1 int64, result2 error) {
 func (fake *FakeImage) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.configFileMutex.RLock()
-	defer fake.configFileMutex.RUnlock()
-	fake.configNameMutex.RLock()
-	defer fake.configNameMutex.RUnlock()
-	fake.digestMutex.RLock()
-	defer fake.digestMutex.RUnlock()
-	fake.layerByDiffIDMutex.RLock()
-	defer fake.layerByDiffIDMutex.RUnlock()
-	fake.layerByDigestMutex.RLock()
-	defer fake.layerByDigestMutex.RUnlock()
-	fake.layersMutex.RLock()
-	defer fake.layersMutex.RUnlock()
-	fake.manifestMutex.RLock()
-	defer fake.manifestMutex.RUnlock()
-	fake.mediaTypeMutex.RLock()
-	defer fake.mediaTypeMutex.RUnlock()
-	fake.rawConfigFileMutex.RLock()
-	defer fake.rawConfigFileMutex.RUnlock()
-	fake.rawManifestMutex.RLock()
-	defer fake.rawManifestMutex.RUnlock()
-	fake.sizeMutex.RLock()
-	defer fake.sizeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
