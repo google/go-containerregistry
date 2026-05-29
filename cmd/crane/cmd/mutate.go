@@ -22,7 +22,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/spf13/cobra"
 )
 
@@ -40,6 +42,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	var workdir string
 	var ports []string
 	var newPlatform string
+	var ociEmptyBase bool
 
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
@@ -65,7 +68,14 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 
 			img, err := crane.Pull(ref, *options...)
 			if err != nil {
-				return fmt.Errorf("pulling %s: %w", ref, err)
+				if ociEmptyBase {
+					fmt.Println("base unspecified, using empty image")
+					img = empty.Image
+					img = mutate.MediaType(img, types.OCIManifestSchema1)
+					img = mutate.ConfigMediaType(img, types.OCIConfigJSON)
+				} else {
+					return fmt.Errorf("pulling %s: %w", ref, err)
+				}
 			}
 			if len(newLayers) != 0 {
 				img, err = crane.Append(img, newLayers...)
@@ -198,6 +208,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd.Flags().StringSliceVar(&ports, "exposed-ports", nil, "New ports to expose")
 	// Using "set-platform" to avoid clobbering "platform" persistent flag.
 	mutateCmd.Flags().StringVar(&newPlatform, "set-platform", "", "New platform to set in the form os/arch[/variant][:osversion] (e.g. linux/amd64)")
+	mutateCmd.Flags().BoolVar(&ociEmptyBase, "oci-empty-base", false, "If true, use an empty OCI image when the base image is not found")
 	return mutateCmd
 }
 
