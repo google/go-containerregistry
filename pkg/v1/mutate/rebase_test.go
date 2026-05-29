@@ -19,8 +19,10 @@ import (
 	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func layerDigests(t *testing.T, img v1.Image) []string {
@@ -175,5 +177,97 @@ func TestRebase(t *testing.T) {
 	}
 	if rebasedConfig.OSVersion != newBaseConfig.OSVersion {
 		t.Errorf("ConfigFile property OSVersion mismatch, got %q, want %q", rebasedConfig.OSVersion, newBaseConfig.OSVersion)
+	}
+}
+
+// TestRebaseLayerType tests that when rebasing an image, if the new base doesn't have
+// the same layer type as the image to rebase, the new base layer type is used.
+func TestRebaseLayerType(t *testing.T) {
+	// Create an old base image with DockerLayer type
+	oldBaseLayer, err := random.Layer(100, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("random.Layer (oldBase): %v", err)
+	}
+	oldBase, err := mutate.AppendLayers(empty.Image, oldBaseLayer)
+	if err != nil {
+		t.Fatalf("mutate.AppendLayers (oldBase): %v", err)
+	}
+
+	// Create an image to rebase with OCILayer type
+	origLayer, err := random.Layer(100, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("random.Layer (orig): %v", err)
+	}
+	orig, err := mutate.Append(oldBase, mutate.Addendum{
+		Layer: origLayer,
+		History: v1.History{
+			Author:    "me",
+			Created:   v1.Time{Time: time.Now()},
+			CreatedBy: "test",
+			Comment:   "this is a test",
+		},
+	})
+	if err != nil {
+		t.Fatalf("mutate.Append (orig): %v", err)
+	}
+
+	// Create a new base image with DockerLayer type
+	newBaseLayer, err := random.Layer(100, types.OCILayer)
+	if err != nil {
+		t.Fatalf("random.Layer (newBase): %v", err)
+	}
+	newBase, err := mutate.AppendLayers(empty.Image, newBaseLayer)
+	if err != nil {
+		t.Fatalf("mutate.AppendLayers (newBase): %v", err)
+	}
+
+	// Rebase the image onto the new base
+	rebased, err := mutate.Rebase(orig, oldBase, newBase)
+	if err != nil {
+		t.Fatalf("mutate.Rebase: %v", err)
+	}
+
+	// Get the layers of the rebased image
+	rebasedLayers, err := rebased.Layers()
+	if err != nil {
+		t.Fatalf("rebased.Layers: %v", err)
+	}
+
+	// Check that the rebased image has 2 layers
+	if len(rebasedLayers) != 2 {
+		t.Fatalf("rebased image has %d layers, expected 2", len(rebasedLayers))
+	}
+
+	// Check that the first layer (from the new base) has OCILayer type
+	firstLayerType, err := rebasedLayers[0].MediaType()
+	if err != nil {
+		t.Fatalf("rebasedLayers[0].MediaType: %v", err)
+	}
+	if firstLayerType != types.OCILayer {
+		t.Errorf("first layer has media type %v, expected %v", firstLayerType, types.OCILayer)
+	}
+
+	// Check that the second layer (from orig) has OCILayer type (should have been changed from DockerLayer)
+	secondLayerType, err := rebasedLayers[1].MediaType()
+	if err != nil {
+		t.Fatalf("rebasedLayers[1].MediaType: %v", err)
+	}
+
+	// Print more information about the layers to help diagnose the issue
+	t.Logf("Original layer media type: %v", types.DockerLayer)
+	t.Logf("New base layer media type: %v", types.OCILayer)
+	t.Logf("First rebased layer media type: %v", firstLayerType)
+	t.Logf("Second rebased layer media type: %v", secondLayerType)
+
+	// Check if the original layer is actually a DockerLayer
+	origLayerType, err := origLayer.MediaType()
+	if err != nil {
+		t.Logf("Error getting original layer media type: %v", err)
+	} else {
+		t.Logf("Original layer actual media type: %v", origLayerType)
+	}
+
+	if secondLayerType != types.OCILayer {
+		t.Errorf("second layer has media type %v, expected %v", secondLayerType, types.OCILayer)
 	}
 }
