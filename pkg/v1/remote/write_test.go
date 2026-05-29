@@ -299,7 +299,7 @@ func TestInitiateUploadNoMountsExists(t *testing.T) {
 
 	_, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
-		t.Errorf("intiateUpload() = %v", err)
+		t.Errorf("initiateUpload() = %v", err)
 	}
 	if !mounted {
 		t.Error("initiateUpload() = !mounted, want mounted")
@@ -337,7 +337,7 @@ func TestInitiateUploadNoMountsInitiated(t *testing.T) {
 
 	location, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
-		t.Errorf("intiateUpload() = %v", err)
+		t.Errorf("initiateUpload() = %v", err)
 	}
 	if mounted {
 		t.Error("initiateUpload() = mounted, want !mounted")
@@ -386,7 +386,7 @@ func TestInitiateUploadNoMountsBadStatus(t *testing.T) {
 
 	location, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err == nil {
-		t.Errorf("intiateUpload() = %v, %v; wanted error", location, mounted)
+		t.Errorf("initiateUpload() = %v, %v; wanted error", location, mounted)
 	}
 }
 
@@ -419,7 +419,7 @@ func TestInitiateUploadMountsWithMountFromDifferentRegistry(t *testing.T) {
 
 	_, mounted, err := w.initiateUpload(context.Background(), "baz/bar", h.String(), "")
 	if err != nil {
-		t.Errorf("intiateUpload() = %v", err)
+		t.Errorf("initiateUpload() = %v", err)
 	}
 	if !mounted {
 		t.Error("initiateUpload() = !mounted, want mounted")
@@ -459,7 +459,7 @@ func TestInitiateUploadMountsWithMountFromTheSameRegistry(t *testing.T) {
 
 	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "")
 	if err != nil {
-		t.Errorf("intiateUpload() = %v", err)
+		t.Errorf("initiateUpload() = %v", err)
 	}
 	if !mounted {
 		t.Error("initiateUpload() = !mounted, want mounted")
@@ -501,7 +501,7 @@ func TestInitiateUploadMountsWithOrigin(t *testing.T) {
 
 	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "fakeOrigin")
 	if err != nil {
-		t.Errorf("intiateUpload() = %v", err)
+		t.Errorf("initiateUpload() = %v", err)
 	}
 	if !mounted {
 		t.Error("initiateUpload() = !mounted, want mounted")
@@ -551,7 +551,7 @@ func TestInitiateUploadMountsWithOriginFallback(t *testing.T) {
 
 	_, mounted, err := w.initiateUpload(context.Background(), expectedMountRepo, h.String(), "fakeOrigin")
 	if err != nil {
-		t.Errorf("intiateUpload() = %v", err)
+		t.Errorf("initiateUpload() = %v", err)
 	}
 	if !mounted {
 		t.Error("initiateUpload() = !mounted, want mounted")

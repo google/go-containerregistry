@@ -187,7 +187,7 @@ func TestReferrers(t *testing.T) {
 			t.Fatalf("referrers diff after second push (-want,+got): %s", d)
 		}
 
-		// Try applying filters and verify number of manifests and and annotations
+		// Try applying filters and verify number of manifests and annotations
 		index, err = remote.Referrers(rootRefDigest,
 			remote.WithFilter("artifactType", "application/testing123"))
 		if err != nil {
