@@ -216,6 +216,18 @@ func TestRegistryScheme(t *testing.T) {
 		domain: "127.0.0.1",
 		scheme: "http",
 	}, {
+		domain: "127.0.0.1.evil.com",
+		scheme: "https",
+	}, {
+		domain: "my127.0.0.1registry.io",
+		scheme: "https",
+	}, {
+		domain: "evil.com.127.0.0.1.nip.io",
+		scheme: "https",
+	}, {
+		domain: "x127.0.0.1x.com",
+		scheme: "https",
+	}, {
 		domain: "localhost:8080",
 		scheme: "http",
 	}, {
@@ -227,6 +239,15 @@ func TestRegistryScheme(t *testing.T) {
 	}, {
 		domain: "::1",
 		scheme: "http",
+	}, {
+		domain: "[::1]:5000",
+		scheme: "http",
+	}, {
+		domain: "[2001:db8::1]:5000",
+		scheme: "https",
+	}, {
+		domain: "[fe80::1]:5000",
+		scheme: "https",
 	}, {
 		domain: "10.2.3.4:5000",
 		scheme: "http",
