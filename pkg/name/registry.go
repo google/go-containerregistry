@@ -27,12 +27,6 @@ import (
 // Detect more complex forms of localhost references.
 var reLocal = regexp.MustCompile(`.*\.localhost(?::\d{1,5})?$`)
 
-// Detect the loopback IP (127.0.0.1)
-var reLoopback = regexp.MustCompile(regexp.QuoteMeta("127.0.0.1"))
-
-// Detect the loopback IPV6 (::1)
-var reipv6Loopback = regexp.MustCompile(regexp.QuoteMeta("::1"))
-
 // Registry stores a docker registry name in a structured form.
 type Registry struct {
 	insecure bool
@@ -69,9 +63,15 @@ func (r Registry) Scope(string) string {
 	return "registry:catalog:*"
 }
 
+func (r Registry) host() string {
+	if host, _, err := net.SplitHostPort(r.Name()); err == nil {
+		return host
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(r.Name(), "["), "]")
+}
+
 func (r Registry) isRFC1918() bool {
-	ipStr := strings.Split(r.Name(), ":")[0]
-	ip := net.ParseIP(ipStr)
+	ip := net.ParseIP(r.host())
 	if ip == nil {
 		return false
 	}
@@ -84,6 +84,11 @@ func (r Registry) isRFC1918() bool {
 	return false
 }
 
+func (r Registry) isLoopback() bool {
+	ip := net.ParseIP(r.host())
+	return ip != nil && ip.IsLoopback()
+}
+
 // Scheme returns https scheme for all the endpoints except localhost or when explicitly defined.
 func (r Registry) Scheme() string {
 	if r.insecure {
@@ -92,16 +97,13 @@ func (r Registry) Scheme() string {
 	if r.isRFC1918() {
 		return "http"
 	}
-	if strings.HasPrefix(r.Name(), "localhost:") {
+	if r.host() == "localhost" {
 		return "http"
 	}
 	if reLocal.MatchString(r.Name()) {
 		return "http"
 	}
-	if reLoopback.MatchString(r.Name()) {
-		return "http"
-	}
-	if reipv6Loopback.MatchString(r.Name()) {
+	if r.isLoopback() {
 		return "http"
 	}
 	return "https"

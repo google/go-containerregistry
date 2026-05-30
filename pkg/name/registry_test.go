@@ -180,6 +180,9 @@ func TestIsRFC1918(t *testing.T) {
 		reg:    "192.168.3.4",
 		result: true,
 	}, {
+		reg:    "[::1]:5000",
+		result: false,
+	}, {
 		reg:    "10.256.0.0:5000",
 		result: false,
 	}}
@@ -216,7 +219,16 @@ func TestRegistryScheme(t *testing.T) {
 		domain: "127.0.0.1",
 		scheme: "http",
 	}, {
+		domain: "127.0.0.1.evil.com",
+		scheme: "https",
+	}, {
+		domain: "my127.0.0.1registry.io",
+		scheme: "https",
+	}, {
 		domain: "localhost:8080",
+		scheme: "http",
+	}, {
+		domain: "localhost",
 		scheme: "http",
 	}, {
 		domain: "gcr.io",
@@ -227,6 +239,12 @@ func TestRegistryScheme(t *testing.T) {
 	}, {
 		domain: "::1",
 		scheme: "http",
+	}, {
+		domain: "[::1]:5000",
+		scheme: "http",
+	}, {
+		domain: "[2001:db8::1]:5000",
+		scheme: "https",
 	}, {
 		domain: "10.2.3.4:5000",
 		scheme: "http",
