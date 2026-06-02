@@ -19,13 +19,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 
+	"github.com/google/go-containerregistry/internal/limit"
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -420,7 +420,7 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(io.LimitReader(resp.Body, maxTokenBodySize))
+	return limit.ReadAll(resp.Body, maxTokenBodySize)
 }
 
 // https://docs.docker.com/registry/spec/auth/token/
@@ -465,5 +465,5 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	return io.ReadAll(io.LimitReader(resp.Body, maxTokenBodySize))
+	return limit.ReadAll(resp.Body, maxTokenBodySize)
 }
