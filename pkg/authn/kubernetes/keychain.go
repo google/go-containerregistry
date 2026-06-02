@@ -59,6 +59,11 @@ type Options struct {
 	// Namespace) containing credential data to use for the image pull.
 	ImagePullSecrets []string
 
+	// IgnorePullSecrets determines whether image pull secrets should be ignored.
+	// This is useful for push-only workflows that only want mount secrets from
+	// the ServiceAccount.
+	IgnorePullSecrets bool
+
 	// UseMountSecrets determines whether or not mount secrets in the ServiceAccount
 	// should be considered. Mount secrets are those listed under the `.secrets`
 	// attribute of the ServiceAccount resource. Ignored if ServiceAccountName is set
@@ -85,15 +90,17 @@ func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.K
 
 	// First, fetch all of the explicitly declared pull secrets
 	var pullSecrets []corev1.Secret
-	for _, name := range opt.ImagePullSecrets {
-		ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, name, metav1.GetOptions{})
-		if k8serrors.IsNotFound(err) {
-			logs.Warn.Printf("secret %s/%s not found; ignoring", opt.Namespace, name)
-			continue
-		} else if err != nil {
-			return nil, err
+	if !opt.IgnorePullSecrets {
+		for _, name := range opt.ImagePullSecrets {
+			ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, name, metav1.GetOptions{})
+			if k8serrors.IsNotFound(err) {
+				logs.Warn.Printf("secret %s/%s not found; ignoring", opt.Namespace, name)
+				continue
+			} else if err != nil {
+				return nil, err
+			}
+			pullSecrets = append(pullSecrets, *ps)
 		}
-		pullSecrets = append(pullSecrets, *ps)
 	}
 
 	// Second, fetch all of the pull secrets attached to our service account,
@@ -107,15 +114,17 @@ func New(ctx context.Context, client kubernetes.Interface, opt Options) (authn.K
 			return nil, err
 		}
 		if sa != nil {
-			for _, localObj := range sa.ImagePullSecrets {
-				ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, localObj.Name, metav1.GetOptions{})
-				if k8serrors.IsNotFound(err) {
-					logs.Warn.Printf("secret %s/%s not found; ignoring", opt.Namespace, localObj.Name)
-					continue
-				} else if err != nil {
-					return nil, err
+			if !opt.IgnorePullSecrets {
+				for _, localObj := range sa.ImagePullSecrets {
+					ps, err := client.CoreV1().Secrets(opt.Namespace).Get(ctx, localObj.Name, metav1.GetOptions{})
+					if k8serrors.IsNotFound(err) {
+						logs.Warn.Printf("secret %s/%s not found; ignoring", opt.Namespace, localObj.Name)
+						continue
+					} else if err != nil {
+						return nil, err
+					}
+					pullSecrets = append(pullSecrets, *ps)
 				}
-				pullSecrets = append(pullSecrets, *ps)
 			}
 
 			if opt.UseMountSecrets {
