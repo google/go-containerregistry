@@ -248,7 +248,7 @@ func followLinks(opener Opener, filePath string, visited map[string]bool) (io.Re
 		if err != nil {
 			return nil, err
 		}
-		if hdr.Name == filePath {
+		if path.Clean(hdr.Name) == path.Clean(filePath) {
 			if hdr.Typeflag == tar.TypeSymlink || hdr.Typeflag == tar.TypeLink {
 				currentDir := filepath.Dir(filePath)
 				return followLinks(opener, path.Join(currentDir, path.Clean(hdr.Linkname)), visited)

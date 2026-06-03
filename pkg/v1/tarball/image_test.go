@@ -241,3 +241,35 @@ func TestManifestEmptyDiffIDs(t *testing.T) {
 		t.Errorf("img.Manifest(): expected error mentioning diff_ids, got: %v", err)
 	}
 }
+
+func TestLoadManifestPrefixPath(t *testing.T) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	manifestBytes := []byte(`[]`)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "./manifest.json",
+		Mode: 0644,
+		Size: int64(len(manifestBytes)),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(manifestBytes); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	content := buf.Bytes()
+	opener := func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(content)), nil
+	}
+
+	manifest, err := LoadManifest(opener)
+	if err != nil {
+		t.Fatalf("LoadManifest() failed: %v", err)
+	}
+	if len(manifest) != 0 {
+		t.Errorf("expected empty manifest, got %v", manifest)
+	}
+}
