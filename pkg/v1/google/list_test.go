@@ -320,21 +320,13 @@ func TestGetNextPageURL(t *testing.T) {
 		"",
 		"<",
 		"><",
+		"<>",
 		fmt.Sprintf("<%c>", 0x7f), // makes url.Parse fail
 	} {
 		u, err := getNextPageURL(makeResp(hdr), repo)
 		if err == nil && u != nil {
 			t.Errorf("Expected err or nil URL for %q, got %+v", hdr, u)
 		}
-	}
-
-	// "<>" resolves to current URL which is valid
-	emptyU, emptyErr := getNextPageURL(makeResp("<>"), repo)
-	if emptyErr != nil {
-		t.Errorf("Expected <> to resolve to current URL, got err: %v", emptyErr)
-	}
-	if emptyU != nil && emptyU.Host != "example.com" {
-		t.Errorf("Expected <> to resolve to example.com, got %s", emptyU.Host)
 	}
 
 	good := &http.Response{

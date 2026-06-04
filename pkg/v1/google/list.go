@@ -179,6 +179,9 @@ func getNextPageURL(resp *http.Response, repo name.Repository) (*url.URL, error)
 		return nil, fmt.Errorf("failed to parse link header: missing '>' in: %s", link)
 	}
 	link = link[1:end]
+	if link == "" {
+		return nil, nil
+	}
 
 	linkURL, err := url.Parse(link)
 	if err != nil {
