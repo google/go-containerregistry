@@ -49,7 +49,7 @@ func (m *diskHandler) Stat(_ context.Context, _ string, h v1.Hash) (int64, error
 		return 0, err
 	}
 	if got != h {
-		return 0, fmt.Errorf("%w: blob %s has digest %s", errNotFound, h, got)
+		return 0, fmt.Errorf("%w: blob %s has digest %s", ErrNotFound, h, got)
 	}
 	return size, nil
 }
