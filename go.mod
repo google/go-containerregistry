@@ -8,7 +8,7 @@ module github.com/google/go-containerregistry
 go 1.25.0
 
 require (
-	github.com/docker/cli v29.5.2+incompatible
+	github.com/docker/cli v29.5.3+incompatible
 	github.com/google/go-cmp v0.7.0
 	github.com/klauspost/compress v1.18.6
 	github.com/moby/docker-image-spec v1.3.1
