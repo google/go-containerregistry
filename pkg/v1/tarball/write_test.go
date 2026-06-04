@@ -494,9 +494,87 @@ func getLayersHashes(img v1.Image) ([]string, error) {
 }
 
 func getLayersFilenames(hashes []string) []string {
-	filenames := []string{}
+	filenames := make([]string, 0, len(hashes))
 	for _, h := range hashes {
 		filenames = append(filenames, fmt.Sprintf("%s.tar.gz", h))
 	}
 	return filenames
+}
+
+// TestWriteClosesLayerBeforeOpeningNext is a regression test for the deadlock
+// that occurs when Write does not close each layer reader before opening the
+// next one. Remote layer readers returned by remote.Get(...).Image() hold a
+// pull-job slot until Close (see remote.WithJobs / pkg/v1/remote.limiter),
+// so leaving readers open here deadlocks the write loop once defaultJobs
+// readers are outstanding.
+func TestWriteClosesLayerBeforeOpeningNext(t *testing.T) {
+	tokens := make(chan struct{}, 4)
+	img, err := random.Image(256, int64(cap(tokens)+1))
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+	ref, err := name.NewTag("test/limited:latest")
+	if err != nil {
+		t.Fatalf("name.NewTag: %v", err)
+	}
+	if err := tarball.MultiRefWrite(map[name.Reference]v1.Image{ref: &tokenLimitedImage{Image: img, tokens: tokens}}, io.Discard); err != nil {
+		t.Fatalf("tarball.MultiRefWrite: %v", err)
+	}
+	if got := len(tokens); got != 0 {
+		t.Fatalf("open layer readers after write: got %d, want 0", got)
+	}
+}
+
+// tokenLimitedImage wraps img so each layer's Compressed() reader takes one
+// of cap(tokens) slots, modeling remote.WithJobs slot behavior. The slot is
+// released only when Close() is called on the returned reader.
+type tokenLimitedImage struct {
+	v1.Image
+	tokens chan struct{}
+}
+
+func (i *tokenLimitedImage) Layers() ([]v1.Layer, error) {
+	ls, err := i.Image.Layers()
+	if err != nil {
+		return nil, err
+	}
+	out := make([]v1.Layer, len(ls))
+	for j, l := range ls {
+		out[j] = &tokenLimitedLayer{Layer: l, tokens: i.tokens}
+	}
+	return out, nil
+}
+
+type tokenLimitedLayer struct {
+	v1.Layer
+	tokens chan struct{}
+}
+
+func (l *tokenLimitedLayer) Compressed() (io.ReadCloser, error) {
+	select {
+	case l.tokens <- struct{}{}:
+	default:
+		return nil, errors.New("layer reader opened before previous readers were closed")
+	}
+	rc, err := l.Layer.Compressed()
+	if err != nil {
+		<-l.tokens
+		return nil, err
+	}
+	return &tokenReleasingReadCloser{ReadCloser: rc, release: func() { <-l.tokens }}, nil
+}
+
+type tokenReleasingReadCloser struct {
+	io.ReadCloser
+	release func()
+	closed  bool
+}
+
+func (rc *tokenReleasingReadCloser) Close() error {
+	err := rc.ReadCloser.Close()
+	if !rc.closed {
+		rc.closed = true
+		rc.release()
+	}
+	return err
 }
