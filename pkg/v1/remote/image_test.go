@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"path"
 	"strings"
 	"testing"
 
@@ -595,10 +594,13 @@ func TestPullingForeignLayer(t *testing.T) {
 		t.Fatalf("url.Parse(%v) = %v", foreignServer.URL, err)
 	}
 
+	// Use "localhost" (not "127.0.0.1") so the hostname is not an IP literal
+	// and is not rejected by validateForeignURL's private-address check.
+	// DNS-based SSRF is explicitly out of scope for this validation.
 	img, err = mutate.Append(img, mutate.Addendum{
 		Layer: foreignLayer,
 		URLs: []string{
-			"http://" + path.Join(fu.Host, foreignPath),
+			"http://localhost:" + fu.Port() + foreignPath,
 		},
 	})
 	if err != nil {

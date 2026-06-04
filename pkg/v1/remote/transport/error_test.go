@@ -234,3 +234,36 @@ func (e *errReadCloser) Read(_ []byte) (int, error) {
 func (e *errReadCloser) Close() error {
 	return e.err
 }
+
+// TestRetryErrorRestoresBody is a regression test for
+// https://github.com/google/go-containerregistry/issues/2125.
+// retryError must restore resp.Body after reading it so that a subsequent
+// CheckError call can still parse the structured registry error.
+func TestRetryErrorRestoresBody(t *testing.T) {
+	body := `{"errors":[{"code":"MANIFEST_UNKNOWN","message":"manifest unknown"}]}`
+	resp := &http.Response{
+		StatusCode: http.StatusNotFound,
+		Request:    &http.Request{URL: &url.URL{}},
+		Body:       io.NopCloser(bytes.NewBufferString(body)),
+	}
+
+	// Simulate what the retry transport does: call retryError, then — after
+	// retries are exhausted — call CheckError.
+	rerr := retryError(resp)
+	if rerr == nil {
+		t.Fatal("retryError() returned nil, wanted error")
+	}
+
+	// The body must be restored so CheckError can produce the structured error.
+	finalErr := CheckError(resp, http.StatusOK)
+	if finalErr == nil {
+		t.Fatal("CheckError() returned nil after retryError, wanted structured error")
+	}
+	var terr *Error
+	if !errors.As(finalErr, &terr) {
+		t.Fatalf("CheckError() returned %T, wanted *Error", finalErr)
+	}
+	if len(terr.Errors) == 0 || terr.Errors[0].Code != ManifestUnknownErrorCode {
+		t.Errorf("CheckError() after retryError = %v, wanted MANIFEST_UNKNOWN error", terr)
+	}
+}

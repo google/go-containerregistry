@@ -28,6 +28,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/go-containerregistry/internal/verify"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
@@ -62,6 +63,26 @@ func TestExtractWhiteout(t *testing.T) {
 	}
 }
 
+func TestExtractWhiteoutDir(t *testing.T) {
+	img, err := tarball.ImageFromPath("testdata/whiteout_dir.tar", nil)
+	if err != nil {
+		t.Errorf("Error loading image: %v", err)
+	}
+	tarPath, _ := filepath.Abs("img.tar")
+	defer os.Remove(tarPath)
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		header, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		name := header.Name
+		if filepath.Base(name) == "foo" {
+			t.Errorf("whiteout file found in tar: %v", name)
+		}
+	}
+}
+
 func TestExtractOverwrittenFile(t *testing.T) {
 	img, err := tarball.ImageFromPath("testdata/overwritten_file.tar", nil)
 	if err != nil {
@@ -84,6 +105,23 @@ func TestExtractOverwrittenFile(t *testing.T) {
 	}
 }
 
+func TestExtractClosesLayerBeforeOpeningNext(t *testing.T) {
+	tokens := make(chan struct{}, 4)
+	layers := make([]v1.Layer, cap(tokens)+1)
+	for i := range layers {
+		layers[i] = tokenLimitedLayer{tokens: tokens}
+	}
+
+	rc := mutate.Extract(tokenLimitedImage{layers: layers})
+	defer rc.Close()
+	if _, err := io.Copy(io.Discard, rc); err != nil {
+		t.Fatalf("mutate.Extract() = %v", err)
+	}
+	if got := len(tokens); got != 0 {
+		t.Fatalf("open layer readers after extraction: got %d, want 0", got)
+	}
+}
+
 // TestExtractError tests that if there are any errors encountered
 func TestExtractError(t *testing.T) {
 	rc := mutate.Extract(invalidImage{})
@@ -103,6 +141,138 @@ func TestExtractPartialRead(t *testing.T) {
 	}
 	if err := rc.Close(); err != nil {
 		t.Errorf("rc.Close: %v", err)
+	}
+}
+
+// TestExtractRoundTrip builds an image layer containing every common filesystem
+// object type (regular files, directories, symlinks, hard links, various
+// permission modes) and verifies that mutate.Extract preserves all entries.
+//
+// This prevents regressions like #2244 where a security fix inadvertently
+// dropped legitimate symlinks during extraction.
+func TestExtractRoundTrip(t *testing.T) {
+	// Build a tar layer with diverse filesystem objects.
+	type entry struct {
+		header *tar.Header
+		body   string // only for regular files
+	}
+	entries := []entry{
+		// Directories
+		{header: &tar.Header{Name: "app/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "app/bin/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "app/lib/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "app/node_modules/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "app/node_modules/.bin/", Typeflag: tar.TypeDir, Mode: 0o755}},
+		{header: &tar.Header{Name: "restricted/", Typeflag: tar.TypeDir, Mode: 0o700}},
+
+		// Regular files with various permissions
+		{header: &tar.Header{Name: "app/main.js", Typeflag: tar.TypeReg, Mode: 0o644}, body: "console.log('hello')\n"},
+		{header: &tar.Header{Name: "app/bin/run.sh", Typeflag: tar.TypeReg, Mode: 0o755}, body: "#!/bin/sh\n\n"},
+		{header: &tar.Header{Name: "restricted/secret.key", Typeflag: tar.TypeReg, Mode: 0o600}, body: "secret\n"},
+		{header: &tar.Header{Name: "app/lib/utils.js", Typeflag: tar.TypeReg, Mode: 0o644}, body: "// ok\n"},
+
+		// Relative symlinks (the most common case, e.g. node_modules/.bin)
+		{header: &tar.Header{Name: "app/node_modules/.bin/acorn", Typeflag: tar.TypeSymlink, Linkname: "../acorn/bin/acorn"}},
+		{header: &tar.Header{Name: "app/node_modules/.bin/eslint", Typeflag: tar.TypeSymlink, Linkname: "../eslint/bin/eslint.js"}},
+
+		// Absolute symlink (pointing within the image)
+		{header: &tar.Header{Name: "app/link-to-main", Typeflag: tar.TypeSymlink, Linkname: "/app/main.js"}},
+
+		// Symlink to a directory
+		{header: &tar.Header{Name: "app/modules", Typeflag: tar.TypeSymlink, Linkname: "node_modules"}},
+
+		// Hard link
+		{header: &tar.Header{Name: "app/main-hardlink.js", Typeflag: tar.TypeLink, Linkname: "app/main.js"}},
+	}
+
+	// Write entries into a tar archive.
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for _, e := range entries {
+		if e.body != "" {
+			e.header.Size = int64(len(e.body))
+		}
+		if err := tw.WriteHeader(e.header); err != nil {
+			t.Fatalf("writing header for %s: %v", e.header.Name, err)
+		}
+		if e.body != "" {
+			if _, err := tw.Write([]byte(e.body)); err != nil {
+				t.Fatalf("writing body for %s: %v", e.header.Name, err)
+			}
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("closing tar writer: %v", err)
+	}
+
+	// Build a single-layer image from the tar.
+	tarBytes := buf.Bytes()
+	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(tarBytes)), nil
+	})
+	if err != nil {
+		t.Fatalf("creating layer: %v", err)
+	}
+	img, err := mutate.AppendLayers(empty.Image, layer)
+	if err != nil {
+		t.Fatalf("appending layer: %v", err)
+	}
+
+	// Extract and collect all entries from the flattened output.
+	extracted := map[string]*tar.Header{}
+	extractedBodies := map[string]string{}
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("reading extracted tar: %v", err)
+		}
+		extracted[hdr.Name] = hdr
+		if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
+			var b bytes.Buffer
+			if _, err := io.Copy(&b, tr); err != nil {
+				t.Fatalf("reading body of %s: %v", hdr.Name, err)
+			}
+			extractedBodies[hdr.Name] = b.String()
+		}
+	}
+
+	// Verify every input entry is present in the output with correct metadata.
+	for _, e := range entries {
+		name := filepath.Clean(e.header.Name)
+		got, ok := extracted[name]
+		if !ok {
+			t.Errorf("entry %q not found in extracted output", name)
+			continue
+		}
+
+		if got.Typeflag != e.header.Typeflag {
+			t.Errorf("%s: typeflag = %d, want %d", name, got.Typeflag, e.header.Typeflag)
+		}
+
+		// Verify symlink and hard link targets are preserved.
+		if e.header.Typeflag == tar.TypeSymlink || e.header.Typeflag == tar.TypeLink {
+			if got.Linkname != e.header.Linkname {
+				t.Errorf("%s: linkname = %q, want %q", name, got.Linkname, e.header.Linkname)
+			}
+		}
+
+		// Verify file permissions.
+		if e.header.Typeflag == tar.TypeReg || e.header.Typeflag == tar.TypeDir {
+			if got.Mode != e.header.Mode {
+				t.Errorf("%s: mode = %o, want %o", name, got.Mode, e.header.Mode)
+			}
+		}
+
+		// Verify file contents.
+		if e.body != "" {
+			if extractedBodies[name] != e.body {
+				t.Errorf("%s: body = %q, want %q", name, extractedBodies[name], e.body)
+			}
+		}
 	}
 }
 
@@ -450,6 +620,60 @@ func TestMutateMediaType(t *testing.T) {
 	}
 }
 
+// TestNonImageArtifactPreservesConfig verifies that mutating an OCI artifact
+// with a non-Docker config type (e.g., Helm chart, WASM module) preserves the
+// original config blob and correctly returns layers.
+// Regression test for https://github.com/google/go-containerregistry/issues/2251
+func TestNonImageArtifactPreservesConfig(t *testing.T) {
+	// Start with an empty image and set a non-image config media type
+	// to simulate a Helm chart or WASM artifact.
+	helmConfigType := types.MediaType("application/vnd.cncf.helm.config.v1+json")
+	img := mutate.ConfigMediaType(empty.Image, helmConfigType)
+	img = mutate.MediaType(img, types.OCIManifestSchema1)
+
+	// Add an annotation to trigger compute().
+	img = mutate.Annotations(img, map[string]string{
+		"org.opencontainers.image.title": "test-artifact",
+	}).(v1.Image)
+
+	// Layers() should not panic or return an error.
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("Layers() failed on artifact: %v", err)
+	}
+	if len(layers) != 0 {
+		t.Errorf("expected 0 layers for empty artifact, got %d", len(layers))
+	}
+
+	// Manifest should be valid and reference the correct config type.
+	manifest, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("Manifest() failed: %v", err)
+	}
+	if manifest.Config.MediaType != helmConfigType {
+		t.Errorf("config media type = %v, want %v", manifest.Config.MediaType, helmConfigType)
+	}
+
+	// The config digest should not have been corrupted by re-marshaling
+	// through the Docker ConfigFile struct.
+	rawCfg, err := img.RawConfigFile()
+	if err != nil {
+		t.Fatalf("RawConfigFile() failed: %v", err)
+	}
+	d, _, err := v1.SHA256(bytes.NewReader(rawCfg))
+	if err != nil {
+		t.Fatalf("SHA256 failed: %v", err)
+	}
+	if manifest.Config.Digest != d {
+		t.Errorf("config digest mismatch: manifest says %v, raw config hashes to %v", manifest.Config.Digest, d)
+	}
+
+	// Annotations should be present.
+	if manifest.Annotations["org.opencontainers.image.title"] != "test-artifact" {
+		t.Errorf("annotation not found in manifest")
+	}
+}
+
 func TestAppendStreamableLayer(t *testing.T) {
 	img, err := mutate.AppendLayers(
 		sourceImage(t),
@@ -514,6 +738,79 @@ func TestAppendStreamableLayer(t *testing.T) {
 	wantDigest := "sha256:14d140947afedc6901b490265a08bc8ebe7f9d9faed6fdf19a451f054a7dd746"
 	if h.String() != wantDigest {
 		t.Errorf("Image digest got %q, want %q", h, wantDigest)
+	}
+}
+
+// TestExtractSymlinkFiltering verifies that Extract preserves relative symlinks
+// that stay within the rootfs and absolute symlinks (left for callers to handle),
+// while dropping relative symlinks whose resolved path escapes the rootfs boundary.
+func TestExtractSymlinkFiltering(t *testing.T) {
+	// Build a tar layer with several symlink entries.
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	entries := []struct {
+		name     string
+		typeflag byte
+		linkname string
+	}{
+		// Safe relative symlink: usr/local/bin/ld.so -> ../lib/ld-linux.so.2
+		// resolves to usr/local/lib/ld-linux.so.2, inside rootfs.
+		{name: "usr/local/bin/ld.so", typeflag: tar.TypeSymlink, linkname: "../lib/ld-linux.so.2"},
+		// Safe relative symlink: var/lock -> ../run/lock (tailscale/glibc pattern).
+		{name: "usr/local/lib/containers/app/var/lock", typeflag: tar.TypeSymlink, linkname: "../run/lock"},
+		// Absolute target: preserved (see #2238 for ongoing discussion).
+		{name: "usr/local/bin/abs-link", typeflag: tar.TypeSymlink, linkname: "/etc/passwd"},
+		// Unsafe: relative target resolves outside rootfs.
+		{name: "etc/foo", typeflag: tar.TypeSymlink, linkname: "../../../tmp/evil"},
+	}
+	for _, e := range entries {
+		if err := tw.WriteHeader(&tar.Header{
+			Typeflag: e.typeflag,
+			Name:     e.name,
+			Linkname: e.linkname,
+		}); err != nil {
+			t.Fatalf("WriteHeader: %v", err)
+		}
+	}
+	tw.Close()
+
+	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	})
+	if err != nil {
+		t.Fatalf("LayerFromOpener: %v", err)
+	}
+	img, err := mutate.AppendLayers(empty.Image, layer)
+	if err != nil {
+		t.Fatalf("AppendLayers: %v", err)
+	}
+
+	extracted := map[string]string{}
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("reading extracted tar: %v", err)
+		}
+		if hdr.Typeflag == tar.TypeSymlink || hdr.Typeflag == tar.TypeLink {
+			extracted[hdr.Name] = hdr.Linkname
+		}
+	}
+
+	// These symlinks must be preserved: safe relative ones and absolute ones.
+	for _, name := range []string{"usr/local/bin/ld.so", "usr/local/lib/containers/app/var/lock", "usr/local/bin/abs-link"} {
+		if _, ok := extracted[name]; !ok {
+			t.Errorf("symlink %q was incorrectly dropped", name)
+		}
+	}
+	// Relative targets that escape the rootfs must be filtered out.
+	for _, name := range []string{"etc/foo"} {
+		if target, ok := extracted[name]; ok {
+			t.Errorf("unsafe symlink %q -> %q was not dropped", name, target)
+		}
 	}
 }
 
@@ -767,4 +1064,321 @@ func (m mockLayer) Compressed() (io.ReadCloser, error) {
 }
 func (m mockLayer) Uncompressed() (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader("uncompressed")), nil
+}
+
+type tokenLimitedImage struct {
+	v1.Image
+	layers []v1.Layer
+}
+
+func (i tokenLimitedImage) Layers() ([]v1.Layer, error) {
+	return i.layers, nil
+}
+
+type tokenLimitedLayer struct {
+	mockLayer
+	tokens chan struct{}
+}
+
+func (l tokenLimitedLayer) Uncompressed() (io.ReadCloser, error) {
+	select {
+	case l.tokens <- struct{}{}:
+		return &tokenReleasingReadCloser{
+			Reader:  bytes.NewReader(nil),
+			release: func() { <-l.tokens },
+		}, nil
+	default:
+		return nil, errors.New("layer reader opened before previous readers were closed")
+	}
+}
+
+type tokenReleasingReadCloser struct {
+	io.Reader
+	release func()
+	closed  bool
+}
+
+func (rc *tokenReleasingReadCloser) Close() error {
+	if !rc.closed {
+		rc.closed = true
+		rc.release()
+	}
+	return nil
+}
+
+// duplicateDiffIDLayer wraps a v1.Layer so that the wrapper reports the
+// inner layer's DiffID but its own (distinct) Digest, Size, and Compressed
+// stream. This models the real-world case behind #2034: two layers built
+// from the same uncompressed tar but with different compression settings
+// share a diff ID and have distinct blob digests.
+type duplicateDiffIDLayer struct {
+	v1.Layer
+	digest     v1.Hash
+	compressed []byte
+}
+
+func (d *duplicateDiffIDLayer) Digest() (v1.Hash, error) { return d.digest, nil }
+func (d *duplicateDiffIDLayer) Size() (int64, error)     { return int64(len(d.compressed)), nil }
+func (d *duplicateDiffIDLayer) Compressed() (io.ReadCloser, error) {
+	return io.NopCloser(bytes.NewReader(d.compressed)), nil
+}
+
+// TestAppendLayers_DuplicateDiffID is a regression test for #2034: when a
+// base image layer and an appended layer share a diff ID but have different
+// blob digests, Layers() must return both as distinct entries (one per
+// manifest descriptor). Walking the rootfs diff IDs and resolving each via
+// LayerByDiffID — the old behavior — collapsed the duplicate-diff-ID entry
+// to a single layer, which broke downstream pushers that uploaded blobs
+// based on Layers() (resulting in MANIFEST_BLOB_UNKNOWN at push time).
+func TestAppendLayers_DuplicateDiffID(t *testing.T) {
+	base, err := random.Image(1024, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseLayers, err := base.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseLayer := baseLayers[0]
+
+	baseDigest, err := baseLayer.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseDiffID, err := baseLayer.DiffID()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Construct an appended layer that reports baseLayer's diff ID but a
+	// fabricated, distinct digest. We don't care that the bytes are
+	// "really" a valid recompression — the bug is in how Layers() resolves
+	// per-occurrence layers from the manifest, not how the blob is
+	// validated.
+	appendBlob := []byte("a different compressed blob for the same uncompressed content")
+	fakeDigest := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("ab", 32)}
+	if fakeDigest == baseDigest {
+		t.Fatalf("test setup invariant broken: fabricated digest collides with base")
+	}
+	appended := &duplicateDiffIDLayer{
+		Layer:      baseLayer,
+		digest:     fakeDigest,
+		compressed: appendBlob,
+	}
+
+	result, err := mutate.AppendLayers(base, appended)
+	if err != nil {
+		t.Fatalf("AppendLayers failed: %v", err)
+	}
+
+	// Quick check: the manifest must list both digests in order.
+	m, err := result.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(m.Layers), 2; got != want {
+		t.Fatalf("manifest layers: got %d, want %d", got, want)
+	}
+	if m.Layers[0].Digest != baseDigest {
+		t.Errorf("manifest layers[0].Digest: got %s, want %s", m.Layers[0].Digest, baseDigest)
+	}
+	if m.Layers[1].Digest != fakeDigest {
+		t.Errorf("manifest layers[1].Digest: got %s, want %s", m.Layers[1].Digest, fakeDigest)
+	}
+
+	// The bug: Layers() previously walked diffIDs and resolved via
+	// LayerByDiffID, which collapsed both entries to the appended layer.
+	// Both slots returned a layer with digest=fakeDigest.
+	layers, err := result.Layers()
+	if err != nil {
+		t.Fatalf("Layers() failed: %v", err)
+	}
+	if got, want := len(layers), 2; got != want {
+		t.Fatalf("Layers(): got %d, want %d", got, want)
+	}
+
+	d0, err := layers[0].Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d0 != baseDigest {
+		t.Errorf("Layers()[0].Digest(): got %s, want %s (base) — duplicate-diff-ID collapse regression", d0, baseDigest)
+	}
+
+	d1, err := layers[1].Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d1 != fakeDigest {
+		t.Errorf("Layers()[1].Digest(): got %s, want %s (appended)", d1, fakeDigest)
+	}
+
+	// Round-trip check: both layers must also be retrievable via
+	// LayerByDigest using the digests reported in the manifest.
+	if _, err := result.LayerByDigest(baseDigest); err != nil {
+		t.Errorf("LayerByDigest(base): %v", err)
+	}
+	if _, err := result.LayerByDigest(fakeDigest); err != nil {
+		t.Errorf("LayerByDigest(appended): %v", err)
+	}
+
+	// The diff IDs must match — confirming the test setup actually
+	// exercises the duplicate-diff-ID case.
+	id0, err := layers[0].DiffID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	id1, err := layers[1].DiffID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id0 != id1 {
+		t.Fatalf("test setup invariant: expected duplicate diff IDs, got %s and %s", id0, id1)
+	}
+	if id0 != baseDiffID {
+		t.Fatalf("test setup invariant: expected base diff ID %s, got %s", baseDiffID, id0)
+	}
+}
+
+// makeTarBytes builds a single-file tar archive in memory and returns the
+// raw (uncompressed) tar bytes.
+func makeTarBytes(t *testing.T, name, body string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     name,
+		Mode:     0o644,
+		Size:     int64(len(body)),
+		Typeflag: tar.TypeReg,
+	}); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if _, err := tw.Write([]byte(body)); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar Close: %v", err)
+	}
+	return buf.Bytes()
+}
+
+// verifyingLayer is a v1.Layer whose Uncompressed stream is wrapped by
+// internal/verify against expectDiffID -- exactly how layers loaded from a
+// tarball or a registry are constructed. When expectDiffID does not match
+// the bytes in tarBytes, the layer models content that disagrees with the
+// digest recorded in the image manifest.
+type verifyingLayer struct {
+	v1.Layer
+	tarBytes     []byte
+	expectDiffID v1.Hash
+}
+
+func (l *verifyingLayer) Uncompressed() (io.ReadCloser, error) {
+	return verify.ReadCloser(io.NopCloser(bytes.NewReader(l.tarBytes)), int64(len(l.tarBytes)), l.expectDiffID)
+}
+
+// layersImage overrides Layers() on an embedded image so mutate operations
+// see the supplied layers instead of the real ones.
+type layersImage struct {
+	v1.Image
+	layers []v1.Layer
+}
+
+func (i layersImage) Layers() ([]v1.Layer, error) { return i.layers, nil }
+
+// TestExtractVerifiesLayerDigest is a regression test for layer-digest
+// verification in mutate.Extract. Extract reads each layer through a
+// tar.Reader, which stops at the tar end-of-archive marker before the
+// underlying verifying reader reaches io.EOF. The digest check in
+// internal/verify only fires at io.EOF, so without an explicit drain Extract
+// accepts a layer whose contents do not match the manifest's layer digest.
+// crane export / crane edit build on Extract and inherit the same path.
+func TestExtractVerifiesLayerDigest(t *testing.T) {
+	tarBytes := makeTarBytes(t, "app/hello.txt", "hello world")
+	goodDiffID, _, err := v1.SHA256(bytes.NewReader(tarBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A well-formed but incorrect digest: same algorithm, different hex.
+	badDiffID := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("00", 32)}
+	if badDiffID == goodDiffID {
+		t.Fatal("test setup: fabricated digest collides with real digest")
+	}
+
+	t.Run("digest mismatch is rejected", func(t *testing.T) {
+		img := layersImage{layers: []v1.Layer{
+			&verifyingLayer{tarBytes: tarBytes, expectDiffID: badDiffID},
+		}}
+		_, err := io.Copy(io.Discard, mutate.Extract(img))
+		if err == nil {
+			t.Fatal("Extract accepted a layer whose contents do not match its digest")
+		}
+		if !strings.Contains(err.Error(), "checksum") {
+			t.Fatalf("Extract error = %v, want a digest verification error", err)
+		}
+	})
+
+	t.Run("matching digest extracts cleanly", func(t *testing.T) {
+		img := layersImage{layers: []v1.Layer{
+			&verifyingLayer{tarBytes: tarBytes, expectDiffID: goodDiffID},
+		}}
+		tr := tar.NewReader(mutate.Extract(img))
+		var names []string
+		for {
+			hdr, err := tr.Next()
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				t.Fatalf("Extract of honest layer failed: %v", err)
+			}
+			names = append(names, hdr.Name)
+		}
+		if len(names) != 1 || names[0] != "app/hello.txt" {
+			t.Fatalf("extracted entries = %v, want [app/hello.txt]", names)
+		}
+	})
+}
+
+// TestTimeVerifiesLayerDigest is the same regression test for mutate.Time,
+// which reads layers through layerTime using the same early-stopping
+// tar.Reader loop.
+func TestTimeVerifiesLayerDigest(t *testing.T) {
+	tarBytes := makeTarBytes(t, "app/hello.txt", "hello world")
+	goodDiffID, _, err := v1.SHA256(bytes.NewReader(tarBytes))
+	if err != nil {
+		t.Fatal(err)
+	}
+	badDiffID := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("00", 32)}
+	if badDiffID == goodDiffID {
+		t.Fatal("test setup: fabricated digest collides with real digest")
+	}
+
+	// Time needs a config file; borrow one from a random single-layer image
+	// and override only Layers().
+	base, err := random.Image(256, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("digest mismatch is rejected", func(t *testing.T) {
+		img := layersImage{Image: base, layers: []v1.Layer{
+			&verifyingLayer{tarBytes: tarBytes, expectDiffID: badDiffID},
+		}}
+		if _, err := mutate.Time(img, time.Unix(0, 0)); err == nil {
+			t.Fatal("Time accepted a layer whose contents do not match its digest")
+		} else if !strings.Contains(err.Error(), "checksum") {
+			t.Fatalf("Time error = %v, want a digest verification error", err)
+		}
+	})
+
+	t.Run("matching digest succeeds", func(t *testing.T) {
+		img := layersImage{Image: base, layers: []v1.Layer{
+			&verifyingLayer{tarBytes: tarBytes, expectDiffID: goodDiffID},
+		}}
+		if _, err := mutate.Time(img, time.Unix(0, 0)); err != nil {
+			t.Fatalf("Time of honest layer failed: %v", err)
+		}
+	})
 }

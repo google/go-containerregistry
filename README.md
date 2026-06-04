@@ -30,15 +30,6 @@ for common paths based on the tooling we have seen in the wild (e.g. writing new
 to the registry as a compressed tarball).
 
 
-### Experiments
-
-Over time, we will add new functionality under experimental environment variables listed here.
-
-| Env Var | Value(s) | What is does |
-|---------|----------|--------------|
-| `GGCR_EXPERIMENT_ESTARGZ` | `"1"` | ⚠️DEPRECATED⚠️: When enabled this experiment will direct `tarball.LayerFromOpener` to emit [estargz](https://github.com/opencontainers/image-spec/issues/815) compatible layers, which enable them to be lazily loaded by an appropriately configured containerd. |
-
-
 ### `v1.Image`
 
 #### Sources
