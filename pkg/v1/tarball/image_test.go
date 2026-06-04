@@ -15,7 +15,11 @@
 package tarball
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -138,6 +142,41 @@ func TestLayerLink(t *testing.T) {
 	}
 }
 
+func TestSymlinkCycle(t *testing.T) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	if err := tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeSymlink,
+		Name:     "manifest.json",
+		Linkname: "config.json",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.WriteHeader(&tar.Header{
+		Typeflag: tar.TypeSymlink,
+		Name:     "config.json",
+		Linkname: "manifest.json",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	content := buf.Bytes()
+	opener := func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(content)), nil
+	}
+
+	_, err := LoadManifest(opener)
+	if err == nil {
+		t.Fatal("expected error for symlink cycle, got nil")
+	}
+	if !strings.Contains(err.Error(), "link cycle") {
+		t.Fatalf("expected link cycle error, got: %v", err)
+	}
+}
+
 func TestLoadManifest(t *testing.T) {
 	manifest, err := LoadManifest(pathOpener("testdata/test_load_manifest.tar"))
 	if err != nil {
@@ -145,5 +184,60 @@ func TestLoadManifest(t *testing.T) {
 	}
 	if len(manifest) == 0 {
 		t.Fatalf("get nothing")
+	}
+}
+
+// TestManifestEmptyDiffIDs verifies Manifest() returns an error instead of
+// panicking when the config has no rootfs.diff_ids. See #2192.
+func TestManifestEmptyDiffIDs(t *testing.T) {
+	configBytes := []byte(`{"architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":[]}}`)
+	// Layer payload must be gzip-detectable so Image() routes to compressedImage,
+	// the path #2192 panicked on.
+	var lb bytes.Buffer
+	gw := gzip.NewWriter(&lb)
+	if _, err := gw.Write([]byte("not-really-a-layer")); err != nil {
+		t.Fatalf("gzip Write: %v", err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatalf("gzip Close: %v", err)
+	}
+	layerBytes := lb.Bytes()
+	manifestBytes := []byte(`[{"Config":"config.json","RepoTags":["foo:latest"],"Layers":["layer.tar.gz"]}]`)
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for _, e := range []struct {
+		name string
+		data []byte
+	}{
+		{"config.json", configBytes},
+		{"layer.tar.gz", layerBytes},
+		{"manifest.json", manifestBytes},
+	} {
+		if err := tw.WriteHeader(&tar.Header{Name: e.name, Mode: 0644, Size: int64(len(e.data))}); err != nil {
+			t.Fatalf("WriteHeader(%q): %v", e.name, err)
+		}
+		if _, err := tw.Write(e.data); err != nil {
+			t.Fatalf("Write(%q): %v", e.name, err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar Close: %v", err)
+	}
+
+	tarBytes := buf.Bytes()
+	img, err := Image(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(tarBytes)), nil
+	}, nil)
+	if err != nil {
+		t.Fatalf("Image(): %v", err)
+	}
+
+	_, err = img.Manifest()
+	if err == nil {
+		t.Fatal("img.Manifest(): expected error for config with empty diff_ids, got nil")
+	}
+	if !strings.Contains(err.Error(), "diff_ids") {
+		t.Errorf("img.Manifest(): expected error mentioning diff_ids, got: %v", err)
 	}
 }

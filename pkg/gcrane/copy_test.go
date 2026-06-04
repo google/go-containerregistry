@@ -34,7 +34,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/google"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -196,6 +199,75 @@ func TestCopy(t *testing.T) {
 
 	if err := CopyRepository(context.Background(), src, dst); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestCopyWithPlatform verifies that Copy with WithPlatform resolves the
+// multi-platform source index to the single requested manifest at the dst.
+// Regression test for #2059.
+func TestCopyWithPlatform(t *testing.T) {
+	s := httptest.NewServer(registry.New())
+	defer s.Close()
+	u, err := url.Parse(s.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := path.Join(u.Host, "test/gcrane") + ":multi"
+	dst := path.Join(u.Host, "test/gcrane/copy") + ":amd64"
+
+	amdImg, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	armImg, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	idx := mutate.AppendManifests(empty.Index,
+		mutate.IndexAddendum{
+			Add: amdImg,
+			Descriptor: v1.Descriptor{
+				Platform: &v1.Platform{OS: "linux", Architecture: "amd64"},
+			},
+		},
+		mutate.IndexAddendum{
+			Add: armImg,
+			Descriptor: v1.Descriptor{
+				Platform: &v1.Platform{OS: "linux", Architecture: "arm64"},
+			},
+		},
+	)
+
+	srcRef, err := name.ParseReference(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := remote.WriteIndex(srcRef, idx); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Copy(src, dst, WithPlatform(&v1.Platform{OS: "linux", Architecture: "amd64"})); err != nil {
+		t.Fatal(err)
+	}
+
+	dstRef, err := name.ParseReference(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	desc, err := remote.Get(dstRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if desc.MediaType.IsIndex() {
+		t.Fatalf("dst is an index (%s); expected a single-platform manifest", desc.MediaType)
+	}
+	amdDigest, err := amdImg.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if desc.Digest != amdDigest {
+		t.Errorf("dst digest = %s, want %s (amd64 manifest)", desc.Digest, amdDigest)
 	}
 }
 
