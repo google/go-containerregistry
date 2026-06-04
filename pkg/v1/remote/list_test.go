@@ -140,11 +140,12 @@ func TestGetNextPageURL(t *testing.T) {
 		"",
 		"<",
 		"><",
+		"<>",
 		fmt.Sprintf("<%c>", 0x7f), // makes url.Parse fail
 	} {
 		u, err := getNextPageURL(makeResp(hdr), repo)
 		if err == nil && u != nil {
-			t.Errorf("Expected err for %q, got %+v", hdr, u)
+			t.Errorf("Expected err or nil URL for %q, got %+v", hdr, u)
 		}
 	}
 
@@ -170,5 +171,28 @@ func TestGetNextPageURL(t *testing.T) {
 	}
 	if u.Host != "example.com" {
 		t.Errorf("expected host to match request, got %s", u.Host)
+	}
+}
+
+func TestGetNextPageURL_SSRF(t *testing.T) {
+	repo, _ := name.NewRepository("registry.example.com/myrepo")
+
+	// Malicious registry returns Link header pointing to cloud metadata
+	malicious := &http.Response{
+		Header: http.Header{
+			"Link": []string{"<http://169.254.169.254/latest/meta-data/>;rel=\"next\""},
+		},
+		Request: &http.Request{
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   "registry.example.com",
+				Path:   "/v2/myrepo/tags/list",
+			},
+		},
+	}
+
+	_, err := getNextPageURL(malicious, repo)
+	if err == nil {
+		t.Error("getNextPageURL should reject Link header pointing to cloud metadata endpoint")
 	}
 }
