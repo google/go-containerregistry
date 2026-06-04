@@ -51,14 +51,14 @@ func isBlob(req *http.Request) bool {
 // BlobHandler represents a minimal blob storage backend, capable of serving
 // blob contents.
 type BlobHandler interface {
-	// Get gets the blob contents, or errNotFound if the blob wasn't found.
+	// Get gets the blob contents, or ErrNotFound if the blob wasn't found.
 	Get(ctx context.Context, repo string, h v1.Hash) (io.ReadCloser, error)
 }
 
 // BlobStatHandler is an extension interface representing a blob storage
 // backend that can serve metadata about blobs.
 type BlobStatHandler interface {
-	// Stat returns the size of the blob, or errNotFound if the blob wasn't
+	// Stat returns the size of the blob, or ErrNotFound if the blob wasn't
 	// found, or redirectError if the blob can be found elsewhere.
 	Stat(ctx context.Context, repo string, h v1.Hash) (int64, error)
 }
