@@ -98,8 +98,8 @@ func New(opts ...Option) http.Handler {
 			log:         log.New(os.Stderr, "", log.LstdFlags),
 		},
 		manifests: manifests{
-			manifests: map[string]map[string]manifest{},
-			log:       log.New(os.Stderr, "", log.LstdFlags),
+			manifestHandler: NewInMemoryManifestHandler(),
+			log:             log.New(os.Stderr, "", log.LstdFlags),
 		},
 	}
 	for _, o := range opts {
@@ -140,5 +140,14 @@ func WithWarning(prob float64, msg string) Option {
 func WithBlobHandler(h BlobHandler) Option {
 	return func(r *registry) {
 		r.blobs.blobHandler = h
+	}
+}
+
+// WithManifestHandler overrides the manifest storage backend. This lets
+// applications persist manifests (for example, across restarts) instead of
+// using the default in-memory handler.
+func WithManifestHandler(h ManifestHandler) Option {
+	return func(r *registry) {
+		r.manifests.manifestHandler = h
 	}
 }

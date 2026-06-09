@@ -16,7 +16,9 @@ package registry
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -39,16 +41,174 @@ type listTags struct {
 	Tags []string `json:"tags"`
 }
 
-type manifest struct {
-	contentType string
-	blob        []byte
+// Manifest is the stored representation of a manifest: its raw bytes plus the
+// content type it was uploaded with. It is exported so that out-of-package
+// ManifestHandler implementations can construct and return values.
+type Manifest struct {
+	ContentType string
+	Blob        []byte
+}
+
+// ErrNameUnknown signals that the repository itself is unknown, as opposed to a
+// known repository that is missing the requested manifest (ErrNotFound). It
+// lets ManifestHandler implementations preserve the registry's distinction
+// between the NAME_UNKNOWN and MANIFEST_UNKNOWN errors. Handlers that only
+// return ErrNotFound degrade gracefully to MANIFEST_UNKNOWN.
+var ErrNameUnknown = errors.New("name unknown")
+
+// ManifestHandler represents a minimal manifest storage backend, capable of
+// getting, putting, and deleting manifests by tag or digest.
+type ManifestHandler interface {
+	// Get returns the manifest stored under repo for the given reference (a tag
+	// or a "sha256:..." digest string), ErrNameUnknown if the repository is
+	// unknown, or ErrNotFound if the reference is unknown.
+	Get(ctx context.Context, repo, target string) (*Manifest, error)
+
+	// Put stores a manifest under repo. The registry computes the digest and
+	// passes it alongside the reference (target) the client used. The manifest
+	// must be made retrievable by BOTH the digest string and the target string.
+	Put(ctx context.Context, repo, target, digest string, manifest *Manifest) error
+
+	// Delete removes the manifest stored under repo for the given reference,
+	// returning ErrNameUnknown or ErrNotFound as Get does.
+	Delete(ctx context.Context, repo, target string) error
+}
+
+// ManifestTagLister is an extension interface for backends that can enumerate
+// the tags in a repository. It is required for the tags-list endpoint.
+type ManifestTagLister interface {
+	// ListTags returns the tag references in repo (excluding digest
+	// references), or ErrNameUnknown if the repository is unknown.
+	ListTags(ctx context.Context, repo string) ([]string, error)
+}
+
+// ManifestCataloger is an extension interface for backends that can enumerate
+// repositories. It is required for the _catalog endpoint.
+type ManifestCataloger interface {
+	// ListRepos returns all repository names known to the backend.
+	ListRepos(ctx context.Context) ([]string, error)
+}
+
+// ManifestReferrerLister is an extension interface for backends that can
+// enumerate all manifests in a repository by digest. It is required for the
+// referrers API.
+type ManifestReferrerLister interface {
+	// ListDigests returns digest -> Manifest for every digest-keyed manifest
+	// stored under repo, or ErrNameUnknown if the repository is unknown.
+	ListDigests(ctx context.Context, repo string) (map[string]Manifest, error)
+}
+
+type memManifestHandler struct {
+	// maps repo -> manifest tag/digest -> manifest
+	manifests map[string]map[string]Manifest
+	lock      sync.RWMutex
+}
+
+// NewInMemoryManifestHandler returns a ManifestHandler that stores manifests in
+// memory. It is the default backend used by New.
+func NewInMemoryManifestHandler() ManifestHandler {
+	return &memManifestHandler{manifests: map[string]map[string]Manifest{}}
+}
+
+// Compile-time assertions that the in-memory handler satisfies every extension.
+var (
+	_ ManifestTagLister      = (*memManifestHandler)(nil)
+	_ ManifestCataloger      = (*memManifestHandler)(nil)
+	_ ManifestReferrerLister = (*memManifestHandler)(nil)
+)
+
+func (m *memManifestHandler) Get(_ context.Context, repo, target string) (*Manifest, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	c, ok := m.manifests[repo]
+	if !ok {
+		return nil, ErrNameUnknown
+	}
+	mf, ok := c[target]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return &mf, nil
+}
+
+func (m *memManifestHandler) Put(_ context.Context, repo, target, digest string, manifest *Manifest) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if _, ok := m.manifests[repo]; !ok {
+		m.manifests[repo] = make(map[string]Manifest, 2)
+	}
+
+	// Allow future references by target (tag) and immutable digest.
+	// See https://docs.docker.com/engine/reference/commandline/pull/#pull-an-image-by-digest-immutable-identifier.
+	m.manifests[repo][digest] = *manifest
+	m.manifests[repo][target] = *manifest
+	return nil
+}
+
+func (m *memManifestHandler) Delete(_ context.Context, repo, target string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if _, ok := m.manifests[repo]; !ok {
+		return ErrNameUnknown
+	}
+	if _, ok := m.manifests[repo][target]; !ok {
+		return ErrNotFound
+	}
+	delete(m.manifests[repo], target)
+	return nil
+}
+
+func (m *memManifestHandler) ListTags(_ context.Context, repo string) ([]string, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	c, ok := m.manifests[repo]
+	if !ok {
+		return nil, ErrNameUnknown
+	}
+	var tags []string
+	for tag := range c {
+		if !strings.Contains(tag, "sha256:") {
+			tags = append(tags, tag)
+		}
+	}
+	return tags, nil
+}
+
+func (m *memManifestHandler) ListRepos(_ context.Context) ([]string, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	repos := make([]string, 0, len(m.manifests))
+	for key := range m.manifests {
+		repos = append(repos, key)
+	}
+	return repos, nil
+}
+
+func (m *memManifestHandler) ListDigests(_ context.Context, repo string) (map[string]Manifest, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	c, ok := m.manifests[repo]
+	if !ok {
+		return nil, ErrNameUnknown
+	}
+	out := make(map[string]Manifest, len(c))
+	for ref, mf := range c {
+		if _, err := v1.NewHash(ref); err == nil {
+			out[ref] = mf
+		}
+	}
+	return out, nil
 }
 
 type manifests struct {
-	// maps repo -> manifest tag/digest -> manifest
-	manifests map[string]map[string]manifest
-	lock      sync.RWMutex
-	log       *log.Logger
+	manifestHandler ManifestHandler
+	log             *log.Logger
 }
 
 func isManifest(req *http.Request) bool {
@@ -98,60 +258,32 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 	repo := strings.Join(elem[1:len(elem)-2], "/")
 
 	switch req.Method {
-	case http.MethodGet:
-		m.lock.RLock()
-		defer m.lock.RUnlock()
-
-		c, ok := m.manifests[repo]
-		if !ok {
+	case http.MethodGet, http.MethodHead:
+		mf, err := m.manifestHandler.Get(req.Context(), repo, target)
+		if errors.Is(err, ErrNameUnknown) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "NAME_UNKNOWN",
 				Message: "Unknown name",
 			}
-		}
-		m, ok := c[target]
-		if !ok {
+		} else if errors.Is(err, ErrNotFound) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "MANIFEST_UNKNOWN",
 				Message: "Unknown manifest",
 			}
+		} else if err != nil {
+			return regErrInternal(err)
 		}
 
-		h, _, _ := v1.SHA256(bytes.NewReader(m.blob))
+		h, _, _ := v1.SHA256(bytes.NewReader(mf.Blob))
 		resp.Header().Set("Docker-Content-Digest", h.String())
-		resp.Header().Set("Content-Type", m.contentType)
-		resp.Header().Set("Content-Length", fmt.Sprint(len(m.blob)))
+		resp.Header().Set("Content-Type", mf.ContentType)
+		resp.Header().Set("Content-Length", fmt.Sprint(len(mf.Blob)))
 		resp.WriteHeader(http.StatusOK)
-		io.Copy(resp, bytes.NewReader(m.blob))
-		return nil
-
-	case http.MethodHead:
-		m.lock.RLock()
-		defer m.lock.RUnlock()
-
-		if _, ok := m.manifests[repo]; !ok {
-			return &regError{
-				Status:  http.StatusNotFound,
-				Code:    "NAME_UNKNOWN",
-				Message: "Unknown name",
-			}
+		if req.Method == http.MethodGet {
+			io.Copy(resp, bytes.NewReader(mf.Blob))
 		}
-		m, ok := m.manifests[repo][target]
-		if !ok {
-			return &regError{
-				Status:  http.StatusNotFound,
-				Code:    "MANIFEST_UNKNOWN",
-				Message: "Unknown manifest",
-			}
-		}
-
-		h, _, _ := v1.SHA256(bytes.NewReader(m.blob))
-		resp.Header().Set("Docker-Content-Digest", h.String())
-		resp.Header().Set("Content-Type", m.contentType)
-		resp.Header().Set("Content-Length", fmt.Sprint(len(m.blob)))
-		resp.WriteHeader(http.StatusOK)
 		return nil
 
 	case http.MethodPut:
@@ -159,87 +291,70 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 		io.Copy(b, req.Body)
 		h, _, _ := v1.SHA256(bytes.NewReader(b.Bytes()))
 		digest := h.String()
-		mf := manifest{
-			blob:        b.Bytes(),
-			contentType: req.Header.Get("Content-Type"),
+		mf := &Manifest{
+			Blob:        b.Bytes(),
+			ContentType: req.Header.Get("Content-Type"),
 		}
 
 		// If the manifest is a manifest list, check that the manifest
 		// list's constituent manifests are already uploaded.
 		// This isn't strictly required by the registry API, but some
 		// registries require this.
-		if types.MediaType(mf.contentType).IsIndex() {
-			if err := func() *regError {
-				m.lock.RLock()
-				defer m.lock.RUnlock()
-
-				im, err := v1.ParseIndexManifest(b)
-				if err != nil {
-					return &regError{
-						Status:  http.StatusBadRequest,
-						Code:    "MANIFEST_INVALID",
-						Message: err.Error(),
-					}
+		if types.MediaType(mf.ContentType).IsIndex() {
+			im, err := v1.ParseIndexManifest(bytes.NewReader(b.Bytes()))
+			if err != nil {
+				return &regError{
+					Status:  http.StatusBadRequest,
+					Code:    "MANIFEST_INVALID",
+					Message: err.Error(),
 				}
-				for _, desc := range im.Manifests {
-					if !desc.MediaType.IsDistributable() {
-						continue
-					}
-					if desc.MediaType.IsIndex() || desc.MediaType.IsImage() {
-						if _, found := m.manifests[repo][desc.Digest.String()]; !found {
-							return &regError{
-								Status:  http.StatusNotFound,
-								Code:    "MANIFEST_UNKNOWN",
-								Message: fmt.Sprintf("Sub-manifest %q not found", desc.Digest),
-							}
+			}
+			for _, desc := range im.Manifests {
+				if !desc.MediaType.IsDistributable() {
+					continue
+				}
+				if desc.MediaType.IsIndex() || desc.MediaType.IsImage() {
+					if _, err := m.manifestHandler.Get(req.Context(), repo, desc.Digest.String()); errors.Is(err, ErrNameUnknown) || errors.Is(err, ErrNotFound) {
+						return &regError{
+							Status:  http.StatusNotFound,
+							Code:    "MANIFEST_UNKNOWN",
+							Message: fmt.Sprintf("Sub-manifest %q not found", desc.Digest),
 						}
-					} else {
-						// TODO: Probably want to do an existence check for blobs.
-						m.log.Printf("TODO: Check blobs for %q", desc.Digest)
+					} else if err != nil {
+						return regErrInternal(err)
 					}
+				} else {
+					// TODO: Probably want to do an existence check for blobs.
+					m.log.Printf("TODO: Check blobs for %q", desc.Digest)
 				}
-				return nil
-			}(); err != nil {
-				return err
 			}
 		}
 
-		m.lock.Lock()
-		defer m.lock.Unlock()
-
-		if _, ok := m.manifests[repo]; !ok {
-			m.manifests[repo] = make(map[string]manifest, 2)
+		if err := m.manifestHandler.Put(req.Context(), repo, target, digest, mf); err != nil {
+			return regErrInternal(err)
 		}
-
-		// Allow future references by target (tag) and immutable digest.
-		// See https://docs.docker.com/engine/reference/commandline/pull/#pull-an-image-by-digest-immutable-identifier.
-		m.manifests[repo][digest] = mf
-		m.manifests[repo][target] = mf
 		resp.Header().Set("Docker-Content-Digest", digest)
 		resp.WriteHeader(http.StatusCreated)
 		return nil
 
 	case http.MethodDelete:
-		m.lock.Lock()
-		defer m.lock.Unlock()
-		if _, ok := m.manifests[repo]; !ok {
+		err := m.manifestHandler.Delete(req.Context(), repo, target)
+		if errors.Is(err, ErrNameUnknown) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "NAME_UNKNOWN",
 				Message: "Unknown name",
 			}
-		}
-
-		_, ok := m.manifests[repo][target]
-		if !ok {
+		} else if errors.Is(err, ErrNotFound) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "MANIFEST_UNKNOWN",
 				Message: "Unknown manifest",
 			}
+		} else if err != nil {
+			return regErrInternal(err)
 		}
 
-		delete(m.manifests[repo], target)
 		resp.WriteHeader(http.StatusAccepted)
 		return nil
 
@@ -258,23 +373,20 @@ func (m *manifests) handleTags(resp http.ResponseWriter, req *http.Request) *reg
 	repo := strings.Join(elem[1:len(elem)-2], "/")
 
 	if req.Method == "GET" {
-		m.lock.RLock()
-		defer m.lock.RUnlock()
-
-		c, ok := m.manifests[repo]
+		tl, ok := m.manifestHandler.(ManifestTagLister)
 		if !ok {
+			return regErrUnsupported
+		}
+
+		tags, err := tl.ListTags(req.Context(), repo)
+		if errors.Is(err, ErrNameUnknown) {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "NAME_UNKNOWN",
 				Message: "Unknown name",
 			}
-		}
-
-		var tags []string
-		for tag := range c {
-			if !strings.Contains(tag, "sha256:") {
-				tags = append(tags, tag)
-			}
+		} else if err != nil {
+			return regErrInternal(err)
 		}
 		sort.Strings(tags)
 
@@ -330,13 +442,20 @@ func (m *manifests) handleCatalog(resp http.ResponseWriter, req *http.Request) *
 	}
 
 	if req.Method == "GET" {
-		m.lock.RLock()
-		defer m.lock.RUnlock()
+		cat, ok := m.manifestHandler.(ManifestCataloger)
+		if !ok {
+			return regErrUnsupported
+		}
+
+		allRepos, err := cat.ListRepos(req.Context())
+		if err != nil {
+			return regErrInternal(err)
+		}
 
 		var repos []string
 		countRepos := 0
 		// TODO: implement pagination
-		for key := range m.manifests {
+		for _, key := range allRepos {
 			if countRepos >= n {
 				break
 			}
@@ -388,16 +507,20 @@ func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request)
 		}
 	}
 
-	m.lock.RLock()
-	defer m.lock.RUnlock()
+	rl, ok := m.manifestHandler.(ManifestReferrerLister)
+	if !ok {
+		return regErrUnsupported
+	}
 
-	digestToManifestMap, repoExists := m.manifests[repo]
-	if !repoExists {
+	digestToManifestMap, err := rl.ListDigests(req.Context(), repo)
+	if errors.Is(err, ErrNameUnknown) {
 		return &regError{
 			Status:  http.StatusNotFound,
 			Code:    "NAME_UNKNOWN",
 			Message: "Unknown name",
 		}
+	} else if err != nil {
+		return regErrInternal(err)
 	}
 
 	im := v1.IndexManifest{
@@ -413,7 +536,7 @@ func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request)
 		var refPointer struct {
 			Subject *v1.Descriptor `json:"subject"`
 		}
-		json.Unmarshal(manifest.blob, &refPointer)
+		json.Unmarshal(manifest.Blob, &refPointer)
 		if refPointer.Subject == nil {
 			continue
 		}
@@ -427,10 +550,10 @@ func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request)
 				MediaType string `json:"mediaType"`
 			} `json:"config"`
 		}
-		json.Unmarshal(manifest.blob, &imageAsArtifact)
+		json.Unmarshal(manifest.Blob, &imageAsArtifact)
 		im.Manifests = append(im.Manifests, v1.Descriptor{
-			MediaType:    types.MediaType(manifest.contentType),
-			Size:         int64(len(manifest.blob)),
+			MediaType:    types.MediaType(manifest.ContentType),
+			Size:         int64(len(manifest.Blob)),
 			Digest:       h,
 			ArtifactType: imageAsArtifact.Config.MediaType,
 		})
