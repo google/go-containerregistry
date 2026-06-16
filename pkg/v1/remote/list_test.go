@@ -121,10 +121,21 @@ func makeResp(hdr string) *http.Response {
 		Header: http.Header{
 			"Link": []string{hdr},
 		},
+		Request: &http.Request{
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   "example.com",
+			},
+		},
 	}
 }
 
 func TestGetNextPageURL(t *testing.T) {
+	repo, err := name.NewRepository("example.com/myrepo")
+	if err != nil {
+		t.Fatalf("failed to create repository: %v", err)
+	}
+
 	for _, hdr := range []string{
 		"",
 		"<",
@@ -132,28 +143,56 @@ func TestGetNextPageURL(t *testing.T) {
 		"<>",
 		fmt.Sprintf("<%c>", 0x7f), // makes url.Parse fail
 	} {
-		u, err := getNextPageURL(makeResp(hdr))
+		u, err := getNextPageURL(makeResp(hdr), repo)
 		if err == nil && u != nil {
-			t.Errorf("Expected err, got %+v", u)
+			t.Errorf("Expected err or nil URL for %q, got %+v", hdr, u)
 		}
 	}
 
 	good := &http.Response{
 		Header: http.Header{
-			"Link": []string{"<example.com>"},
+			"Link": []string{"</v2/myrepo/tags/list?n=100>"},
 		},
 		Request: &http.Request{
 			URL: &url.URL{
 				Scheme: "https",
+				Host:   "example.com",
+				Path:   "/v2/myrepo/tags/list",
 			},
 		},
 	}
-	u, err := getNextPageURL(good)
+	u, err := getNextPageURL(good, repo)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if u.Scheme != "https" {
 		t.Errorf("expected scheme to match request, got %s", u.Scheme)
+	}
+	if u.Host != "example.com" {
+		t.Errorf("expected host to match request, got %s", u.Host)
+	}
+}
+
+func TestGetNextPageURL_SSRF(t *testing.T) {
+	repo, _ := name.NewRepository("registry.example.com/myrepo")
+
+	// Malicious registry returns Link header pointing to cloud metadata
+	malicious := &http.Response{
+		Header: http.Header{
+			"Link": []string{"<http://169.254.169.254/latest/meta-data/>;rel=\"next\""},
+		},
+		Request: &http.Request{
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   "registry.example.com",
+				Path:   "/v2/myrepo/tags/list",
+			},
+		},
+	}
+
+	_, err := getNextPageURL(malicious, repo)
+	if err == nil {
+		t.Error("getNextPageURL should reject Link header pointing to cloud metadata endpoint")
 	}
 }
