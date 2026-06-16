@@ -301,10 +301,21 @@ func makeResp(hdr string) *http.Response {
 		Header: http.Header{
 			"Link": []string{hdr},
 		},
+		Request: &http.Request{
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   "example.com",
+			},
+		},
 	}
 }
 
 func TestGetNextPageURL(t *testing.T) {
+	repo, err := name.NewRepository("example.com/myrepo")
+	if err != nil {
+		t.Fatalf("failed to create repository: %v", err)
+	}
+
 	for _, hdr := range []string{
 		"",
 		"<",
@@ -312,28 +323,117 @@ func TestGetNextPageURL(t *testing.T) {
 		"<>",
 		fmt.Sprintf("<%c>", 0x7f), // makes url.Parse fail
 	} {
-		u, err := getNextPageURL(makeResp(hdr))
+		u, err := getNextPageURL(makeResp(hdr), repo)
 		if err == nil && u != nil {
-			t.Errorf("Expected err, got %+v", u)
+			t.Errorf("Expected err or nil URL for %q, got %+v", hdr, u)
 		}
 	}
 
 	good := &http.Response{
 		Header: http.Header{
-			"Link": []string{"<example.com>"},
+			"Link": []string{"</v2/myrepo/tags/list?n=100>"},
 		},
 		Request: &http.Request{
 			URL: &url.URL{
 				Scheme: "https",
+				Host:   "example.com",
+				Path:   "/v2/myrepo/tags/list",
 			},
 		},
 	}
-	u, err := getNextPageURL(good)
+	u, err := getNextPageURL(good, repo)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if u.Scheme != "https" {
 		t.Errorf("expected scheme to match request, got %s", u.Scheme)
+	}
+	if u.Host != "example.com" {
+		t.Errorf("expected host to match request, got %s", u.Host)
+	}
+}
+
+func TestValidatePaginationURL(t *testing.T) {
+	repo, err := name.NewRepository("registry.example.com/myrepo")
+	if err != nil {
+		t.Fatalf("failed to create repository: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{
+			name:    "same host - valid",
+			url:     "https://registry.example.com/v2/myrepo/tags/list?n=100&last=tag1",
+			wantErr: false,
+		},
+		{
+			name:    "cloud metadata endpoint - SSRF attempt",
+			url:     "http://169.254.169.254/latest/meta-data/",
+			wantErr: true,
+		},
+		{
+			name:    "localhost - SSRF attempt",
+			url:     "http://localhost:8080/internal",
+			wantErr: true,
+		},
+		{
+			name:    "internal IP - SSRF attempt",
+			url:     "http://192.168.1.1/admin",
+			wantErr: true,
+		},
+		{
+			name:    "different registry - SSRF attempt",
+			url:     "https://evil-registry.com/v2/myrepo/tags/list",
+			wantErr: true,
+		},
+		{
+			name:    "scheme mismatch - potential downgrade",
+			url:     "http://registry.example.com/v2/myrepo/tags/list",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			u, err := url.Parse(tc.url)
+			if err != nil {
+				t.Fatalf("failed to parse URL: %v", err)
+			}
+
+			err = validatePaginationURL(u, repo)
+			if tc.wantErr && err == nil {
+				t.Errorf("validatePaginationURL(%q) = nil, want error", tc.url)
+			}
+			if !tc.wantErr && err != nil {
+				t.Errorf("validatePaginationURL(%q) = %v, want nil", tc.url, err)
+			}
+		})
+	}
+}
+
+func TestGetNextPageURL_SSRF(t *testing.T) {
+	repo, _ := name.NewRepository("registry.example.com/myrepo")
+
+	// Malicious registry returns Link header pointing to cloud metadata
+	malicious := &http.Response{
+		Header: http.Header{
+			"Link": []string{"<http://169.254.169.254/latest/meta-data/>;rel=\"next\""},
+		},
+		Request: &http.Request{
+			URL: &url.URL{
+				Scheme: "https",
+				Host:   "registry.example.com",
+				Path:   "/v2/myrepo/tags/list",
+			},
+		},
+	}
+
+	_, err := getNextPageURL(malicious, repo)
+	if err == nil {
+		t.Error("getNextPageURL should reject Link header pointing to cloud metadata endpoint")
 	}
 }
