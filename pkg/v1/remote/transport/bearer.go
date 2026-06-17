@@ -247,11 +247,18 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		if err = bt.refresh(in.Context()); err != nil {
 			return nil, err
 		}
-		// Apply the freshly fetched token directly rather than calling
-		// sendRequest(), which only sets Authorization when in.URL.Host
-		// matches bt.registry. When the request followed a cross-host
-		// redirect the hosts differ and sendRequest() would omit the
-		// header, causing an unnecessary second 401.
+		// Re-attach the freshly fetched token, but only when the request is
+		// still talking to the registry we authenticated against. matchesHost
+		// guards against forwarding the Authorization header across an
+		// http.Client-level redirect to a different host: a malicious or
+		// compromised registry can 302 the request to an attacker-controlled
+		// host, answer the follow-up with a Bearer challenge, and harvest the
+		// token if we re-attach it unconditionally. For a cross-host request
+		// fall back to sendRequest(), which omits the credential, rather than
+		// leaking it to a host we never logged in to.
+		if !matchesHost(bt.registry.RegistryStr(), in, bt.scheme) {
+			return sendRequest()
+		}
 		bt.mx.RLock()
 		tok := bt.bearer.RegistryToken
 		bt.mx.RUnlock()
