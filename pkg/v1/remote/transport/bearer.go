@@ -247,7 +247,16 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		if err = bt.refresh(in.Context()); err != nil {
 			return nil, err
 		}
-		return sendRequest()
+		// Apply the freshly fetched token directly rather than calling
+		// sendRequest(), which only sets Authorization when in.URL.Host
+		// matches bt.registry. When the request followed a cross-host
+		// redirect the hosts differ and sendRequest() would omit the
+		// header, causing an unnecessary second 401.
+		bt.mx.RLock()
+		tok := bt.bearer.RegistryToken
+		bt.mx.RUnlock()
+		in.Header.Set("Authorization", fmt.Sprintf("Bearer %s", tok))
+		return bt.inner.RoundTrip(in)
 	}
 
 	return res, err

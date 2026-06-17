@@ -697,3 +697,72 @@ func TestValidateRealmURLSameHost(t *testing.T) {
 		})
 	}
 }
+
+// TestBearerTokenAppliedAfterCrossHostRedirect is a regression test for
+// https://github.com/google/go-containerregistry/issues/2333.
+//
+// When an HTTP redirect sends the request to a host that differs from
+// bt.registry, the sendRequest() closure omits the Authorization header
+// (its matchesHost guard returns false). Previously, the post-401 retry
+// also went through sendRequest(), so the freshly refreshed token was
+// never applied and the request failed with a second 401.
+//
+// The fix skips sendRequest() after a successful refresh and sets the
+// Authorization header directly before retrying.
+func TestBearerTokenAppliedAfterCrossHostRedirect(t *testing.T) {
+	const (
+		staleToken = "stale-token"
+		freshToken = "fresh-token"
+	)
+
+	attempts := 0
+	// registryServer simulates a registry reachable after a cross-host redirect.
+	// Its host intentionally differs from bt.registry ("registry.example.com").
+	registryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if r.Header.Get("Authorization") == "Bearer "+freshToken {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("WWW-Authenticate", `Bearer realm="https://token.example.com/token",service="registry.example.com"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer registryServer.Close()
+
+	// bt.registry is "registry.example.com", which does NOT match registryServer's host.
+	// This replicates what bearerTransport sees after an http.Client-level redirect:
+	// in.URL.Host is the redirected host, not bt.registry.
+	registry, err := name.NewRegistry("registry.example.com", name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bt := &bearerTransport{
+		inner:  http.DefaultTransport,
+		bearer: authn.AuthConfig{RegistryToken: staleToken},
+		// authn.Bearer causes refresh() to set bearer.RegistryToken directly from
+		// the credential without a network call, so no SSRF guard is triggered.
+		basic:    &authn.Bearer{Token: freshToken},
+		registry: registry,
+		realm:    "https://token.example.com/token",
+		scopes:   []string{"repo:example/image:pull"},
+		service:  "registry.example.com",
+		scheme:   "http",
+	}
+
+	res, err := (&http.Client{Transport: bt}).Get(registryServer.URL + "/v2/example/image/manifests/latest")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("got status %d, want %d: fresh bearer token was not applied on cross-host retry", res.StatusCode, http.StatusOK)
+	}
+	if got := bt.bearer.RegistryToken; got != freshToken {
+		t.Errorf("bearer.RegistryToken = %q, want %q", got, freshToken)
+	}
+	if attempts != 2 {
+		t.Errorf("registry received %d request(s), want 2 (401 then 200)", attempts)
+	}
+}
