@@ -27,7 +27,9 @@ import (
 	api "github.com/moby/moby/api/types/image"
 	"github.com/moby/moby/api/types/storage"
 	"github.com/moby/moby/client"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/compare"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -287,6 +289,45 @@ func TestImageFileBuffered(t *testing.T) {
 			t.Errorf("expected read error, got: %v", err)
 		}
 	})
+}
+
+func TestImageConfigExposedPorts(t *testing.T) {
+	want := map[string]struct{}{
+		"80/tcp":  {},
+		"443/tcp": {},
+		"53/udp":  {},
+	}
+
+	resp := inspectResp
+	resp.InspectResponse.Config = &specs.DockerOCIImageConfig{
+		ImageConfig: ocispec.ImageConfig{
+			ExposedPorts: want,
+		},
+	}
+
+	mc := &MockClient{
+		path:        imagePath,
+		inspectResp: resp,
+	}
+
+	tag, err := name.NewTag("unused", name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewTag: %v", err)
+	}
+
+	dmn, err := Image(tag, WithClient(mc), WithUnbufferedOpener())
+	if err != nil {
+		t.Fatalf("Image(): %v", err)
+	}
+
+	cf, err := dmn.ConfigFile()
+	if err != nil {
+		t.Fatalf("ConfigFile(): %v", err)
+	}
+
+	if diff := cmp.Diff(want, cf.Config.ExposedPorts); diff != "" {
+		t.Errorf("ExposedPorts mismatch (-want +got):\n%s", diff)
+	}
 }
 
 func TestImageDefaultClient(t *testing.T) {
