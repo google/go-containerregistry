@@ -108,6 +108,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 	}
 
 	root.AddCommand(
+		NewCmdAnnotate(&options),
 		NewCmdAppend(&options),
 		NewCmdAuth(options, "crane", "auth"),
 		NewCmdBlob(&options),
