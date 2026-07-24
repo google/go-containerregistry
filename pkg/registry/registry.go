@@ -29,6 +29,8 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
 type registry struct {
@@ -140,5 +142,29 @@ func WithWarning(prob float64, msg string) Option {
 func WithBlobHandler(h BlobHandler) Option {
 	return func(r *registry) {
 		r.blobs.blobHandler = h
+	}
+}
+
+func WithBlobCreatedCallback(cb func(repo string, digest v1.Hash)) Option {
+	return func(r *registry) {
+		r.blobs.createdCallback = cb
+	}
+}
+
+func WithBlobDeletedCallback(cb func(repo string, digest v1.Hash)) Option {
+	return func(r *registry) {
+		r.blobs.deletedCallback = cb
+	}
+}
+
+func WithManifestPutCallback(cb func(repo, target, contentType string, blob []byte) error) Option {
+	return func(r *registry) {
+		r.manifests.putCallback = cb
+	}
+}
+
+func WithManifestDeleteCallback(cb func(repo, target, contentType string, blob []byte) error) Option {
+	return func(r *registry) {
+		r.manifests.deleteCallback = cb
 	}
 }
