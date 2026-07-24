@@ -27,6 +27,7 @@ var goodStrictValidationRepositoryNames = []string{
 	"example.text/foo/bar",
 	"mirror.gcr.io/ubuntu",
 	"index.docker.io/library/ubuntu",
+	"localhost/testimage",
 }
 
 var goodWeakValidationRepositoryNames = []string{
