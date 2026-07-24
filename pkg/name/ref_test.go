@@ -26,12 +26,14 @@ var (
 		"crossplane/provider-gcp:v0.14.0",
 		"ubuntu",
 		"gcr.io/crossplane/provider-gcp:latest",
+		"localhost/testimage:mytag",
 	}
 	outputDefaultNames = []string{
 		"registry.upbound.io/crossplane/provider-gcp:stable",
 		"registry.upbound.io/crossplane/provider-gcp:v0.14.0",
 		"registry.upbound.io/ubuntu:stable",
 		"gcr.io/crossplane/provider-gcp:latest",
+		"localhost/testimage:mytag",
 	}
 )
 
