@@ -96,7 +96,7 @@ func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
 		return nil, err
 	}
 
-	// Peek at the first layer and see if it's compressed.
+	// Check all layers and see if there is any compressed layer
 	if len(img.imgDescriptor.Layers) > 0 {
 		compressed, err := img.areLayersCompressed()
 		if err != nil {
@@ -160,19 +160,26 @@ func (i *image) areLayersCompressed() (bool, error) {
 	if len(i.imgDescriptor.Layers) == 0 {
 		return false, errors.New("0 layers found in image")
 	}
-	layer := i.imgDescriptor.Layers[0]
-	blob, err := extractFileFromTar(i.opener, layer)
-	if err != nil {
-		return false, err
-	}
-	defer blob.Close()
 
-	cp, _, err := comp.PeekCompression(blob)
-	if err != nil {
-		return false, err
+	// base image could be uncompressed while the top layers are compressed
+	for _, layer := range i.imgDescriptor.Layers {
+		blob, err := extractFileFromTar(i.opener, layer)
+		if err != nil {
+			return false, err
+		}
+		defer blob.Close()
+
+		cp, _, err := comp.PeekCompression(blob)
+		if err != nil {
+			return false, err
+		}
+
+		if cp != compression.None {
+			return true, nil
+		}
 	}
 
-	return cp != compression.None, nil
+	return false, nil
 }
 
 func (i *image) loadTarDescriptorAndConfig() error {
