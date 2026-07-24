@@ -207,7 +207,7 @@ func (a arbitraryRawManifest) RawManifest() ([]byte, error) {
 	if a.subject != nil {
 		m["subject"] = a.subject
 	}
-	return json.Marshal(m)
+	return json.MarshalIndent(m, "", "  ")
 }
 
 // ConfigFile mutates the provided v1.Image to have the provided v1.ConfigFile

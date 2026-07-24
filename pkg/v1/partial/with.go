@@ -178,7 +178,7 @@ func RawManifest(i WithManifest) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(m)
+	return json.MarshalIndent(m, "", "  ")
 }
 
 // Size is a helper for implementing v1.Image
