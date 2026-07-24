@@ -42,6 +42,9 @@ var layoutFile = `{
 // renameMutex guards os.Rename calls in AppendImage on Windows only.
 var renameMutex sync.Mutex
 
+// layoutIndexMutex guards the write to index.json
+var layoutIndexMutex sync.Mutex
+
 // AppendImage writes a v1.Image to the Path and updates
 // the index.json to reference it.
 func (l Path) AppendImage(img v1.Image, options ...Option) error {
@@ -84,6 +87,9 @@ func (l Path) AppendIndex(ii v1.ImageIndex, options ...Option) error {
 
 // AppendDescriptor adds a descriptor to the index.json of the Path.
 func (l Path) AppendDescriptor(desc v1.Descriptor) error {
+	layoutIndexMutex.Lock()
+	defer layoutIndexMutex.Unlock()
+
 	ii, err := l.ImageIndex()
 	if err != nil {
 		return err
