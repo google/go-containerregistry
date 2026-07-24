@@ -15,6 +15,7 @@
 package remote
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -27,6 +28,22 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
+
+func TestReadAllLimit(t *testing.T) {
+	got, err := readAllLimit(strings.NewReader("hello"), 5)
+	if err != nil {
+		t.Fatalf("readAllLimit() = %v", err)
+	}
+	if want := []byte("hello"); !bytes.Equal(got, want) {
+		t.Errorf("readAllLimit() = %q, want %q", got, want)
+	}
+
+	if _, err := readAllLimit(strings.NewReader("hello!"), 5); err == nil {
+		t.Fatal("readAllLimit() = nil, want error")
+	} else if !strings.Contains(err.Error(), "response body exceeds 5 bytes") {
+		t.Errorf("readAllLimit() = %v, want limit error", err)
+	}
+}
 
 func TestCheckRedirectSSRF(t *testing.T) {
 	// makeReq builds a redirect target request (dest) with a non-nil Response
