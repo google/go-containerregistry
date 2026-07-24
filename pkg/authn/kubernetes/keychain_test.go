@@ -161,6 +161,35 @@ func TestImagePullSecretAttachedServiceAccount(t *testing.T) {
 		&authn.Basic{Username: username, Password: password})
 }
 
+func TestIgnorePullSecrets(t *testing.T) {
+	client := fakeclient.NewSimpleClientset(&corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{Name: "svcacct", Namespace: "ns"},
+		ImagePullSecrets: []corev1.LocalObjectReference{{
+			Name: "pull-secret",
+		}},
+		Secrets: []corev1.ObjectReference{{
+			Name: "mount-secret",
+		}},
+	},
+		dockerCfgSecretType.Create(t, "ns", "explicit-pull-secret", "fake.registry.io", authn.AuthConfig{Username: "pull", Password: "explicit"}),
+		dockerCfgSecretType.Create(t, "ns", "pull-secret", "fake.registry.io", authn.AuthConfig{Username: "pull", Password: "sa"}),
+		dockerCfgSecretType.Create(t, "ns", "mount-secret", "fake.registry.io", authn.AuthConfig{Username: "mount", Password: "secret"}),
+	)
+
+	kc, err := New(context.Background(), client, Options{
+		Namespace:          "ns",
+		ServiceAccountName: "svcacct",
+		ImagePullSecrets:   []string{"explicit-pull-secret"},
+		IgnorePullSecrets:  true,
+		UseMountSecrets:    true,
+	})
+	if err != nil {
+		t.Fatalf("New() = %v", err)
+	}
+
+	testResolve(t, kc, registry(t, "fake.registry.io"), &authn.Basic{Username: "mount", Password: "secret"})
+}
+
 func TestSecretAttachedServiceAccount(t *testing.T) {
 	username, password := "foo", "bar"
 
