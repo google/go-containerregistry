@@ -105,6 +105,63 @@ func TestExtractOverwrittenFile(t *testing.T) {
 	}
 }
 
+func TestExtractOpaqueWhiteout(t *testing.T) {
+	mkLayer := func(files map[string][]byte, opaqueDirs ...string) v1.Layer {
+		var buf bytes.Buffer
+		tw := tar.NewWriter(&buf)
+		for name, body := range files {
+			if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(body))}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := tw.Write(body); err != nil {
+				t.Fatal(err)
+			}
+		}
+		for _, d := range opaqueDirs {
+			if err := tw.WriteHeader(&tar.Header{Name: d + "/.wh..wh..opq", Mode: 0o644}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatal(err)
+		}
+		b := buf.Bytes()
+		l, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(b)), nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return l
+	}
+
+	base := mkLayer(map[string][]byte{"d/a.txt": []byte("a"), "d/b.txt": []byte("b")})
+	upper := mkLayer(map[string][]byte{"d/c.txt": []byte("c")}, "d")
+	img, err := mutate.AppendLayers(empty.Image, base, upper)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := map[string]bool{}
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		h, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		got[h.Name] = true
+	}
+	if !got["d/c.txt"] {
+		t.Error("d/c.txt (upper layer, under opaque dir) should be present")
+	}
+	if got["d/a.txt"] || got["d/b.txt"] {
+		t.Error("opaque dir must hide lower-layer files d/a.txt and d/b.txt")
+	}
+}
+
 func TestExtractClosesLayerBeforeOpeningNext(t *testing.T) {
 	tokens := make(chan struct{}, 4)
 	layers := make([]v1.Layer, cap(tokens)+1)
