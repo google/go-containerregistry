@@ -38,5 +38,6 @@
 // "library", the missing registry "index.docker.io", and the missing tag
 // "latest". To disable this defaulting, use the StrictValidation option. This
 // is useful e.g. to only allow image references that explicitly set a tag or
-// digest, so that you don't accidentally pull "latest".
+// digest, so that you don't accidentally pull "latest". Use
+// WithDefaultRepositoryPrefix to override the missing repository prefix.
 package name

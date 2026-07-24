@@ -49,6 +49,43 @@ func TestParseReferenceDefaulting(t *testing.T) {
 	}
 }
 
+func TestParseReferenceDefaultRepositoryPrefix(t *testing.T) {
+	tests := []struct {
+		name string
+		opts []Option
+		want string
+	}{
+		{
+			name: "ubuntu",
+			opts: []Option{WithDefaultRepositoryPrefix("base")},
+			want: "index.docker.io/base/ubuntu:latest",
+		},
+		{
+			name: "ubuntu",
+			opts: []Option{
+				WithDefaultRegistry(testDefaultRegistry),
+				WithDefaultRepositoryPrefix("base"),
+				WithDefaultTag(testDefaultTag),
+			},
+			want: "registry.upbound.io/base/ubuntu:stable",
+		},
+		{
+			name: "crossplane/provider-gcp",
+			opts: []Option{WithDefaultRepositoryPrefix("base")},
+			want: "index.docker.io/crossplane/provider-gcp:latest",
+		},
+	}
+	for _, tt := range tests {
+		ref, err := ParseReference(tt.name, tt.opts...)
+		if err != nil {
+			t.Errorf("ParseReference(%q); %v", tt.name, err)
+		}
+		if ref.Name() != tt.want {
+			t.Errorf("ParseReference(%q); got %v, want %v", tt.name, ref.String(), tt.want)
+		}
+	}
+}
+
 func TestParseReference(t *testing.T) {
 	for _, name := range goodWeakValidationDigestNames {
 		ref, err := ParseReference(name, WeakValidation)
