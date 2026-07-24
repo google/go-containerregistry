@@ -15,15 +15,15 @@ jobs:
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Unshallow
         run: git fetch --prune --unshallow
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version-file: '.go-version'
           check-latest: true # no-op if full version is specified
           cache: false
-      - uses: goreleaser/goreleaser-action@v7.2.2
+      - uses: goreleaser/goreleaser-action@v7.2.3
         id: run-goreleaser
         with:
           version: "~> v2"
