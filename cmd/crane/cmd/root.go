@@ -83,7 +83,7 @@ func New(use, short string, options []crane.Option) *cobra.Command {
 				InsecureSkipVerify: insecure, //nolint: gosec
 			}
 
-			var rt http.RoundTripper = transport
+			var rt http.RoundTripper = newDockerCertsTransport(transport, defaultDockerCertsDir())
 
 			// Add any http headers if they are set in the config file.
 			cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
