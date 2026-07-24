@@ -273,3 +273,47 @@ func TestLoadManifestPrefixPath(t *testing.T) {
 		t.Errorf("expected empty manifest, got %v", manifest)
 	}
 }
+
+// TestLayerByDiffIDMoreDiffIDsThanLayers verifies LayerByDiffID returns an
+// error instead of panicking when the config declares more rootfs.diff_ids
+// than the tarball manifest lists layers. This is the uncompressed twin of
+// the compressedImage.Manifest() case fixed in #2304.
+func TestLayerByDiffIDMoreDiffIDsThanLayers(t *testing.T) {
+	configBytes := []byte(`{"architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":["sha256:0000000000000000000000000000000000000000000000000000000000000000"]}}`)
+	// No layers in the manifest routes Image() to uncompressedImage.
+	manifestBytes := []byte(`[{"Config":"config.json","RepoTags":["foo:latest"],"Layers":[]}]`)
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for _, e := range []struct {
+		name string
+		data []byte
+	}{
+		{"config.json", configBytes},
+		{"manifest.json", manifestBytes},
+	} {
+		if err := tw.WriteHeader(&tar.Header{Name: e.name, Mode: 0644, Size: int64(len(e.data))}); err != nil {
+			t.Fatalf("WriteHeader(%q): %v", e.name, err)
+		}
+		if _, err := tw.Write(e.data); err != nil {
+			t.Fatalf("Write(%q): %v", e.name, err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar Close: %v", err)
+	}
+
+	tarBytes := buf.Bytes()
+	img, err := Image(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(tarBytes)), nil
+	}, nil)
+	if err != nil {
+		t.Fatalf("Image(): %v", err)
+	}
+
+	if _, err := img.Layers(); err == nil {
+		t.Fatal("img.Layers(): expected error for config with more diff_ids than layers, got nil")
+	} else if !strings.Contains(err.Error(), "diff_id") {
+		t.Errorf("img.Layers(): expected error mentioning diff_id, got: %v", err)
+	}
+}
