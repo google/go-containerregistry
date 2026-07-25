@@ -96,9 +96,38 @@ func TestLoadDockerCertsDirRequiresClientKey(t *testing.T) {
 	}
 }
 
+func TestDockerCertsHostRejectsPathSeparators(t *testing.T) {
+	if _, err := dockerCertsHost(".."); err == nil {
+		t.Fatal("dockerCertsHost returned nil error for parent-directory host")
+	}
+	if _, err := dockerCertsHost("../registry.example.com"); err == nil {
+		t.Fatal("dockerCertsHost returned nil error for path traversal host")
+	}
+	if _, err := dockerCertsHost("registry.example.com/nested"); err == nil {
+		t.Fatal("dockerCertsHost returned nil error for nested host")
+	}
+}
+
+func TestDockerCertFilePathRejectsPathSeparators(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := dockerCertFilePath(dir, ".."); err == nil {
+		t.Fatal("dockerCertFilePath returned nil error for parent-directory file")
+	}
+	if _, err := dockerCertFilePath(dir, "../ca.crt"); err == nil {
+		t.Fatal("dockerCertFilePath returned nil error for path traversal file")
+	}
+	if _, err := dockerCertFilePath(dir, "nested/ca.crt"); err == nil {
+		t.Fatal("dockerCertFilePath returned nil error for nested file")
+	}
+}
+
 func writeDockerCertsDir(t *testing.T, certsDir, host string, caPEM, certPEM, keyPEM []byte) {
 	t.Helper()
-	dir := filepath.Join(certsDir, dockerCertsHost(host))
+	certsHost, err := dockerCertsHost(host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(certsDir, certsHost)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}

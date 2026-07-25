@@ -57,7 +57,10 @@ func (t *dockerCertsTransport) RoundTrip(req *http.Request) (*http.Response, err
 }
 
 func (t *dockerCertsTransport) transportForHost(host string) (http.RoundTripper, error) {
-	host = dockerCertsHost(host)
+	host, err := dockerCertsHost(host)
+	if err != nil {
+		return nil, err
+	}
 
 	t.mu.Lock()
 	if rt, ok := t.byHost[host]; ok {
@@ -91,11 +94,15 @@ func (t *dockerCertsTransport) transportForHost(host string) (http.RoundTripper,
 	return transport, nil
 }
 
-func dockerCertsHost(host string) string {
+func dockerCertsHost(host string) (string, error) {
 	if runtime.GOOS == "windows" {
 		host = strings.ReplaceAll(host, ":", "")
 	}
-	return filepath.FromSlash(host)
+	host = filepath.FromSlash(host)
+	if host == "" || host == "." || host == ".." || host != filepath.Base(host) {
+		return "", fmt.Errorf("invalid registry host %q", host)
+	}
+	return host, nil
 }
 
 func defaultDockerCertsDir() string {
@@ -133,7 +140,11 @@ func loadDockerCertsDir(directory string, tlsConfig *tls.Config) error {
 				}
 				tlsConfig.RootCAs = systemPool
 			}
-			data, err := os.ReadFile(filepath.Join(directory, f.Name()))
+			path, err := dockerCertFilePath(directory, f.Name())
+			if err != nil {
+				return err
+			}
+			data, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
@@ -145,7 +156,15 @@ func loadDockerCertsDir(directory string, tlsConfig *tls.Config) error {
 			if !hasDockerCertFile(files, keyName) {
 				return fmt.Errorf("missing key %s for client certificate %s; CA certificates must use the extension .crt", keyName, certName)
 			}
-			cert, err := tls.LoadX509KeyPair(filepath.Join(directory, certName), filepath.Join(directory, keyName))
+			certPath, err := dockerCertFilePath(directory, certName)
+			if err != nil {
+				return err
+			}
+			keyPath, err := dockerCertFilePath(directory, keyName)
+			if err != nil {
+				return err
+			}
+			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
 			if err != nil {
 				return err
 			}
@@ -161,6 +180,13 @@ func loadDockerCertsDir(directory string, tlsConfig *tls.Config) error {
 	}
 
 	return nil
+}
+
+func dockerCertFilePath(directory, name string) (string, error) {
+	if name == "" || name == "." || name == ".." || name != filepath.Base(name) {
+		return "", fmt.Errorf("invalid Docker cert file %q", name)
+	}
+	return filepath.Join(directory, name), nil
 }
 
 func hasDockerCertFile(files []os.DirEntry, name string) bool {
