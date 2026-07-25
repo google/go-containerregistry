@@ -40,13 +40,13 @@ const (
 	configLimit   = 100 * mib
 )
 
-func readAllLimit(r io.Reader, max int64) ([]byte, error) {
-	b, err := io.ReadAll(io.LimitReader(r, max+1))
+func readAllLimit(r io.Reader, limit int64) ([]byte, error) {
+	b, err := io.ReadAll(io.LimitReader(r, limit+1))
 	if err != nil {
 		return nil, err
 	}
-	if int64(len(b)) > max {
-		return nil, fmt.Errorf("response body exceeds %d bytes", max)
+	if int64(len(b)) > limit {
+		return nil, fmt.Errorf("response body exceeds %d bytes", limit)
 	}
 	return b, nil
 }
