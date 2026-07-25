@@ -4,7 +4,7 @@ Push local image contents to a remote registry
 
 ### Synopsis
 
-If the PATH is a directory, it will be read as an OCI image layout. Otherwise, PATH is assumed to be a docker-style tarball.
+If the PATH is a directory, it will be read as an OCI image layout. Otherwise, PATH is assumed to be a docker-style or OCI layout tarball.
 
 ```
 crane push PATH IMAGE [flags]

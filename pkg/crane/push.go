@@ -21,7 +21,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -48,7 +47,7 @@ func LoadTag(path, tag string, opt ...Option) (v1.Image, error) {
 		if ociErr == nil {
 			return ociImg, nil
 		}
-		return nil, fmt.Errorf("loading as docker tarball: %w; loading as OCI layout tarball: %v", err, ociErr)
+		return nil, fmt.Errorf("loading as docker tarball: %w; loading as OCI layout tarball: %w", err, ociErr)
 	}
 
 	o := makeOptions(opt...)
@@ -106,21 +105,20 @@ func extractTar(path, dir string) error {
 			return err
 		}
 
-		name := filepath.Clean(header.Name)
-		if name == "." {
+		target, skip, err := tarEntryPath(dir, header.Name)
+		if err != nil {
+			return err
+		}
+		if skip {
 			continue
 		}
-		if filepath.IsAbs(name) || name == ".." || strings.HasPrefix(name, ".."+string(filepath.Separator)) {
-			return fmt.Errorf("tar entry escapes destination: %q", header.Name)
-		}
 
-		target := filepath.Join(dir, name)
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, 0755); err != nil {
 				return err
 			}
-		case tar.TypeReg, tar.TypeRegA:
+		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 				return err
 			}
@@ -133,6 +131,17 @@ func extractTar(path, dir string) error {
 			return fmt.Errorf("unsupported tar entry %q type %d", header.Name, header.Typeflag)
 		}
 	}
+}
+
+func tarEntryPath(dir, name string) (string, bool, error) {
+	name = filepath.Clean(name)
+	if name == "." {
+		return "", true, nil
+	}
+	if !filepath.IsLocal(name) {
+		return "", false, fmt.Errorf("tar entry escapes destination: %q", name)
+	}
+	return filepath.Join(dir, name), false, nil
 }
 
 func writeTarFile(path string, r io.Reader, mode os.FileMode) error {

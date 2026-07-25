@@ -448,6 +448,42 @@ func TestCraneLoadOCILayoutTarball(t *testing.T) {
 	}
 }
 
+func TestCraneLoadOCILayoutTarballRejectsEscapingEntry(t *testing.T) {
+	t.Parallel()
+
+	tarPath := filepath.Join(t.TempDir(), "image.tar")
+	f, err := os.Create(tarPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tw := tar.NewWriter(f)
+	content := []byte("escape")
+	if err := tw.WriteHeader(&tar.Header{
+		Name: "../escape",
+		Mode: 0600,
+		Size: int64(len(content)),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = crane.Load(tarPath)
+	if err == nil {
+		t.Fatal("Load returned nil error for escaping tar entry")
+	}
+	if !strings.Contains(err.Error(), "tar entry escapes destination") {
+		t.Fatalf("Load error = %v, want escaping tar entry error", err)
+	}
+}
+
 func writeTarFromDir(tarPath, root string) error {
 	f, err := os.Create(tarPath)
 	if err != nil {
