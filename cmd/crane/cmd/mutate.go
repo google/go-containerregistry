@@ -84,10 +84,6 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.Labels = map[string]string{}
 			}
 
-			if err := validateKeyVals(labels); err != nil {
-				return err
-			}
-
 			for k, v := range labels {
 				cfg.Config.Labels[k] = v
 			}
