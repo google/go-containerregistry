@@ -510,20 +510,6 @@ func (fake *FakeImageIndex) SizeReturnsOnCall(i int, result1 int64, result2 erro
 func (fake *FakeImageIndex) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
-	fake.digestMutex.RLock()
-	defer fake.digestMutex.RUnlock()
-	fake.imageMutex.RLock()
-	defer fake.imageMutex.RUnlock()
-	fake.imageIndexMutex.RLock()
-	defer fake.imageIndexMutex.RUnlock()
-	fake.indexManifestMutex.RLock()
-	defer fake.indexManifestMutex.RUnlock()
-	fake.mediaTypeMutex.RLock()
-	defer fake.mediaTypeMutex.RUnlock()
-	fake.rawManifestMutex.RLock()
-	defer fake.rawManifestMutex.RUnlock()
-	fake.sizeMutex.RLock()
-	defer fake.sizeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
