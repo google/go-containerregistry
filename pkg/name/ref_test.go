@@ -119,6 +119,27 @@ func TestParseReference(t *testing.T) {
 	}
 }
 
+func TestParseReferenceWithTagAndDigest(t *testing.T) {
+	name := "example.text/foo/bar:v1.0.0@" + validDigest
+	ref, err := ParseReference(name, StrictValidation)
+	if err != nil {
+		t.Fatalf("ParseReference(%q); %v", name, err)
+	}
+
+	if _, ok := ref.(Digest); !ok {
+		t.Fatalf("ParseReference(%q) returned %T, want Digest", name, ref)
+	}
+	if got, want := ref.Identifier(), validDigest; got != want {
+		t.Errorf("Identifier() = %q, want %q", got, want)
+	}
+	if got, want := ref.Name(), "example.text/foo/bar@"+validDigest; got != want {
+		t.Errorf("Name() = %q, want %q", got, want)
+	}
+	if got := ref.String(); got != name {
+		t.Errorf("String() = %q, want %q", got, name)
+	}
+}
+
 func TestMustParseReference(t *testing.T) {
 	for _, name := range append(goodWeakValidationTagNames, goodWeakValidationDigestNames...) {
 		func() {
