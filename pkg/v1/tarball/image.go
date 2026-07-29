@@ -248,7 +248,7 @@ func followLinks(opener Opener, filePath string, visited map[string]bool) (io.Re
 		if err != nil {
 			return nil, err
 		}
-		if hdr.Name == filePath {
+		if path.Clean(hdr.Name) == path.Clean(filePath) {
 			if hdr.Typeflag == tar.TypeSymlink || hdr.Typeflag == tar.TypeLink {
 				currentDir := filepath.Dir(filePath)
 				return followLinks(opener, path.Join(currentDir, path.Clean(hdr.Linkname)), visited)
@@ -304,6 +304,9 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 	}
 	for idx, diffID := range cfg.RootFS.DiffIDs {
 		if diffID == h {
+			if idx >= len(i.imgDescriptor.Layers) {
+				return nil, fmt.Errorf("config has %d rootfs.diff_id(s) but tarball manifest only references %d layer(s); the config may not describe a runnable image", len(cfg.RootFS.DiffIDs), len(i.imgDescriptor.Layers))
+			}
 			// Technically the media type should be 'application/tar' but given that our
 			// v1.Layer doesn't force consumers to care about whether the layer is compressed
 			// we should be fine returning the DockerLayer media type

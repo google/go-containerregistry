@@ -26,12 +26,14 @@ var (
 		"crossplane/provider-gcp:v0.14.0",
 		"ubuntu",
 		"gcr.io/crossplane/provider-gcp:latest",
+		"localhost/testimage:mytag",
 	}
 	outputDefaultNames = []string{
 		"registry.upbound.io/crossplane/provider-gcp:stable",
 		"registry.upbound.io/crossplane/provider-gcp:v0.14.0",
 		"registry.upbound.io/ubuntu:stable",
 		"gcr.io/crossplane/provider-gcp:latest",
+		"localhost/testimage:mytag",
 	}
 )
 
@@ -114,6 +116,27 @@ func TestParseReference(t *testing.T) {
 		if _, err := ParseReference(name, WeakValidation); err == nil {
 			t.Errorf("ParseReference(%q); expected error, got none", name)
 		}
+	}
+}
+
+func TestParseReferenceWithTagAndDigest(t *testing.T) {
+	name := "example.text/foo/bar:v1.0.0@" + validDigest
+	ref, err := ParseReference(name, StrictValidation)
+	if err != nil {
+		t.Fatalf("ParseReference(%q); %v", name, err)
+	}
+
+	if _, ok := ref.(Digest); !ok {
+		t.Fatalf("ParseReference(%q) returned %T, want Digest", name, ref)
+	}
+	if got, want := ref.Identifier(), validDigest; got != want {
+		t.Errorf("Identifier() = %q, want %q", got, want)
+	}
+	if got, want := ref.Name(), "example.text/foo/bar@"+validDigest; got != want {
+		t.Errorf("Name() = %q, want %q", got, want)
+	}
+	if got := ref.String(); got != name {
+		t.Errorf("String() = %q, want %q", got, name)
 	}
 }
 

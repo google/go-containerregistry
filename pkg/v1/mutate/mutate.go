@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"path/filepath"
+	"path"
 	"strings"
 	"time"
 
@@ -303,7 +303,10 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 
 		// Some tools prepend everything with "./", so if we don't Clean the
 		// name, we may have duplicate entries, which angers tar-split.
-		header.Name = filepath.Clean(header.Name)
+		header.Name = path.Clean(header.Name)
+		if unsafeArchivePath(header.Name) {
+			return fmt.Errorf("unsafe tar path %q", header.Name)
+		}
 
 		// Reject relative symlinks and hardlinks whose targets escape the
 		// image rootfs. Relative targets are resolved against the symlink's
@@ -313,11 +316,8 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 		// Absolute targets are left as-is; see #2238 for ongoing discussion
 		// on whether they should be pruned.
 		if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
-			if !filepath.IsAbs(header.Linkname) {
-				resolved := filepath.Clean(filepath.Join(filepath.Dir(header.Name), header.Linkname)) //nolint:gosec // G305: path is only used for validation, not file I/O
-				if strings.HasPrefix(resolved, "..") {
-					continue
-				}
+			if unsafeRelativeLink(header.Name, header.Linkname) {
+				continue
 			}
 		}
 
@@ -326,8 +326,8 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 		// prefers USTAR over PAX
 		header.Format = tar.FormatPAX
 
-		basename := filepath.Base(header.Name)
-		dirname := filepath.Dir(header.Name)
+		basename := path.Base(header.Name)
+		dirname := path.Dir(header.Name)
 		tombstone := strings.HasPrefix(basename, whiteoutPrefix)
 		if tombstone {
 			basename = basename[len(whiteoutPrefix):]
@@ -339,7 +339,7 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 		if header.Typeflag == tar.TypeDir {
 			name = header.Name
 		} else {
-			name = filepath.Join(dirname, basename)
+			name = path.Join(dirname, basename)
 		}
 
 		if _, ok := fileMap[name]; ok && !tombstone {
@@ -379,7 +379,7 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 
 func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 	for file != "" {
-		dirname := filepath.Dir(file)
+		dirname := path.Dir(file)
 		if file == dirname {
 			break
 		}
@@ -389,6 +389,39 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 		file = dirname
 	}
 	return false
+}
+
+func unsafeArchivePath(name string) bool {
+	clean := cleanArchivePath(name)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+		return true
+	}
+	if strings.HasPrefix(name, "\\") {
+		return true
+	}
+	return hasWindowsDrivePrefix(clean)
+}
+
+func unsafeRelativeLink(name, linkname string) bool {
+	clean := cleanArchivePath(linkname)
+	if path.IsAbs(clean) {
+		return false
+	}
+	if hasWindowsDrivePrefix(clean) {
+		return true
+	}
+	resolved := path.Clean(path.Join(path.Dir(name), clean)) //nolint:gosec // G305: path is only used for validation, not file I/O
+	return strings.HasPrefix(resolved, "..")
+}
+
+func cleanArchivePath(name string) string {
+	return path.Clean(strings.ReplaceAll(name, "\\", "/"))
+}
+
+func hasWindowsDrivePrefix(name string) bool {
+	return len(name) >= 2 &&
+		(('A' <= name[0] && name[0] <= 'Z') || ('a' <= name[0] && name[0] <= 'z')) &&
+		name[1] == ':'
 }
 
 // Time sets all timestamps in an image to the given timestamp.

@@ -15,9 +15,13 @@
 package remote_test
 
 import (
+	"errors"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -27,6 +31,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
@@ -214,4 +219,151 @@ func TestReferrers(t *testing.T) {
 			t.Fatalf("expected index to contain 0 manifests, but had %d", numManifests)
 		}
 	}
+}
+
+func TestReferrersTagFallbackDisabled(t *testing.T) {
+	// Push a subject image and an image referring to it, with the fallback
+	// tag scheme disabled.
+	pushWithSubject := func(t *testing.T, host string) (rootDigest v1.Hash, leafDigest v1.Hash, err error) {
+		rootRef, err := name.ParseReference(fmt.Sprintf("%s/repo:root", host))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rootImg, err := random.Image(10, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := remote.Write(rootRef, rootImg, remote.WithReferrersTagFallback(false)); err != nil {
+			t.Fatal(err)
+		}
+		rootDigest, err = rootImg.Digest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		rootSize, err := rootImg.Size()
+		if err != nil {
+			t.Fatal(err)
+		}
+		rootMediaType, err := rootImg.MediaType()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		leafRef, err := name.ParseReference(fmt.Sprintf("%s/repo:leaf", host))
+		if err != nil {
+			t.Fatal(err)
+		}
+		leafImg, err := random.Image(20, 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		leafImg = mutate.Subject(leafImg, v1.Descriptor{
+			Digest:    rootDigest,
+			Size:      rootSize,
+			MediaType: rootMediaType,
+		}).(v1.Image)
+		leafDigest, err = leafImg.Digest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rootDigest, leafDigest, remote.Write(leafRef, leafImg, remote.WithReferrersTagFallback(false))
+	}
+
+	// The fallback tag should never be created with the fallback disabled.
+	checkNoFallbackTag := func(t *testing.T, host string, rootDigest v1.Hash) {
+		fallbackRef, err := name.ParseReference(fmt.Sprintf("%s/repo:sha256-%s", host, rootDigest.Hex))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := remote.Head(fallbackRef); err == nil {
+			t.Errorf("Head(%q) succeeded, want NotFound", fallbackRef)
+		} else {
+			var terr *transport.Error
+			if !errors.As(err, &terr) || terr.StatusCode != http.StatusNotFound {
+				t.Errorf("Head(%q) = %v, want NotFound", fallbackRef, err)
+			}
+		}
+	}
+
+	referrersDigest := func(t *testing.T, host string, rootDigest v1.Hash) name.Digest {
+		repo, err := name.NewRepository(fmt.Sprintf("%s/repo", host))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return repo.Digest(rootDigest.String())
+	}
+
+	t.Run("registry without referrers API", func(t *testing.T) {
+		// An OCI 1.0 registry (without referrers API), instrumented to record
+		// requests to the referrers endpoint.
+		reg := registry.New()
+		var mu sync.Mutex
+		referrersProbes := 0
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/referrers/") {
+				mu.Lock()
+				referrersProbes++
+				mu.Unlock()
+			}
+			reg.ServeHTTP(w, r)
+		}))
+		defer s.Close()
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Pushing a subject-bearing manifest requires the Referrers API.
+		rootDigest, _, err := pushWithSubject(t, u.Host)
+		if err == nil {
+			t.Fatal("Write() succeeded, want error")
+		} else if !strings.Contains(err.Error(), "referrers tag fallback is disabled") {
+			t.Fatalf("Write() = %v, want referrers tag fallback error", err)
+		}
+
+		mu.Lock()
+		probes := referrersProbes
+		mu.Unlock()
+		if probes != 1 {
+			t.Errorf("pushing probed the referrers endpoint %d times, want 1", probes)
+		}
+
+		checkNoFallbackTag(t, u.Host, rootDigest)
+
+		// Listing referrers requires the Referrers API too.
+		if _, err := remote.Referrers(referrersDigest(t, u.Host, rootDigest), remote.WithReferrersTagFallback(false)); err == nil {
+			t.Fatal("Referrers() succeeded, want error")
+		} else if !strings.Contains(err.Error(), "referrers tag fallback is disabled") {
+			t.Fatalf("Referrers() = %v, want referrers tag fallback error", err)
+		}
+	})
+
+	t.Run("registry with referrers API", func(t *testing.T) {
+		s := httptest.NewServer(registry.New(registry.WithReferrersSupport(true)))
+		defer s.Close()
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rootDigest, leafDigest, err := pushWithSubject(t, u.Host)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		checkNoFallbackTag(t, u.Host, rootDigest)
+
+		// The registry serves the referrer natively.
+		index, err := remote.Referrers(referrersDigest(t, u.Host, rootDigest), remote.WithReferrersTagFallback(false))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err := index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(m.Manifests) != 1 || m.Manifests[0].Digest != leafDigest {
+			t.Fatalf("referrers = %v, want one entry for %s", m.Manifests, leafDigest)
+		}
+	})
 }

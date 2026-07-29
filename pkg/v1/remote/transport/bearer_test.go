@@ -529,7 +529,11 @@ func TestInsufficientScope(t *testing.T) {
 	}
 	realm = u.Host
 
-	registry, err := name.NewRegistry(expectedService, name.WeakValidation)
+	// registry must match the actual dial address (u.Host), not just the
+	// "service" claim used in the token exchange, so this test exercises the
+	// same-host scope-refresh path rather than accidentally tripping the
+	// cross-host branch of matchesHost.
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
 	if err != nil {
 		t.Error("Unexpected error during NewRegistry: ", err)
 	}
@@ -695,5 +699,197 @@ func TestValidateRealmURLSameHost(t *testing.T) {
 				t.Errorf("validateRealmURL(%q, %q) unexpected error: %v", tt.realm, tt.registryHost, err)
 			}
 		})
+	}
+}
+
+// TestBearerTokenReappliedOnSameHostChallenge is the regression test for
+// https://github.com/google/go-containerregistry/issues/2333: when the
+// registry we authenticated against answers with a 401 Bearer challenge
+// (e.g. token expiry mid-session), the freshly refreshed token must be
+// applied to the retry so it succeeds rather than failing with a second 401.
+func TestBearerTokenReappliedOnSameHostChallenge(t *testing.T) {
+	const (
+		staleToken = "stale-token"
+		freshToken = "fresh-token"
+	)
+
+	attempts := 0
+	registryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if r.Header.Get("Authorization") == "Bearer "+freshToken {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("WWW-Authenticate", `Bearer realm="https://token.example.com/token",service="registry"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer registryServer.Close()
+
+	// bt.registry IS the server's host, so matchesHost is true: this is the
+	// registry we authenticated against, and re-attaching the token is safe.
+	u, err := url.Parse(registryServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bt := &bearerTransport{
+		inner:  http.DefaultTransport,
+		bearer: authn.AuthConfig{RegistryToken: staleToken},
+		// authn.Bearer causes refresh() to set bearer.RegistryToken directly from
+		// the credential without a network call, so no SSRF guard is triggered.
+		basic:    &authn.Bearer{Token: freshToken},
+		registry: registry,
+		realm:    "https://token.example.com/token",
+		scopes:   []string{"repo:example/image:pull"},
+		service:  "registry",
+		scheme:   "http",
+	}
+
+	res, err := (&http.Client{Transport: bt}).Get(registryServer.URL + "/v2/example/image/manifests/latest")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("got status %d, want %d: fresh bearer token was not applied on same-host retry", res.StatusCode, http.StatusOK)
+	}
+	if got := bt.bearer.RegistryToken; got != freshToken {
+		t.Errorf("bearer.RegistryToken = %q, want %q", got, freshToken)
+	}
+	if attempts != 2 {
+		t.Errorf("registry received %d request(s), want 2 (401 then 200)", attempts)
+	}
+}
+
+// TestBearerTokenNotLeakedOnCrossHostChallenge verifies that when a request
+// has been redirected to a host that differs from the registry we logged in
+// to, the refreshed token is NOT re-attached. A malicious or compromised
+// registry must not be able to 302 the request to an attacker host, answer
+// with a Bearer challenge, and harvest the operator's registry credential.
+func TestBearerTokenNotLeakedOnCrossHostChallenge(t *testing.T) {
+	const (
+		staleToken = "stale-token"
+		freshToken = "fresh-token"
+	)
+
+	var gotAuth string
+	// attackerServer is NOT bt.registry. It issues a Bearer challenge and
+	// records any Authorization header it receives.
+	attackerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a := r.Header.Get("Authorization"); a != "" {
+			gotAuth = a
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		w.Header().Set("WWW-Authenticate", `Bearer realm="https://token.example.com/token",service="attacker"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer attackerServer.Close()
+
+	registry, err := name.NewRegistry("registry.example.com", name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bt := &bearerTransport{
+		inner:    http.DefaultTransport,
+		bearer:   authn.AuthConfig{RegistryToken: staleToken},
+		basic:    &authn.Bearer{Token: freshToken},
+		registry: registry, // does NOT match attackerServer's host
+		realm:    "https://token.example.com/token",
+		scopes:   []string{"repo:example/image:pull"},
+		service:  "registry.example.com",
+		scheme:   "http",
+	}
+
+	res, err := (&http.Client{Transport: bt}).Get(attackerServer.URL + "/v2/example/image/manifests/latest")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer res.Body.Close()
+
+	if gotAuth != "" {
+		t.Fatalf("credential leaked to cross-host challenger: Authorization=%q", gotAuth)
+	}
+}
+
+// TestBearerTokenExchangedOnCrossHostChallenge verifies the fix for
+// https://github.com/google/go-containerregistry/issues/2359: when a request
+// is permanently redirected to a different host that issues its own Bearer
+// challenge, the library should perform a fresh per-host token exchange from
+// that host's realm and apply the resulting token — only to that host.
+//
+// Security invariant preserved: the original registry's token (from bt.realm)
+// is never sent to the redirected host.
+func TestBearerTokenExchangedOnCrossHostChallenge(t *testing.T) {
+	const (
+		originalToken   = "original-registry-token"
+		redirectedToken = "redirected-registry-token"
+	)
+
+	// redirectedServer is host B: it serves both the registry API and its own
+	// token endpoint on the same host. Combining them lets the realm URL
+	// (http://127.0.0.1:PORT/token) satisfy the same-host exception in
+	// validateRealmURL, mirroring the real-world setup where a registry and
+	// its auth endpoint share a host.
+	var redirectedServerURL string
+	redirectedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			// Token endpoint: must not receive the original registry's credentials.
+			if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer "+originalToken) {
+				t.Errorf("original registry token leaked to redirected token endpoint: %s", auth)
+			}
+			fmt.Fprintf(w, `{"token": %q}`, redirectedToken)
+			return
+		}
+		// Registry API: accept only B's own token.
+		if r.Header.Get("Authorization") == "Bearer "+redirectedToken {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if r.Header.Get("Authorization") == "Bearer "+originalToken {
+			t.Errorf("original registry token leaked to redirected host: Authorization=%s", r.Header.Get("Authorization"))
+		}
+		// The realm points at the same host so validateRealmURL's same-host
+		// exception allows the loopback address used by httptest.
+		realm := redirectedServerURL + "/token"
+		w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer realm=%q,service="redirected",scope="repo:foo:pull"`, realm))
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer redirectedServer.Close()
+	redirectedServerURL = redirectedServer.URL
+
+	// bt is configured for the original registry A (not for redirectedServer).
+	registry, err := name.NewRegistry("original-registry.example.com", name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bt := &bearerTransport{
+		inner:    http.DefaultTransport,
+		bearer:   authn.AuthConfig{RegistryToken: originalToken},
+		basic:    &authn.Bearer{Token: originalToken},
+		registry: registry,
+		realm:    "https://original-registry.example.com/token",
+		scopes:   []string{"repo:foo:pull"},
+		service:  "original-registry.example.com",
+		scheme:   "http",
+	}
+
+	// Make a request directly to the redirected server (simulating the
+	// http.Client having already followed the A→B redirect).
+	res, err := (&http.Client{Transport: bt}).Get(redirectedServer.URL + "/v2/foo/bar/manifests/latest")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("got status %d, want %d: per-host token was not applied on cross-host retry", res.StatusCode, http.StatusOK)
 	}
 }
