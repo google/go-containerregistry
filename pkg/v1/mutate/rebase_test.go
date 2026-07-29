@@ -19,6 +19,7 @@ import (
 	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 )
@@ -175,5 +176,69 @@ func TestRebase(t *testing.T) {
 	}
 	if rebasedConfig.OSVersion != newBaseConfig.OSVersion {
 		t.Errorf("ConfigFile property OSVersion mismatch, got %q, want %q", rebasedConfig.OSVersion, newBaseConfig.OSVersion)
+	}
+}
+
+// TestRebaseMalformedHistory checks that Rebase returns an error, rather than
+// panicking, when an image's config history claims more non-empty layers than
+// the image actually has.
+func TestRebaseMalformedHistory(t *testing.T) {
+	orig, err := random.Image(100, 1)
+	if err != nil {
+		t.Fatalf("random.Image (orig): %v", err)
+	}
+
+	// A new base whose config advertises a non-empty (layer-bearing) history
+	// entry while carrying no layers at all.
+	badBase, err := mutate.ConfigFile(empty.Image, &v1.ConfigFile{
+		History: []v1.History{{CreatedBy: "claims a layer that isn't there", EmptyLayer: false}},
+	})
+	if err != nil {
+		t.Fatalf("mutate.ConfigFile (badBase): %v", err)
+	}
+
+	if _, err := mutate.Rebase(orig, empty.Image, badBase); err == nil {
+		t.Error("Rebase: expected an error for a config claiming more layers than exist, got nil")
+	} else {
+		t.Logf("Rebase returned: %v", err)
+	}
+}
+
+// TestRebaseNoHistory checks that when a base image's config carries no history
+// at all, Rebase still carries over each of its layers, in order.
+func TestRebaseNoHistory(t *testing.T) {
+	base, err := random.Image(100, 3)
+	if err != nil {
+		t.Fatalf("random.Image (base): %v", err)
+	}
+	cf, err := base.ConfigFile()
+	if err != nil {
+		t.Fatalf("base.ConfigFile: %v", err)
+	}
+	stripped := cf.DeepCopy()
+	stripped.History = nil
+	newBase, err := mutate.ConfigFile(base, stripped)
+	if err != nil {
+		t.Fatalf("mutate.ConfigFile (newBase): %v", err)
+	}
+	want := layerDigests(t, newBase)
+
+	orig, err := random.Image(100, 1)
+	if err != nil {
+		t.Fatalf("random.Image (orig): %v", err)
+	}
+	rebased, err := mutate.Rebase(orig, empty.Image, newBase)
+	if err != nil {
+		t.Fatalf("Rebase: %v", err)
+	}
+	got := layerDigests(t, rebased)
+
+	if len(got) < len(want) {
+		t.Fatalf("rebased image has %d layers, want at least %d", len(got), len(want))
+	}
+	for i, w := range want {
+		if got[i] != w {
+			t.Errorf("rebased layer %d = %s, want %s", i, got[i], w)
+		}
 	}
 }
