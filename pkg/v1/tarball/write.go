@@ -473,7 +473,7 @@ func layerExtension(l v1.Layer) string {
 	case types.OCIUncompressedLayer, types.OCIUncompressedRestrictedLayer, types.DockerUncompressedLayer:
 		return ".tar"
 	default:
-		// historicaly, only gzip compressed tar was supported, so this is the fallback
+		// historically, only gzip compressed tar was supported, so this is the fallback
 		return ".tar.gz"
 	}
 }
