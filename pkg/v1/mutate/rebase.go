@@ -16,6 +16,7 @@ package mutate
 
 import (
 	"fmt"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -96,14 +97,23 @@ func Rebase(orig, oldBase, newBase v1.Image) (v1.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get new base layers for new base: %w", err)
 	}
+
+	// Find the last DockerLayer or OCILayer type in the new base image
+	var newBaseLastLayerType = lastDockerOrOciLayerType(newBaseLayers)
+
+	// If no layer type was found in the new base, check the original image
+	if newBaseLastLayerType == "" {
+		newBaseLastLayerType = lastDockerOrOciLayerType(origLayers)
+	}
+
 	// Add new base layers.
-	rebasedImage, err = Append(rebasedImage, createAddendums(0, 0, newConfig.History, newBaseLayers)...)
+	rebasedImage, err = Append(rebasedImage, createAddendums(0, 0, newConfig.History, newBaseLayers, newBaseLastLayerType)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to append new base image: %w", err)
 	}
 
 	// Add original layers above the old base.
-	rebasedImage, err = Append(rebasedImage, createAddendums(len(oldConfig.History), len(oldBaseLayers)+1, origConfig.History, origLayers)...)
+	rebasedImage, err = Append(rebasedImage, createAddendums(len(oldConfig.History), len(oldBaseLayers)+1, origConfig.History, origLayers, newBaseLastLayerType)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to append original image: %w", err)
 	}
@@ -113,7 +123,7 @@ func Rebase(orig, oldBase, newBase v1.Image) (v1.Image, error) {
 
 // createAddendums makes a list of addendums from a history and layers starting from a specific history and layer
 // indexes.
-func createAddendums(startHistory, startLayer int, history []v1.History, layers []v1.Layer) []Addendum {
+func createAddendums(startHistory, startLayer int, history []v1.History, layers []v1.Layer, layerType types.MediaType) []Addendum {
 	var adds []Addendum
 	// History should be a superset of layers; empty layers (e.g. ENV statements) only exist in history.
 	// They cannot be iterated identically but must be walked independently, only advancing the iterator for layers
@@ -128,7 +138,7 @@ func createAddendums(startHistory, startLayer int, history []v1.History, layers 
 		}
 		if historyIndex >= startHistory || layerIndex >= startLayer {
 			adds = append(adds, Addendum{
-				Layer:   layer,
+				Layer:   layerWithNormalizedMediaType(layer, layerType),
 				History: history[historyIndex],
 			})
 		}
@@ -136,9 +146,57 @@ func createAddendums(startHistory, startLayer int, history []v1.History, layers 
 	// In the event history was malformed or non-existent, append the remaining layers.
 	for i := layerIndex; i < len(layers); i++ {
 		if i >= startLayer {
-			adds = append(adds, Addendum{Layer: layers[layerIndex]})
+			adds = append(adds, Addendum{
+				Layer: layerWithNormalizedMediaType(layers[layerIndex], layerType),
+			})
 		}
 	}
 
 	return adds
+}
+
+func lastDockerOrOciLayerType(fromLayers []v1.Layer) types.MediaType {
+	for i := len(fromLayers) - 1; i >= 0; i-- {
+		mediaType, err := fromLayers[i].MediaType()
+		if err == nil && isDockerOrOciLayerType(mediaType) {
+			return mediaType
+		}
+	}
+	return ""
+}
+
+func isDockerOrOciLayerType(mediaType types.MediaType) bool {
+	return mediaType == types.DockerLayer || mediaType == types.OCILayer
+}
+
+// mediaTypeOverridingLayer wraps a layer and overrides its MediaType method.
+type mediaTypeOverridingLayer struct {
+	v1.Layer
+	mediaType types.MediaType
+}
+
+// MediaType implements v1.Layer
+func (l *mediaTypeOverridingLayer) MediaType() (types.MediaType, error) {
+	var mt = l.mediaType
+	var err error = nil
+	if mt == "" {
+		mt, err = l.Layer.MediaType()
+	}
+	return mt, err
+}
+
+func layerWithNormalizedMediaType(layer v1.Layer, layerType types.MediaType) v1.Layer {
+	// Check the layer's media type
+	if layer != nil && layerType != "" {
+		mediaType, err := layer.MediaType()
+		// Only modify the media type if it's DockerLayer or OCILayer
+		if err == nil && isDockerOrOciLayerType(mediaType) {
+			// Wrap the layer to override its MediaType method
+			return &mediaTypeOverridingLayer{
+				Layer:     layer,
+				mediaType: layerType,
+			}
+		}
+	}
+	return layer
 }
