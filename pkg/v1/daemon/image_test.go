@@ -299,7 +299,7 @@ func TestImageConfigExposedPorts(t *testing.T) {
 	}
 
 	resp := inspectResp
-	resp.InspectResponse.Config = &specs.DockerOCIImageConfig{
+	resp.Config = &specs.DockerOCIImageConfig{
 		ImageConfig: ocispec.ImageConfig{
 			ExposedPorts: want,
 		},
