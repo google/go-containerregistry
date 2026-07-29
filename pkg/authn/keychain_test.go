@@ -117,6 +117,11 @@ func TestPodmanConfig(t *testing.T) {
 	writeConfig(t, filepath.Join(p, "containers"), "auth.json",
 		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`,
 			encode("XDG_RUNTIME_DIR-foo", "XDG_RUNTIME_DIR-bar")))
+	configDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configDir)
+	writeConfig(t, filepath.Join(configDir, "containers"), "auth.json",
+		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`,
+			encode("XDG_CONFIG_HOME-foo", "XDG_CONFIG_HOME-bar")))
 	auth, err := DefaultKeychain.Resolve(testRegistry)
 	if err != nil {
 		t.Fatalf("Resolve() = %v", err)
@@ -195,6 +200,64 @@ func TestPodmanConfig(t *testing.T) {
 	want = &AuthConfig{
 		Username: "another-foo",
 		Password: "another-bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestPodmanConfigXDGConfigHome(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", "")
+	t.Setenv("REGISTRY_AUTH_FILE", "")
+	t.Setenv("XDG_RUNTIME_DIR", "")
+
+	configDir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", configDir)
+	writeConfig(t, filepath.Join(configDir, "containers"), "auth.json",
+		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`,
+			encode("XDG_CONFIG_HOME-foo", "XDG_CONFIG_HOME-bar")))
+
+	auth, err := DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err := auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &AuthConfig{
+		Username: "XDG_CONFIG_HOME-foo",
+		Password: "XDG_CONFIG_HOME-bar",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestPodmanConfigHomeConfig(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", "")
+	t.Setenv("REGISTRY_AUTH_FILE", "")
+	t.Setenv("XDG_RUNTIME_DIR", "")
+	t.Setenv("XDG_CONFIG_HOME", "")
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	writeConfig(t, filepath.Join(home, ".config/containers"), "auth.json",
+		fmt.Sprintf(`{"auths": {"test.io": {"auth": %q}}}`,
+			encode("home-config-foo", "home-config-bar")))
+
+	auth, err := DefaultKeychain.Resolve(testRegistry)
+	if err != nil {
+		t.Fatalf("Resolve() = %v", err)
+	}
+	got, err := auth.Authorization()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &AuthConfig{
+		Username: "home-config-foo",
+		Password: "home-config-bar",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
