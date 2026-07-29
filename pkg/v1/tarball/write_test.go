@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/compare"
+	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
@@ -577,4 +578,132 @@ func (rc *tokenReleasingReadCloser) Close() error {
 		rc.release()
 	}
 	return err
+}
+
+func TestWriteDynamicExtensions(t *testing.T) {
+	// Make a tempfile for tarball writes.
+	fp, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatalf("Error creating temp file.")
+	}
+	t.Log(fp.Name())
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+
+	// Create layers with different media types
+	gzipLayer, err := random.Layer(128, types.OCILayer)
+	if err != nil {
+		t.Fatalf("random.Layer (gzip): %v", err)
+	}
+	zstdLayer, err := random.Layer(128, types.OCILayerZStd)
+	if err != nil {
+		t.Fatalf("random.Layer (zstd): %v", err)
+	}
+	tarLayer, err := random.Layer(128, types.OCIUncompressedLayer)
+	if err != nil {
+		t.Fatalf("random.Layer (tar): %v", err)
+	}
+
+	gzipDigest, err := gzipLayer.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	zstdDigest, err := zstdLayer.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tarDigest, err := tarLayer.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Append layers to an empty image
+	img, err := mutate.Append(empty.Image, mutate.Addendum{Layer: gzipLayer}, mutate.Addendum{Layer: zstdLayer}, mutate.Addendum{Layer: tarLayer})
+	if err != nil {
+		t.Fatalf("mutate.Append: %v", err)
+	}
+
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatalf("Error creating test tag: %v", err)
+	}
+
+	if err := tarball.WriteToFile(fp.Name(), tag, img); err != nil {
+		t.Fatalf("Unexpected error writing tarball: %v", err)
+	}
+
+	// 1. Verify files in tar archive have correct names
+	_, err = fp.Seek(0, io.SeekStart)
+	if err != nil {
+		t.Fatalf("Seek to start of file: %v", err)
+	}
+
+	expectedFiles := map[string]bool{
+		gzipDigest.Hex + ".tar.gz":  false,
+		zstdDigest.Hex + ".tar.zst": false,
+		tarDigest.Hex + ".tar":      false,
+	}
+
+	var manifestContent []byte
+
+	r := tar.NewReader(fp)
+	for {
+		hdr, err := r.Next()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			t.Fatalf("Get tar header: %v", err)
+		}
+		if _, ok := expectedFiles[hdr.Name]; ok {
+			expectedFiles[hdr.Name] = true
+		}
+		if hdr.Name == "manifest.json" {
+			manifestContent, err = io.ReadAll(r)
+			if err != nil {
+				t.Fatalf("reading manifest.json: %v", err)
+			}
+		}
+	}
+
+	for filename, found := range expectedFiles {
+		if !found {
+			t.Errorf("Expected to find file %q in tarball, but it was not found", filename)
+		}
+	}
+
+	// 2. Verify manifest.json contains correct file names
+	if len(manifestContent) == 0 {
+		t.Fatal("manifest.json not found or empty")
+	}
+
+	var manifest []struct {
+		Config   string   `json:"Config"`
+		RepoTags []string `json:"RepoTags"`
+		Layers   []string `json:"Layers"`
+	}
+	if err := json.Unmarshal(manifestContent, &manifest); err != nil {
+		t.Fatalf("unmarshalling manifest: %v", err)
+	}
+
+	if len(manifest) != 1 {
+		t.Fatalf("expected 1 entry in manifest, got %d", len(manifest))
+	}
+
+	mEntry := manifest[0]
+	expectedLayers := []string{
+		gzipDigest.Hex + ".tar.gz",
+		zstdDigest.Hex + ".tar.zst",
+		tarDigest.Hex + ".tar",
+	}
+
+	if len(mEntry.Layers) != len(expectedLayers) {
+		t.Fatalf("expected %d layers in manifest, got %d", len(expectedLayers), len(mEntry.Layers))
+	}
+
+	for i, wantLayer := range expectedLayers {
+		if got := mEntry.Layers[i]; got != wantLayer {
+			t.Errorf("layer %d: got manifest layer name %q, want %q", i, got, wantLayer)
+		}
+	}
 }
