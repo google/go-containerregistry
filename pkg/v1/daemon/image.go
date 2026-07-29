@@ -369,7 +369,7 @@ func (i *image) computeImageConfig(config *specs.DockerOCIImageConfig) v1.Config
 
 	if len(config.ExposedPorts) > 0 {
 		c.ExposedPorts = map[string]struct{}{}
-		for port := range c.ExposedPorts {
+		for port := range config.ExposedPorts {
 			c.ExposedPorts[port] = struct{}{}
 		}
 	}
