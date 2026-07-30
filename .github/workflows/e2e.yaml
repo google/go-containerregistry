@@ -56,9 +56,14 @@ jobs:
                 --new_tag localhost:1338/append-test \
                 --new_layer crane.tar))
 
-        # Run the image with and without args.
-        docker run $img
-        docker run $img --help
+        # Run the image with and without args. Recent GitHub Windows runners may
+        # not expose a usable Docker daemon even when the CLI is present.
+        if [[ "${{ matrix.platform }}" == "windows-latest" ]] && ! docker version >/dev/null 2>&1; then
+          echo "Skipping docker run smoke test: Docker daemon unavailable on windows-latest runner"
+        else
+          docker run $img
+          docker run $img --help
+        fi
 
         # Make sure we can roundtrip it through pull/push
         layout=$(mktemp -d)
@@ -94,4 +99,3 @@ jobs:
         ./app/crane pull ubuntu ubuntu.tar
         ./app/crane export - - < ubuntu.tar > filesystem.tar
         ls -la *.tar
-
