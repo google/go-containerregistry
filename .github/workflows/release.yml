@@ -56,7 +56,8 @@ jobs:
   verification:
     needs: [goreleaser, provenance]
     runs-on: ubuntu-latest
-    permissions: read-all
+    permissions:
+		  contents: read
     steps:
       - name: Install SLSA verifier
         uses: slsa-framework/slsa-verifier/actions/installer@ea584f4502babc6f60d9bc799dbbb13c1caa9ee6 # v2.7.1
