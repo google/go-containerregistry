@@ -338,8 +338,8 @@ func extractLayer(tarWriter *tar.Writer, fileMap, opaqueDirs map[string]bool, la
 		// prefers USTAR over PAX
 		header.Format = tar.FormatPAX
 
-		basename := filepath.Base(header.Name)
-		dirname := filepath.Dir(header.Name)
+		basename := path.Base(header.Name)
+		dirname := path.Dir(header.Name)
 
 		// An opaque marker hides all lower-layer entries under dirname. It shares
 		// the whiteout prefix, so handle it before the generic per-file logic.
@@ -409,7 +409,7 @@ func extractLayer(tarWriter *tar.Writer, fileMap, opaqueDirs map[string]bool, la
 
 func inOpaqueDir(opaqueDirs map[string]bool, file string) bool {
 	for file != "" {
-		dirname := filepath.Dir(file)
+		dirname := path.Dir(file)
 		if file == dirname {
 			break
 		}
