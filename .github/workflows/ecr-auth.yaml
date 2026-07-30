@@ -1,14 +1,8 @@
 name: ECR Authentication test
 
 on:
-  pull_request_target:
+  push:
     branches: [ 'main' ]
-
-permissions:
-  # This lets us clone the repo
-  contents: read
-  # This lets us mint identity tokens.
-  id-token: write
 
 env:
   GOTOOLCHAIN: local
@@ -16,13 +10,18 @@ env:
 jobs:
   krane:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # This lets us mint identity tokens.
+      id-token: write
     env:
       AWS_ACCOUNT: 479305788615
       AWS_REGION: us-east-2
-
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: '.go-version'
 
@@ -31,7 +30,7 @@ jobs:
         run: go install .
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6.2.3
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
           aws-region: ${{ env.AWS_REGION }}
@@ -55,13 +54,19 @@ jobs:
 
   crane-ecr-login:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # This lets us mint identity tokens.
+      id-token: write
     env:
       AWS_ACCOUNT: 479305788615
       AWS_REGION: us-east-2
 
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: '.go-version'
 
@@ -70,7 +75,7 @@ jobs:
         run: go install .
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6.2.3
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT }}:role/federated-ecr-readonly
           aws-region: ${{ env.AWS_REGION }}
