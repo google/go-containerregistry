@@ -21,6 +21,7 @@ builds:
     - s390x
     - riscv64
     - ppc64le
+    - loong64
   goos:
     - linux
     - darwin
@@ -49,6 +50,7 @@ builds:
     - s390x
     - riscv64
     - ppc64le
+    - loong64
   goos:
     - linux
     - darwin
@@ -78,6 +80,7 @@ builds:
     - s390x
     - riscv64
     - ppc64le
+    - loong64
   goos:
     - linux
     - darwin
