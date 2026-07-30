@@ -276,6 +276,95 @@ func TestExtractRoundTrip(t *testing.T) {
 	}
 }
 
+func TestExtractRewritesHardlinkTargetOverwrittenByNewerLayer(t *testing.T) {
+	type entry struct {
+		header *tar.Header
+		body   string
+	}
+
+	makeLayer := func(entries []entry) v1.Layer {
+		t.Helper()
+
+		var buf bytes.Buffer
+		tw := tar.NewWriter(&buf)
+		for _, e := range entries {
+			if e.body != "" {
+				e.header.Size = int64(len(e.body))
+			}
+			if err := tw.WriteHeader(e.header); err != nil {
+				t.Fatalf("writing header for %s: %v", e.header.Name, err)
+			}
+			if e.body != "" {
+				if _, err := tw.Write([]byte(e.body)); err != nil {
+					t.Fatalf("writing body for %s: %v", e.header.Name, err)
+				}
+			}
+		}
+		if err := tw.Close(); err != nil {
+			t.Fatalf("closing tar writer: %v", err)
+		}
+
+		layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+		})
+		if err != nil {
+			t.Fatalf("creating layer: %v", err)
+		}
+		return layer
+	}
+
+	base := makeLayer([]entry{
+		{header: &tar.Header{Name: "t2", Typeflag: tar.TypeReg, Mode: 0o644}, body: "123\n"},
+	})
+	links := makeLayer([]entry{
+		{header: &tar.Header{Name: "t1", Typeflag: tar.TypeLink, Linkname: "t2"}},
+		{header: &tar.Header{Name: "t3", Typeflag: tar.TypeLink, Linkname: "t1"}},
+	})
+	update := makeLayer([]entry{
+		{header: &tar.Header{Name: "t1", Typeflag: tar.TypeReg, Mode: 0o644}, body: "456\n"},
+	})
+
+	img, err := mutate.AppendLayers(empty.Image, base, links, update)
+	if err != nil {
+		t.Fatalf("appending layers: %v", err)
+	}
+
+	extracted := map[string]*tar.Header{}
+	extractedBodies := map[string]string{}
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("reading extracted tar: %v", err)
+		}
+		extracted[hdr.Name] = hdr
+		if hdr.Typeflag == tar.TypeReg {
+			var b bytes.Buffer
+			if _, err := io.Copy(&b, tr); err != nil {
+				t.Fatalf("reading body for %s: %v", hdr.Name, err)
+			}
+			extractedBodies[hdr.Name] = b.String()
+		}
+	}
+
+	if got := extractedBodies["t1"]; got != "456\n" {
+		t.Fatalf("t1 body = %q, want %q", got, "456\n")
+	}
+	if got := extractedBodies["t2"]; got != "123\n" {
+		t.Fatalf("t2 body = %q, want %q", got, "123\n")
+	}
+	t3, ok := extracted["t3"]
+	if !ok {
+		t.Fatal("t3 not found in extracted output")
+	}
+	if got := t3.Linkname; got != "t2" {
+		t.Fatalf("t3 linkname = %q, want %q", got, "t2")
+	}
+}
+
 // invalidImage is an image which returns an error when Layers() is called.
 type invalidImage struct {
 	v1.Image

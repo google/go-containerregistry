@@ -267,6 +267,8 @@ func extract(img v1.Image, w io.Writer) error {
 	defer tarWriter.Close()
 
 	fileMap := map[string]bool{}
+	// Tracks old hardlink names that were overwritten by newer layers.
+	hardlinkRewrites := map[string]string{}
 
 	layers, err := img.Layers()
 	if err != nil {
@@ -277,14 +279,14 @@ func extract(img v1.Image, w io.Writer) error {
 	// whiteout layers more efficient, since we can just keep track of the removed
 	// files as we see .wh. layers and ignore those in previous layers.
 	for i := len(layers) - 1; i >= 0; i-- {
-		if err := extractLayer(tarWriter, fileMap, layers[i]); err != nil {
+		if err := extractLayer(tarWriter, fileMap, hardlinkRewrites, layers[i]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer) error {
+func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, hardlinkRewrites map[string]string, layer v1.Layer) error {
 	layerReader, err := layer.Uncompressed()
 	if err != nil {
 		return fmt.Errorf("reading layer contents: %w", err)
@@ -343,6 +345,9 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 		}
 
 		if _, ok := fileMap[name]; ok && !tombstone {
+			if header.Typeflag == tar.TypeLink {
+				rememberHardlinkRewrite(hardlinkRewrites, name, header.Linkname)
+			}
 			continue
 		}
 
@@ -355,6 +360,9 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 		// any entries with a matching (or child) name
 		fileMap[name] = tombstone || (header.Typeflag != tar.TypeDir)
 		if !tombstone {
+			if header.Typeflag == tar.TypeLink {
+				header.Linkname = resolveHardlinkRewrite(hardlinkRewrites, header.Linkname)
+			}
 			if err := tarWriter.WriteHeader(header); err != nil {
 				return err
 			}
@@ -375,6 +383,26 @@ func extractLayer(tarWriter *tar.Writer, fileMap map[string]bool, layer v1.Layer
 		return fmt.Errorf("verifying layer: %w", err)
 	}
 	return nil
+}
+
+func rememberHardlinkRewrite(hardlinkRewrites map[string]string, name, linkname string) {
+	linkname = resolveHardlinkRewrite(hardlinkRewrites, linkname)
+	if linkname == name {
+		return
+	}
+	hardlinkRewrites[name] = linkname
+}
+
+func resolveHardlinkRewrite(hardlinkRewrites map[string]string, linkname string) string {
+	seen := map[string]bool{}
+	for {
+		next, ok := hardlinkRewrites[linkname]
+		if !ok || seen[linkname] {
+			return linkname
+		}
+		seen[linkname] = true
+		linkname = next
+	}
 }
 
 func inWhiteoutDir(fileMap map[string]bool, file string) bool {
