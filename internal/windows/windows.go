@@ -71,11 +71,16 @@ func Windows(layer v1.Layer) (v1.Layer, error) {
 			return nil, fmt.Errorf("reading layer: %w", err)
 		}
 
-		if strings.HasPrefix(header.Name, "Files/") {
+		cleanName, err := cleanLayerPath(header.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		if strings.HasPrefix(cleanName, "Files/") {
 			return nil, fmt.Errorf("file path %q already suitable for Windows", header.Name)
 		}
 
-		header.Name = path.Join("Files", header.Name)
+		header.Name = path.Join("Files", cleanName)
 		header.Format = tar.FormatPAX
 
 		// TODO: this seems to make the file executable on Windows;
@@ -111,4 +116,12 @@ func Windows(layer v1.Layer) (v1.Layer, error) {
 	}
 
 	return layer, nil
+}
+
+func cleanLayerPath(name string) (string, error) {
+	cleanName := path.Clean(name)
+	if path.IsAbs(name) || cleanName == ".." || strings.HasPrefix(cleanName, "../") {
+		return "", fmt.Errorf("unsafe file path %q", name)
+	}
+	return cleanName, nil
 }

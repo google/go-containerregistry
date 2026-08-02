@@ -16,12 +16,14 @@ package windows
 
 import (
 	"archive/tar"
+	"bytes"
 	"errors"
 	"io"
 	"reflect"
 	"strings"
 	"testing"
 
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
@@ -78,4 +80,45 @@ func TestWindows(t *testing.T) {
 	if !sawFiles {
 		t.Errorf("didn't see Files/ directory")
 	}
+}
+
+func TestWindowsRejectsUnsafePaths(t *testing.T) {
+	for _, name := range []string{"../Hives/escaped.txt", "/Hives/escaped.txt"} {
+		t.Run(name, func(t *testing.T) {
+			layer := layerWithFile(t, name)
+			if _, err := Windows(layer); err == nil {
+				t.Fatalf("Windows accepted unsafe path %q", name)
+			}
+		})
+	}
+}
+
+func layerWithFile(t *testing.T, name string) v1.Layer {
+	t.Helper()
+
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	content := []byte("test")
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     name,
+		Typeflag: tar.TypeReg,
+		Mode:     0644,
+		Size:     int64(len(content)),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return layer
 }
