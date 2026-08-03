@@ -316,6 +316,11 @@ func extractLayer(tarWriter *tar.Writer, fileMap, opaqueDirs map[string]bool, la
 		// Some tools prepend everything with "./", so if we don't Clean the
 		// name, we may have duplicate entries, which angers tar-split.
 		header.Name = path.Clean(header.Name)
+		// The rootfs root (a "./" or empty-name entry, both of which Clean to ".")
+		// is implicit; skip it rather than emit a redundant entry.
+		if header.Name == "." {
+			continue
+		}
 		if unsafeArchivePath(header.Name) {
 			return fmt.Errorf("unsafe tar path %q", header.Name)
 		}
@@ -437,7 +442,7 @@ func inWhiteoutDir(fileMap map[string]bool, file string) bool {
 
 func unsafeArchivePath(name string) bool {
 	clean := cleanArchivePath(name)
-	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") {
+	if clean == ".." || strings.HasPrefix(clean, "../") {
 		return true
 	}
 	if strings.HasPrefix(name, "\\") {
