@@ -898,6 +898,51 @@ func TestExtractRejectsUnsafeArchivePaths(t *testing.T) {
 	}
 }
 
+func TestExtractSkipsRootDirEntry(t *testing.T) {
+	// A layer whose entries include the rootfs root ("./") -- as gcr.io/distroless
+	// base images ship -- must extract cleanly, not be rejected as an unsafe path.
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for _, hdr := range []*tar.Header{
+		{Name: "./", Typeflag: tar.TypeDir, Mode: 0o755},
+		{Name: "etc/hello", Typeflag: tar.TypeReg, Mode: 0o644, Size: 5},
+	} {
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatalf("WriteHeader: %v", err)
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			if _, err := tw.Write([]byte("world")); err != nil {
+				t.Fatalf("Write: %v", err)
+			}
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar Close: %v", err)
+	}
+
+	img := imageFromTarBytes(t, buf.Bytes())
+
+	names := map[string]bool{}
+	tr := tar.NewReader(mutate.Extract(img))
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("reading extracted tar: %v", err)
+		}
+		names[hdr.Name] = true
+	}
+
+	if names["."] {
+		t.Error(`extracted tar contains a redundant root-dir entry "."`)
+	}
+	if !names["etc/hello"] {
+		t.Error("extracted tar is missing the real file etc/hello")
+	}
+}
+
 func TestCanonical(t *testing.T) {
 	source := sourceImage(t)
 	img, err := mutate.Canonical(source)
