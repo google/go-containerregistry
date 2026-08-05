@@ -65,6 +65,14 @@ If you're macOS user and using [Homebrew](https://brew.sh/), you can install via
 $ brew install crane
 ```
 
+### Install via mise
+
+If you're using [mise](https://github.com/jdx/mise), you can install with a command like:
+
+```sh
+$ mise use -g crane@latest
+```
+
 ### Install on Arch Linux
 
 If you're an Arch Linux user you can install via pacman command:
