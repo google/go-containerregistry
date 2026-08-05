@@ -876,23 +876,33 @@ func TestExtractSymlinkFiltering(t *testing.T) {
 }
 
 func TestExtractRejectsUnsafeArchivePaths(t *testing.T) {
-	for _, name := range []string{
-		"../tmp/evil",
-		`..\..\tmp\evil`,
-		`\tmp\evil`,
-		`C:\tmp\evil`,
-		"C:/tmp/evil",
-		`C:..\evil`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			img := imageFromTarBytes(t, makeTarBytes(t, name, "bad"))
+	entries := []struct {
+		path    string
+		wantErr bool
+	}{
+		{path: ".", wantErr: false},
+		{path: "tmp/safe", wantErr: false},
+		{path: "../tmp/evil", wantErr: true},
+		{path: `..\..\tmp\evil`, wantErr: true},
+		{path: `\tmp\evil`, wantErr: true},
+		{path: `C:\tmp\evil`, wantErr: true},
+		{path: "C:/tmp/evil", wantErr: true},
+		{path: `C:..\evil`, wantErr: true},
+	}
+	for _, tc := range entries {
+		t.Run(tc.path, func(t *testing.T) {
+			img := imageFromTarBytes(t, makeTarBytes(t, tc.path, "data"))
 
 			_, err := io.Copy(io.Discard, mutate.Extract(img))
-			if err == nil {
-				t.Fatal("Extract accepted an unsafe archive path")
-			}
-			if !strings.Contains(err.Error(), "unsafe tar path") {
-				t.Fatalf("Extract error = %v, want unsafe tar path error", err)
+			if tc.wantErr {
+				if err == nil {
+					t.Error("Extract accepted an unsafe archive path")
+				}
+				if !strings.Contains(err.Error(), "unsafe tar path") {
+					t.Errorf("Extract error = %v, want unsafe tar path error", err)
+				}
+			} else if err != nil {
+				t.Errorf("Extract error = %v, want nil", err)
 			}
 		})
 	}
