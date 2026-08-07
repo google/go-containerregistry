@@ -178,7 +178,7 @@ func TestCraneRegistry(t *testing.T) {
 		t.Fatalf("wanted 6 tags, got %d", len(tags))
 	}
 
-	// Delete the non existing image
+	// Delete the nonexistent image
 	if err := crane.Delete(dst + ":honk-image"); err == nil {
 		t.Fatal("wanted err, got nil")
 	}
