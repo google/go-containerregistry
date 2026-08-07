@@ -25,12 +25,13 @@ var (
 	// -ldflags="-X 'github.com/google/go-containerregistry/pkg/v1/remote/transport.Version=$TAG'"
 	Version string
 
-	ggcrVersion = defaultUserAgent
+	defaultUserAgent string
+	ggcrVersion      = ggcrProduct
 )
 
 const (
-	defaultUserAgent = "go-containerregistry"
-	moduleName       = "github.com/google/go-containerregistry"
+	ggcrProduct = "go-containerregistry"
+	moduleName  = "github.com/google/go-containerregistry"
 )
 
 type userAgentTransport struct {
@@ -40,7 +41,7 @@ type userAgentTransport struct {
 
 func init() {
 	if v := version(); v != "" {
-		ggcrVersion = fmt.Sprintf("%s/%s", defaultUserAgent, v)
+		ggcrVersion = fmt.Sprintf("%s/%s", ggcrProduct, v)
 	}
 }
 
@@ -77,6 +78,10 @@ func version() string {
 // User-Agent: crane/v0.1.4 go-containerregistry/v0.1.4
 func NewUserAgent(inner http.RoundTripper, ua string) http.RoundTripper {
 	if ua == "" {
+		ua = defaultUserAgent
+	}
+	// defaultUserAgent might not be set, so check this again.
+	if ua == "" {
 		ua = ggcrVersion
 	} else {
 		ua = fmt.Sprintf("%s %s", ua, ggcrVersion)
@@ -91,4 +96,12 @@ func NewUserAgent(inner http.RoundTripper, ua string) http.RoundTripper {
 func (ut *userAgentTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 	in.Header.Set("User-Agent", ut.ua)
 	return ut.inner.RoundTrip(in)
+}
+
+// SetDefaultUserAgent sets the global default user agent string.
+// Default user agent behavior follows that of [NewUserAgent], in that the resulting
+// user agent string will include both the provided user agent and the go-containerregistry
+// version.
+func SetDefaultUserAgent(ua string) {
+	defaultUserAgent = ua
 }
