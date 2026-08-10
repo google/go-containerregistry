@@ -29,6 +29,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-containerregistry/internal/verify"
+	"github.com/google/go-containerregistry/pkg/compression"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/match"
@@ -1490,4 +1491,84 @@ func TestTimeVerifiesLayerDigest(t *testing.T) {
 			t.Fatalf("Time of honest layer failed: %v", err)
 		}
 	})
+}
+
+func canonicalSource(t *testing.T, layerMT types.MediaType, comp compression.Compression) v1.Image {
+	t.Helper()
+	b := makeTarBytes(t, "app/hello.txt", "hello world")
+	l, err := tarball.LayerFromOpener(
+		func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(b)), nil },
+		tarball.WithMediaType(layerMT), tarball.WithCompression(comp),
+	)
+	if err != nil {
+		t.Fatalf("LayerFromOpener: %v", err)
+	}
+	img, err := mutate.Append(empty.Image, mutate.Addendum{Layer: l})
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	return img
+}
+
+func canonicalLayer(t *testing.T, img v1.Image, opts ...tarball.LayerOption) (types.MediaType, []byte) {
+	t.Helper()
+	got, err := mutate.Canonical(img, opts...)
+	if err != nil {
+		t.Fatalf("Canonical: %v", err)
+	}
+	man, err := got.Manifest()
+	if err != nil {
+		t.Fatalf("Manifest: %v", err)
+	}
+	layers, err := got.Layers()
+	if err != nil {
+		t.Fatalf("Layers: %v", err)
+	}
+	rc, err := layers[0].Compressed()
+	if err != nil {
+		t.Fatalf("Compressed: %v", err)
+	}
+	defer rc.Close()
+	magic := make([]byte, 4)
+	if _, err := io.ReadFull(rc, magic); err != nil {
+		t.Fatalf("reading blob magic: %v", err)
+	}
+	return man.Layers[0].MediaType, magic
+}
+
+func TestCanonicalDefaultsToDockerGzip(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		layerMT types.MediaType
+		comp    compression.Compression
+	}{
+		{"docker gzip source", types.DockerLayer, compression.GZip},
+		{"oci gzip source", types.OCILayer, compression.GZip},
+		{"oci zstd source", types.OCILayerZStd, compression.ZStd},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mt, magic := canonicalLayer(t, canonicalSource(t, tc.layerMT, tc.comp))
+			if mt != types.DockerLayer {
+				t.Errorf("layer media type = %q, want %q", mt, types.DockerLayer)
+			}
+			if magic[0] != 0x1f || magic[1] != 0x8b {
+				t.Errorf("blob magic = %x, want gzip", magic)
+			}
+		})
+	}
+}
+
+func TestCanonicalLayerOptions(t *testing.T) {
+	img := canonicalSource(t, types.DockerLayer, compression.GZip)
+
+	mt, magic := canonicalLayer(t, img,
+		tarball.WithMediaType(types.OCILayerZStd),
+		tarball.WithCompression(compression.ZStd),
+	)
+	if mt != types.OCILayerZStd {
+		t.Errorf("layer media type = %q, want %q", mt, types.OCILayerZStd)
+	}
+	if !bytes.Equal(magic, []byte{0x28, 0xb5, 0x2f, 0xfd}) {
+		t.Errorf("blob magic = %x, want zstd", magic)
+	}
 }
