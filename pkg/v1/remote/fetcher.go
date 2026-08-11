@@ -17,6 +17,7 @@ package remote
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -174,10 +175,26 @@ func (f *fetcher) fetchManifest(ctx context.Context, ref name.Reference, accepta
 		return nil, nil, err
 	}
 
-	digest, size, err := v1.SHA256(bytes.NewReader(manifest))
+	// Hash with the algorithm of the reference when pulling by digest.
+	dgst, byDigest := ref.(name.Digest)
+	algo := "sha256"
+	if byDigest {
+		h, err := v1.NewHash(dgst.DigestStr())
+		if err != nil {
+			return nil, nil, err
+		}
+		algo = h.Algorithm
+	}
+	hasher, err := v1.Hasher(algo)
 	if err != nil {
 		return nil, nil, err
 	}
+	hasher.Write(manifest)
+	digest := v1.Hash{
+		Algorithm: algo,
+		Hex:       hex.EncodeToString(hasher.Sum(make([]byte, 0, hasher.Size()))),
+	}
+	size := int64(len(manifest))
 
 	mediaType := types.MediaType(resp.Header.Get("Content-Type"))
 	contentDigest, err := v1.NewHash(resp.Header.Get("Docker-Content-Digest"))
@@ -188,7 +205,7 @@ func (f *fetcher) fetchManifest(ctx context.Context, ref name.Reference, accepta
 	}
 
 	// Validate the digest matches what we asked for, if pulling by digest.
-	if dgst, ok := ref.(name.Digest); ok {
+	if byDigest {
 		if digest.String() != dgst.DigestStr() {
 			return nil, nil, fmt.Errorf("manifest digest: %q does not match requested digest: %q for %q", digest, dgst.DigestStr(), ref)
 		}
