@@ -114,10 +114,12 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		return layersExist(layers)
 	}
 
-	digests := []v1.Hash{}
-	diffids := []v1.Hash{}
-	udiffids := []v1.Hash{}
-	sizes := []int64{}
+	// Indexed by position in layers so that skipped (non-layer) entries do
+	// not shift later layers onto the wrong index.
+	digests := make([]v1.Hash, len(layers))
+	diffids := make([]v1.Hash, len(layers))
+	udiffids := make([]v1.Hash, len(layers))
+	sizes := make([]int64, len(layers))
 	for i, layer := range layers {
 		if mt, err := layer.MediaType(); err != nil {
 			return fmt.Errorf("getting mediaType[%d]: %w", i, err)
@@ -141,10 +143,10 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		}
 		// Compute all of these first before we call Config() and Manifest() to allow
 		// for lazy access e.g. for stream.Layer.
-		digests = append(digests, cl.digest)
-		diffids = append(diffids, cl.diffid)
-		udiffids = append(udiffids, cl.uncompressedDiffid)
-		sizes = append(sizes, cl.size)
+		digests[i] = cl.digest
+		diffids[i] = cl.diffid
+		udiffids[i] = cl.uncompressedDiffid
+		sizes[i] = cl.size
 	}
 
 	cf, err := img.ConfigFile()
@@ -204,7 +206,9 @@ func validateLayers(img v1.Image, opt ...Option) error {
 			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Uncompressed())=%s", i, diffid, udiffids[i]))
 		}
 
-		if cf.RootFS.DiffIDs[i] != diffids[i] {
+		if i >= len(cf.RootFS.DiffIDs) {
+			errs = append(errs, fmt.Sprintf("missing layer[%d] diffid: len(ConfigFile.RootFS.DiffIDs)=%d", i, len(cf.RootFS.DiffIDs)))
+		} else if cf.RootFS.DiffIDs[i] != diffids[i] {
 			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: ConfigFile.RootFS.DiffIDs[%d]=%s, SHA256(Gunzip(Compressed()))=%s", i, i, cf.RootFS.DiffIDs[i], diffids[i]))
 		}
 

@@ -73,6 +73,24 @@ func validateChildren(idx v1.ImageIndex, opt ...Option) error {
 			if err != nil {
 				return err
 			}
+			artifact := desc.ArtifactType != ""
+			if !artifact {
+				if artifact, err = isArtifact(img); err != nil {
+					return err
+				}
+			}
+			if artifact {
+				// Artifact manifests (e.g. BuildKit attestations) are not
+				// images and cannot satisfy image invariants; validate their
+				// structure instead.
+				if err := validateArtifact(img, opt...); err != nil {
+					errs = append(errs, fmt.Sprintf("failed to validate artifact Manifests[%d](%s): %v", i, desc.Digest, err))
+				}
+				if err := validateMediaType(img, desc.MediaType); err != nil {
+					errs = append(errs, fmt.Sprintf("failed to validate artifact MediaType[%d](%s): %v", i, desc.Digest, err))
+				}
+				continue
+			}
 			if err := Image(img, opt...); err != nil {
 				errs = append(errs, fmt.Sprintf("failed to validate image Manifests[%d](%s): %v", i, desc.Digest, err))
 			}
