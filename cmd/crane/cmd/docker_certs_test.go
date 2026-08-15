@@ -87,12 +87,18 @@ func TestLoadDockerCertsDirRequiresClientKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := loadDockerCertsDir(dir, &tls.Config{})
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+
+	err = loadDockerCertsRoot(root, &tls.Config{})
 	if err == nil {
-		t.Fatal("loadDockerCertsDir returned nil, want missing key error")
+		t.Fatal("loadDockerCertsRoot returned nil, want missing key error")
 	}
 	if !strings.Contains(err.Error(), "missing key client.key") {
-		t.Fatalf("loadDockerCertsDir error = %v, want missing key", err)
+		t.Fatalf("loadDockerCertsRoot error = %v, want missing key", err)
 	}
 }
 
@@ -111,51 +117,53 @@ func TestDockerCertsHostRejectsPathSeparators(t *testing.T) {
 	}
 }
 
-func TestDockerCertsHostDirFindsExistingHostDirectory(t *testing.T) {
+func TestDockerCertsHostRootFindsExistingHostDirectory(t *testing.T) {
 	dir := t.TempDir()
 	host := "registry.example.com:443"
 	if err := os.Mkdir(filepath.Join(dir, host), 0o700); err != nil {
 		t.Fatal(err)
 	}
 
-	path, ok, err := dockerCertsHostDir(dir, host)
+	root, ok, err := dockerCertsHostRoot(dir, host)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !ok {
-		t.Fatal("dockerCertsHostDir did not find existing host directory")
+		t.Fatal("dockerCertsHostRoot did not find existing host directory")
 	}
-	if want := filepath.Join(dir, host); path != want {
-		t.Fatalf("dockerCertsHostDir path = %q, want %q", path, want)
+	defer root.Close()
+	if root.Name() != filepath.Join(dir, host) {
+		t.Fatalf("dockerCertsHostRoot path = %q, want %q", root.Name(), filepath.Join(dir, host))
 	}
 }
 
-func TestDockerCertsHostDirIgnoresMissingHostDirectory(t *testing.T) {
-	path, ok, err := dockerCertsHostDir(t.TempDir(), "registry.example.com")
+func TestDockerCertsHostRootIgnoresMissingHostDirectory(t *testing.T) {
+	root, ok, err := dockerCertsHostRoot(t.TempDir(), "registry.example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if ok {
-		t.Fatalf("dockerCertsHostDir ok = true for missing host directory at %q", path)
+		defer root.Close()
+		t.Fatalf("dockerCertsHostRoot ok = true for missing host directory at %q", root.Name())
 	}
 }
 
-func TestDockerCertFilePathRejectsPathSeparators(t *testing.T) {
+func TestValidateDockerCertPathComponentRejectsPathSeparators(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := dockerCertFilePath(dir, filepath.Join(dir, "ca.crt")); err == nil {
-		t.Fatal("dockerCertFilePath returned nil error for absolute file")
+	if err := validateDockerCertPathComponent(filepath.Join(dir, "ca.crt"), "file"); err == nil {
+		t.Fatal("validateDockerCertPathComponent returned nil error for absolute file")
 	}
-	if _, err := dockerCertFilePath(dir, ".."); err == nil {
-		t.Fatal("dockerCertFilePath returned nil error for parent-directory file")
+	if err := validateDockerCertPathComponent("..", "file"); err == nil {
+		t.Fatal("validateDockerCertPathComponent returned nil error for parent-directory file")
 	}
-	if _, err := dockerCertFilePath(dir, "../ca.crt"); err == nil {
-		t.Fatal("dockerCertFilePath returned nil error for path traversal file")
+	if err := validateDockerCertPathComponent("../ca.crt", "file"); err == nil {
+		t.Fatal("validateDockerCertPathComponent returned nil error for path traversal file")
 	}
-	if _, err := dockerCertFilePath(dir, "nested/ca.crt"); err == nil {
-		t.Fatal("dockerCertFilePath returned nil error for nested file")
+	if err := validateDockerCertPathComponent("nested/ca.crt", "file"); err == nil {
+		t.Fatal("validateDockerCertPathComponent returned nil error for nested file")
 	}
-	if _, err := dockerCertFilePath(dir, `nested\ca.crt`); err == nil {
-		t.Fatal("dockerCertFilePath returned nil error for backslash-separated file")
+	if err := validateDockerCertPathComponent(`nested\ca.crt`, "file"); err == nil {
+		t.Fatal("validateDockerCertPathComponent returned nil error for backslash-separated file")
 	}
 }
 
