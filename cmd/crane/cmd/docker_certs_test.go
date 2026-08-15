@@ -106,10 +106,45 @@ func TestDockerCertsHostRejectsPathSeparators(t *testing.T) {
 	if _, err := dockerCertsHost("registry.example.com/nested"); err == nil {
 		t.Fatal("dockerCertsHost returned nil error for nested host")
 	}
+	if _, err := dockerCertsHost(`registry.example.com\nested`); err == nil {
+		t.Fatal("dockerCertsHost returned nil error for backslash-separated host")
+	}
+}
+
+func TestDockerCertsHostDirFindsExistingHostDirectory(t *testing.T) {
+	dir := t.TempDir()
+	host := "registry.example.com:443"
+	if err := os.Mkdir(filepath.Join(dir, host), 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	path, ok, err := dockerCertsHostDir(dir, host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ok {
+		t.Fatal("dockerCertsHostDir did not find existing host directory")
+	}
+	if want := filepath.Join(dir, host); path != want {
+		t.Fatalf("dockerCertsHostDir path = %q, want %q", path, want)
+	}
+}
+
+func TestDockerCertsHostDirIgnoresMissingHostDirectory(t *testing.T) {
+	path, ok, err := dockerCertsHostDir(t.TempDir(), "registry.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok {
+		t.Fatalf("dockerCertsHostDir ok = true for missing host directory at %q", path)
+	}
 }
 
 func TestDockerCertFilePathRejectsPathSeparators(t *testing.T) {
 	dir := t.TempDir()
+	if _, err := dockerCertFilePath(dir, filepath.Join(dir, "ca.crt")); err == nil {
+		t.Fatal("dockerCertFilePath returned nil error for absolute file")
+	}
 	if _, err := dockerCertFilePath(dir, ".."); err == nil {
 		t.Fatal("dockerCertFilePath returned nil error for parent-directory file")
 	}
@@ -118,6 +153,9 @@ func TestDockerCertFilePathRejectsPathSeparators(t *testing.T) {
 	}
 	if _, err := dockerCertFilePath(dir, "nested/ca.crt"); err == nil {
 		t.Fatal("dockerCertFilePath returned nil error for nested file")
+	}
+	if _, err := dockerCertFilePath(dir, `nested\ca.crt`); err == nil {
+		t.Fatal("dockerCertFilePath returned nil error for backslash-separated file")
 	}
 }
 
