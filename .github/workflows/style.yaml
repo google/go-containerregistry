@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: '.go-version'
-      - uses: chainguard-dev/actions/goimports@b2555de0cf9724fb9b49d050ff18bd1f49562ba7 # v1.6.29
+      - uses: chainguard-dev/actions/goimports@bed8050123fff65538e2db1902ff9404030c0221 # v1.6.31
 
   lint:
     name: Lint
@@ -39,10 +39,10 @@ jobs:
         with:
           version: v2.11
 
-      - uses: chainguard-dev/actions/trailing-space@b2555de0cf9724fb9b49d050ff18bd1f49562ba7 # v1.6.29
+      - uses: chainguard-dev/actions/trailing-space@bed8050123fff65538e2db1902ff9404030c0221 # v1.6.31
         if: ${{ always() }}
 
-      - uses: chainguard-dev/actions/eof-newline@b2555de0cf9724fb9b49d050ff18bd1f49562ba7 # v1.6.29
+      - uses: chainguard-dev/actions/eof-newline@bed8050123fff65538e2db1902ff9404030c0221 # v1.6.31
         if: ${{ always() }}
 
       - uses: reviewdog/action-misspell@d6429416b12b09b4e2768307d53bef58d172e962 # v1
