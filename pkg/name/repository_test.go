@@ -27,12 +27,19 @@ var goodStrictValidationRepositoryNames = []string{
 	"example.text/foo/bar",
 	"mirror.gcr.io/ubuntu",
 	"index.docker.io/library/ubuntu",
+	// A path component may be a single character:
+	// path-component := alpha-numeric [separator alpha-numeric]*
+	// alpha-numeric  := /[a-z0-9]+/
+	"example.com/a",
+	"example.com/a/b",
 }
 
 var goodWeakValidationRepositoryNames = []string{
 	"namespace/pathcomponent/image",
 	"library/ubuntu",
 	"ubuntu",
+	"a",
+	"0",
 }
 
 var badRepositoryNames = []string{
