@@ -36,3 +36,4 @@ options:
   requestedVerifyOption: VERIFIED
   sourceProvenanceHash:
   - FILE_HASH
+

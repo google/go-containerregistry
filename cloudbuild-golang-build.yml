@@ -93,3 +93,4 @@ dependencies:
     revision: "${_LOUHI_REF_SHA}"
     branch: "main"
     destPath: "go-containerregistry"
+
