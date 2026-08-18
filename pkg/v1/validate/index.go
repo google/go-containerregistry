@@ -182,6 +182,14 @@ func validatePlatform(img v1.Image, want *v1.Platform) error {
 		return nil
 	}
 
+	m, err := img.Manifest()
+	if err != nil {
+		return err
+	}
+	if !m.Config.MediaType.IsConfig() {
+		return nil
+	}
+
 	cf, err := img.ConfigFile()
 	if err != nil {
 		return err
@@ -207,8 +215,8 @@ func validatePlatform(img v1.Image, want *v1.Platform) error {
 		errs = append(errs, fmt.Sprintf("mismatched Architecture: %s != %s", got.Architecture, want.Architecture))
 	}
 
-	if got.OSVersion != want.OSVersion {
-		errs = append(errs, fmt.Sprintf("mismatched OSVersion: %s != %s", got.OSVersion, want.OSVersion))
+	if got.Variant != want.Variant {
+		errs = append(errs, fmt.Sprintf("mismatched Variant: %s != %s", got.Variant, want.Variant))
 	}
 
 	if got.OSVersion != want.OSVersion {
