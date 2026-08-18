@@ -1,0 +1,95 @@
+steps:
+- name: "${_GO_BUILDER_IMAGE}"
+  id: Build_Go_Binary
+  entrypoint: 'bash'
+  env:
+    - 'GOPROXY=https://us-go.pkg.dev/artifact-foundry-prod/golang-3p-trusted'
+    - 'GOSUMDB=off'
+  args:
+    - '-c'
+    - |
+      set -e
+      export PATH=$$PATH:$(go env GOPATH)/bin
+      mkdir -p $(go env GOPATH)
+
+      echo "--- Installing tools ---"
+      (export GOPROXY=https://proxy.golang.org,direct && \
+       go install github.com/GoogleCloudPlatform/artifact-registry-go-tools/cmd/auth@latest && \
+       go install github.com/jstemmer/go-junit-report@latest)
+
+      echo "--- Setting up Artifact Registry Go auth for Airlock ---"
+      (export GOPROXY=https://proxy.golang.org,direct && \
+       go run github.com/GoogleCloudPlatform/artifact-registry-go-tools/cmd/auth@latest add-locations --locations=us && \
+       go run github.com/GoogleCloudPlatform/artifact-registry-go-tools/cmd/auth@latest refresh)
+
+      export GOPROXY=https://us-go.pkg.dev/artifact-foundry-prod/golang-3p-trusted,https://proxy.golang.org,direct
+      export GOSUMDB=off
+
+      cd /workspace/${_SRC_DIR}
+
+      echo "--- Cleaning Go cache ---"
+      go clean -cache -modcache
+
+      echo "--- Downloading Go modules (via Airlock) ---"
+      go mod download
+
+      echo "--- Running tests and generating coverage ---"
+      go test ./... -v -coverprofile=/workspace/coverage.out 2>&1 | go-junit-report > /workspace/test-results.xml
+      echo "--- Generating HTML coverage report ---"
+      go tool cover -html=/workspace/coverage.out -o /workspace/coverage.html
+
+      echo "--- Cross-compiling ${_OUTPUT_BINARY} for the 6 target platforms ---"
+      mkdir -p /workspace/louhi_ws/bin
+
+      targets=(
+        "linux:amd64::linux_amd64"
+        "linux:arm64::linux_arm64"
+        "linux:arm:7:linux_armv7"
+        "linux:s390x::linux_s390x"
+        "linux:ppc64le::linux_ppc64le"
+        "linux:riscv64::linux_riscv64"
+      )
+
+      for target in "${targets[@]}"; do
+        IFS=':' read -r os arch arm suffix <<< "$target"
+        out_dir="/workspace/louhi_ws/bin/${suffix}"
+        mkdir -p "$out_dir"
+        echo "Building for GOOS=$os GOARCH=$arch GOARM=$arm -> $out_dir/${_OUTPUT_BINARY}..."
+        CGO_ENABLED=0 GOOS=$os GOARCH=$arch GOARM=$arm go build -o "$out_dir/${_OUTPUT_BINARY}" .
+        if [ "$suffix" = "linux_arm64" ]; then
+          cp -r "$out_dir" "/workspace/louhi_ws/bin/linux_arm64v8"
+        fi
+      done
+
+      echo "--- Preparing multi-arch Dockerfile ---"
+      cat <<EOF > /workspace/louhi_ws/Dockerfile
+      FROM gcr.io/distroless/static:nonroot
+      ARG TARGETOS
+      ARG TARGETARCH
+      ARG TARGETVARIANT
+      WORKDIR /
+      COPY bin/\$${TARGETOS}_\$${TARGETARCH}\$${TARGETVARIANT}/${_OUTPUT_BINARY} /${_OUTPUT_BINARY}
+      USER 65532:65532
+      ENTRYPOINT ["/${_OUTPUT_BINARY}"]
+      EOF
+
+      ls -lR /workspace/louhi_ws/
+artifacts:
+  objects:
+    location: 'gs://${_ARTIFACTS_BUCKET}/${_OUTPUT_BINARY}-test-results/$BUILD_ID/'
+    paths:
+      - '/workspace/coverage.html'
+      - '/workspace/coverage.out'
+  testResults:
+    bucketUri: 'gs://${_ARTIFACTS_BUCKET}/${_OUTPUT_BINARY}-test-results/'
+    paths: ['test-results.xml']
+    format: JUNIT
+
+# Consume centrally hosted Source Mirrors
+dependencies:
+- gitSource:
+    repository:
+      url: "https://artifact-registry.git.corp.google.com/github.com/google/go-containerregistry"
+    revision: "${_LOUHI_REF_SHA}"
+    branch: "main"
+    destPath: "go-containerregistry"

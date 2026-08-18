@@ -1,0 +1,38 @@
+steps:
+- name: 'gcr.io/louhi-prod-1/louhi-helper-v2'
+  id: Dependency_Location_Scan
+  entrypoint: 'java'
+  args:
+  - "-jar"
+  - "/app.jar"
+  - "secure_content_scan"
+  - "--allowed_prefixes"
+  - "${_ALLOWED_PREFIXES}"
+  results:
+    - name: "allowed_uri_prefix"
+      attestationContent: "allowed_uri_prefix"
+      attestationType: "https://bcid.corp.google.com/build-content-restrictions/v0.1"
+- name: '${_DOCKER_BUILDER_IMAGE}'
+  id: Build_Docker_Image
+  entrypoint: 'sh'
+  args:
+    - '-c'
+    - |
+      set -e
+      docker buildx create --name multiarch-builder --use
+      docker buildx build \
+        --platform linux/amd64,linux/arm64,linux/arm/v7,linux/s390x,linux/ppc64le,linux/riscv64 \
+        --output=type=oci,dest=/workspace/louhi_ws/image.tar \
+        --provenance=false \
+        .
+  dir: '/workspace/louhi_ws'
+artifacts:
+  oci:
+  - file: '/workspace/louhi_ws/image.tar'
+    registryPath: '${_IMAGE_NAME}:${_LOUHI_REF_SHA}'
+options:
+  sbom_generation:
+    gcs_destination: "gs://${_ARTIFACTS_BUCKET}/${_SBOM_PREFIX}-sboms"
+  requestedVerifyOption: VERIFIED
+  sourceProvenanceHash:
+  - FILE_HASH
