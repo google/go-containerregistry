@@ -30,6 +30,10 @@ steps:
       echo "--- Cleaning Go cache ---"
       go clean -cache -modcache
 
+      echo "--- Cleaning up workspace from previous builds ---"
+      rm -rf /workspace/louhi_ws/bin /workspace/louhi_ws/Dockerfile /workspace/louhi_ws/image.tar
+      mkdir -p /workspace/louhi_ws/bin
+
       echo "--- Downloading Go modules (via Airlock) ---"
       go mod download
 
@@ -39,7 +43,6 @@ steps:
       go tool cover -html=/workspace/coverage.out -o /workspace/coverage.html
 
       echo "--- Cross-compiling ${_OUTPUT_BINARY} for the 6 target platforms ---"
-      mkdir -p /workspace/louhi_ws/bin
 
       targets=(
         "linux:amd64::linux_amd64"
@@ -63,7 +66,7 @@ steps:
 
       echo "--- Preparing multi-arch Dockerfile ---"
       cat <<EOF > /workspace/louhi_ws/Dockerfile
-      FROM gcr.io/distroless/static:nonroot
+      FROM ${_BASE_IMAGE}
       ARG TARGETOS
       ARG TARGETARCH
       ARG TARGETVARIANT
@@ -74,6 +77,13 @@ steps:
       EOF
 
       ls -lR /workspace/louhi_ws/
+substitutions:
+  _OUTPUT_BINARY: 'gcrane'
+  _SRC_DIR: 'go-containerregistry/cmd/gcrane'
+  _ARTIFACTS_BUCKET: 'go-containerregistry-louhi-artifacts'
+  _GO_BUILDER_IMAGE: 'golang:1.25.6'
+  _BASE_IMAGE: 'gcr.io/distroless/static:nonroot'
+  _LOUHI_REF_SHA: 'main'
 artifacts:
   objects:
     location: 'gs://${_ARTIFACTS_BUCKET}/${_OUTPUT_BINARY}-test-results/$BUILD_ID/'
@@ -91,6 +101,4 @@ dependencies:
     repository:
       url: "https://artifact-registry.git.corp.google.com/github.com/google/go-containerregistry"
     revision: "${_LOUHI_REF_SHA}"
-    branch: "main"
     destPath: "go-containerregistry"
-
