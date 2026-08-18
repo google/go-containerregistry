@@ -26,6 +26,13 @@ steps:
         --provenance=false \
         .
   dir: '/workspace/louhi_ws'
+substitutions:
+  _DOCKER_BUILDER_IMAGE: 'docker:26.1.1-cli'
+  _ARTIFACTS_BUCKET: 'go-containerregistry-louhi-artifacts'
+  _SBOM_PREFIX: 'gcrane'
+  _IMAGE_NAME: 'us-docker.pkg.dev/go-containerregistry/gcr-dev/gcrane'
+  _LOUHI_REF_SHA: 'main'
+  _ALLOWED_PREFIXES: 'https://us-go.pkg.dev/artifact-foundry-prod/golang-3p-trusted,https://github.com/,gcr.io/distroless/,https://dl.google.com/,https://deb.debian.org/,us-docker.pkg.dev/artifact-foundry-prod/docker-3p-trusted/'
 artifacts:
   oci:
   - file: '/workspace/louhi_ws/image.tar'
@@ -36,4 +43,3 @@ options:
   requestedVerifyOption: VERIFIED
   sourceProvenanceHash:
   - FILE_HASH
-
