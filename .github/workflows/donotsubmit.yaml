@@ -17,4 +17,4 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       with:
         persist-credentials: false
-    - uses: chainguard-dev/actions/donotsubmit@b2555de0cf9724fb9b49d050ff18bd1f49562ba7 # v1.6.29
+    - uses: chainguard-dev/actions/donotsubmit@bed8050123fff65538e2db1902ff9404030c0221 # v1.6.31
