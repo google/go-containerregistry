@@ -49,7 +49,7 @@ func TestImage_EmptyConfig(t *testing.T) {
 	}
 }
 
-func TestImage_FewerDiffIDs_NoPanic(t *testing.T) {
+func TestImage_FewerDiffIDs(t *testing.T) {
 	img, err := random.Image(1024, 3)
 	if err != nil {
 		t.Fatalf("random.Image: %v", err)
