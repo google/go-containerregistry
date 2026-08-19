@@ -4,8 +4,10 @@ module github.com/google/go-containerregistry/pkg/authn/k8schain
 //
 // DO NOT change this version unless support for older Go versions is dropped
 // or the module requires newer Go features. To update the version used for CI
-// and releases, update the ".go-version" file at the root of this repository.
+// and releases, update the toolchain directive.
 go 1.26.0
+
+toolchain go1.26.6
 
 replace (
 	github.com/google/go-containerregistry => ../../../

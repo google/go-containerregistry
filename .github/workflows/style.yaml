@@ -7,9 +7,6 @@ on:
 permissions:
   contents: read
 
-env:
-  GOTOOLCHAIN: local
-
 jobs:
 
   goimports:
@@ -21,7 +18,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: '.go-version'
+          go-version-file: 'go.mod'
       - uses: chainguard-dev/actions/goimports@bed8050123fff65538e2db1902ff9404030c0221 # v1.6.31
 
   lint:
@@ -34,7 +31,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: '.go-version'
+          go-version-file: 'go.mod'
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.11

@@ -4,8 +4,10 @@ module github.com/google/go-containerregistry
 //
 // DO NOT change this version unless support for older Go versions is dropped
 // or the module requires newer Go features. To update the version used for CI
-// and releases, update the ".go-version" file at the root of this repository.
+// and releases, update the toolchain directive.
 go 1.25.0
+
+toolchain go1.26.6
 
 require (
 	github.com/docker/cli v29.7.2+incompatible
