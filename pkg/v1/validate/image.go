@@ -236,7 +236,7 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		if len(cf.RootFS.DiffIDs) != len(layerDiffIDs) {
 			errs = append(errs, fmt.Sprintf("mismatched number of diffids: len(ConfigFile.RootFS.DiffIDs)=%d, len(layers)=%d", len(cf.RootFS.DiffIDs), len(layerDiffIDs)))
 		}
-		for j := 0; j < len(layerDiffIDs); j++ {
+		for j := 0; j < len(cf.RootFS.DiffIDs) && j < len(layerDiffIDs); j++ {
 			if cf.RootFS.DiffIDs[j] != layerDiffIDs[j] {
 				errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: ConfigFile.RootFS.DiffIDs[%d]=%s, SHA256(Gunzip(Compressed()))=%s", j, j, cf.RootFS.DiffIDs[j], layerDiffIDs[j]))
 			}

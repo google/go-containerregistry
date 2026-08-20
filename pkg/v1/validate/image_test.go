@@ -49,31 +49,64 @@ func TestImage_EmptyConfig(t *testing.T) {
 	}
 }
 
-func TestImage_FewerDiffIDs(t *testing.T) {
-	img, err := random.Image(1024, 3)
+func TestImage_DiffIDCount(t *testing.T) {
+	base, err := random.Image(1024, 3)
 	if err != nil {
 		t.Fatalf("random.Image: %v", err)
 	}
-
-	// Image config declares fewer diff IDs than layers.
-	img, err = mutate.ConfigFile(img, &v1.ConfigFile{
-		RootFS: v1.RootFS{
-			Type: "layers",
-			DiffIDs: []v1.Hash{
-				{Algorithm: "sha256", Hex: strings.Repeat("a", 64)},
+	cs := []struct {
+		name   string
+		config *v1.ConfigFile
+	}{
+		{
+			name: "fewer diffs",
+			config: &v1.ConfigFile{
+				RootFS: v1.RootFS{
+					Type: "layers",
+					DiffIDs: []v1.Hash{
+						{Algorithm: "sha256", Hex: strings.Repeat("a", 64)},
+					},
+				},
 			},
 		},
-	})
-	if err != nil {
-		t.Fatalf("mutate.ConfigFile: %v", err)
+		{
+			name: "more diffs",
+			config: &v1.ConfigFile{
+				RootFS: v1.RootFS{
+					Type: "layers",
+					DiffIDs: []v1.Hash{
+						{Algorithm: "sha256", Hex: strings.Repeat("a", 64)},
+						{Algorithm: "sha256", Hex: strings.Repeat("b", 64)},
+						{Algorithm: "sha256", Hex: strings.Repeat("c", 64)},
+						{Algorithm: "sha256", Hex: strings.Repeat("d", 64)},
+					},
+				},
+			},
+		},
 	}
 
-	err = validate.Image(img)
-	if err == nil {
-		t.Fatal("validate.Image() expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "mismatched number of diffids") {
-		t.Errorf("expected 'mismatched number of diffids' in error, got %v", err)
+	for _, tc := range cs {
+		t.Run(tc.name, func(t *testing.T) {
+			img, err := mutate.ConfigFile(base, &v1.ConfigFile{
+				RootFS: v1.RootFS{
+					Type: "layers",
+					DiffIDs: []v1.Hash{
+						{Algorithm: "sha256", Hex: strings.Repeat("a", 64)},
+					},
+				},
+			})
+			if err != nil {
+				t.Fatalf("mutate.ConfigFile: %v", err)
+			}
+
+			err = validate.Image(img)
+			if err == nil {
+				t.Fatal("validate.Image() expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), "mismatched number of diffids") {
+				t.Errorf("expected 'mismatched number of diffids' in error, got %v", err)
+			}
+		})
 	}
 }
 
