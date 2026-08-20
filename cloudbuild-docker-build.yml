@@ -1,6 +1,7 @@
 steps:
 - name: 'gcr.io/louhi-prod-1/louhi-helper-v2'
   id: Dependency_Location_Scan
+  dir: '/workspace/louhi_ws'
   entrypoint: 'java'
   args:
   - "-jar"
@@ -28,18 +29,15 @@ steps:
   dir: '/workspace/louhi_ws'
 substitutions:
   _DOCKER_BUILDER_IMAGE: 'docker:26.1.1-cli'
-  _ARTIFACTS_BUCKET: 'go-containerregistry-louhi-artifacts'
-  _SBOM_PREFIX: 'gcrane'
   _IMAGE_NAME: 'us-docker.pkg.dev/go-containerregistry/gcr-dev/gcrane'
   _LOUHI_REF_SHA: 'main'
   _ALLOWED_PREFIXES: 'https://us-go.pkg.dev/artifact-foundry-prod/golang-3p-trusted,https://github.com/,gcr.io/distroless/,https://dl.google.com/,https://deb.debian.org/,us-docker.pkg.dev/artifact-foundry-prod/docker-3p-trusted/'
 artifacts:
   oci:
   - file: '/workspace/louhi_ws/image.tar'
-    registryPath: '${_IMAGE_NAME}:${_LOUHI_REF_SHA}'
+    registry_path: '${_IMAGE_NAME}:${_LOUHI_REF_SHA}'
 options:
-  sbom_generation:
-    gcs_destination: "gs://${_ARTIFACTS_BUCKET}/${_SBOM_PREFIX}-sboms"
+  substitutionOption: ALLOW_LOOSE
   requestedVerifyOption: VERIFIED
   sourceProvenanceHash:
-  - FILE_HASH
+  - SHA256
