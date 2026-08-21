@@ -84,16 +84,8 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 				cfg.Config.Labels = map[string]string{}
 			}
 
-			if err := validateKeyVals(labels); err != nil {
-				return err
-			}
-
 			for k, v := range labels {
 				cfg.Config.Labels[k] = v
-			}
-
-			if err := validateKeyVals(annotations); err != nil {
-				return err
 			}
 
 			// set envvars if specified
@@ -199,16 +191,6 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	// Using "set-platform" to avoid clobbering "platform" persistent flag.
 	mutateCmd.Flags().StringVar(&newPlatform, "set-platform", "", "New platform to set in the form os/arch[/variant][:osversion] (e.g. linux/amd64)")
 	return mutateCmd
-}
-
-// validateKeyVals ensures no values are empty, returns error if they are
-func validateKeyVals(kvPairs map[string]string) error {
-	for label, value := range kvPairs {
-		if value == "" {
-			return fmt.Errorf("parsing label %q, value is empty", label)
-		}
-	}
-	return nil
 }
 
 // setEnvVars override envvars in a config
