@@ -29,7 +29,7 @@ type Reference interface {
 	// Identifier accesses the type-specific portion of the reference.
 	Identifier() string
 
-	// Name is the fully-qualified reference name.
+	// Name is the fully qualified reference name.
 	Name() string
 
 	// Scope is the scope needed to access this reference.
