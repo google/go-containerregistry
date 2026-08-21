@@ -87,14 +87,7 @@ func TestImage_DiffIDCount(t *testing.T) {
 
 	for _, tc := range cs {
 		t.Run(tc.name, func(t *testing.T) {
-			img, err := mutate.ConfigFile(base, &v1.ConfigFile{
-				RootFS: v1.RootFS{
-					Type: "layers",
-					DiffIDs: []v1.Hash{
-						{Algorithm: "sha256", Hex: strings.Repeat("a", 64)},
-					},
-				},
-			})
+			img, err := mutate.ConfigFile(base, tc.config)
 			if err != nil {
 				t.Fatalf("mutate.ConfigFile: %v", err)
 			}
@@ -141,5 +134,138 @@ func TestImage_LeadingNonLayerBlob(t *testing.T) {
 
 	if err := validate.Image(img); err != nil {
 		t.Errorf("validate.Image() = %v, want nil", err)
+	}
+}
+
+func TestImage_ImageConfigMissingRootFSType(t *testing.T) {
+	img, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+	cf, err := img.ConfigFile()
+	if err != nil {
+		t.Fatalf("img.ConfigFile: %v", err)
+	}
+	cf = cf.DeepCopy()
+	cf.RootFS.Type = ""
+
+	img, err = mutate.ConfigFile(img, cf)
+	if err != nil {
+		t.Fatalf("mutate.ConfigFile: %v", err)
+	}
+
+	err = validate.Image(img)
+	if err == nil {
+		t.Fatal("validate.Image() expected error for image config with missing RootFS.Type, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid ConfigFile.RootFS.Type") {
+		t.Errorf("expected 'invalid ConfigFile.RootFS.Type' in error, got %v", err)
+	}
+}
+
+type manifestOverrideImage struct {
+	v1.Image
+	manifest *v1.Manifest
+}
+
+func (m *manifestOverrideImage) Manifest() (*v1.Manifest, error) {
+	return m.manifest, nil
+}
+
+func TestImage_CorruptedNonLayerBlobDigest(t *testing.T) {
+	nonLayer := static.NewLayer([]byte("in-toto attestation json"), types.MediaType("application/vnd.in-toto+json"))
+	img, err := mutate.AppendLayers(empty.Image, nonLayer)
+	if err != nil {
+		t.Fatalf("mutate.AppendLayers: %v", err)
+	}
+	img = mutate.ConfigMediaType(img, types.OCIEmptyJSON)
+	img, err = mutate.ConfigFile(img, &v1.ConfigFile{})
+	if err != nil {
+		t.Fatalf("mutate.ConfigFile: %v", err)
+	}
+
+	m, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("img.Manifest: %v", err)
+	}
+	mCopy := m.DeepCopy()
+	mCopy.Layers[0].Digest = v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("0", 64)}
+
+	badImg := &manifestOverrideImage{
+		Image:    img,
+		manifest: mCopy,
+	}
+
+	err = validate.Image(badImg)
+	if err == nil {
+		t.Fatal("validate.Image() expected error for corrupted non-layer blob digest, got nil")
+	}
+	if !strings.Contains(err.Error(), "mismatched layer[0] digest") {
+		t.Errorf("expected 'mismatched layer[0] digest' in error, got %v", err)
+	}
+}
+
+func TestImage_CorruptedNonLayerBlobSize(t *testing.T) {
+	nonLayer := static.NewLayer([]byte("in-toto attestation json"), types.MediaType("application/vnd.in-toto+json"))
+	img, err := mutate.AppendLayers(empty.Image, nonLayer)
+	if err != nil {
+		t.Fatalf("mutate.AppendLayers: %v", err)
+	}
+	img = mutate.ConfigMediaType(img, types.OCIEmptyJSON)
+	img, err = mutate.ConfigFile(img, &v1.ConfigFile{})
+	if err != nil {
+		t.Fatalf("mutate.ConfigFile: %v", err)
+	}
+
+	m, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("img.Manifest: %v", err)
+	}
+	mCopy := m.DeepCopy()
+	mCopy.Layers[0].Size = 1
+
+	badImg := &manifestOverrideImage{
+		Image:    img,
+		manifest: mCopy,
+	}
+
+	err = validate.Image(badImg)
+	if err == nil {
+		t.Fatal("validate.Image() expected error for corrupted non-layer blob size, got nil")
+	}
+	if !strings.Contains(err.Error(), "mismatched layer[0] size") {
+		t.Errorf("expected 'mismatched layer[0] size' in error, got %v", err)
+	}
+}
+
+func TestImage_CorruptedEmptyConfigSize(t *testing.T) {
+	img, err := random.Image(1024, 1)
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+	img, err = mutate.ConfigFile(img, &v1.ConfigFile{})
+	if err != nil {
+		t.Fatalf("mutate.ConfigFile: %v", err)
+	}
+	img = mutate.ConfigMediaType(img, types.OCIEmptyJSON)
+
+	m, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("img.Manifest: %v", err)
+	}
+	mCopy := m.DeepCopy()
+	mCopy.Config.Size = 99999
+
+	badImg := &manifestOverrideImage{
+		Image:    img,
+		manifest: mCopy,
+	}
+
+	err = validate.Image(badImg)
+	if err == nil {
+		t.Fatal("validate.Image() expected error for corrupted empty config size, got nil")
+	}
+	if !strings.Contains(err.Error(), "mismatched config size") {
+		t.Errorf("expected 'mismatched config size' in error, got %v", err)
 	}
 }
