@@ -8,6 +8,21 @@ substitutions:
   _DOCKER_BUILDER_IMAGE: 'docker:26.1.1-cli'
 
 steps:
+# Step 1: Run unit tests (Fail-Fast)
+- name: '${_GO_BUILDER_IMAGE}'
+  id: 'Run_Go_Tests'
+  entrypoint: 'bash'
+  env:
+  - 'GOPROXY=https://proxy.golang.org,direct'
+  - 'GOSUMDB=off'
+  args:
+  - '-c'
+  - |
+    set -e
+    echo "--- Running Go Tests ---"
+    cd "${_SRC_DIR}"
+    go test ./... -v
+
 - name: '${_GO_BUILDER_IMAGE}'
   id: 'Build_Go_Binary'
   entrypoint: 'bash'
