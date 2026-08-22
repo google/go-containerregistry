@@ -54,6 +54,14 @@ func mustNewTag(t *testing.T, s string) name.Tag {
 	return tag
 }
 
+func mustNewDigest(t *testing.T, s string) name.Digest {
+	digest, err := name.NewDigest(s, name.WeakValidation)
+	if err != nil {
+		t.Fatalf("NewDigest(%v) = %v", s, err)
+	}
+	return digest
+}
+
 func TestUrl(t *testing.T) {
 	tests := []struct {
 		tag  string
