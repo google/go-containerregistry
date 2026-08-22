@@ -56,3 +56,12 @@ func TestInsecureTransport(t *testing.T) {
 		t.Errorf("got: %t\nwant: %t", got, want)
 	}
 }
+
+func TestWithPageSize(t *testing.T) {
+	want := 1000 // default pageSize
+	opts := GetOptions(WithPageSize(want))
+
+	if got := opts.pageSize; got != want {
+		t.Errorf("got %d\nwant: %d", got, want)
+	}
+}
