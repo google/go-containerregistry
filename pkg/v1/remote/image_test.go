@@ -269,6 +269,55 @@ func TestRawConfigFileNotFound(t *testing.T) {
 	}
 }
 
+func TestRawConfigFileRejectsLargeConfigDescriptor(t *testing.T) {
+	img := randomImage(t)
+	expectedRepo := "foo/bar"
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, mustConfigName(t, img))
+
+	manifest := mustManifest(t, img)
+	manifest.Config.Size = configLimit + 1
+	rawManifest, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case manifestPath:
+			if r.Method != http.MethodGet {
+				t.Errorf("Method; got %v, want %v", r.Method, http.MethodGet)
+			}
+			w.Write(rawManifest)
+		case configPath:
+			t.Fatalf("RawConfigFile should reject large config before fetching %s", r.URL.Path)
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+
+	ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+	rmt := remoteImage{
+		ref: ref,
+		ctx: context.Background(),
+		fetcher: fetcher{
+			target: ref.Context(),
+			client: http.DefaultClient,
+		},
+	}
+
+	if _, err := rmt.RawConfigFile(); err == nil {
+		t.Fatal("RawConfigFile() = nil, want error")
+	} else if !strings.Contains(err.Error(), "config blob size") {
+		t.Errorf("RawConfigFile() = %v, want config size error", err)
+	}
+}
+
 func TestAcceptHeaders(t *testing.T) {
 	img := randomImage(t)
 	expectedRepo := "foo/bar"

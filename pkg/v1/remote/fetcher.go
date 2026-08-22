@@ -38,7 +38,19 @@ const (
 	kib           = 1024
 	mib           = 1024 * kib
 	manifestLimit = 100 * mib
+	configLimit   = 100 * mib
 )
+
+func readAllLimit(r io.Reader, limit int64) ([]byte, error) {
+	b, err := io.ReadAll(io.LimitReader(r, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > limit {
+		return nil, fmt.Errorf("response body exceeds %d bytes", limit)
+	}
+	return b, nil
+}
 
 // fetcher implements methods for reading from a registry.
 type fetcher struct {
