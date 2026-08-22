@@ -26,10 +26,11 @@ const (
 )
 
 type options struct {
-	strict          bool // weak by default
-	insecure        bool // secure by default
-	defaultRegistry string
-	defaultTag      string
+	strict           bool // weak by default
+	insecure         bool // secure by default
+	ignoreValidation bool // validation by default
+	defaultRegistry  string
+	defaultTag       string
 }
 
 func makeOptions(opts ...Option) options {
@@ -57,6 +58,13 @@ func StrictValidation(opts *options) {
 // StrictValidation.
 func WeakValidation(opts *options) {
 	opts.strict = false
+}
+
+// IgnoreValidation is an Option that does not require image references to be
+// valid. This is useful for testing purposes, but should not be used in
+// production code.
+func IgnoreValidation(opts *options) {
+	opts.ignoreValidation = true
 }
 
 // Insecure is an Option that allows image references to be fetched without TLS.
