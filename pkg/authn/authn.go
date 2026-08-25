@@ -89,10 +89,6 @@ func (a *AuthConfig) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements json.Marshaler
 func (a AuthConfig) MarshalJSON() ([]byte, error) {
 	shadow := (authConfig)(a)
-	// Only derive the auth field from the username and password when at least
-	// one of them is set. Otherwise an AuthConfig carrying only an already
-	// encoded Auth, or only a token, would have its auth field overwritten with
-	// the encoding of an empty username and password (":", i.e. "Og==").
 	if shadow.Username != "" || shadow.Password != "" {
 		shadow.Auth = encodeDockerConfigFieldAuth(shadow.Username, shadow.Password)
 	}
