@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2026 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,19 +62,19 @@ func parseLegacyIPv4(host string) (netip.Addr, bool) {
 	}
 	var b [4]byte
 	for i, part := range parts[:len(parts)-1] {
-		v, err := strconv.ParseUint(part, 0, 64)
-		if err != nil || v > 0xFF {
+		// bitsize 8 enforces the single-octet range before any conversion.
+		v, err := strconv.ParseUint(part, 0, 8)
+		if err != nil {
 			return netip.Addr{}, false
 		}
 		b[i] = byte(v)
 	}
-	last, err := strconv.ParseUint(parts[len(parts)-1], 0, 64)
-	if err != nil {
-		return netip.Addr{}, false
-	}
 	// The final part may fill as many bytes as remain, e.g. "127.1" -> 127.0.0.1;
-	// with four parts it must still be a single octet.
-	if last >= uint64(1)<<(8*(4-len(parts)+1)) {
+	// with four parts it must still be a single octet. The bitsize enforces the
+	// range before the conversion below.
+	lastBits := [...]int{32, 24, 16, 8}[len(parts)-1]
+	last, err := strconv.ParseUint(parts[len(parts)-1], 0, lastBits)
+	if err != nil {
 		return netip.Addr{}, false
 	}
 	v := uint32(last)

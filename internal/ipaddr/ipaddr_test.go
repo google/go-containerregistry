@@ -1,4 +1,4 @@
-// Copyright 2026 Google LLC
+// Copyright 2026 Google LLC All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,14 +25,14 @@ func TestParse(t *testing.T) {
 		want netip.Addr
 	}{
 		{"127.0.0.1", netip.MustParseAddr("127.0.0.1")},
-		{"2130706433", netip.MustParseAddr("127.0.0.1")},      // 32-bit decimal
-		{"0x7f000001", netip.MustParseAddr("127.0.0.1")},      // hex
-		{"127.1", netip.MustParseAddr("127.0.0.1")},           // partial dotted-quad
-		{"127.000.000.001", netip.MustParseAddr("127.0.0.1")}, // zero-padded
+		{"2130706433", netip.MustParseAddr("127.0.0.1")},       // 32-bit decimal
+		{"0x7f000001", netip.MustParseAddr("127.0.0.1")},       // hex
+		{"127.1", netip.MustParseAddr("127.0.0.1")},            // partial dotted-quad
+		{"127.000.000.001", netip.MustParseAddr("127.0.0.1")},  // zero-padded
 		{"2852039166", netip.MustParseAddr("169.254.169.254")}, // metadata as decimal
-		{"0177.0.0.1", netip.MustParseAddr("127.0.0.1")},      // octal
-		{"[::1]", netip.MustParseAddr("::1")},                 // brackets stripped by url.Hostname
-		{"fe80::1%25eth0", netip.MustParseAddr("fe80::1")},    // zone-qualified
+		{"0177.0.0.1", netip.MustParseAddr("127.0.0.1")},       // octal
+		{"[::1]", netip.MustParseAddr("::1")},                  // brackets stripped by url.Hostname
+		{"fe80::1%25eth0", netip.MustParseAddr("fe80::1")},     // zone-qualified
 		{"::ffff:127.0.0.1", netip.MustParseAddr("127.0.0.1")}, // IPv4-mapped
 	} {
 		// url.Hostname() strips IPv6 brackets; mimic that for the bracketed case.

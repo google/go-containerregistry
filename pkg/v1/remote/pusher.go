@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"sync"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -30,7 +32,6 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
 	"github.com/google/go-containerregistry/pkg/v1/types"
-	"golang.org/x/sync/errgroup"
 )
 
 type manifest interface {
