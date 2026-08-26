@@ -15,9 +15,8 @@
 package remote
 
 import (
-	"golang.org/x/sync/errgroup"
-
 	"github.com/google/go-containerregistry/pkg/name"
+	"golang.org/x/sync/errgroup"
 )
 
 // MultiWrite writes the given Images or ImageIndexes to the given refs, as
