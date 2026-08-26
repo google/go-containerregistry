@@ -21,13 +21,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
 	"sync"
 
+	"github.com/google/go-containerregistry/internal/ipaddr"
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/internal/retry"
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -193,10 +193,8 @@ func (w *writer) nextLocation(resp *http.Response) (string, error) {
 	// always allowed regardless of whether the registry IP is private.
 	origHost := resp.Request.URL.Hostname()
 	if destHost := resolved.Hostname(); destHost != origHost {
-		if ip := net.ParseIP(destHost); ip != nil {
-			if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
-				return "", fmt.Errorf("SSRF protection: Location header redirects to private/link-local host %q", destHost)
-			}
+		if ipaddr.IsPrivateOrLinkLocal(destHost) {
+			return "", fmt.Errorf("SSRF protection: Location header redirects to private/link-local host %q", destHost)
 		}
 	}
 
