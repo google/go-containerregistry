@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package ipaddr parses IP literals in every form accepted by the Go dialer,
-// including non-canonical legacy inet_aton encodings that net.ParseIP and
-// netip.ParseAddr reject.
 package ipaddr
 
 import (
