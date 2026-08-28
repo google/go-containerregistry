@@ -19,11 +19,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/google/go-containerregistry/internal/ipaddr"
 	"github.com/google/go-containerregistry/internal/limit"
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/internal/verify"
@@ -98,10 +98,8 @@ func checkRedirectSSRF(req *http.Request, via []*http.Request) error {
 	if destHost == origHost {
 		return nil // same-host redirect is always allowed
 	}
-	if ip := net.ParseIP(destHost); ip != nil {
-		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
-			return fmt.Errorf("SSRF protection: redirect from %q to private/link-local host %q denied", origHost, destHost)
-		}
+	if ipaddr.IsPrivateOrLinkLocal(destHost) {
+		return fmt.Errorf("SSRF protection: redirect from %q to private/link-local host %q denied", origHost, destHost)
 	}
 	return nil
 }
@@ -380,10 +378,8 @@ func validateForeignURL(rawURL string, insecure bool) error {
 		return fmt.Errorf("foreign layer URL scheme %q not allowed; must be https (or http for insecure registries)", u.Scheme)
 	}
 	host := u.Hostname()
-	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsPrivate() || ip.IsUnspecified() {
-			return fmt.Errorf("foreign layer URL host %q is a private or link-local address", host)
-		}
+	if ipaddr.IsPrivateOrLinkLocal(host) {
+		return fmt.Errorf("foreign layer URL host %q is a private or link-local address", host)
 	}
 	return nil
 }
