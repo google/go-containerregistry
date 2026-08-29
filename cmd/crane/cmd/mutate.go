@@ -103,8 +103,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 
 			// Set entrypoint.
 			if len(entrypoint) > 0 {
-				cfg.Config.Entrypoint = entrypoint
-				cfg.Config.Cmd = nil // This matches Docker's behavior.
+				setEntrypoint(cfg, entrypoint)
 			}
 
 			// Set cmd.
@@ -209,6 +208,10 @@ func validateKeyVals(kvPairs map[string]string) error {
 		}
 	}
 	return nil
+}
+
+func setEntrypoint(cfg *v1.ConfigFile, entrypoint []string) {
+	cfg.Config.Entrypoint = entrypoint
 }
 
 // setEnvVars override envvars in a config
