@@ -46,6 +46,19 @@ func TestAuthConfigMarshalJSON(t *testing.T) {
 			RegistryToken: "reg",
 		},
 		json: `{"username":"user","password":"pass","auth":"dXNlcjpwYXNz","identitytoken":"id","registrytoken":"reg"}`,
+	}, {
+		name: "auth field preserved when username and password are empty",
+		config: AuthConfig{
+			Auth: "dXNlcjpwYXNz",
+		},
+		json: `{"auth":"dXNlcjpwYXNz"}`,
+	}, {
+		name: "no auth field is invented for a token only config",
+		config: AuthConfig{
+			IdentityToken: "id",
+			RegistryToken: "reg",
+		},
+		json: `{"identitytoken":"id","registrytoken":"reg"}`,
 	}}
 
 	for _, tc := range cases {
