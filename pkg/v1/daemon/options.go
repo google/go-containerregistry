@@ -97,7 +97,7 @@ func WithFileBufferedOpener() Option {
 
 // WithClient is a functional option to allow injecting a docker client.
 //
-// By default, github.com/docker/docker/client.FromEnv is used.
+// By default, github.com/moby/moby/client.FromEnv is used.
 func WithClient(client Client) Option {
 	return func(o *options) {
 		o.client = client

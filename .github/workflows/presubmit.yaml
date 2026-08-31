@@ -23,9 +23,6 @@ on:
 permissions:
   contents: read
 
-env:
-  GOTOOLCHAIN: local
-
 jobs:
   presubmit:
     name: Presubmit
@@ -37,5 +34,5 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: '.go-version'
+          go-version-file: 'go.mod'
       - run: ./hack/presubmit.sh

@@ -7,9 +7,6 @@ on:
 permissions:
   contents: read
 
-env:
-  GOTOOLCHAIN: local
-
 jobs:
 
   goimports:
@@ -21,8 +18,8 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: '.go-version'
-      - uses: chainguard-dev/actions/goimports@b2555de0cf9724fb9b49d050ff18bd1f49562ba7 # v1.6.29
+          go-version-file: 'go.mod'
+      - uses: chainguard-dev/actions/goimports@0ffab11a71c1b7bd68ddf94665a8ec88b116223d # v1.6.33
 
   lint:
     name: Lint
@@ -34,15 +31,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version-file: '.go-version'
+          go-version-file: 'go.mod'
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.11
 
-      - uses: chainguard-dev/actions/trailing-space@b2555de0cf9724fb9b49d050ff18bd1f49562ba7 # v1.6.29
+      - uses: chainguard-dev/actions/trailing-space@0ffab11a71c1b7bd68ddf94665a8ec88b116223d # v1.6.33
         if: ${{ always() }}
 
-      - uses: chainguard-dev/actions/eof-newline@b2555de0cf9724fb9b49d050ff18bd1f49562ba7 # v1.6.29
+      - uses: chainguard-dev/actions/eof-newline@0ffab11a71c1b7bd68ddf94665a8ec88b116223d # v1.6.33
         if: ${{ always() }}
 
       - uses: reviewdog/action-misspell@d6429416b12b09b4e2768307d53bef58d172e962 # v1

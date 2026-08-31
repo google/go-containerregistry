@@ -9,9 +9,6 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  GOTOOLCHAIN: local
-
 jobs:
   bump-deps:
     name: Bump Deps
@@ -26,7 +23,7 @@ jobs:
         persist-credentials: false
     - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
       with:
-        go-version-file: '.go-version'
+        go-version-file: 'go.mod'
 
     - run: ./hack/bump-deps.sh
     - name: Create Pull Request

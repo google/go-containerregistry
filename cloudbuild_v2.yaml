@@ -1,0 +1,99 @@
+substitutions:
+  _SRC_DIR: 'cmd/gcrane'
+  _OUTPUT_BINARY: 'gcrane'
+  _IMAGE_NAME: 'us-docker.pkg.dev/go-containerregistry/gcr-dev/gcrane'
+  _BASE_IMAGE: 'gcr.io/distroless/static:nonroot'
+  _TAG: 'latest'
+  _GO_BUILDER_IMAGE: 'golang:1.25.6'
+  _DOCKER_BUILDER_IMAGE: 'docker:26.1.1-cli'
+
+steps:
+# Step 1: Run unit tests (Fail-Fast)
+- name: '${_GO_BUILDER_IMAGE}'
+  id: 'Run_Go_Tests'
+  entrypoint: 'bash'
+  env:
+  - 'GOPROXY=https://proxy.golang.org,direct'
+  - 'GOSUMDB=off'
+  args:
+  - '-c'
+  - |
+    set -e
+    echo "--- Running Go Tests ---"
+    cd "${_SRC_DIR}"
+    go test ./... -v
+
+- name: '${_GO_BUILDER_IMAGE}'
+  id: 'Build_Go_Binary'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    set -e
+    cd ${_SRC_DIR}
+
+    echo "--- Cleaning up workspace from previous builds ---"
+    rm -rf /workspace/build_ws/bin /workspace/build_ws/Dockerfile /workspace/build_ws/image.tar
+    mkdir -p /workspace/build_ws/bin
+
+    echo "--- Cross-compiling ${_OUTPUT_BINARY} for the 6 target platforms ---"
+
+    targets=(
+      "linux:amd64::linux_amd64"
+      "linux:arm64::linux_arm64"
+      "linux:arm:7:linux_armv7"
+      "linux:s390x::linux_s390x"
+      "linux:ppc64le::linux_ppc64le"
+      "linux:riscv64::linux_riscv64"
+    )
+
+    for target in "${targets[@]}"; do
+      IFS=':' read -r os arch arm suffix <<< "$target"
+      out_dir="/workspace/build_ws/bin/${suffix}"
+      mkdir -p "$out_dir"
+      echo "Building for GOOS=$os GOARCH=$arch GOARM=$arm -> $out_dir/${_OUTPUT_BINARY}..."
+      CGO_ENABLED=0 GOOS=$os GOARCH=$arch GOARM=$arm go build -o "$out_dir/${_OUTPUT_BINARY}" .
+      if [ "$suffix" = "linux_arm64" ]; then
+        cp -r "$out_dir" "/workspace/build_ws/bin/linux_arm64v8"
+      fi
+    done
+
+    echo "--- Preparing multi-arch Dockerfile ---"
+    cat <<EOF > /workspace/build_ws/Dockerfile
+    FROM ${_BASE_IMAGE}
+    ARG TARGETOS
+    ARG TARGETARCH
+    ARG TARGETVARIANT
+    WORKDIR /
+    COPY bin/\$${TARGETOS}_\$${TARGETARCH}\$${TARGETVARIANT}/${_OUTPUT_BINARY} /${_OUTPUT_BINARY}
+    USER 65532:65532
+    ENTRYPOINT ["/${_OUTPUT_BINARY}"]
+    EOF
+
+    ls -lR /workspace/build_ws/
+
+- name: '${_DOCKER_BUILDER_IMAGE}'
+  id: 'Build_Docker_Image'
+  entrypoint: 'sh'
+  dir: '/workspace/build_ws'
+  args:
+  - '-c'
+  - |
+    set -e
+    docker buildx create --name multiarch-builder --use
+    docker buildx build \
+      --platform linux/amd64,linux/arm64,linux/arm/v7,linux/s390x,linux/ppc64le,linux/riscv64 \
+      --output=type=oci,dest=/workspace/build_ws/image.tar \
+      --provenance=false \
+      .
+
+artifacts:
+  oci:
+  - file: '/workspace/build_ws/image.tar'
+    registry_path: '${_IMAGE_NAME}:${_TAG}'
+
+options:
+  substitutionOption: ALLOW_LOOSE
+  requestedVerifyOption: VERIFIED
+  sourceProvenanceHash:
+  - SHA256
