@@ -24,6 +24,7 @@ import (
 	"maps"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -548,6 +549,27 @@ func Time(img v1.Image, t time.Time, opts ...tarball.LayerOption) (v1.Image, err
 }
 
 func layerTime(layer v1.Layer, t time.Time, opts ...tarball.LayerOption) (v1.Layer, error) {
+	return &timeLayer{inner: layer, t: t, opts: opts}, nil
+}
+
+type timeLayer struct {
+	inner v1.Layer
+	t     time.Time
+	opts  []tarball.LayerOption
+
+	once     sync.Once
+	material v1.Layer
+	err      error
+}
+
+func (l *timeLayer) materialize() error {
+	l.once.Do(func() {
+		l.material, l.err = materializeLayerTime(l.inner, l.t, l.opts...)
+	})
+	return l.err
+}
+
+func materializeLayerTime(layer v1.Layer, t time.Time, opts ...tarball.LayerOption) (v1.Layer, error) {
 	layerReader, err := layer.Uncompressed()
 	if err != nil {
 		return nil, fmt.Errorf("getting layer: %w", err)
@@ -580,7 +602,6 @@ func layerTime(layer v1.Layer, t time.Time, opts ...tarball.LayerOption) (v1.Lay
 		}
 
 		if header.Typeflag == tar.TypeReg {
-			// TODO(#1168): This should be lazy, and not buffer the entire layer contents.
 			if _, err = io.CopyN(tarWriter, tarReader, header.Size); err != nil {
 				return nil, fmt.Errorf("writing layer file: %w", err)
 			}
@@ -601,12 +622,54 @@ func layerTime(layer v1.Layer, t time.Time, opts ...tarball.LayerOption) (v1.Lay
 	opener := func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(b)), nil
 	}
-	layer, err = tarball.LayerFromOpener(opener, opts...)
+	newLayer, err := tarball.LayerFromOpener(opener, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("creating layer: %w", err)
 	}
 
-	return layer, nil
+	return newLayer, nil
+}
+
+func (l *timeLayer) Compressed() (io.ReadCloser, error) {
+	if err := l.materialize(); err != nil {
+		return nil, err
+	}
+	return l.material.Compressed()
+}
+
+func (l *timeLayer) Uncompressed() (io.ReadCloser, error) {
+	if err := l.materialize(); err != nil {
+		return nil, err
+	}
+	return l.material.Uncompressed()
+}
+
+func (l *timeLayer) Size() (int64, error) {
+	if err := l.materialize(); err != nil {
+		return 0, err
+	}
+	return l.material.Size()
+}
+
+func (l *timeLayer) DiffID() (v1.Hash, error) {
+	if err := l.materialize(); err != nil {
+		return v1.Hash{}, err
+	}
+	return l.material.DiffID()
+}
+
+func (l *timeLayer) Digest() (v1.Hash, error) {
+	if err := l.materialize(); err != nil {
+		return v1.Hash{}, err
+	}
+	return l.material.Digest()
+}
+
+func (l *timeLayer) MediaType() (types.MediaType, error) {
+	if err := l.materialize(); err != nil {
+		return "", err
+	}
+	return l.material.MediaType()
 }
 
 // Canonical is a helper function to combine Time and configFile
