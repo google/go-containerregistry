@@ -24,11 +24,14 @@ import (
 
 const validDigest = "sha256:deadb33fdeadb33fdeadb33fdeadb33fdeadb33fdeadb33fdeadb33fdeadb33f"
 
+var validSHA512Digest = "sha512:" + strings.Repeat("deadb33f", 16)
+
 var goodStrictValidationDigestNames = []string{
 	"gcr.io/g-convoy/hello-world@" + validDigest,
 	"gcr.io/google.com/project-id/hello-world@" + validDigest,
 	"us.gcr.io/project-id/sub-repo@" + validDigest,
 	"example.text/foo/bar@" + validDigest,
+	"example.text/foo/bar@" + validSHA512Digest,
 }
 
 var goodStrictValidationTagDigestNames = []string{
@@ -40,6 +43,7 @@ var goodStrictValidationTagDigestNames = []string{
 var goodWeakValidationDigestNames = []string{
 	"namespace/pathcomponent/image@" + validDigest,
 	"library/ubuntu@" + validDigest,
+	"library/ubuntu@" + validSHA512Digest,
 }
 
 var goodWeakValidationTagDigestNames = []string{
@@ -50,6 +54,8 @@ var goodWeakValidationTagDigestNames = []string{
 var badDigestNames = []string{
 	"gcr.io/project-id/unknown-alg@unknown:abc123",
 	"gcr.io/project-id/wrong-length@sha256:d34db33fd34db33f",
+	"gcr.io/project-id/wrong-length@sha512:d34db33fd34db33f",
+	"gcr.io/project-id/unregistered-alg@md5:" + strings.Repeat("d", 32),
 	"gcr.io/project-id/missing-digest@",
 	// https://github.com/google/go-containerregistry/issues/1394
 	"repo@sha256:" + strings.Repeat(":", 64),

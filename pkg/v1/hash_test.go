@@ -25,6 +25,7 @@ func TestGoodHashes(t *testing.T) {
 	good := []string{
 		"sha256:deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 		"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"sha512:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 	}
 
 	for _, s := range good {
@@ -49,6 +50,8 @@ func TestBadHashes(t *testing.T) {
 	bad := []string{
 		// Too short
 		"sha256:deadbeef",
+		// Wrong length for the algorithm
+		"sha512:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		// Bad character
 		"sha256:o123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 		// Too many separators
