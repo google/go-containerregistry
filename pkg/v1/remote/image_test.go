@@ -106,6 +106,17 @@ func TestMediaType(t *testing.T) {
 	}
 }
 
+// mustDigestWith computes a digest string of b with the named algorithm.
+func mustDigestWith(t *testing.T, algo string, b []byte) string {
+	t.Helper()
+	hasher, err := v1.Hasher(algo)
+	if err != nil {
+		t.Fatalf("v1.Hasher(%q) = %v", algo, err)
+	}
+	hasher.Write(b)
+	return fmt.Sprintf("%s:%x", algo, hasher.Sum(nil))
+}
+
 func TestRawManifestDigests(t *testing.T) {
 	img := randomImage(t)
 	expectedRepo := "foo/bar"
@@ -147,6 +158,18 @@ func TestRawManifestDigests(t *testing.T) {
 		responseBody:  mustRawManifest(t, img),
 		contentDigest: bogusDigest,
 		wantErr:       false,
+	}, {
+		name:          "normal pull, by sha512 digest",
+		ref:           mustDigestWith(t, "sha512", mustRawManifest(t, img)),
+		responseBody:  mustRawManifest(t, img),
+		contentDigest: mustDigest(t, img).String(),
+		wantErr:       false,
+	}, {
+		name:          "wrong body, by sha512 digest",
+		ref:           mustDigestWith(t, "sha512", []byte("not the manifest")),
+		responseBody:  mustRawManifest(t, img),
+		contentDigest: mustDigest(t, img).String(),
+		wantErr:       true,
 	}}
 
 	for _, tc := range cases {

@@ -109,9 +109,18 @@ func TestDescriptor(t *testing.T) {
 	}{{
 		err: errors.New("error verifying descriptor; Data == nil"),
 	}, {
-		err: errors.New(`error verifying Digest; got "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", want ":"`),
+		err: errors.New(`unsupported hash: ""`),
 		desc: v1.Descriptor{
 			Data: []byte("abc"),
+		},
+	}, {
+		err: errors.New(`error verifying Digest; got "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", want "sha256:baadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d"`),
+		desc: v1.Descriptor{
+			Data: []byte("abc"),
+			Digest: v1.Hash{
+				Algorithm: "sha256",
+				Hex:       "baadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00dbaadf00d",
+			},
 		},
 	}, {
 		err: errors.New("error verifying Size; got 3, want 0"),
@@ -129,6 +138,15 @@ func TestDescriptor(t *testing.T) {
 			Digest: v1.Hash{
 				Algorithm: "sha256",
 				Hex:       "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+			},
+		},
+	}, {
+		desc: v1.Descriptor{
+			Data: []byte("abc"),
+			Size: 3,
+			Digest: v1.Hash{
+				Algorithm: "sha512",
+				Hex:       "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f",
 			},
 		},
 	}} {
