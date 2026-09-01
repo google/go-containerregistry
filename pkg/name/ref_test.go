@@ -15,6 +15,7 @@
 package name
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -115,6 +116,24 @@ func TestParseReference(t *testing.T) {
 	for _, name := range badTagNames {
 		if _, err := ParseReference(name, WeakValidation); err == nil {
 			t.Errorf("ParseReference(%q); expected error, got none", name)
+		}
+	}
+}
+
+func TestParseReferenceURLScheme(t *testing.T) {
+	for _, s := range []string{
+		"https://gcr.io/foo/bar",
+		"http://localhost:5000/foo",
+	} {
+		for _, opts := range [][]Option{nil, {WeakValidation}, {StrictValidation}} {
+			_, err := ParseReference(s, opts...)
+			if err == nil {
+				t.Errorf("ParseReference(%q, %v); expected error, got none", s, opts)
+				continue
+			}
+			if !strings.Contains(err.Error(), "URL scheme") {
+				t.Errorf("ParseReference(%q, %v); error %q should mention the URL scheme", s, opts, err)
+			}
 		}
 	}
 }
