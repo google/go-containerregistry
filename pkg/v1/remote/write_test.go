@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -1657,5 +1658,79 @@ func BenchmarkWrite(b *testing.B) {
 		if err != nil {
 			b.Fatalf("pushing tag one: %v", err)
 		}
+	}
+}
+
+// TestWriterRedirectSSRF verifies that the writer-side HTTP clients refuse to
+// follow a registry-initiated redirect to a private or loopback address,
+// mirroring the fetcher-side checkRedirectSSRF wiring.
+//
+// The victim server listens on IPv6 loopback ([::1]) while the fake registry
+// listens on 127.0.0.1, so the redirect is cross-host and its destination is
+// a loopback IP literal, which checkRedirectSSRF must reject before any
+// request reaches the victim.
+func TestWriterRedirectSSRF(t *testing.T) {
+	l, err := net.Listen("tcp", "[::1]:0")
+	if err != nil {
+		t.Skipf("IPv6 loopback unavailable: %v", err)
+	}
+	var victimHits int32
+	victim := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		atomic.AddInt32(&victimHits, 1)
+	}))
+	victim.Listener.Close()
+	victim.Listener = l
+	victim.Start()
+	defer victim.Close()
+
+	h, _, err := v1.SHA256(bytes.NewReader([]byte("blob")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedRepo := "foo/bar"
+	blobPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, h.String())
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v2/":
+			w.WriteHeader(http.StatusOK)
+		case blobPath, manifestPath:
+			http.Redirect(w, r, victim.URL+"/steal", http.StatusFound)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write path: the client created by makeWriter must reject the redirect.
+	o, err := makeOptions()
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo, err := name.NewRepository(fmt.Sprintf("%s/%s", u.Host, expectedRepo), name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := makeWriter(context.Background(), repo, nil, o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.checkExistingBlob(context.Background(), h); err == nil || !strings.Contains(err.Error(), "SSRF protection") {
+		t.Errorf("checkExistingBlob: expected SSRF protection error, got: %v", err)
+	}
+
+	// Delete path: the client created by makeDeleteClient must reject the redirect.
+	tag := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+	if err := Delete(tag); err == nil || !strings.Contains(err.Error(), "SSRF protection") {
+		t.Errorf("Delete: expected SSRF protection error, got: %v", err)
+	}
+
+	if n := atomic.LoadInt32(&victimHits); n != 0 {
+		t.Errorf("victim server received %d request(s); the redirect should have been blocked before any request was sent", n)
 	}
 }
