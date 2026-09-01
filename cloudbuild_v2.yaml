@@ -67,9 +67,10 @@ steps:
     ARG TARGETARCH
     ARG TARGETVARIANT
     WORKDIR /
-    COPY bin/\$${TARGETOS}_\$${TARGETARCH}\$${TARGETVARIANT}/${_OUTPUT_BINARY} /${_OUTPUT_BINARY}
+    ENV PATH="/ko-app:\${PATH}"
+    COPY bin/\$${TARGETOS}_\$${TARGETARCH}\$${TARGETVARIANT}/${_OUTPUT_BINARY} /ko-app/${_OUTPUT_BINARY}
     USER 65532:65532
-    ENTRYPOINT ["/${_OUTPUT_BINARY}"]
+    ENTRYPOINT ["/ko-app/${_OUTPUT_BINARY}"]
     EOF
 
     ls -lR /workspace/build_ws/
