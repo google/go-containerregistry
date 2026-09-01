@@ -5,7 +5,7 @@ on:
     tags: ['*']
 
 env:
-  GOTOOLCHAIN: local
+  GOTOOLCHAIN: auto
 
 jobs:
   goreleaser:
@@ -25,6 +25,14 @@ jobs:
           go-version-file: 'go.mod'
           check-latest: true # no-op if full version is specified
           cache: false
+      - name: Verify release Go version
+        run: |
+          expected="$(go mod edit -json | jq -r .Toolchain)"
+          actual="$(go env GOVERSION)"
+          if [[ "${actual}" != "${expected}" ]]; then
+            echo "Release Go version mismatch: got ${actual}, want ${expected}" >&2
+            exit 1
+          fi
       - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7.2.3
         id: run-goreleaser
         with:
