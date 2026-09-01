@@ -233,3 +233,24 @@ func TestAppend_ArtifactType(t *testing.T) {
 		})
 	}
 }
+
+func TestAppend_ArtifactType_Override(t *testing.T) {
+	img, err := random.Image(1, 1)
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+	wantArtifactType := "application/vnd.custom.override"
+	idx := mutate.AppendManifests(empty.Index, mutate.IndexAddendum{
+		Add: img,
+		Descriptor: v1.Descriptor{
+			ArtifactType: wantArtifactType,
+		},
+	})
+	mf, err := idx.IndexManifest()
+	if err != nil {
+		t.Fatalf("IndexManifest: %v", err)
+	}
+	if got := mf.Manifests[0].ArtifactType; got != wantArtifactType {
+		t.Errorf("manifest artifactType: got %q, want %q", got, wantArtifactType)
+	}
+}
