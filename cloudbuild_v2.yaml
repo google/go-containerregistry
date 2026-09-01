@@ -6,6 +6,8 @@ substitutions:
   _TAG: 'latest'
   _GO_BUILDER_IMAGE: 'golang:1.25.6'
   _DOCKER_BUILDER_IMAGE: 'docker:26.1.1-cli'
+  _REPO_URL: 'https://github.com/google/go-containerregistry'
+  _REVISION: 'main'
 
 steps:
 # Step 1: Run unit tests (Fail-Fast)
@@ -86,6 +88,13 @@ steps:
       --output=type=oci,dest=/workspace/build_ws/image.tar \
       --provenance=false \
       .
+
+dependencies:
+- gitSource:
+    repository:
+      url: '${_REPO_URL}'
+    revision: '${_REVISION}'
+    destPath: '.'
 
 artifacts:
   oci:

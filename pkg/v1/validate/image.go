@@ -68,16 +68,6 @@ func validateConfig(img v1.Image) error {
 		return err
 	}
 
-	cf, err := img.ConfigFile()
-	if err != nil {
-		return err
-	}
-
-	pcf, err := v1.ParseConfigFile(bytes.NewReader(rc))
-	if err != nil {
-		return err
-	}
-
 	errs := []string{}
 	if cn != hash {
 		errs = append(errs, fmt.Sprintf("mismatched config digest: ConfigName()=%s, SHA256(RawConfigFile())=%s", cn, hash))
@@ -87,12 +77,24 @@ func validateConfig(img v1.Image) error {
 		errs = append(errs, fmt.Sprintf("mismatched config size: Manifest.Config.Size()=%d, len(RawConfigFile())=%d", want, got))
 	}
 
-	if diff := cmp.Diff(pcf, cf); diff != "" {
-		errs = append(errs, fmt.Sprintf("mismatched config content: (-ParseConfigFile(RawConfigFile()) +ConfigFile()) %s", diff))
-	}
+	if m.Config.MediaType.IsConfig() {
+		cf, err := img.ConfigFile()
+		if err != nil {
+			return err
+		}
 
-	if cf.RootFS.Type != "layers" {
-		errs = append(errs, fmt.Sprintf("invalid ConfigFile.RootFS.Type: %q != %q", cf.RootFS.Type, "layers"))
+		pcf, err := v1.ParseConfigFile(bytes.NewReader(rc))
+		if err != nil {
+			return err
+		}
+
+		if diff := cmp.Diff(pcf, cf); diff != "" {
+			errs = append(errs, fmt.Sprintf("mismatched config content: (-ParseConfigFile(RawConfigFile()) +ConfigFile()) %s", diff))
+		}
+
+		if cf.RootFS.Type != "layers" {
+			errs = append(errs, fmt.Sprintf("invalid ConfigFile.RootFS.Type: %q != %q", cf.RootFS.Type, "layers"))
+		}
 	}
 
 	if len(errs) != 0 {
@@ -114,14 +116,24 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		return layersExist(layers)
 	}
 
-	digests := []v1.Hash{}
-	diffids := []v1.Hash{}
-	udiffids := []v1.Hash{}
-	sizes := []int64{}
+	digests := make([]v1.Hash, len(layers))
+	diffids := make([]v1.Hash, len(layers))
+	udiffids := make([]v1.Hash, len(layers))
+	sizes := make([]int64, len(layers))
 	for i, layer := range layers {
 		if mt, err := layer.MediaType(); err != nil {
 			return fmt.Errorf("getting mediaType[%d]: %w", i, err)
 		} else if !mt.IsLayer() {
+			rc, err := layer.Compressed()
+			if err != nil {
+				return err
+			}
+			h, sz, err := v1.SHA256(rc)
+			rc.Close()
+			if err != nil {
+				return err
+			}
+			digests[i], sizes[i] = h, sz
 			continue
 		}
 
@@ -141,15 +153,10 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		}
 		// Compute all of these first before we call Config() and Manifest() to allow
 		// for lazy access e.g. for stream.Layer.
-		digests = append(digests, cl.digest)
-		diffids = append(diffids, cl.diffid)
-		udiffids = append(udiffids, cl.uncompressedDiffid)
-		sizes = append(sizes, cl.size)
-	}
-
-	cf, err := img.ConfigFile()
-	if err != nil {
-		return err
+		digests[i] = cl.digest
+		diffids[i] = cl.diffid
+		udiffids[i] = cl.uncompressedDiffid
+		sizes[i] = cl.size
 	}
 
 	m, err := img.Manifest()
@@ -158,20 +165,14 @@ func validateLayers(img v1.Image, opt ...Option) error {
 	}
 
 	errs := []string{}
+	var layerDiffIDs []v1.Hash
 	for i, layer := range layers {
 		mediaType, err := layer.MediaType()
 		if err != nil {
 			return err
 		}
-		if !mediaType.IsLayer() {
-			continue
-		}
 
 		digest, err := layer.Digest()
-		if err != nil {
-			return err
-		}
-		diffid, err := layer.DiffID()
 		if err != nil {
 			return err
 		}
@@ -184,28 +185,12 @@ func validateLayers(img v1.Image, opt ...Option) error {
 			return err
 		}
 
-		if _, err := img.LayerByDiffID(diffid); err != nil {
-			return err
-		}
-
 		if digest != digests[i] {
 			errs = append(errs, fmt.Sprintf("mismatched layer[%d] digest: Digest()=%s, SHA256(Compressed())=%s", i, digest, digests[i]))
 		}
 
 		if m.Layers[i].Digest != digests[i] {
 			errs = append(errs, fmt.Sprintf("mismatched layer[%d] digest: Manifest.Layers[%d].Digest=%s, SHA256(Compressed())=%s", i, i, m.Layers[i].Digest, digests[i]))
-		}
-
-		if diffid != diffids[i] {
-			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Gunzip(Compressed()))=%s", i, diffid, diffids[i]))
-		}
-
-		if diffid != udiffids[i] {
-			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Uncompressed())=%s", i, diffid, udiffids[i]))
-		}
-
-		if cf.RootFS.DiffIDs[i] != diffids[i] {
-			errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: ConfigFile.RootFS.DiffIDs[%d]=%s, SHA256(Gunzip(Compressed()))=%s", i, i, cf.RootFS.DiffIDs[i], diffids[i]))
 		}
 
 		if size != sizes[i] {
@@ -219,7 +204,45 @@ func validateLayers(img v1.Image, opt ...Option) error {
 		if m.Layers[i].MediaType != mediaType {
 			errs = append(errs, fmt.Sprintf("mismatched layer[%d] mediaType: Manifest.Layers[%d].MediaType=%s, layer.MediaType()=%s", i, i, m.Layers[i].MediaType, mediaType))
 		}
+
+		if mediaType.IsLayer() {
+			diffid, err := layer.DiffID()
+			if err != nil {
+				return err
+			}
+
+			if _, err := img.LayerByDiffID(diffid); err != nil {
+				return err
+			}
+
+			if diffid != diffids[i] {
+				errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Gunzip(Compressed()))=%s", i, diffid, diffids[i]))
+			}
+
+			if diffid != udiffids[i] {
+				errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: DiffID()=%s, SHA256(Uncompressed())=%s", i, diffid, udiffids[i]))
+			}
+
+			layerDiffIDs = append(layerDiffIDs, diffid)
+		}
 	}
+
+	if m.Config.MediaType.IsConfig() {
+		cf, err := img.ConfigFile()
+		if err != nil {
+			return err
+		}
+
+		if len(cf.RootFS.DiffIDs) != len(layerDiffIDs) {
+			errs = append(errs, fmt.Sprintf("mismatched number of diffids: len(ConfigFile.RootFS.DiffIDs)=%d, len(layers)=%d", len(cf.RootFS.DiffIDs), len(layerDiffIDs)))
+		}
+		for j := 0; j < len(cf.RootFS.DiffIDs) && j < len(layerDiffIDs); j++ {
+			if cf.RootFS.DiffIDs[j] != layerDiffIDs[j] {
+				errs = append(errs, fmt.Sprintf("mismatched layer[%d] diffid: ConfigFile.RootFS.DiffIDs[%d]=%s, SHA256(Gunzip(Compressed()))=%s", j, j, cf.RootFS.DiffIDs[j], layerDiffIDs[j]))
+			}
+		}
+	}
+
 	if len(errs) != 0 {
 		return errors.New(strings.Join(errs, "\n"))
 	}
