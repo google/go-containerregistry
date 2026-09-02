@@ -30,6 +30,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/stream"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/spf13/cobra"
 )
 
@@ -229,14 +230,28 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 		return nil, fmt.Errorf("mutating config: %w", err)
 	}
 
+	mt, err := old.MediaType()
+	if err != nil {
+		return nil, fmt.Errorf("getting media type: %w", err)
+	}
+
+	layerType := types.DockerLayer
+	if mt == types.OCIManifestSchema1 {
+		layerType = types.OCILayer
+	}
+
 	// TODO: Make compression configurable?
-	layer := stream.NewLayer(mutate.Extract(old), stream.WithCompressionLevel(gzip.BestCompression))
+	layer := stream.NewLayer(mutate.Extract(old),
+		stream.WithCompressionLevel(gzip.BestCompression),
+		stream.WithMediaType(layerType),
+	)
 	if err := remote.WriteLayer(repo, layer, o.Remote...); err != nil {
 		return nil, fmt.Errorf("uploading layer: %w", err)
 	}
 
 	img, err = mutate.Append(img, mutate.Addendum{
-		Layer: layer,
+		Layer:     layer,
+		MediaType: layerType,
 		History: v1.History{
 			Created:   cf.Created,
 			CreatedBy: fmt.Sprintf("%s flatten %s", use, digest),
@@ -257,11 +272,21 @@ func flattenImage(old v1.Image, repo name.Repository, use string, o crane.Option
 	// an OCI image index would reference Docker-typed image manifests, which
 	// confuses registries and tooling that assumes the index and its children
 	// share the same media-type convention.
-	mt, err := old.MediaType()
-	if err != nil {
-		return nil, fmt.Errorf("getting media type: %w", err)
-	}
 	img = mutate.MediaType(img, mt)
+
+	configType := m.Config.MediaType
+	if configType == "" {
+		if mt == types.OCIManifestSchema1 {
+			configType = types.OCIConfigJSON
+		} else {
+			configType = types.DockerConfigJSON
+		}
+	} else if mt == types.OCIManifestSchema1 && configType == types.DockerConfigJSON {
+		configType = types.OCIConfigJSON
+	} else if mt == types.DockerManifestSchema2 && configType == types.OCIConfigJSON {
+		configType = types.DockerConfigJSON
+	}
+	img = mutate.ConfigMediaType(img, configType)
 
 	return img, nil
 }
