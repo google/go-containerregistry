@@ -6,6 +6,8 @@ substitutions:
   _TAG: 'latest'
   _GO_BUILDER_IMAGE: 'golang:1.25.6'
   _DOCKER_BUILDER_IMAGE: 'docker:26.1.1-cli'
+  _REPO_URL: 'https://github.com/google/go-containerregistry'
+  _REVISION: 'main'
 
 steps:
 # Step 1: Run unit tests (Fail-Fast)
@@ -65,9 +67,10 @@ steps:
     ARG TARGETARCH
     ARG TARGETVARIANT
     WORKDIR /
-    COPY bin/\$${TARGETOS}_\$${TARGETARCH}\$${TARGETVARIANT}/${_OUTPUT_BINARY} /${_OUTPUT_BINARY}
+    ENV PATH="/ko-app:\${PATH}"
+    COPY bin/\$${TARGETOS}_\$${TARGETARCH}\$${TARGETVARIANT}/${_OUTPUT_BINARY} /ko-app/${_OUTPUT_BINARY}
     USER 65532:65532
-    ENTRYPOINT ["/${_OUTPUT_BINARY}"]
+    ENTRYPOINT ["/ko-app/${_OUTPUT_BINARY}"]
     EOF
 
     ls -lR /workspace/build_ws/
@@ -86,6 +89,13 @@ steps:
       --output=type=oci,dest=/workspace/build_ws/image.tar \
       --provenance=false \
       .
+
+dependencies:
+- gitSource:
+    repository:
+      url: '${_REPO_URL}'
+    revision: '${_REVISION}'
+    destPath: '.'
 
 artifacts:
   oci:

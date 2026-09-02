@@ -92,7 +92,7 @@ func makeDeleteClient(ctx context.Context, repo name.Repository, o *options) (*h
 	if err != nil {
 		return nil, err
 	}
-	return &http.Client{Transport: tr}, nil
+	return &http.Client{Transport: tr, CheckRedirect: checkRedirectSSRF}, nil
 }
 
 func makeWriter(ctx context.Context, repo name.Repository, ls []v1.Layer, o *options) (*writer, error) {
@@ -116,7 +116,7 @@ func makeWriter(ctx context.Context, repo name.Repository, ls []v1.Layer, o *opt
 	}
 	return &writer{
 		repo:                 repo,
-		client:               &http.Client{Transport: tr},
+		client:               &http.Client{Transport: tr, CheckRedirect: checkRedirectSSRF},
 		auth:                 auth,
 		transport:            o.transport,
 		progress:             o.progress,
@@ -159,7 +159,7 @@ func (w *writer) maybeUpdateScopes(ctx context.Context, ml *MountableLayer) erro
 		if err != nil {
 			return err
 		}
-		w.client = &http.Client{Transport: wt}
+		w.client = &http.Client{Transport: wt, CheckRedirect: checkRedirectSSRF}
 	}
 
 	return nil
