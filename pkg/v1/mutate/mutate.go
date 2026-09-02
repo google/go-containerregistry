@@ -486,10 +486,7 @@ func Time(img v1.Image, t time.Time, opts ...tarball.LayerOption) (v1.Image, err
 	addendums := make([]Addendum, max(len(ocf.History), len(layers)))
 	var historyIdx, addendumIdx int
 	for layerIdx := 0; layerIdx < len(layers); addendumIdx, layerIdx = addendumIdx+1, layerIdx+1 {
-		newLayer, err := layerTime(layers[layerIdx], t, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("setting layer times: %w", err)
-		}
+		newLayer := layerTime(layers[layerIdx], t, opts...)
 
 		// try to search for the history entry that corresponds to this layer
 		for ; historyIdx < len(ocf.History); historyIdx++ {
@@ -548,8 +545,8 @@ func Time(img v1.Image, t time.Time, opts ...tarball.LayerOption) (v1.Image, err
 	return ConfigFile(newImage, cfg)
 }
 
-func layerTime(layer v1.Layer, t time.Time, opts ...tarball.LayerOption) (v1.Layer, error) {
-	return &timeLayer{inner: layer, t: t, opts: opts}, nil
+func layerTime(layer v1.Layer, t time.Time, opts ...tarball.LayerOption) v1.Layer {
+	return &timeLayer{inner: layer, t: t, opts: opts}
 }
 
 type timeLayer struct {
