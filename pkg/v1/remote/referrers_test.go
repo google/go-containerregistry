@@ -61,6 +61,9 @@ func TestReferrers(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		annotations := map[string]string{
+			"org.example.testing123": "testing456",
+		}
 		descriptor := func(img v1.Image) v1.Descriptor {
 			d, err := img.Digest()
 			if err != nil {
@@ -79,6 +82,7 @@ func TestReferrers(t *testing.T) {
 				Size:         sz,
 				MediaType:    mt,
 				ArtifactType: "application/testing123",
+				Annotations:  annotations,
 			}
 		}
 
@@ -93,6 +97,7 @@ func TestReferrers(t *testing.T) {
 			t.Fatal(err)
 		}
 		rootImg = mutate.ConfigMediaType(rootImg, types.MediaType("application/testing123"))
+		rootImg = mutate.Annotations(rootImg, annotations).(v1.Image)
 		if err := remote.Write(rootRef, rootImg); err != nil {
 			t.Fatal(err)
 		}
@@ -123,6 +128,7 @@ func TestReferrers(t *testing.T) {
 			t.Fatal(err)
 		}
 		leafImg = mutate.ConfigMediaType(leafImg, types.MediaType("application/testing123"))
+		leafImg = mutate.Annotations(leafImg, annotations).(v1.Image)
 		leafImg = mutate.Subject(leafImg, rootDesc).(v1.Image)
 		if err := remote.Write(leafRef, leafImg); err != nil {
 			t.Fatal(err)
