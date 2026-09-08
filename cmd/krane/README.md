@@ -7,7 +7,7 @@ support for authenticating against registries using common credential helpers
 that find credentials from the environment.
 
 In particular this tool supports authenticating with common "workload identity"
-mechanisms on platforms such as GKE and EKS.
+mechanisms on platforms such as GKE, EKS and OKE.
 
 This additional keychain logic only kicks in if alternative authentication
 mechanisms have NOT been configured and `crane` would otherwise perform the
