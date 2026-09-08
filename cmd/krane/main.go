@@ -23,6 +23,7 @@ import (
 	ecr "github.com/awslabs/amazon-ecr-credential-helper/ecr-login"
 	"github.com/chrismellard/docker-credential-acr-env/pkg/credhelper"
 	"github.com/google/go-containerregistry/cmd/crane/cmd"
+	"github.com/google/go-containerregistry/cmd/krane/internal/ocir"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/authn/github"
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -33,6 +34,7 @@ import (
 var (
 	amazonKeychain authn.Keychain = authn.NewKeychainFromHelper(ecr.NewECRHelper(ecr.WithLogger(io.Discard)))
 	azureKeychain  authn.Keychain = authn.NewKeychainFromHelper(credhelper.NewACRCredentialsHelper())
+	oracleKeychain authn.Keychain = authn.NewKeychainFromHelper(ocir.NewHelper())
 )
 
 func init() {
@@ -55,6 +57,7 @@ func main() {
 		github.Keychain,
 		amazonKeychain,
 		azureKeychain,
+		oracleKeychain,
 	)
 
 	// Same as crane, but override usage and keychain.
