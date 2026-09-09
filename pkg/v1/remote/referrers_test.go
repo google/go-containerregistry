@@ -15,11 +15,13 @@
 package remote_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -370,6 +372,209 @@ func TestReferrersTagFallbackDisabled(t *testing.T) {
 		}
 		if len(m.Manifests) != 1 || m.Manifests[0].Digest != leafDigest {
 			t.Fatalf("referrers = %v, want one entry for %s", m.Manifests, leafDigest)
+		}
+	})
+}
+
+func TestReferrersPagination(t *testing.T) {
+	subject := "sha256:" + strings.Repeat("a", 64)
+	path := "/v2/repo/referrers/" + subject
+
+	// Five referrers to spread across pages.
+	referrers := make([]v1.Descriptor, 5)
+	for i := range referrers {
+		referrers[i] = v1.Descriptor{
+			MediaType:    types.OCIManifestSchema1,
+			Digest:       v1.Hash{Algorithm: "sha256", Hex: fmt.Sprintf("%064d", i)},
+			Size:         int64(i + 1),
+			ArtifactType: fmt.Sprintf("application/testing%d", i),
+		}
+	}
+	writeIndex := func(t *testing.T, w http.ResponseWriter, manifests []v1.Descriptor) {
+		if err := json.NewEncoder(w).Encode(&v1.IndexManifest{
+			SchemaVersion: 2,
+			MediaType:     types.OCIImageIndex,
+			Manifests:     manifests,
+		}); err != nil {
+			t.Error(err)
+		}
+	}
+
+	// A page of the paginated referrers response, served at path?page=<i>.
+	type page struct {
+		status      int    // defaults to 200
+		contentType string // defaults to the OCI image index media type
+		link        string // Link header, if any
+		manifests   []v1.Descriptor
+	}
+	nextLink := func(i int) string {
+		return fmt.Sprintf(`<%s?page=%d>; rel="next"`, path, i)
+	}
+
+	// newRegistry starts a registry that serves only the given pages. Any
+	// other request, including one for the referrers fallback tag, fails the
+	// test.
+	newRegistry := func(t *testing.T, pages []page) *httptest.Server {
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/v2/" {
+				return
+			}
+			if r.URL.Path != path {
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			if got := r.Header.Get("Accept"); got != string(types.OCIImageIndex) {
+				t.Errorf("Accept = %q, want %q", got, types.OCIImageIndex)
+			}
+			i, _ := strconv.Atoi(r.URL.Query().Get("page"))
+			p := pages[i]
+			if p.link != "" {
+				w.Header().Set("Link", p.link)
+			}
+			if p.status != 0 {
+				w.WriteHeader(p.status)
+				return
+			}
+			if p.contentType == "" {
+				p.contentType = string(types.OCIImageIndex)
+			}
+			w.Header().Set("Content-Type", p.contentType)
+			writeIndex(t, w, p.manifests)
+		}))
+		t.Cleanup(s.Close)
+		return s
+	}
+	digest := func(t *testing.T, s *httptest.Server) name.Digest {
+		u, err := url.Parse(s.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d, err := name.NewDigest(fmt.Sprintf("%s/repo@%s", u.Host, subject))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+	wantError := func(t *testing.T, s *httptest.Server, substr string) {
+		_, err := remote.Referrers(digest(t, s))
+		if err == nil {
+			t.Fatalf("Referrers() succeeded, want error containing %q", substr)
+		} else if !strings.Contains(err.Error(), substr) {
+			t.Fatalf("Referrers() = %v, want error containing %q", err, substr)
+		}
+	}
+
+	t.Run("follows Link headers", func(t *testing.T) {
+		s := newRegistry(t, []page{
+			{link: nextLink(1), manifests: referrers[0:2]},
+			{link: nextLink(2), manifests: referrers[2:4]},
+			{manifests: referrers[4:]},
+		})
+
+		index, err := remote.Referrers(digest(t, s))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err := index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := cmp.Diff(referrers, m.Manifests); d != "" {
+			t.Errorf("referrers diff (-want,+got): %s", d)
+		}
+
+		// Filters apply to every page, not just the first.
+		index, err = remote.Referrers(digest(t, s), remote.WithFilter("artifactType", referrers[4].ArtifactType))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err = index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := cmp.Diff(referrers[4:], m.Manifests); d != "" {
+			t.Errorf("filtered referrers diff (-want,+got): %s", d)
+		}
+	})
+
+	t.Run("refuses link to another host", func(t *testing.T) {
+		other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request to another host: %s %s", r.Method, r.URL)
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer other.Close()
+
+		s := newRegistry(t, []page{
+			{link: fmt.Sprintf(`<%s%s?page=1>; rel="next"`, other.URL, path), manifests: referrers[0:2]},
+			{manifests: referrers[2:]},
+		})
+		wantError(t, s, "SSRF")
+	})
+
+	t.Run("refuses a link to a page already fetched", func(t *testing.T) {
+		s := newRegistry(t, []page{
+			{link: nextLink(1), manifests: referrers[0:2]},
+			{link: nextLink(1), manifests: referrers[2:]},
+		})
+		wantError(t, s, "pagination loop")
+	})
+
+	t.Run("propagates error from a later page", func(t *testing.T) {
+		// A 403 is not retried by the default transport, unlike a 5xx.
+		s := newRegistry(t, []page{
+			{link: nextLink(1), manifests: referrers[0:2]},
+			{status: http.StatusForbidden},
+		})
+
+		_, err := remote.Referrers(digest(t, s))
+		var terr *transport.Error
+		if !errors.As(err, &terr) || terr.StatusCode != http.StatusForbidden {
+			t.Fatalf("Referrers() = %v, want status %d", err, http.StatusForbidden)
+		}
+	})
+
+	t.Run("rejects a later page that is not an index", func(t *testing.T) {
+		// The body still parses as an empty index, so only the Content-Type
+		// tells this apart from a final page with no referrers.
+		s := newRegistry(t, []page{
+			{link: nextLink(1), manifests: referrers[0:2]},
+			{contentType: "application/json"},
+		})
+		wantError(t, s, "Content-Type")
+	})
+
+	t.Run("ignores Link headers outside the Referrers API", func(t *testing.T) {
+		// A registry without the Referrers API. Both its 404 and the fallback
+		// tag manifest carry a Link header, which must not be followed.
+		fallback := "/v2/repo/manifests/" + strings.Replace(subject, ":", "-", 1)
+		s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/v2/":
+			case path:
+				w.Header().Set("Link", nextLink(1))
+				w.WriteHeader(http.StatusNotFound)
+			case fallback:
+				w.Header().Set("Link", nextLink(1))
+				w.Header().Set("Content-Type", string(types.OCIImageIndex))
+				writeIndex(t, w, referrers[0:2])
+			default:
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		}))
+		t.Cleanup(s.Close)
+
+		index, err := remote.Referrers(digest(t, s))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err := index.IndexManifest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d := cmp.Diff(referrers[0:2], m.Manifests); d != "" {
+			t.Errorf("referrers diff (-want,+got): %s", d)
 		}
 	})
 }
