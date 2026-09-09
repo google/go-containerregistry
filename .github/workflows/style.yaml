@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: 'go.mod'
-      - uses: chainguard-dev/actions/goimports@0ffab11a71c1b7bd68ddf94665a8ec88b116223d # v1.6.33
+      - uses: chainguard-dev/actions/goimports@a9d4aa7202a63f8a6b8f81bb1570a0ca54460ac5 # v1.6.34
 
   lint:
     name: Lint
@@ -36,13 +36,13 @@ jobs:
         with:
           version: v2.11
 
-      - uses: chainguard-dev/actions/trailing-space@0ffab11a71c1b7bd68ddf94665a8ec88b116223d # v1.6.33
+      - uses: chainguard-dev/actions/trailing-space@a9d4aa7202a63f8a6b8f81bb1570a0ca54460ac5 # v1.6.34
         if: ${{ always() }}
 
-      - uses: chainguard-dev/actions/eof-newline@0ffab11a71c1b7bd68ddf94665a8ec88b116223d # v1.6.33
+      - uses: chainguard-dev/actions/eof-newline@a9d4aa7202a63f8a6b8f81bb1570a0ca54460ac5 # v1.6.34
         if: ${{ always() }}
 
-      - uses: reviewdog/action-misspell@d6429416b12b09b4e2768307d53bef58d172e962 # v1
+      - uses: reviewdog/action-misspell@ba7ac4030fa6812f8c8b2d4e516af8bc99553c32 # v1
         if: ${{ always() }}
         with:
           github_token: ${{ secrets.github_token }}
