@@ -136,7 +136,7 @@ func TestMultiWrite(t *testing.T) {
 		}
 	}
 
-	// Check that tagged manfest list is present and valid.
+	// Check that tagged manifest list is present and valid.
 	got, err := Index(tag3)
 	if err != nil {
 		t.Fatal(err)
@@ -352,7 +352,7 @@ func TestMultiWrite_Deep(t *testing.T) {
 		t.Error("Write:", err)
 	}
 
-	// Check that tagged manfest list is present and valid.
+	// Check that tagged manifest list is present and valid.
 	got, err := Index(tag)
 	if err != nil {
 		t.Fatal(err)

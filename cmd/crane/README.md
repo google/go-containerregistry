@@ -5,7 +5,7 @@ and registries.
 
 <img src="../../images/crane.png" width="40%">
 
-A collection of useful things you can do with `crane` is [here](recipes.md).
+A collection of useful things you can do with `crane` is [recipes](recipes.md).
 
 ## Installation
 

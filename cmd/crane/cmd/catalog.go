@@ -55,13 +55,13 @@ func catalog(ctx context.Context, w io.Writer, src string, fullRef bool, o crane
 		return err
 	}
 
-	catalogger, err := puller.Catalogger(ctx, reg)
+	cataloger, err := puller.Cataloger(ctx, reg)
 	if err != nil {
 		return fmt.Errorf("reading tags for %s: %w", reg, err)
 	}
 
-	for catalogger.HasNext() {
-		repos, err := catalogger.Next(ctx)
+	for cataloger.HasNext() {
+		repos, err := cataloger.Next(ctx)
 		if err != nil {
 			return err
 		}
