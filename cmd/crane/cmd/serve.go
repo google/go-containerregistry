@@ -46,7 +46,7 @@ func newCmdServe() *cobra.Command {
 
 The command blocks while the server accepts pushes and pulls.
 
-Contents are can be stored in memory (when the process exits, pushed data is lost.), and disk (--disk).`,
+Contents can be stored in memory (when the process exits, pushed data is lost) or to disk (--disk).`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
