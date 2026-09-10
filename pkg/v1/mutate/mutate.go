@@ -483,32 +483,28 @@ func Time(img v1.Image, t time.Time, opts ...tarball.LayerOption) (v1.Image, err
 		return nil, fmt.Errorf("getting original config file: %w", err)
 	}
 
-	addendums := make([]Addendum, max(len(ocf.History), len(layers)))
-	var historyIdx, addendumIdx int
-	for layerIdx := 0; layerIdx < len(layers); addendumIdx, layerIdx = addendumIdx+1, layerIdx+1 {
-		newLayer := layerTime(layers[layerIdx], t, opts...)
+	// Give every history entry its own addendum, and skip the layer for
+	// EmptyLayer ones. Every layer gets an addendum of its own, even when the
+	// config's history has run out, so that no layer is ever dropped.
+	addendums := make([]Addendum, 0, len(ocf.History)+len(layers))
+	var historyIdx int
+	for _, layer := range layers {
+		// History entries before this layer's entry don't have layers of their own.
+		for ; historyIdx < len(ocf.History) && ocf.History[historyIdx].EmptyLayer; historyIdx++ {
+			addendums = append(addendums, Addendum{History: ocf.History[historyIdx]})
+		}
 
-		// try to search for the history entry that corresponds to this layer
-		for ; historyIdx < len(ocf.History); historyIdx++ {
-			addendums[addendumIdx].History = ocf.History[historyIdx]
-			// if it's an EmptyLayer, do not set the Layer and have the Addendum with just the History
-			// and move on to the next History entry
-			if ocf.History[historyIdx].EmptyLayer {
-				addendumIdx++
-				continue
-			}
-			// otherwise, we can exit from the cycle
+		addendum := Addendum{Layer: layerTime(layer, t, opts...)}
+		if historyIdx < len(ocf.History) {
+			addendum.History = ocf.History[historyIdx]
 			historyIdx++
-			break
 		}
-		if addendumIdx < len(addendums) {
-			addendums[addendumIdx].Layer = newLayer
-		}
+		addendums = append(addendums, addendum)
 	}
 
 	// add all leftover History entries
-	for ; historyIdx < len(ocf.History); historyIdx, addendumIdx = historyIdx+1, addendumIdx+1 {
-		addendums[addendumIdx].History = ocf.History[historyIdx]
+	for ; historyIdx < len(ocf.History); historyIdx++ {
+		addendums = append(addendums, Addendum{History: ocf.History[historyIdx]})
 	}
 
 	newImage, err = Append(newImage, addendums...)
@@ -534,9 +530,13 @@ func Time(img v1.Image, t time.Time, opts ...tarball.LayerOption) (v1.Image, err
 
 	for i, h := range cfg.History {
 		h.Created = v1.Time{Time: t}
-		h.CreatedBy = ocf.History[i].CreatedBy
-		h.Comment = ocf.History[i].Comment
-		h.EmptyLayer = ocf.History[i].EmptyLayer
+		// Layers that had no history entry of their own keep a zero-valued one,
+		// so only copy the original fields while the original history lasts.
+		if i < len(ocf.History) {
+			h.CreatedBy = ocf.History[i].CreatedBy
+			h.Comment = ocf.History[i].Comment
+			h.EmptyLayer = ocf.History[i].EmptyLayer
+		}
 		// Explicitly ignore Author field; which hinders reproducibility
 		h.Author = ""
 		cfg.History[i] = h
