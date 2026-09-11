@@ -46,9 +46,11 @@ type manifest struct {
 
 type manifests struct {
 	// maps repo -> manifest tag/digest -> manifest
-	manifests map[string]map[string]manifest
-	lock      sync.RWMutex
-	log       *log.Logger
+	manifests      map[string]map[string]manifest
+	putCallback    func(repo, target, contentType string, blob []byte) error
+	deleteCallback func(repo, target, contentType string, blob []byte) error
+	lock           sync.RWMutex
+	log            *log.Logger
 }
 
 func isManifest(req *http.Request) bool {
@@ -204,6 +206,16 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 			}
 		}
 
+		if m.putCallback != nil {
+			if err := m.putCallback(repo, target, mf.contentType, mf.blob); err != nil {
+				return &regError{
+					Status:  http.StatusInternalServerError,
+					Code:    "INTERNAL_ERROR",
+					Message: fmt.Sprintf("Error in callback: %v", err),
+				}
+			}
+		}
+
 		m.lock.Lock()
 		defer m.lock.Unlock()
 
@@ -230,12 +242,22 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 			}
 		}
 
-		_, ok := m.manifests[repo][target]
+		mf, ok := m.manifests[repo][target]
 		if !ok {
 			return &regError{
 				Status:  http.StatusNotFound,
 				Code:    "MANIFEST_UNKNOWN",
 				Message: "Unknown manifest",
+			}
+		}
+
+		if m.deleteCallback != nil {
+			if err := m.deleteCallback(repo, target, mf.contentType, mf.blob); err != nil {
+				return &regError{
+					Status:  http.StatusInternalServerError,
+					Code:    "INTERNAL_ERROR",
+					Message: fmt.Sprintf("Error in callback: %v", err),
+				}
 			}
 		}
 
