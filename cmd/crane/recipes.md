@@ -4,8 +4,13 @@ Useful tips and things you can do with `crane` and other standard tools.
 
 ### List files in an image
 
-```
+Remote image from a registry.
+```sh
 crane export ubuntu - | tar -tvf - | less
+```
+Local image from `podman`.
+```sh
+podman image save ubuntu - | crane export - - | tar -tvf - | less
 ```
 
 ### Extract a single file from an image
