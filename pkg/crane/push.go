@@ -53,6 +53,16 @@ func Push(img v1.Image, dst string, opt ...Option) error {
 	return remote.Write(tag, img, o.Remote...)
 }
 
+// PushIndex pushes the v1.ImageIndex idx to a registry as dst.
+func PushIndex(idx v1.ImageIndex, dst string, opt ...Option) error {
+	o := makeOptions(opt...)
+	tag, err := name.ParseReference(dst, o.Name...)
+	if err != nil {
+		return fmt.Errorf("parsing reference %q: %w", dst, err)
+	}
+	return remote.Put(tag, idx, o.Remote...)
+}
+
 // Upload pushes the v1.Layer to a given repo.
 func Upload(layer v1.Layer, repo string, opt ...Option) error {
 	o := makeOptions(opt...)
