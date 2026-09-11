@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-containerregistry/internal/ipaddr"
 	"github.com/google/go-containerregistry/pkg/logs"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote/internal/authchallenge"
@@ -59,7 +60,10 @@ func Ping(ctx context.Context, reg name.Registry, t http.RoundTripper) (*Challen
 }
 
 func pingSingle(ctx context.Context, reg name.Registry, t http.RoundTripper, scheme string) (*Challenge, error) {
-	client := http.Client{Transport: t}
+	client := http.Client{
+		Transport:     t,
+		CheckRedirect: ipaddr.CheckRedirectSSRF,
+	}
 	url := fmt.Sprintf("%s://%s/v2/", scheme, reg.RegistryStr())
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {

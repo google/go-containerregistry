@@ -15,10 +15,36 @@
 package ipaddr
 
 import (
+	"fmt"
+	"net/http"
 	"net/netip"
 	"strconv"
 	"strings"
 )
+
+// CheckRedirectSSRF rejects HTTP redirects that cross from a public host to a
+// private or link-local IP literal. This prevents a malicious registry from
+// issuing a 302 to a cloud instance metadata service (e.g. 169.254.169.254)
+// or another internal network address.
+//
+// Same-host redirects and redirects to non-IP hostnames (including DNS names
+// that may resolve to private addresses) are allowed. The first redirect in
+// the chain uses the original request URL as the "origin host" via
+// req.Response.Request, falling back to req.URL when no prior response exists.
+func CheckRedirectSSRF(req *http.Request, via []*http.Request) error {
+	if len(via) == 0 || req.Response == nil {
+		return nil
+	}
+	origHost := via[0].URL.Hostname()
+	destHost := req.URL.Hostname()
+	if destHost == origHost {
+		return nil // same-host redirect is always allowed
+	}
+	if IsPrivateOrLinkLocal(destHost) {
+		return fmt.Errorf("SSRF protection: redirect from %q to private/link-local host %q denied", origHost, destHost)
+	}
+	return nil
+}
 
 // IsPrivateOrLinkLocal reports whether host denotes a loopback, private,
 // link-local, or unspecified address. It accepts any IP-literal form the Go

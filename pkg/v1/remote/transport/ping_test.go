@@ -16,6 +16,7 @@ package transport
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -245,4 +246,49 @@ func mustInsecureRegistry(r string) name.Registry {
 		panic(err)
 	}
 	return reg
+}
+
+// TestPingRedirectSSRF verifies that pingSingle refuses to follow a
+// registry-initiated redirect to a private or loopback address.
+//
+// The victim server listens on IPv6 loopback ([::1]) while the fake registry
+// listens on 127.0.0.1, so the redirect is cross-host and its destination is
+// a loopback IP literal, which CheckRedirectSSRF must reject before any
+// request reaches the victim.
+func TestPingRedirectSSRF(t *testing.T) {
+	l, err := net.Listen("tcp", "[::1]:0")
+	if err != nil {
+		t.Skipf("IPv6 loopback unavailable: %v", err)
+	}
+	var victimHits int32
+	victim := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		atomic.AddInt32(&victimHits, 1)
+	}))
+	victim.Listener.Close()
+	victim.Listener = l
+	victim.Start()
+	defer victim.Close()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, victim.URL+"/steal", http.StatusFound)
+	}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reg, err := name.NewRegistry(u.Host, name.Insecure)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pr, err := Ping(context.Background(), reg, server.Client().Transport)
+	if err == nil || !strings.Contains(err.Error(), "SSRF protection") {
+		t.Errorf("Ping: expected SSRF protection error, got pr=%v, err=%v", pr, err)
+	}
+
+	if n := atomic.LoadInt32(&victimHits); n != 0 {
+		t.Errorf("victim server received %d request(s); the redirect should have been blocked before any request was sent", n)
+	}
 }
