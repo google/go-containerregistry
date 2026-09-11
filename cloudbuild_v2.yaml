@@ -67,7 +67,7 @@ steps:
     ARG TARGETARCH
     ARG TARGETVARIANT
     WORKDIR /
-    ENV PATH="/ko-app:\${PATH}"
+    ENV PATH="/ko-app:\$${PATH}"
     COPY bin/\$${TARGETOS}_\$${TARGETARCH}\$${TARGETVARIANT}/${_OUTPUT_BINARY} /ko-app/${_OUTPUT_BINARY}
     USER 65532:65532
     ENTRYPOINT ["/ko-app/${_OUTPUT_BINARY}"]
