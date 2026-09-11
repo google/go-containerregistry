@@ -15,7 +15,9 @@
 package ipaddr
 
 import (
+	"net/http"
 	"net/netip"
+	"net/url"
 	"testing"
 )
 
@@ -83,5 +85,56 @@ func TestIsPrivateOrLinkLocal(t *testing.T) {
 		if got := IsPrivateOrLinkLocal(tc.host); got != tc.want {
 			t.Errorf("IsPrivateOrLinkLocal(%q) = %v, want %v", tc.host, got, tc.want)
 		}
+	}
+}
+
+func TestCheckRedirectSSRF(t *testing.T) {
+	makeReq := func(dest, origHost string) (*http.Request, []*http.Request) {
+		u, _ := url.Parse(dest)
+		req := &http.Request{
+			URL:      u,
+			Response: &http.Response{Request: &http.Request{URL: &url.URL{Host: origHost}}},
+		}
+		via := []*http.Request{{URL: &url.URL{Host: origHost}}}
+		return req, via
+	}
+
+	// Blocked destinations
+	blocked := []struct{ orig, dest string }{
+		{"registry.example.com", "http://169.254.169.254/latest/meta-data/"},
+		{"registry.example.com", "http://192.168.1.1/admin"},
+		{"registry.example.com", "http://10.0.0.1/internal"},
+		{"registry.example.com", "http://127.0.0.1:9999/creds"},
+		{"registry.example.com", "http://[::1]/internal"},
+	}
+	for _, tc := range blocked {
+		req, via := makeReq(tc.dest, tc.orig)
+		if err := CheckRedirectSSRF(req, via); err == nil {
+			t.Errorf("CheckRedirectSSRF(orig=%q, dest=%q): expected error, got nil", tc.orig, tc.dest)
+		}
+	}
+
+	// Allowed destinations
+	allowed := []struct{ orig, dest string }{
+		{"registry.example.com", "https://registry.example.com/v2/foo/bar"},
+		{"127.0.0.1:5000", "http://127.0.0.1:5000/v2/foo/bar"},
+		{"registry.example.com", "http://8.8.8.8/blob"},
+		{"registry.example.com", "https://storage.googleapis.com/bucket/blob"},
+	}
+	for _, tc := range allowed {
+		req, via := makeReq(tc.dest, tc.orig)
+		if err := CheckRedirectSSRF(req, via); err != nil {
+			t.Errorf("CheckRedirectSSRF(orig=%q, dest=%q): unexpected error: %v", tc.orig, tc.dest, err)
+		}
+	}
+
+	// Edge cases
+	req := &http.Request{URL: &url.URL{Host: "169.254.169.254"}}
+	if err := CheckRedirectSSRF(req, nil); err != nil {
+		t.Errorf("CheckRedirectSSRF with empty via: expected nil, got %v", err)
+	}
+	via := []*http.Request{{URL: &url.URL{Host: "registry.example.com"}}}
+	if err := CheckRedirectSSRF(req, via); err != nil {
+		t.Errorf("CheckRedirectSSRF with nil Response: expected nil, got %v", err)
 	}
 }
