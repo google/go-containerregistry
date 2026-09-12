@@ -38,6 +38,8 @@ type Options struct {
 	jobs      int
 	noclobber bool
 	ctx       context.Context
+	// pageSize for paginations
+	pageSize int
 }
 
 // GetOptions exposes the underlying []remote.Option, []name.Option, and
@@ -174,5 +176,15 @@ func WithJobs(jobs int) Option {
 func WithNoClobber(noclobber bool) Option {
 	return func(o *Options) {
 		o.noclobber = noclobber
+	}
+}
+
+// WithPageSize sets the given size as the value of parameter 'n' in the request.
+//
+// To omit the `n` parameter entirely, use WithPageSize(0).
+// The default value is 1000.
+func WithPageSize(size int) Option {
+	return func(o *Options) {
+		o.pageSize = size
 	}
 }
