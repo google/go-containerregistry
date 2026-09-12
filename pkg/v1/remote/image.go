@@ -17,6 +17,7 @@ package remote
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/url"
 	"sync"
@@ -118,13 +119,17 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 		return r.config, nil
 	}
 
+	if m.Config.Size > configLimit {
+		return nil, fmt.Errorf("config blob size %d exceeds limit %d", m.Config.Size, configLimit)
+	}
+
 	body, err := r.fetcher.fetchBlob(r.ctx, m.Config.Size, m.Config.Digest)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	r.config, err = io.ReadAll(body)
+	r.config, err = readAllLimit(body, configLimit)
 	if err != nil {
 		return nil, err
 	}
