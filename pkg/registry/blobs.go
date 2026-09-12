@@ -165,9 +165,10 @@ type blobs struct {
 	blobHandler BlobHandler
 
 	// Each upload gets a unique id that writes occur to until finalized.
-	uploads map[string][]byte
-	lock    sync.Mutex
-	log     *log.Logger
+	uploads           map[string]*blobUpload
+	uploadMemoryLimit int64
+	lock              sync.Mutex
+	log               *log.Logger
 }
 
 func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
@@ -412,18 +413,23 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 			b.lock.Lock()
 			defer b.lock.Unlock()
-			if start != len(b.uploads[target]) {
+			upload := b.uploads[target]
+			if upload == nil {
+				upload = b.newUpload()
+				b.uploads[target] = upload
+			}
+			if int64(start) != upload.Size() {
 				return &regError{
 					Status:  http.StatusRequestedRangeNotSatisfiable,
 					Code:    "BLOB_UPLOAD_UNKNOWN",
 					Message: "Your content range doesn't match what we have",
 				}
 			}
-			l := bytes.NewBuffer(b.uploads[target])
-			io.Copy(l, req.Body)
-			b.uploads[target] = l.Bytes()
+			if err := upload.Append(req.Body); err != nil {
+				return regErrInternal(err)
+			}
 			resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
-			resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())-1))
+			resp.Header().Set("Range", fmt.Sprintf("0-%d", upload.Size()-1))
 			// OCI Distribution spec §10.5 requires 202 Accepted for chunk uploads.
 			resp.WriteHeader(http.StatusAccepted)
 			return nil
@@ -439,12 +445,15 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		l := &bytes.Buffer{}
-		io.Copy(l, req.Body)
+		upload := b.newUpload()
+		if err := upload.Append(req.Body); err != nil {
+			upload.Cleanup()
+			return regErrInternal(err)
+		}
 
-		b.uploads[target] = l.Bytes()
+		b.uploads[target] = upload
 		resp.Header().Set("Location", "/"+path.Join("v2", path.Join(elem[1:len(elem)-3]...), "blobs/uploads", target))
-		resp.Header().Set("Range", fmt.Sprintf("0-%d", len(l.Bytes())-1))
+		resp.Header().Set("Range", fmt.Sprintf("0-%d", upload.Size()-1))
 		// OCI Distribution spec §10.5 requires 202 Accepted for chunk uploads.
 		resp.WriteHeader(http.StatusAccepted)
 		return nil
@@ -483,12 +492,27 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 			}
 		}
 
-		defer req.Body.Close()
-		in := io.NopCloser(io.MultiReader(bytes.NewBuffer(b.uploads[target]), req.Body))
+		upload := b.uploads[target]
+		if upload == nil {
+			upload = b.newUpload()
+		}
+		uploadReader, err := upload.Reader()
+		if err != nil {
+			return regErrInternal(err)
+		}
+		in := &readCloser{
+			Reader: io.MultiReader(uploadReader, req.Body),
+			close: func() error {
+				if err := uploadReader.Close(); err != nil {
+					return err
+				}
+				return req.Body.Close()
+			},
+		}
 
 		size := int64(verify.SizeUnknown)
 		if req.ContentLength > 0 {
-			size = int64(len(b.uploads[target])) + req.ContentLength
+			size = upload.Size() + req.ContentLength
 		}
 
 		vrc, err := verify.ReadCloser(in, size, h)
@@ -506,6 +530,7 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 		}
 
 		delete(b.uploads, target)
+		upload.Cleanup()
 		resp.Header().Set("Docker-Content-Digest", h.String())
 		resp.WriteHeader(http.StatusCreated)
 		return nil
