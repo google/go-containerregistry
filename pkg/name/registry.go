@@ -92,7 +92,7 @@ func (r Registry) Scheme() string {
 	if r.isRFC1918() {
 		return "http"
 	}
-	if strings.HasPrefix(r.Name(), "localhost:") {
+	if r.Name() == "localhost" || strings.HasPrefix(r.Name(), "localhost:") {
 		return "http"
 	}
 	if reLocal.MatchString(r.Name()) {
