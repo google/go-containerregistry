@@ -94,7 +94,7 @@ func (i *randomIndex) RawManifest() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(m)
+	return json.MarshalIndent(m, "", "  ")
 }
 
 func (i *randomIndex) Image(h v1.Hash) (v1.Image, error) {
