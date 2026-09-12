@@ -34,7 +34,7 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push PATH IMAGE",
 		Short: "Push local image contents to a remote registry",
-		Long:  `If the PATH is a directory, it will be read as an OCI image layout. Otherwise, PATH is assumed to be a docker-style tarball.`,
+		Long:  `If the PATH is a directory, it will be read as an OCI image layout. Otherwise, PATH is assumed to be a docker-style or OCI layout tarball.`,
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path, tag := args[0], args[1]
