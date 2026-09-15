@@ -140,6 +140,42 @@ func TestDigestComponents(t *testing.T) {
 	}
 }
 
+func TestDigestTagStr(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		want string
+	}{
+		{"gcr.io/project-id/image:tag@" + validDigest, "tag"},
+		{"gcr.io/project-id/image@" + validDigest, ""},
+		{"index.docker.io/library/nginx:latest@" + validDigest, "latest"},
+		// A port is not a tag.
+		{"localhost:5000/image@" + validDigest, ""},
+	} {
+		digest, err := NewDigest(tc.name, StrictValidation)
+		if err != nil {
+			t.Fatalf("`%s` should be a valid Digest name, got error: %v", tc.name, err)
+		}
+		if got := digest.TagStr(); got != tc.want {
+			t.Errorf("TagStr() was incorrect for %v. Wanted: `%s` Got: `%s`", digest, tc.want, got)
+		}
+	}
+
+	// The issue repro: ParseReference keeps the tag reachable on digests.
+	ref, err := ParseReference("repo.com/image:tag@"+validDigest, WeakValidation)
+	if err != nil {
+		t.Fatalf("ParseReference failed: %v", err)
+	}
+	digest, ok := ref.(Digest)
+	if !ok {
+		t.Fatalf("ParseReference should return a Digest, got %T", ref)
+	}
+	if got := digest.TagStr(); got != "tag" {
+		t.Errorf("TagStr() was incorrect for %v. Wanted: `tag` Got: `%s`", digest, got)
+	}
+}
+
 func TestDigestScopes(t *testing.T) {
 	t.Parallel()
 	testRegistry := "gcr.io"
