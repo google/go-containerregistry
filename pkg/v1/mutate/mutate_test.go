@@ -598,6 +598,88 @@ func TestMutateTime(t *testing.T) {
 	}
 }
 
+// TestMutateTimeHistoryLayerMismatch covers images whose config history doesn't
+// line up with their layers. Time used to consume one addendum slot per history
+// entry, so once the history ran out the remaining layers had nowhere to go and
+// were dropped, and rewriting the config indexed the original history past its
+// end. Such configs are unusual but valid: the history field is optional, and
+// e.g. buildah's --omit-history produces images with layers but no entries.
+func TestMutateTimeHistoryLayerMismatch(t *testing.T) {
+	const wantLayers = 3
+
+	for _, tc := range []struct {
+		name    string
+		history func(*v1.ConfigFile)
+	}{
+		{
+			name:    "no history at all",
+			history: func(cf *v1.ConfigFile) { cf.History = nil },
+		},
+		{
+			name:    "history shorter than layers",
+			history: func(cf *v1.ConfigFile) { cf.History = cf.History[:1] },
+		},
+		{
+			name: "all history entries marked empty",
+			history: func(cf *v1.ConfigFile) {
+				for i := range cf.History {
+					cf.History[i].EmptyLayer = true
+				}
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			img, err := random.Image(256, wantLayers)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cf, err := img.ConfigFile()
+			if err != nil {
+				t.Fatal(err)
+			}
+			cf = cf.DeepCopy()
+			tc.history(cf)
+			img, err = mutate.ConfigFile(img, cf)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := mutate.Time(img, time.Time{})
+			if err != nil {
+				t.Fatalf("Time: %v", err)
+			}
+
+			layers, err := got.Layers()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(layers) != wantLayers {
+				t.Fatalf("got %d layers, want %d", len(layers), wantLayers)
+			}
+
+			gotConfig := getConfigFile(t, got)
+			if len(gotConfig.RootFS.DiffIDs) != wantLayers {
+				t.Errorf("got %d diff IDs, want %d", len(gotConfig.RootFS.DiffIDs), wantLayers)
+			}
+			// Layer N's diff ID has to match the Nth config entry, otherwise the
+			// image the caller gets back is broken.
+			for i, l := range layers {
+				diffID, err := l.DiffID()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if gotConfig.RootFS.DiffIDs[i] != diffID {
+					t.Errorf("layer %d diff ID = %v, config says %v", i, diffID, gotConfig.RootFS.DiffIDs[i])
+				}
+			}
+
+			if err := validate.Image(got); err != nil {
+				t.Errorf("mutated image is invalid: %v", err)
+			}
+		})
+	}
+}
+
 func TestMutateMediaType(t *testing.T) {
 	want := types.OCIManifestSchema1
 	wantCfg := types.OCIConfigJSON
