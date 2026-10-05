@@ -18,6 +18,7 @@ import (
 	"archive/tar"
 	"errors"
 	"io"
+	"slices"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/crane"
@@ -27,23 +28,32 @@ func TestLayer(t *testing.T) {
 	tcs := []struct {
 		Name    string
 		FileMap map[string][]byte
-		Digest  string
+		Digests []string
 	}{{
-		Name:   "Empty contents",
-		Digest: "sha256:89732bc7504122601f40269fc9ddfb70982e633ea9caf641ae45736f2846b004",
+		Name: "Empty contents",
+		Digests: []string{
+			"sha256:89732bc7504122601f40269fc9ddfb70982e633ea9caf641ae45736f2846b004",
+			"sha256:f1a96f347ed7b559984a3f22f92e02007aec407909b05639910e54cb91fa9b1e", // Go 1.27+
+		},
 	}, {
 		Name: "One file",
 		FileMap: map[string][]byte{
 			"/test": []byte("testy"),
 		},
-		Digest: "sha256:ec3ff19f471b99a76fb1c339c1dfdaa944a4fba25be6bcdc99fe7e772103079e",
+		Digests: []string{
+			"sha256:ec3ff19f471b99a76fb1c339c1dfdaa944a4fba25be6bcdc99fe7e772103079e",
+			"sha256:73a212a976527f322e80b3e429215dda1d339681e5335ae3a4019ff51124302d", // Go 1.27+
+		},
 	}, {
 		Name: "Two files",
 		FileMap: map[string][]byte{
 			"/test":    []byte("testy"),
 			"/testalt": []byte("footesty"),
 		},
-		Digest: "sha256:a48bcb7be3ab3ec608ee56eb80901224e19e31dc096cc06a8fd3a8dae1aa8947",
+		Digests: []string{
+			"sha256:a48bcb7be3ab3ec608ee56eb80901224e19e31dc096cc06a8fd3a8dae1aa8947",
+			"sha256:3a0b79b547c0093da15681ad44a34316bcc2e66d90c6779d0a574fe99334f2ef", // Go 1.27+
+		},
 	}, {
 		Name: "Many files",
 		FileMap: map[string][]byte{
@@ -57,7 +67,10 @@ func TestLayer(t *testing.T) {
 			"/8": []byte("8"),
 			"/9": []byte("9"),
 		},
-		Digest: "sha256:1e637602abbcab2dcedcc24e0b7c19763454a47261f1658b57569530b369ccb9",
+		Digests: []string{
+			"sha256:1e637602abbcab2dcedcc24e0b7c19763454a47261f1658b57569530b369ccb9",
+			"sha256:297b435d5e33ffb30cf6a5e52927148e2f9ca7b66207c66e42bfd94851d9a2f8", // Go 1.27+
+		},
 	}}
 
 	for _, tc := range tcs {
@@ -71,8 +84,8 @@ func TestLayer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error calling digest: %v", err)
 			}
-			if d.String() != tc.Digest {
-				t.Errorf("Incorrect digest, want %q, got %q", tc.Digest, d.String())
+			if !slices.Contains(tc.Digests, d.String()) {
+				t.Errorf("Incorrect digest, got %q, want one of %v", d.String(), tc.Digests)
 			}
 
 			// Check contents match.
@@ -128,23 +141,32 @@ func TestImage(t *testing.T) {
 	tcs := []struct {
 		Name    string
 		FileMap map[string][]byte
-		Digest  string
+		Digests []string
 	}{{
-		Name:   "Empty contents",
-		Digest: "sha256:98132f58b523c391a5788997327cac95e114e3a6609d01163189774510705399",
+		Name: "Empty contents",
+		Digests: []string{
+			"sha256:98132f58b523c391a5788997327cac95e114e3a6609d01163189774510705399",
+			"sha256:a4f44966d997cdf300821826390d0f85396ab2fc71542ef9839e34b322d766e4", // Go 1.27+
+		},
 	}, {
 		Name: "One file",
 		FileMap: map[string][]byte{
 			"/test": []byte("testy"),
 		},
-		Digest: "sha256:d905c03ac635172a96c12b8af6c90cfd028e3edaa3114b31a9e196ab38c16963",
+		Digests: []string{
+			"sha256:d905c03ac635172a96c12b8af6c90cfd028e3edaa3114b31a9e196ab38c16963",
+			"sha256:c97f08502dd67add5f98a510ee366aedce248b194b7c9f2c189b3336edb6bd7b", // Go 1.27+
+		},
 	}, {
 		Name: "Two files",
 		FileMap: map[string][]byte{
 			"/test": []byte("testy"),
 			"/bar":  []byte("not useful"),
 		},
-		Digest: "sha256:20e7e4800e5eb167f170970936c08d9e1bcbe91372420eeb6ab8d1a07752c3a3",
+		Digests: []string{
+			"sha256:20e7e4800e5eb167f170970936c08d9e1bcbe91372420eeb6ab8d1a07752c3a3",
+			"sha256:a7f4dc797069f40d3180775e1e813dbbf8372c68b264522ebebe1018a2ad8230", // Go 1.27+
+		},
 	}, {
 		Name: "Many files",
 		FileMap: map[string][]byte{
@@ -158,7 +180,10 @@ func TestImage(t *testing.T) {
 			"/8": []byte("8"),
 			"/9": []byte("9"),
 		},
-		Digest: "sha256:dfca2803510c8e3b83a3151f7c035c60cfa2a8a52465b802e18b85014de361f1",
+		Digests: []string{
+			"sha256:dfca2803510c8e3b83a3151f7c035c60cfa2a8a52465b802e18b85014de361f1",
+			"sha256:b99859055a07ff6e6a4fbbbe76e35e4060804f1de15d036ee4ed906539f64ce6", // Go 1.27+
+		},
 	}}
 	for _, tc := range tcs {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -170,8 +195,8 @@ func TestImage(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Error calling digest: %v", err)
 			}
-			if d.String() != tc.Digest {
-				t.Fatalf("Incorrect digest, want %q, got %q", tc.Digest, d.String())
+			if !slices.Contains(tc.Digests, d.String()) {
+				t.Fatalf("Incorrect digest, got %q, want one of %v", d.String(), tc.Digests)
 			}
 		})
 		t.Run(tc.Name+" is reproducible", func(t *testing.T) {

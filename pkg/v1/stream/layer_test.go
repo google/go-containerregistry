@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"testing"
 
@@ -30,10 +31,27 @@ import (
 )
 
 func TestStreamVsBuffer(t *testing.T) {
-	var n, wantSize int64 = 10000, 49
+	var n int64 = 10000
 	newBlob := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
-	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
-	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
+
+	// Test that buffering the same contents and using
+	// tarball.LayerFromOpener results in the same digest/diffID/size.
+	tl, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) { return newBlob(), nil })
+	if err != nil {
+		t.Fatalf("LayerFromOpener: %v", err)
+	}
+	wantDigest, err := tl.Digest()
+	if err != nil {
+		t.Fatalf("tl.Digest: %v", err)
+	}
+	wantDiffID, err := tl.DiffID()
+	if err != nil {
+		t.Fatalf("tl.DiffID: %v", err)
+	}
+	wantSize, err := tl.Size()
+	if err != nil {
+		t.Fatalf("tl.Size: %v", err)
+	}
 
 	// Check that streaming some content results in the expected digest/diffID/size.
 	l := NewLayer(newBlob())
@@ -49,13 +67,13 @@ func TestStreamVsBuffer(t *testing.T) {
 	}
 	if d, err := l.Digest(); err != nil {
 		t.Errorf("Digest: %v", err)
-	} else if d.String() != wantDigest {
-		t.Errorf("stream Digest got %q, want %q", d.String(), wantDigest)
+	} else if d != wantDigest {
+		t.Errorf("stream Digest got %q, want %q", d, wantDigest)
 	}
 	if d, err := l.DiffID(); err != nil {
 		t.Errorf("DiffID: %v", err)
-	} else if d.String() != wantDiffID {
-		t.Errorf("stream DiffID got %q, want %q", d.String(), wantDiffID)
+	} else if d != wantDiffID {
+		t.Errorf("stream DiffID got %q, want %q", d, wantDiffID)
 	}
 	if s, err := l.Size(); err != nil {
 		t.Errorf("Size: %v", err)
@@ -63,31 +81,12 @@ func TestStreamVsBuffer(t *testing.T) {
 		t.Errorf("stream Size got %d, want %d", s, wantSize)
 	}
 
-	// Test that buffering the same contents and using
-	// tarball.LayerFromOpener results in the same digest/diffID/size.
-	tl, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) { return newBlob(), nil })
-	if err != nil {
-		t.Fatalf("LayerFromOpener: %v", err)
-	}
-	if d, err := tl.Digest(); err != nil {
-		t.Errorf("Digest: %v", err)
-	} else if d.String() != wantDigest {
-		t.Errorf("tarball Digest got %q, want %q", d.String(), wantDigest)
-	}
-	if d, err := tl.DiffID(); err != nil {
-		t.Errorf("DiffID: %v", err)
-	} else if d.String() != wantDiffID {
-		t.Errorf("tarball DiffID got %q, want %q", d.String(), wantDiffID)
-	}
-	if s, err := tl.Size(); err != nil {
-		t.Errorf("Size: %v", err)
-	} else if s != wantSize {
-		t.Errorf("stream Size got %d, want %d", s, wantSize)
-	}
-
 	// Test with different compression
 	l2 := NewLayer(newBlob(), WithCompressionLevel(2))
-	l2WantDigest := "sha256:c9afe7b0da6783232e463e12328cb306142548384accf3995806229c9a6a707f"
+	l2WantDigests := []string{
+		"sha256:c9afe7b0da6783232e463e12328cb306142548384accf3995806229c9a6a707f",
+		"sha256:62e1f590258ecc3b9117fbaf418ac6c4a94ad42102e8b58d47bce9f28a4e9b57", // Go 1.27+
+	}
 	if c, err := l2.Compressed(); err != nil {
 		t.Errorf("Compressed: %v", err)
 	} else {
@@ -100,13 +99,14 @@ func TestStreamVsBuffer(t *testing.T) {
 	}
 	if d, err := l2.Digest(); err != nil {
 		t.Errorf("Digest: %v", err)
-	} else if d.String() != l2WantDigest {
-		t.Errorf("stream Digest got %q, want %q", d.String(), l2WantDigest)
+	} else if !slices.Contains(l2WantDigests, d.String()) {
+		t.Errorf("stream Digest got %q, want one of %v", d.String(), l2WantDigests)
 	}
 }
 
 func TestLargeStream(t *testing.T) {
-	var n, wantSize int64 = 10000000, 10000788 // "Compressing" n random bytes results in this many bytes.
+	var n int64 = 10000000
+	wantSizes := []int64{10000788, 10000785} // Go <=1.26 vs Go 1.27+
 	sl := NewLayer(io.NopCloser(io.LimitReader(rand.Reader, n)))
 	rc, err := sl.Compressed()
 	if err != nil {
@@ -131,8 +131,8 @@ func TestLargeStream(t *testing.T) {
 	}
 	if size, err := sl.Size(); err != nil {
 		t.Errorf("Size: %v", err)
-	} else if size != wantSize {
-		t.Errorf("Size got %d, want %d", size, wantSize)
+	} else if !slices.Contains(wantSizes, size) {
+		t.Errorf("Size got %d, want one of %v", size, wantSizes)
 	}
 }
 
@@ -173,11 +173,14 @@ func TestStreamableLayerFromTarball(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	wantDigest := "sha256:ed80efd7e7e884fb59db568f234332283b341b96155e872d638de42d55a34198"
+	wantDigests := []string{
+		"sha256:ed80efd7e7e884fb59db568f234332283b341b96155e872d638de42d55a34198",
+		"sha256:37c500522893ed4f80e732b121c156582d0a5a9a68fbf7eef476ab7f05d58bda", // Go 1.27+
+	}
 	if got, err := l.Digest(); err != nil {
 		t.Errorf("Digest: %v", err)
-	} else if got.String() != wantDigest {
-		t.Errorf("Digest: got %q, want %q", got.String(), wantDigest)
+	} else if !slices.Contains(wantDigests, got.String()) {
+		t.Errorf("Digest: got %q, want one of %v", got, wantDigests)
 	}
 }
 

@@ -319,17 +319,22 @@ func TestWriteLayer_Progress_Retry(t *testing.T) {
 		everyUpdate = append(everyUpdate, update)
 	}
 
+	sz, err := l.Size()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if diff := cmp.Diff(everyUpdate, []v1.Update{
-		{Total: 101921, Complete: 32768},
-		{Total: 101921, Complete: 65536},
-		{Total: 101921, Complete: 98304},
-		{Total: 101921, Complete: 101921},
+		{Total: sz, Complete: 32768},
+		{Total: sz, Complete: 65536},
+		{Total: sz, Complete: 98304},
+		{Total: sz, Complete: sz},
 		// retry results in the same messages sent to the updates channel
-		{Total: 101921, Complete: 0},
-		{Total: 101921, Complete: 32768},
-		{Total: 101921, Complete: 65536},
-		{Total: 101921, Complete: 98304},
-		{Total: 101921, Complete: 101921},
+		{Total: sz, Complete: 0},
+		{Total: sz, Complete: 32768},
+		{Total: sz, Complete: 65536},
+		{Total: sz, Complete: 98304},
+		{Total: sz, Complete: sz},
 	}); diff != "" {
 		t.Errorf("received updates (-want +got) = %s", diff)
 	}
@@ -372,13 +377,18 @@ func TestWriteLayer_Progress_Error(t *testing.T) {
 		everyUpdate = append(everyUpdate, update)
 	}
 
+	sz, err := l.Size()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	if diff := cmp.Diff(everyUpdate[:len(everyUpdate)-1], []v1.Update{
-		{Total: 101921, Complete: 32768},
-		{Total: 101921, Complete: 65536},
-		{Total: 101921, Complete: 98304},
-		{Total: 101921, Complete: 101921},
+		{Total: sz, Complete: 32768},
+		{Total: sz, Complete: 65536},
+		{Total: sz, Complete: 98304},
+		{Total: sz, Complete: sz},
 		// retry results in the same messages sent to the updates channel
-		{Total: 101921, Complete: 0},
+		{Total: sz, Complete: 0},
 	}); diff != "" {
 		t.Errorf("received updates (-want +got) = %s", diff)
 	}

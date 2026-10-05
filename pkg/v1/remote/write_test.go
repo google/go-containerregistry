@@ -27,6 +27,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -704,9 +705,13 @@ func TestStreamBlob(t *testing.T) {
 }
 
 func TestStreamLayer(t *testing.T) {
-	var n, wantSize int64 = 10000, 49
+	var n int64 = 10000
+	wantSizes := []int64{49, 47}
 	newBlob := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
-	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
+	wantDigests := []string{
+		"sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e",
+		"sha256:6dcc11cd94842cd38113248295ba906085a9b51c7e39bd4206a2d4800a29aac7", // Go 1.27+
+	}
 
 	expectedPath := "/vWhatever/I/decide"
 	expectedCommitLocation := "https://commit.io/v12/blob"
@@ -723,12 +728,12 @@ func TestStreamLayer(t *testing.T) {
 		if err != nil {
 			t.Errorf("Reading body: %v", err)
 		}
-		if s != wantSize {
-			t.Errorf("Received %d bytes, want %d", s, wantSize)
+		if !slices.Contains(wantSizes, s) {
+			t.Errorf("Received %d bytes, want one of %v", s, wantSizes)
 		}
 		gotDigest := "sha256:" + hex.EncodeToString(h.Sum(nil))
-		if gotDigest != wantDigest {
-			t.Errorf("Received bytes with digest %q, want %q", gotDigest, wantDigest)
+		if !slices.Contains(wantDigests, gotDigest) {
+			t.Errorf("Received bytes with digest %q, want one of %v", gotDigest, wantDigests)
 		}
 
 		w.Header().Set("Location", expectedCommitLocation)
@@ -895,9 +900,13 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 	}
 	defer closer.Close()
 
-	var n, wantSize int64 = 10000, 49
+	var n int64 = 10000
+	wantSizes := []int64{49, 47}
 	newBlob := func() io.ReadCloser { return io.NopCloser(bytes.NewReader(bytes.Repeat([]byte{'a'}, int(n)))) }
-	wantDigest := "sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e"
+	wantDigests := []string{
+		"sha256:3d7c465be28d9e1ed810c42aeb0e747b44441424f566722ba635dc93c947f30e",
+		"sha256:6dcc11cd94842cd38113248295ba906085a9b51c7e39bd4206a2d4800a29aac7", // Go 1.27+
+	}
 	wantDiffID := "sha256:27dd1f61b867b6a0f6e9d8a41c43231de52107e53ae424de8f847b821db4b711"
 	l := stream.NewLayer(newBlob())
 	if err := w.uploadOne(ctx, l); err != nil {
@@ -906,8 +915,8 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 
 	if dig, err := l.Digest(); err != nil {
 		t.Errorf("Digest: %v", err)
-	} else if dig.String() != wantDigest {
-		t.Errorf("Digest got %q, want %q", dig, wantDigest)
+	} else if !slices.Contains(wantDigests, dig.String()) {
+		t.Errorf("Digest got %q, want one of %v", dig, wantDigests)
 	}
 	if diffID, err := l.DiffID(); err != nil {
 		t.Errorf("DiffID: %v", err)
@@ -916,8 +925,8 @@ func TestUploadOneStreamedLayer(t *testing.T) {
 	}
 	if size, err := l.Size(); err != nil {
 		t.Errorf("Size: %v", err)
-	} else if size != wantSize {
-		t.Errorf("Size got %d, want %d", size, wantSize)
+	} else if !slices.Contains(wantSizes, size) {
+		t.Errorf("Size got %d, want one of %v", size, wantSizes)
 	}
 }
 

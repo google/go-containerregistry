@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -753,10 +754,10 @@ func TestAppendStreamableLayer(t *testing.T) {
 	if err != nil {
 		t.Errorf("Layers: %v", err)
 	}
-	wantDigests := []string{
-		"sha256:bfa1c600931132f55789459e2f5a5eb85659ac91bc5a54ce09e3ed14809f8a7f",
-		"sha256:77a52b9a141dcc4d3d277d053193765dca725626f50eaf56b903ac2439cf7fd1",
-		"sha256:b78472d63f6e3d31059819173b56fcb0d9479a2b13c097d4addd84889f6aff06",
+	wantDigests := [][]string{
+		{"sha256:bfa1c600931132f55789459e2f5a5eb85659ac91bc5a54ce09e3ed14809f8a7f", "sha256:307d9d95b909f9035c877d249f1a033af6cba68f8efdcd867a61e1d75fb95d29"},
+		{"sha256:77a52b9a141dcc4d3d277d053193765dca725626f50eaf56b903ac2439cf7fd1", "sha256:2fcca2c50a800d88ed215d84942887ac8010b2de12bdc10af47ad7d377e57933"},
+		{"sha256:b78472d63f6e3d31059819173b56fcb0d9479a2b13c097d4addd84889f6aff06", "sha256:a857e8e17bf972f501904f01b8674d5ec84a4c8f262ee29a31669b5edb46a1dc"},
 	}
 	for i, l := range ls[1:] {
 		rc, err := l.Compressed()
@@ -778,8 +779,8 @@ func TestAppendStreamableLayer(t *testing.T) {
 		if err != nil {
 			t.Errorf("Digest after consuming layer %d: %v", i, err)
 		}
-		if h.String() != wantDigests[i] {
-			t.Errorf("Layer %d digest got %q, want %q", i, h, wantDigests[i])
+		if !slices.Contains(wantDigests[i], h.String()) {
+			t.Errorf("Layer %d digest got %q, want one of %v", i, h, wantDigests[i])
 		}
 	}
 
@@ -793,9 +794,12 @@ func TestAppendStreamableLayer(t *testing.T) {
 	if err != nil {
 		t.Errorf("Digest: %v", err)
 	}
-	wantDigest := "sha256:14d140947afedc6901b490265a08bc8ebe7f9d9faed6fdf19a451f054a7dd746"
-	if h.String() != wantDigest {
-		t.Errorf("Image digest got %q, want %q", h, wantDigest)
+	wantDigestsImg := []string{
+		"sha256:14d140947afedc6901b490265a08bc8ebe7f9d9faed6fdf19a451f054a7dd746",
+		"sha256:ee25ad4d0f2c5cb16cc22462347ae617aa966072d50eb29894fb2eb3ea23b5dc", // Go 1.27+
+	}
+	if !slices.Contains(wantDigestsImg, h.String()) {
+		t.Errorf("Image digest got %q, want one of %v", h, wantDigestsImg)
 	}
 }
 

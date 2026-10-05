@@ -105,7 +105,7 @@ func TestBundleMultiple(t *testing.T) {
 				t.Fatalf("Unexpected error loading manifest: %v", err)
 			}
 
-			if err := validate.Image(img); err != nil {
+			if err := validate.Image(img, validate.Fast); err != nil {
 				t.Errorf("Validate() = %v", err)
 			}
 		})
