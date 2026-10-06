@@ -32,7 +32,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: chainguard-dev/actions/boilerplate@a9d4aa7202a63f8a6b8f81bb1570a0ca54460ac5 # v1.6.34
+      - uses: chainguard-dev/actions/boilerplate@84b1be4c638f12d4256ddddef17af98853b6d0d9 # v1.6.40
         with:
           extension: ${{ matrix.extension }}
           language: ${{ matrix.language }}
