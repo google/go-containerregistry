@@ -161,7 +161,7 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 		if err != nil {
 			return sendProgressWriterReturn(pw, err)
 		}
-		if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		if err := writeTarEntry(tf, configFileName(cfgName), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 			return sendProgressWriterReturn(pw, err)
 		}
 
@@ -263,7 +263,7 @@ func calculateManifest(imageToTags map[v1.Image][]string) (m Manifest, err error
 
 		// Generate the tar descriptor and write it.
 		m = append(m, Descriptor{
-			Config:       cfgName.String(),
+			Config:       configFileName(cfgName),
 			RepoTags:     tags,
 			Layers:       layerFiles,
 			LayerSources: layerSources,
@@ -355,6 +355,21 @@ func dedupRefToImage(refToImage map[name.Reference]v1.Image) map[v1.Image][]stri
 	}
 
 	return imageToTags
+}
+
+// configFileName is the archive entry for an image config blob.
+//
+// Layer filenames already drop the algorithm prefix. The config must match,
+// and manifest.json Config must name that same entry. A colon is a remote
+// tape drive to tar:
+// https://www.gnu.org/software/tar/manual/html_section/tar_45.html
+// Docker's Windows loader also rejects it. filepath.IsLocal treats ":" as
+// non-local, so docker load fails with invalid entry name "sha256:<hex>".
+//
+// Readers open the path recorded in manifest.json, so archives written with
+// the old "sha256:<hex>" config name still load.
+func configFileName(h v1.Hash) string {
+	return h.Hex
 }
 
 // writeTarEntry writes a file to the provided writer with a corresponding tar header

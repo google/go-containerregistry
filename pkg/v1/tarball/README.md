@@ -67,7 +67,7 @@ ubuntu/
 ├── de83a2304fa1f7c4a13708a0d15b9704f5945c2be5cbb2b3ed9b2ccb718d0b3d.tar.gz
 ├── f9a83bce3af0648efaa60b9bb28225b09136d2d35d0bed25ac764297076dec1b.tar.gz
 ├── manifest.json
-└── sha256:72300a873c2ca11c70d0c8642177ce76ff69ae04d61a5813ef58d40ff66e3e7c
+└── 72300a873c2ca11c70d0c8642177ce76ff69ae04d61a5813ef58d40ff66e3e7c
 
 0 directories, 6 files
 ```
@@ -85,7 +85,7 @@ that points to the image's config file, a list of `Layers`, and (optionally)
 $ jq < ubuntu/manifest.json
 [
   {
-    "Config": "sha256:72300a873c2ca11c70d0c8642177ce76ff69ae04d61a5813ef58d40ff66e3e7c",
+    "Config": "72300a873c2ca11c70d0c8642177ce76ff69ae04d61a5813ef58d40ff66e3e7c",
     "RepoTags": [
       "ubuntu"
     ],
@@ -100,9 +100,16 @@ $ jq < ubuntu/manifest.json
 ```
 
 The config file and layers are exactly what you would expect, and match the
-registry representations of the same artifacts. You'll notice that the
-`manifest.json` contains similar information as the registry manifest, but isn't
-quite the same:
+registry representations of the same artifacts. The config file is named with
+the hex digest only. Layer filenames already drop the `sha256:` prefix: `tar`
+treats a colon as a remote tape drive, and Docker on Windows rejects an entry
+named `sha256:<hex>` (`invalid entry name`). `manifest.json` records that same
+hex name in `Config`. Archives written earlier still load, because the reader
+opens the path stored in `manifest.json`, including a `Config` value of
+`sha256:<hex>`.
+
+You'll notice that the `manifest.json` contains similar information as the
+registry manifest, but isn't quite the same:
 
 ```
 $ crane manifest ubuntu@sha256:0925d086715714114c1988f7c947db94064fd385e171a63c07730f1fa014e6f9
@@ -157,14 +164,14 @@ nanoserver/
 ├── a35da61c356213336e646756218539950461ff2bf096badf307a23add6e70053.tar.gz
 ├── be21f08f670160cbae227e3053205b91d6bfa3de750b90c7e00bd2c511ccb63a.tar.gz
 ├── manifest.json
-└── sha256:bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6
+└── bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6
 
 0 directories, 5 files
 
 $ jq < nanoserver/manifest.json
 [
   {
-    "Config": "sha256:bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6",
+    "Config": "bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6",
     "RepoTags": [
       "index.docker.io/library/hello-world:i-was-a-digest"
     ],
