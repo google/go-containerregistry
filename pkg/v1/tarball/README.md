@@ -101,12 +101,7 @@ $ jq < ubuntu/manifest.json
 
 The config file and layers are exactly what you would expect, and match the
 registry representations of the same artifacts. The config file is named with
-the hex digest only. Layer filenames already drop the `sha256:` prefix: `tar`
-treats a colon as a remote tape drive, and Docker on Windows rejects an entry
-named `sha256:<hex>` (`invalid entry name`). `manifest.json` records that same
-hex name in `Config`. Archives written earlier still load, because the reader
-opens the path stored in `manifest.json`, including a `Config` value of
-`sha256:<hex>`.
+the hex digest only.
 
 You'll notice that the `manifest.json` contains similar information as the
 registry manifest, but isn't quite the same:
