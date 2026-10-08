@@ -26,6 +26,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/go-containerregistry/internal/verify"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
@@ -162,6 +163,26 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 		mf := manifest{
 			blob:        b.Bytes(),
 			contentType: req.Header.Get("Content-Type"),
+		}
+
+		// When the reference is a digest, the pushed content must hash to it.
+		// The distribution spec requires the registry to reject a digest
+		// reference whose content does not match (§ pushing a manifest). Blob
+		// pushes are already verified this way in blobs.go; manifests were not,
+		// so a mismatched manifest could be stored and later served under a
+		// digest it doesn't match.
+		if ref, err := v1.NewHash(target); err == nil {
+			if err := verify.Descriptor(v1.Descriptor{
+				Data:   b.Bytes(),
+				Digest: ref,
+				Size:   int64(b.Len()),
+			}); err != nil {
+				return &regError{
+					Status:  http.StatusBadRequest,
+					Code:    "DIGEST_INVALID",
+					Message: "manifest digest does not match content",
+				}
+			}
 		}
 
 		// If the manifest is a manifest list, check that the manifest
