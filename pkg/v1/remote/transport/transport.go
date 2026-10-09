@@ -51,7 +51,7 @@ func NewWithContext(ctx context.Context, reg name.Registry, auth authn.Authentic
 	//  2a. If we get back a 200, then simply use "t".
 	//
 	//  2b. If we get back a 401 with a Basic challenge, then use a transport
-	//     that just attachs auth each roundtrip.
+	//     that just attaches auth each roundtrip.
 	//
 	//  2c. If we get back a 401 with a Bearer challenge, then use a transport
 	//     that attaches a bearer token to each request, and refreshes is on 401s.
