@@ -275,6 +275,8 @@ func extract(img v1.Image, w io.Writer) error {
 	// opaqueDirs holds directories opaqued by an upper layer; entries under them
 	// from lower (later-iterated) layers are hidden.
 	opaqueDirs := map[string]bool{}
+	// Tracks old hardlink names that were overwritten by newer layers.
+	hardlinkRewrites := map[string]string{}
 
 	layers, err := img.Layers()
 	if err != nil {
@@ -285,14 +287,14 @@ func extract(img v1.Image, w io.Writer) error {
 	// whiteout layers more efficient, since we can just keep track of the removed
 	// files as we see .wh. layers and ignore those in previous layers.
 	for i := len(layers) - 1; i >= 0; i-- {
-		if err := extractLayer(tarWriter, fileMap, opaqueDirs, layers[i]); err != nil {
+		if err := extractLayer(tarWriter, fileMap, opaqueDirs, hardlinkRewrites, layers[i]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func extractLayer(tarWriter *tar.Writer, fileMap, opaqueDirs map[string]bool, layer v1.Layer) error {
+func extractLayer(tarWriter *tar.Writer, fileMap, opaqueDirs map[string]bool, hardlinkRewrites map[string]string, layer v1.Layer) error {
 	// Opaque markers in this layer hide only lower layers, so stage them and
 	// promote to opaqueDirs after the whole layer is processed.
 	layerOpaque := map[string]bool{}
@@ -363,6 +365,9 @@ func extractLayer(tarWriter *tar.Writer, fileMap, opaqueDirs map[string]bool, la
 		}
 
 		if _, ok := fileMap[name]; ok && !tombstone {
+			if header.Typeflag == tar.TypeLink {
+				rememberHardlinkRewrite(hardlinkRewrites, name, header.Linkname)
+			}
 			continue
 		}
 
@@ -380,6 +385,9 @@ func extractLayer(tarWriter *tar.Writer, fileMap, opaqueDirs map[string]bool, la
 		// any entries with a matching (or child) name
 		fileMap[name] = tombstone || (header.Typeflag != tar.TypeDir)
 		if !tombstone {
+			if header.Typeflag == tar.TypeLink {
+				header.Linkname = resolveHardlinkRewrite(hardlinkRewrites, header.Linkname)
+			}
 			if err := tarWriter.WriteHeader(header); err != nil {
 				return err
 			}
@@ -419,6 +427,26 @@ func inOpaqueDir(opaqueDirs map[string]bool, file string) bool {
 		file = dirname
 	}
 	return false
+}
+
+func rememberHardlinkRewrite(hardlinkRewrites map[string]string, name, linkname string) {
+	linkname = resolveHardlinkRewrite(hardlinkRewrites, linkname)
+	if linkname == name {
+		return
+	}
+	hardlinkRewrites[name] = linkname
+}
+
+func resolveHardlinkRewrite(hardlinkRewrites map[string]string, linkname string) string {
+	seen := map[string]bool{}
+	for {
+		next, ok := hardlinkRewrites[linkname]
+		if !ok || seen[linkname] {
+			return linkname
+		}
+		seen[linkname] = true
+		linkname = next
+	}
 }
 
 func inWhiteoutDir(fileMap map[string]bool, file string) bool {
