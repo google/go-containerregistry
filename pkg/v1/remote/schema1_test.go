@@ -113,7 +113,17 @@ func TestSchema1(t *testing.T) {
 		}
 	}
 
-	mustErr(img.ConfigFile())
+	config, err := img.ConfigFile()
+	if err != nil {
+		t.Fatalf("Error loading config file: %v", err)
+	}
+	if got, want := len(config.RootFS.DiffIDs), 3; got != want {
+		t.Fatalf("num diff ids; got %v, want %v", got, want)
+	}
+	if got, want := config.RootFS.Type, "layers"; got != want {
+		t.Fatalf("rootfs type; got %v, want %v", got, want)
+	}
+
 	mustErr(img.Manifest())
 	mustErr(img.LayerByDiffID(v1.Hash{}))
 
