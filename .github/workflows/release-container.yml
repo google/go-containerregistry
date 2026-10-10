@@ -1,0 +1,63 @@
+name: container-build
+
+on:
+  push:
+    tags: ['*']
+
+env:
+  KO_DEFAULTPLATFORMS: all
+
+jobs:
+  release-container:
+    name: Build the release container images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - id: lowercase-repository-name
+        uses: ASzc/change-string-case-action@v6
+        with:
+          string: ${{ github.repository }}
+      - name: Get tag name
+        id: tag_name
+        run: |
+          echo "SOURCE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with: 
+          go-version: 1.21
+          check-latest: true
+      - name: Setup Ko
+        uses: ko-build/setup-ko@v0.7
+      - name: Build the crane-ish builder images
+        run: |
+          ko build -B github.com/google/go-containerregistry/cmd/crane -t latest -t $GITHUB_SHA -t $SOURCE_TAG
+          ko build -B github.com/google/go-containerregistry/cmd/gcrane -t latest -t $GITHUB_SHA -t $SOURCE_TAG
+          # ./cmd/krane is a separate module, so switch directories.
+          cd ./cmd/krane
+          ko build -B github.com/google/go-containerregistry/cmd/krane -t latest -t $GITHUB_SHA -t $SOURCE_TAG
+        env:
+          KO_DOCKER_REPO: ghcr.io/${{ steps.lowercase-repository-name.outputs.lowercase }}
+          SOURCE_TAG: ${{ steps.tag_name.outputs.SOURCE_TAG }}
+          KO_CONFIG_PATH: ${{ github.workspace }}/.ko/default/.ko.yaml
+      - name: Build the crane-ish builder debug images
+        run: |
+          ko build -B github.com/google/go-containerregistry/cmd/crane  -t "debug"
+          ko build -B github.com/google/go-containerregistry/cmd/gcrane -t "debug"
+          # ./cmd/krane is a separate module, so switch directories.
+          cd ${{ github.workspace }}/cmd/krane
+          ko build -B github.com/google/go-containerregistry/cmd/krane -t "debug"
+        env:
+          KO_CONFIG_PATH: ${{ github.workspace }}/.ko/debug/.ko.yaml
+      - name: Build the tag specific debug images
+        run: |
+          KO_DOCKER_REPO=ghcr.io/${{ steps.lowercase-repository-name.outputs.lowercase }}/crane/debug  ko build --bare github.com/google/go-containerregistry/cmd/crane  -t latest -t $GITHUB_SHA -t $SOURCE_TAG
+          KO_DOCKER_REPO=ghcr.io/${{ steps.lowercase-repository-name.outputs.lowercase }}/gcrane/debug ko build --bare github.com/google/go-containerregistry/cmd/gcrane -t latest -t $GITHUB_SHA -t $SOURCE_TAG
+          # ./cmd/krane is a separate module, so switch directories.
+          cd ./cmd/krane
+          KO_DOCKER_REPO=ghcr.io/${{ steps.lowercase-repository-name.outputs.lowercase }}/krane/debug ko build --bare github.com/google/go-containerregistry/cmd/krane -t latest -t $GITHUB_SHA -t $SOURCE_TAG
+        env:
+          KO_CONFIG_PATH: ${{ github.workspace }}/.ko/debug/.ko.yaml
+          SOURCE_TAG: ${{ steps.tag_name.outputs.SOURCE_TAG }}
