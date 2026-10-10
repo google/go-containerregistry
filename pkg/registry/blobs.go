@@ -38,6 +38,9 @@ import (
 func isBlob(req *http.Request) bool {
 	elem := strings.Split(req.URL.Path, "/")
 	elem = elem[1:]
+	if len(elem) < 3 {
+		return false
+	}
 	if elem[len(elem)-1] == "" {
 		elem = elem[:len(elem)-1]
 	}
