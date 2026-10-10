@@ -26,16 +26,19 @@ const (
 )
 
 type options struct {
-	strict          bool // weak by default
-	insecure        bool // secure by default
-	defaultRegistry string
-	defaultTag      string
+	strict                     bool // weak by default
+	insecure                   bool // secure by default
+	defaultRegistry            string
+	defaultRepositoryPrefix    string
+	defaultRepositoryPrefixSet bool
+	defaultTag                 string
 }
 
 func makeOptions(opts ...Option) options {
 	opt := options{
-		defaultRegistry: DefaultRegistry,
-		defaultTag:      DefaultTag,
+		defaultRegistry:         DefaultRegistry,
+		defaultRepositoryPrefix: defaultNamespace,
+		defaultTag:              DefaultTag,
 	}
 	for _, o := range opts {
 		o(&opt)
@@ -72,6 +75,15 @@ type OptionFn func() Option
 func WithDefaultRegistry(r string) Option {
 	return func(opts *options) {
 		opts.defaultRegistry = r
+	}
+}
+
+// WithDefaultRepositoryPrefix sets the default repository prefix that will be
+// used for single-component repository names such as "ubuntu".
+func WithDefaultRepositoryPrefix(prefix string) Option {
+	return func(opts *options) {
+		opts.defaultRepositoryPrefix = prefix
+		opts.defaultRepositoryPrefixSet = true
 	}
 }
 
