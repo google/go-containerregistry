@@ -457,6 +457,35 @@ func TestAppendLayers(t *testing.T) {
 	}
 }
 
+func TestAppendLayersWithEmptyConfigMediaType(t *testing.T) {
+	base, err := random.Image(128, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base = mutate.ConfigMediaType(base, types.MediaType(""))
+
+	layer, err := random.Layer(100, types.DockerLayer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := mutate.AppendLayers(base, layer)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := getConfigFile(t, result)
+	layers, err := result.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.RootFS.DiffIDs) != len(layers) {
+		t.Errorf("RootFS.DiffIDs has %d entries, want %d", len(config.RootFS.DiffIDs), len(layers))
+	}
+	if len(config.History) != len(layers) {
+		t.Errorf("History has %d entries, want %d", len(config.History), len(layers))
+	}
+}
+
 func TestMutateConfig(t *testing.T) {
 	source := sourceImage(t)
 	cfg, err := source.ConfigFile()
