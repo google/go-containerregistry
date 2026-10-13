@@ -254,3 +254,67 @@ func TestAppend_ArtifactType_Override(t *testing.T) {
 		t.Errorf("manifest artifactType: got %q, want %q", got, wantArtifactType)
 	}
 }
+
+// The by-hash accessors read lookup maps that only compute() populates, while
+// Digest, IndexManifest, RawManifest and Manifests all call compute() first. If
+// an accessor is the first call made on a freshly mutated index, the maps are
+// nil, the lookup misses and the call falls through to the base index, which
+// does not hold the addendum. The same index then answers differently depending
+// on the order it was asked.
+func TestAppendManifestsLookupBeforeCompute(t *testing.T) {
+	newIndex := func(t *testing.T) (v1.ImageIndex, v1.Hash, v1.Hash) {
+		t.Helper()
+
+		base, err := random.Index(1024, 1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, err := random.Image(1024, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		child, err := random.Index(1024, 1, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		imgHash, err := img.Digest()
+		if err != nil {
+			t.Fatal(err)
+		}
+		childHash, err := child.Digest()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		added := mutate.AppendManifests(base,
+			mutate.IndexAddendum{Add: img},
+			mutate.IndexAddendum{Add: child},
+		)
+		return added, imgHash, childHash
+	}
+
+	t.Run("Image before anything else", func(t *testing.T) {
+		added, imgHash, _ := newIndex(t)
+		if _, err := added.Image(imgHash); err != nil {
+			t.Errorf("Image(%s) as the first call: %v", imgHash, err)
+		}
+	})
+
+	t.Run("ImageIndex before anything else", func(t *testing.T) {
+		added, _, childHash := newIndex(t)
+		if _, err := added.ImageIndex(childHash); err != nil {
+			t.Errorf("ImageIndex(%s) as the first call: %v", childHash, err)
+		}
+	})
+
+	t.Run("Image after IndexManifest still works", func(t *testing.T) {
+		added, imgHash, _ := newIndex(t)
+		if _, err := added.IndexManifest(); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := added.Image(imgHash); err != nil {
+			t.Errorf("Image(%s) after IndexManifest: %v", imgHash, err)
+		}
+	})
+}
