@@ -30,7 +30,9 @@ const (
 // Repository stores a docker repository name in a structured form.
 type Repository struct {
 	Registry
-	repository string
+	repository                 string
+	defaultRepositoryPrefix    string
+	defaultRepositoryPrefixSet bool
 }
 
 var _ encoding.TextMarshaler = (*Repository)(nil)
@@ -38,15 +40,27 @@ var _ encoding.TextUnmarshaler = (*Repository)(nil)
 var _ json.Marshaler = (*Repository)(nil)
 var _ json.Unmarshaler = (*Repository)(nil)
 
-// See https://docs.docker.com/docker-hub/official_repos
-func hasImplicitNamespace(repo string, reg Registry) bool {
-	return !strings.ContainsRune(repo, '/') && reg.RegistryStr() == DefaultRegistry
+func (r Repository) hasImplicitNamespace() bool {
+	// Docker Hub single-component names default to "library" for historical
+	// compatibility. Explicit repository-prefix defaulting applies to any
+	// default registry selected by the caller.
+	return !strings.ContainsRune(r.repository, '/') &&
+		(r.RegistryStr() == DefaultRegistry || r.defaultRepositoryPrefixSet)
+}
+
+func (r Repository) repositoryPrefix() string {
+	if r.defaultRepositoryPrefixSet {
+		return r.defaultRepositoryPrefix
+	}
+	return defaultNamespace
 }
 
 // RepositoryStr returns the repository component of the Repository.
 func (r Repository) RepositoryStr() string {
-	if hasImplicitNamespace(r.repository, r.Registry) {
-		return fmt.Sprintf("%s/%s", defaultNamespace, r.repository)
+	if r.hasImplicitNamespace() {
+		if prefix := r.repositoryPrefix(); prefix != "" {
+			return fmt.Sprintf("%s/%s", prefix, r.repository)
+		}
 	}
 	return r.repository
 }
@@ -102,10 +116,22 @@ func NewRepository(name string, opts ...Option) (Repository, error) {
 	if err != nil {
 		return Repository{}, err
 	}
-	if hasImplicitNamespace(repo, reg) && opt.strict {
-		return Repository{}, newErrBadName("strict validation requires the full repository path (missing 'library')")
+	r := Repository{
+		Registry:                   reg,
+		repository:                 repo,
+		defaultRepositoryPrefix:    opt.defaultRepositoryPrefix,
+		defaultRepositoryPrefixSet: opt.defaultRepositoryPrefixSet,
 	}
-	return Repository{reg, repo}, nil
+	if r.hasImplicitNamespace() && opt.strict {
+		return Repository{}, newErrBadName(
+			"strict validation requires the full repository path (missing '%s')", r.repositoryPrefix())
+	}
+	if r.hasImplicitNamespace() {
+		if err := checkRepository(r.RepositoryStr()); err != nil {
+			return Repository{}, err
+		}
+	}
+	return r, nil
 }
 
 // Tag returns a Tag in this Repository.
