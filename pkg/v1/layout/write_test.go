@@ -79,7 +79,7 @@ func TestAppendDescriptorInitializesIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Append a descriptor to a non-existent layout.
+	// Append a descriptor to a nonexistent layout.
 	desc := v1.Descriptor{
 		Digest:    bogusDigest,
 		Size:      1337,

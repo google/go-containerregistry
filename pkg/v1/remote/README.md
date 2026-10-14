@@ -50,7 +50,7 @@ There are a lot of confusingly similar terms that come up when talking about ima
 In general...
 
 * A tag refers to an image manifest.
-* An image manifest references a config file and an orderered list of _compressed_ layers by sha256 digest.
+* An image manifest references a config file and an ordered list of _compressed_ layers by sha256 digest.
 * A config file references an ordered list of _uncompressed_ layers by sha256 digest and contains runtime configuration.
 * The sha256 digest of the config file is the [image id](https://github.com/opencontainers/image-spec/blob/master/config.md#imageid) for the image.
 
@@ -114,4 +114,4 @@ however, it's possible to do _something_ useful with them via [`remote.Get`](htt
 which doesn't try to interpret what is returned by the registry.
 
 [`crane.Copy`](https://godoc.org/github.com/google/go-containerregistry/pkg/crane#Copy) takes advantage of this to implement support for copying schema 1 images,
-see [here](https://github.com/google/go-containerregistry/blob/main/pkg/internal/legacy/copy.go).
+see [legacy/copy.go](https://github.com/google/go-containerregistry/blob/ba53fa10e72c7373ef8068e21c9f102f0c20a940/pkg/internal/legacy/copy.go).

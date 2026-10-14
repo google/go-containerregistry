@@ -90,13 +90,13 @@ func TestCalls(t *testing.T) {
 			Header:      map[string]string{"Docker-Distribution-API-Version": "registry/2.0"},
 		},
 		{
-			Description: "GET non existent blob",
+			Description: "GET nonexistent blob",
 			Method:      "GET",
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusNotFound,
 		},
 		{
-			Description: "HEAD non existent blob",
+			Description: "HEAD nonexistent blob",
 			Method:      "HEAD",
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			Code:        http.StatusNotFound,
@@ -461,7 +461,7 @@ func TestCalls(t *testing.T) {
 			Want:        `{"name":"foo","tags":["tag1"]}`,
 		},
 		{
-			Description: "list non existing tags",
+			Description: "list nonexistent tags",
 			Method:      "GET",
 			URL:         "/v2/foo/tags/list?n=1000",
 			Code:        http.StatusNotFound,
@@ -493,7 +493,7 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusOK,
 			Manifests: map[string]string{
 				"foo/manifests/image":           "foo",
-				"foo/manifests/points-to-image": "{\"subject\": {\"digest\": \"sha256:" + sha256String("nonexistant") + "\"}}",
+				"foo/manifests/points-to-image": "{\"subject\": {\"digest\": \"sha256:" + sha256String("nonexistent") + "\"}}",
 			},
 			Header: map[string]string{
 				"Content-Type": "application/vnd.oci.image.index.v1+json",

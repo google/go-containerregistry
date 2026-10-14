@@ -4,7 +4,7 @@ This is an implementation of the [`authn.Keychain`](https://godoc.org/github.com
 
 This keychain supports passing a Kubernetes Service Account and some ImagePullSecrets which may represent registry credentials.
 
-In addition to those, the keychain also includes cloud-specific credential helpers for Google Container Registry (and Artifact Registry), Azure Container Registry, and Amazon AWS Elasic Container Registry.
+In addition to those, the keychain also includes cloud-specific credential helpers for Google Container Registry (and Artifact Registry), Azure Container Registry, and Amazon AWS Elastic Container Registry.
 This means that if the keychain is used from within Kubernetes services on those clouds (GKE, AKS, EKS), any available service credentials will be discovered and used.
 
 In general this keychain should be used when the code is expected to run in a Kubernetes cluster, and especially when it will run in one of those clouds.
