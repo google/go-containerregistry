@@ -440,12 +440,12 @@ func TestComputeManifest(t *testing.T) {
 	// so mutated "gcr.io/baz/bat:latest" is before random "gcr.io/foo/bar:latest"
 	expected := []tarball.Descriptor{
 		{
-			Config:   mutatedConfig.String(),
+			Config:   mutatedConfig.Hex,
 			RepoTags: []string{mutatedTag},
 			Layers:   mutatedLayersFilenames,
 		},
 		{
-			Config:   randConfig.String(),
+			Config:   randConfig.Hex,
 			RepoTags: []string{randomTagWritten},
 			Layers:   randomLayersFilenames,
 		},
@@ -578,6 +578,97 @@ func (rc *tokenReleasingReadCloser) Close() error {
 		rc.release()
 	}
 	return err
+}
+
+func TestWriteConfigNameOmitsAlgorithm(t *testing.T) {
+	img, err := random.Image(1024, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfgName, err := img.ConfigName()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tag, err := name.NewTag("example.com/app:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var buf bytes.Buffer
+	if err := tarball.Write(tag, img, &buf); err != nil {
+		t.Fatal(err)
+	}
+
+	tr := tar.NewReader(bytes.NewReader(buf.Bytes()))
+	var sawConfig, sawManifest bool
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(hdr.Name, ":") {
+			t.Fatalf("tar entry %q contains a colon", hdr.Name)
+		}
+		if hdr.Name == cfgName.Hex {
+			sawConfig = true
+			body, err := io.ReadAll(tr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want, err := img.RawConfigFile()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(body, want) {
+				t.Fatalf("config blob = %q, want raw config", body)
+			}
+		}
+		if hdr.Name != "manifest.json" {
+			continue
+		}
+		sawManifest = true
+		body, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var manifests []tarball.Descriptor
+		if err := json.Unmarshal(body, &manifests); err != nil {
+			t.Fatal(err)
+		}
+		if len(manifests) != 1 {
+			t.Fatalf("manifests = %#v", manifests)
+		}
+		if manifests[0].Config != cfgName.Hex {
+			t.Fatalf("config name = %q, want %q", manifests[0].Config, cfgName.Hex)
+		}
+		if strings.Contains(manifests[0].Config, ":") {
+			t.Fatalf("config name %q still has a colon", manifests[0].Config)
+		}
+		for _, layer := range manifests[0].Layers {
+			if strings.Contains(layer, ":") {
+				t.Fatalf("layer name %q contains a colon", layer)
+			}
+		}
+	}
+	if !sawConfig {
+		t.Fatalf("archive has no config entry %q", cfgName.Hex)
+	}
+	if !sawManifest {
+		t.Fatal("archive has no manifest.json")
+	}
+
+	loaded, err := tarball.Image(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(buf.Bytes())), nil
+	}, &tag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := compare.Images(img, loaded); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestWriteDynamicExtensions(t *testing.T) {
