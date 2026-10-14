@@ -1,0 +1,5 @@
+defaultFlags:
+  - -trimpath
+defaultLdflags:
+  - -X github.com/google/go-containerregistry/cmd/crane/cmd.Version={{.Git.Tag}}
+  - -X github.com/google/go-containerregistry/pkg/v1/remote/transport.Version={{.Git.Tag}}

@@ -112,11 +112,11 @@ release:
   footer: |
     ### Container Images
 
-    https://gcr.io/go-containerregistry/crane:{{.Tag}}
-    https://gcr.io/go-containerregistry/gcrane:{{.Tag}}
+    https://ghcr.io/google/go-containerregistry/crane:{{.Tag}}
+    https://ghcr.io/google/go-containerregistry/gcrane:{{.Tag}}
 
     For example:
     ```
-    docker pull gcr.io/go-containerregistry/crane:{{.Tag}}
-    docker pull gcr.io/go-containerregistry/gcrane:{{.Tag}}
+    docker pull ghcr.io/google/go-containerregistry/crane:{{.Tag}}
+    docker pull ghcr.io/google/go-containerregistry/gcrane:{{.Tag}}
     ```
