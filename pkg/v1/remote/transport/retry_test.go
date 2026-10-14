@@ -15,12 +15,14 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -225,4 +227,143 @@ func TestTimeoutContext(t *testing.T) {
 	case <-time.After(time.Millisecond * 100):
 		t.Fatalf("deadline was not recognized by transport")
 	}
+}
+
+// TestRetryTransportRewindsBody is a regression test for
+// https://github.com/google/go-containerregistry/issues/1004: when a request
+// with a body fails with a temporary network error, the retry must not reuse
+// the already-consumed body. Simulate a flaky registry that kills the
+// connection on the first attempt without reading the request body, then
+// verify that the retried request arrives with the complete body.
+func TestRetryTransportRewindsBody(t *testing.T) {
+	// Large enough that the first attempt's write cannot be fully buffered,
+	// guaranteeing that the failed attempt (partially) consumed the body.
+	payload := bytes.Repeat([]byte("flaky-registry"), 1<<17)
+
+	var mu sync.Mutex
+	attempts := 0
+	var bodies [][]byte
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		attempts++
+		n := attempts
+		mu.Unlock()
+		if n == 1 {
+			// Abruptly close the connection without reading the body, like a
+			// registry (or LB) dropping the connection mid-upload.
+			hj, ok := w.(http.Hijacker)
+			if !ok {
+				t.Fatal("server does not support hijacking")
+			}
+			conn, _, err := hj.Hijack()
+			if err != nil {
+				t.Fatal(err)
+			}
+			conn.Close()
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading request body: %v", err)
+		}
+		mu.Lock()
+		bodies = append(bodies, body)
+		mu.Unlock()
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer server.Close()
+
+	tr := NewRetry(&http.Transport{},
+		WithRetryBackoff(retry.Backoff{Steps: 3}),
+		// The exact error for an aborted connection is platform-dependent
+		// (ECONNRESET, EPIPE, EOF, ...), so retry any error here; rewinding
+		// behavior is what this test cares about.
+		WithRetryPredicate(retry.IsNotNil),
+	)
+
+	// http.NewRequest sets GetBody automatically for *bytes.Reader.
+	req, err := http.NewRequest(http.MethodPut, server.URL+"/v2/example/blobs/uploads/123", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := tr.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("unexpected error (request body not rewound before retry?): %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Errorf("got status %d, want %d", resp.StatusCode, http.StatusCreated)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if attempts < 2 {
+		t.Fatalf("server saw %d attempt(s), want at least 2", attempts)
+	}
+	if len(bodies) != 1 {
+		t.Fatalf("server successfully read %d bodies, want 1", len(bodies))
+	}
+	if !bytes.Equal(bodies[0], payload) {
+		t.Errorf("retried request body was truncated: got %d bytes, want %d", len(bodies[0]), len(payload))
+	}
+}
+
+func TestRewindBody(t *testing.T) {
+	t.Run("no body", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, "http://example.com", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !rewindBody(req) {
+			t.Error("rewindBody() = false for a request without a body, want true")
+		}
+	})
+
+	t.Run("NoBody", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPut, "http://example.com", http.NoBody)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !rewindBody(req) {
+			t.Error("rewindBody() = false for http.NoBody, want true")
+		}
+	})
+
+	t.Run("no GetBody", func(t *testing.T) {
+		// io.Reader wrapping hides the concrete type, so http.NewRequest
+		// cannot populate GetBody; this mimics streaming layers.
+		var streaming io.Reader = strings.NewReader("streaming")
+		req, err := http.NewRequest(http.MethodPut, "http://example.com", io.NopCloser(streaming))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if req.GetBody != nil {
+			t.Fatal("expected GetBody to be nil for this test")
+		}
+		if rewindBody(req) {
+			t.Error("rewindBody() = true for a non-rewindable body, want false")
+		}
+	})
+
+	t.Run("consumed body", func(t *testing.T) {
+		payload := "some manifest"
+		req, err := http.NewRequest(http.MethodPut, "http://example.com", strings.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Consume the body, as a failed first attempt would.
+		if _, err := io.Copy(io.Discard, req.Body); err != nil {
+			t.Fatal(err)
+		}
+		if !rewindBody(req) {
+			t.Fatal("rewindBody() = false for a rewindable body, want true")
+		}
+		body, err := io.ReadAll(req.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(body) != payload {
+			t.Errorf("rewound body = %q, want %q", body, payload)
+		}
+	})
 }
