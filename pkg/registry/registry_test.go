@@ -331,6 +331,20 @@ func TestCalls(t *testing.T) {
 			Body:        "foo",
 		},
 		{
+			Description: "create manifest by digest",
+			Method:      "PUT",
+			URL:         "/v2/foo/manifests/sha256:" + sha256String("foo"),
+			Code:        http.StatusCreated,
+			Body:        "foo",
+		},
+		{
+			Description: "create manifest by mismatched digest",
+			Method:      "PUT",
+			URL:         "/v2/foo/manifests/sha256:" + sha256String("bar"),
+			Code:        http.StatusBadRequest,
+			Body:        "foo",
+		},
+		{
 			Description: "create index",
 			Method:      "PUT",
 			URL:         "/v2/foo/manifests/latest",
