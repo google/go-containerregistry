@@ -18,6 +18,7 @@ package layout
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -54,7 +55,7 @@ func (l Path) GarbageCollect() ([]v1.Hash, error) {
 		if err != nil {
 			return err
 		}
-		hashString := strings.Replace(rel, "/", ":", 1)
+		hashString := strings.Replace(rel, string(os.PathSeparator), ":", 1)
 		if present := blobsToKeep[hashString]; !present {
 			h, err := v1.NewHash(hashString)
 			if err != nil {
