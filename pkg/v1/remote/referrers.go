@@ -17,9 +17,11 @@ package remote
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/google/go-containerregistry/internal/limit"
@@ -68,7 +70,7 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 
 	var b []byte
 	if resp.StatusCode == http.StatusOK && resp.Header.Get("Content-Type") == string(types.OCIImageIndex) {
-		b, err = limit.ReadAll(resp.Body, manifestLimit)
+		b, err = f.fetchReferrersPages(ctx, d.Context(), resp)
 		if err != nil {
 			return nil, err
 		}
@@ -103,6 +105,83 @@ func (f *fetcher) fetchReferrers(ctx context.Context, filter map[string]string, 
 		},
 	}
 	return filterReferrersResponse(filter, idx), nil
+}
+
+// fetchReferrersPages reads the body of a Referrers API response. If the
+// registry paginated the response, it follows the Link headers to the
+// remaining pages and merges their manifests into the first page.
+//
+// See https://github.com/opencontainers/distribution-spec/blob/main/spec.md#listing-referrers
+func (f *fetcher) fetchReferrersPages(ctx context.Context, repo name.Repository, resp *http.Response) ([]byte, error) {
+	b, err := limit.ReadAll(resp.Body, manifestLimit)
+	if err != nil {
+		return nil, err
+	}
+	next, err := getNextPageURL(resp, repo)
+	if err != nil {
+		return nil, err
+	}
+	if next == nil {
+		// Return an unpaginated response as served, so the index's digest
+		// and raw manifest are the registry's rather than a re-encoding.
+		return b, nil
+	}
+
+	im, err := v1.ParseIndexManifest(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{resp.Request.URL.String(): true}
+	for next != nil {
+		if seen[next.String()] {
+			return nil, fmt.Errorf("referrers pagination loop: %s was already fetched", next)
+		}
+		seen[next.String()] = true
+
+		var page *v1.IndexManifest
+		page, next, err = f.fetchReferrersPage(ctx, repo, next)
+		if err != nil {
+			return nil, err
+		}
+		im.Manifests = append(im.Manifests, page.Manifests...)
+	}
+	return json.Marshal(im)
+}
+
+// fetchReferrersPage fetches one page of a paginated Referrers API response,
+// returning its contents and the URL of the next page, if any.
+func (f *fetcher) fetchReferrersPage(ctx context.Context, repo name.Repository, u *url.URL) (*v1.IndexManifest, *url.URL, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	req.Header.Set("Accept", string(types.OCIImageIndex))
+
+	resp, err := f.client.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := transport.CheckError(resp, http.StatusOK); err != nil {
+		return nil, nil, err
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != string(types.OCIImageIndex) {
+		return nil, nil, fmt.Errorf("referrers page %s has Content-Type %q, want %q", u, ct, types.OCIImageIndex)
+	}
+	b, err := limit.ReadAll(resp.Body, manifestLimit)
+	if err != nil {
+		return nil, nil, err
+	}
+	im, err := v1.ParseIndexManifest(bytes.NewReader(b))
+	if err != nil {
+		return nil, nil, err
+	}
+	next, err := getNextPageURL(resp, repo)
+	if err != nil {
+		return nil, nil, err
+	}
+	return im, next, nil
 }
 
 // If filter applied, filter out by artifactType.
