@@ -174,6 +174,26 @@ func TestCalls(t *testing.T) {
 			Code: http.StatusRequestedRangeNotSatisfiable,
 		},
 		{
+			Description: "GET reversed blob range",
+			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			RequestHeader: map[string]string{
+				"Range": "bytes=2-1",
+			},
+			Code: http.StatusRequestedRangeNotSatisfiable,
+		},
+		{
+			Description: "GET negative blob range",
+			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
+			Method:      "GET",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			RequestHeader: map[string]string{
+				"Range": "bytes=-1-1",
+			},
+			Code: http.StatusRequestedRangeNotSatisfiable,
+		},
+		{
 			Description: "HEAD blob",
 			Digests:     map[string]string{"sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae": "foo"},
 			Method:      "HEAD",
