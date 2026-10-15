@@ -75,7 +75,31 @@ func Windows(layer v1.Layer) (v1.Layer, error) {
 			return nil, fmt.Errorf("file path %q already suitable for Windows", header.Name)
 		}
 
-		header.Name = path.Join("Files", header.Name)
+		// Re-root the entry under Files/. Reject names that use ".." to climb
+		// out of that subtree, so the converted layer cannot write outside its
+		// root when it is later unpacked (zip-slip). path.Join cleans the
+		// result, so an escaping name such as "../evil" would otherwise land
+		// outside Files/. This mirrors the containment pkg/v1/mutate applies to
+		// layer contents. Backslashes are separators on Windows, so treat them
+		// as such when checking containment.
+		name := path.Join("Files", header.Name)
+		checked := path.Join("Files", strings.ReplaceAll(header.Name, `\`, "/"))
+		if checked != "Files" && !strings.HasPrefix(checked, "Files/") {
+			return nil, fmt.Errorf("invalid tar entry %q: path escapes the Files/ subtree", header.Name)
+		}
+
+		// Reject relative symlink/hardlink targets that resolve outside the
+		// layer root. Absolute targets are left as-is, matching the extractor.
+		if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
+			if target := path.Clean(strings.ReplaceAll(header.Linkname, `\`, "/")); !path.IsAbs(target) {
+				resolved := path.Clean(path.Join(path.Dir(checked), target))
+				if resolved == ".." || strings.HasPrefix(resolved, "../") {
+					return nil, fmt.Errorf("invalid tar entry %q: link target %q escapes the layer root", header.Name, header.Linkname)
+				}
+			}
+		}
+
+		header.Name = name
 		header.Format = tar.FormatPAX
 
 		// TODO: this seems to make the file executable on Windows;
