@@ -80,17 +80,19 @@ func Windows(layer v1.Layer) (v1.Layer, error) {
 		// root when it is later unpacked (zip-slip). path.Join cleans the
 		// result, so an escaping name such as "../evil" would otherwise land
 		// outside Files/. This mirrors the containment pkg/v1/mutate applies to
-		// layer contents.
+		// layer contents. Backslashes are separators on Windows, so treat them
+		// as such when checking containment.
 		name := path.Join("Files", header.Name)
-		if name != "Files" && !strings.HasPrefix(name, "Files/") {
+		checked := path.Join("Files", strings.ReplaceAll(header.Name, `\`, "/"))
+		if checked != "Files" && !strings.HasPrefix(checked, "Files/") {
 			return nil, fmt.Errorf("invalid tar entry %q: path escapes the Files/ subtree", header.Name)
 		}
 
 		// Reject relative symlink/hardlink targets that resolve outside the
 		// layer root. Absolute targets are left as-is, matching the extractor.
 		if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
-			if target := path.Clean(header.Linkname); !path.IsAbs(target) {
-				resolved := path.Clean(path.Join(path.Dir(name), target))
+			if target := path.Clean(strings.ReplaceAll(header.Linkname, `\`, "/")); !path.IsAbs(target) {
+				resolved := path.Clean(path.Join(path.Dir(checked), target))
 				if resolved == ".." || strings.HasPrefix(resolved, "../") {
 					return nil, fmt.Errorf("invalid tar entry %q: link target %q escapes the layer root", header.Name, header.Linkname)
 				}

@@ -122,8 +122,10 @@ func TestWindowsRejectsTraversal(t *testing.T) {
 		typ              byte
 	}{
 		{desc: "parent escape", name: "../evil.txt", typ: tar.TypeReg},
+		{desc: "parent escape backslash", name: `..\evil.txt`, typ: tar.TypeReg},
 		{desc: "nested escape", name: "a/../../escape", typ: tar.TypeReg},
 		{desc: "symlink escape", name: "link", link: "../../../etc/passwd", typ: tar.TypeSymlink},
+		{desc: "symlink escape backslash", name: "link", link: `..\..\..\etc\passwd`, typ: tar.TypeSymlink},
 		{desc: "hardlink escape", name: "link", link: "../../../etc/passwd", typ: tar.TypeLink},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
