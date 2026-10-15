@@ -189,7 +189,7 @@ func TestCalls(t *testing.T) {
 			Method:      "GET",
 			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
 			RequestHeader: map[string]string{
-				"Range": "bytes=5-2",
+				"Range": "bytes=-1-1",
 			},
 			Code: http.StatusRequestedRangeNotSatisfiable,
 		},
