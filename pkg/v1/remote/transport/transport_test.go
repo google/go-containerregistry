@@ -132,18 +132,14 @@ func TestTransportBadAuth(t *testing.T) {
 }
 
 func TestTransportSelectionBearer(t *testing.T) {
-	request := 0
 	server := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			request++
-			switch request {
-			case 1:
+			if r.Method == http.MethodConnect {
 				// This is an https request that fails, causing us to fall back to http.
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			case 2:
-				w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			case 3:
+				return
+			}
+			if r.Host == "foo.io" {
 				hdr := r.Header.Get("Authorization")
 				if !strings.HasPrefix(hdr, "Basic ") {
 					t.Errorf("Header.Get(Authorization); got %v, want Basic prefix", hdr)
@@ -157,7 +153,10 @@ func TestTransportSelectionBearer(t *testing.T) {
 					t.Errorf("FormValue(service); got %q, want %q", got, want)
 				}
 				w.Write([]byte(`{"token": "dfskdjhfkhsjdhfkjhsdf"}`))
+				return
 			}
+			w.Header().Set("WWW-Authenticate", `Bearer realm="http://foo.io"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}))
 	defer server.Close()
 	tprt := &http.Transport{
