@@ -328,7 +328,7 @@ func extractLayer(tarWriter *tar.Writer, fileMap, opaqueDirs map[string]bool, la
 		// Absolute targets are left as-is; see #2238 for ongoing discussion
 		// on whether they should be pruned.
 		if header.Typeflag == tar.TypeSymlink || header.Typeflag == tar.TypeLink {
-			if unsafeRelativeLink(header.Name, header.Linkname) {
+			if unsafeRelativeLink(header.Name, header.Linkname, header.Typeflag) {
 				continue
 			}
 		}
@@ -446,7 +446,7 @@ func unsafeArchivePath(name string) bool {
 	return hasWindowsDrivePrefix(clean)
 }
 
-func unsafeRelativeLink(name, linkname string) bool {
+func unsafeRelativeLink(name, linkname string, typeflag byte) bool {
 	clean := cleanArchivePath(linkname)
 	if path.IsAbs(clean) {
 		return false
@@ -454,7 +454,13 @@ func unsafeRelativeLink(name, linkname string) bool {
 	if hasWindowsDrivePrefix(clean) {
 		return true
 	}
-	resolved := path.Clean(path.Join(path.Dir(name), clean)) //nolint:gosec // G305: path is only used for validation, not file I/O
+	// Symlink targets are relative to the link's directory, but hardlink
+	// targets are relative to the archive root.
+	dir := path.Dir(name)
+	if typeflag == tar.TypeLink {
+		dir = "."
+	}
+	resolved := path.Clean(path.Join(dir, clean)) //nolint:gosec // G305: path is only used for validation, not file I/O
 	return strings.HasPrefix(resolved, "..")
 }
 
