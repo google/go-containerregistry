@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -281,6 +282,69 @@ func TestBearerTransportOauthRefresh(t *testing.T) {
 	if got, want := basicAuthConfig.IdentityToken, refreshToken; got != want {
 		t.Errorf("Expected Basic IdentityToken to be refreshed, got %v, want %v", got, want)
 	}
+}
+
+func TestBearerTransportOauthRefreshConcurrent(t *testing.T) {
+	const concurrency = 50
+	accessToken := "bar"
+
+	// Hold every token exchange until all of them have arrived, so the refreshes
+	// overlap, and hand out a new refresh token each time, so each one replaces bt.basic.
+	var exchanges sync.WaitGroup
+	exchanges.Add(concurrency)
+	server := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				exchanges.Done()
+				exchanges.Wait()
+				fmt.Fprintf(w, `{"access_token": %q, "refresh_token": %q}`, accessToken, r.RemoteAddr)
+				return
+			}
+			if r.Header.Get("Authorization") == "Bearer "+accessToken {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			w.Header().Set("WWW-Authenticate", "scope=foo")
+			w.WriteHeader(http.StatusUnauthorized)
+		}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	transport := &bearerTransport{
+		inner:    http.DefaultTransport,
+		basic:    authn.FromConfig(authn.AuthConfig{IdentityToken: "foo"}),
+		registry: registry,
+		realm:    server.URL,
+		scheme:   "http",
+		service:  u.Host,
+	}
+	client := http.Client{Transport: transport}
+
+	var wg sync.WaitGroup
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			res, err := client.Get(fmt.Sprintf("http://%s/v2/foo/bar/blobs/blah", u.Host))
+			if err != nil {
+				t.Errorf("Unexpected error during client.Get: %v", err)
+				return
+			}
+			res.Body.Close()
+			if res.StatusCode != http.StatusOK {
+				t.Errorf("client.Get final StatusCode got %v, want: %v", res.StatusCode, http.StatusOK)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 func TestBearerTransportOauth404Fallback(t *testing.T) {
