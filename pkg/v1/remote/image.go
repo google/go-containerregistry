@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"sync"
 
+	"github.com/google/go-containerregistry/internal/limit"
 	"github.com/google/go-containerregistry/internal/redact"
 	"github.com/google/go-containerregistry/internal/verify"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -124,7 +125,7 @@ func (r *remoteImage) RawConfigFile() ([]byte, error) {
 	}
 	defer body.Close()
 
-	r.config, err = io.ReadAll(body)
+	r.config, err = limit.ReadAll(body, configLimit)
 	if err != nil {
 		return nil, err
 	}
