@@ -18,9 +18,14 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
+	"os"
+	"path"
+	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -315,5 +320,207 @@ func TestLayerByDiffIDMoreDiffIDsThanLayers(t *testing.T) {
 		t.Fatal("img.Layers(): expected error for config with more diff_ids than layers, got nil")
 	} else if !strings.Contains(err.Error(), "diff_id") {
 		t.Errorf("img.Layers(): expected error mentioning diff_id, got: %v", err)
+	}
+}
+
+func extractTarToDir(t *testing.T, tarPath, destDir string) {
+	t.Helper()
+	f, err := os.Open(tarPath)
+	if err != nil {
+		t.Fatalf("Open(%q): %v", tarPath, err)
+	}
+	defer f.Close()
+
+	tr := tar.NewReader(f)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("tar.Next: %v", err)
+		}
+		target := filepath.Join(destDir, filepath.FromSlash(hdr.Name))
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, 0755); err != nil {
+				t.Fatalf("MkdirAll(%q): %v", target, err)
+			}
+		case tar.TypeReg:
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				t.Fatalf("MkdirAll(%q): %v", filepath.Dir(target), err)
+			}
+			out, err := os.Create(target)
+			if err != nil {
+				t.Fatalf("Create(%q): %v", target, err)
+			}
+			if _, err := io.Copy(out, tr); err != nil {
+				out.Close()
+				t.Fatalf("Copy(%q): %v", target, err)
+			}
+			if err := out.Close(); err != nil {
+				t.Fatalf("Close(%q): %v", target, err)
+			}
+		case tar.TypeSymlink:
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				t.Fatalf("MkdirAll(%q): %v", filepath.Dir(target), err)
+			}
+			if err := os.Symlink(hdr.Linkname, target); err != nil {
+				t.Fatalf("Symlink(%q, %q): %v", hdr.Linkname, target, err)
+			}
+		}
+	}
+}
+
+func extractTarToMapFS(t *testing.T, tarPath string) fstest.MapFS {
+	t.Helper()
+	f, err := os.Open(tarPath)
+	if err != nil {
+		t.Fatalf("Open(%q): %v", tarPath, err)
+	}
+	defer f.Close()
+
+	m := fstest.MapFS{}
+	tr := tar.NewReader(f)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("tar.Next: %v", err)
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			data, err := io.ReadAll(tr)
+			if err != nil {
+				t.Fatalf("ReadAll(%q): %v", hdr.Name, err)
+			}
+			cleanName := path.Clean(hdr.Name)
+			m[cleanName] = &fstest.MapFile{
+				Data:    data,
+				Mode:    hdr.FileInfo().Mode(),
+				ModTime: hdr.ModTime,
+			}
+		}
+	}
+	return m
+}
+
+func TestImageFromFS_Uncompressed(t *testing.T) {
+	// Test loading an uncompressed image from an unpacked directory via os.DirFS.
+	tmpDir := t.TempDir()
+	extractTarToDir(t, "testdata/test_image_1.tar", tmpDir)
+
+	fsys := os.DirFS(tmpDir)
+	gotImg, err := ImageFromFS(fsys, nil)
+	if err != nil {
+		t.Fatalf("ImageFromFS(): %v", err)
+	}
+
+	if err := validate.Image(gotImg); err != nil {
+		t.Errorf("validate.Image(): %v", err)
+	}
+
+	wantImg, err := ImageFromPath("testdata/test_image_1.tar", nil)
+	if err != nil {
+		t.Fatalf("ImageFromPath(): %v", err)
+	}
+
+	wantManifest, err := wantImg.Manifest()
+	if err != nil {
+		t.Fatalf("wantImg.Manifest(): %v", err)
+	}
+	gotManifest, err := gotImg.Manifest()
+	if err != nil {
+		t.Fatalf("gotImg.Manifest(): %v", err)
+	}
+	if wantManifest.Config.Digest != gotManifest.Config.Digest {
+		t.Errorf("Config digest mismatch: want %v, got %v", wantManifest.Config.Digest, gotManifest.Config.Digest)
+	}
+	if len(wantManifest.Layers) != len(gotManifest.Layers) {
+		t.Fatalf("Layer count mismatch: want %d, got %d", len(wantManifest.Layers), len(gotManifest.Layers))
+	}
+	for i := range wantManifest.Layers {
+		if wantManifest.Layers[i].Digest != gotManifest.Layers[i].Digest {
+			t.Errorf("Layer %d digest mismatch: want %v, got %v", i, wantManifest.Layers[i].Digest, gotManifest.Layers[i].Digest)
+		}
+	}
+}
+
+func TestImageFromFS_Docker25(t *testing.T) {
+	// hello-world-v25.tar has compressed layers.
+	mfs := extractTarToMapFS(t, "testdata/hello-world-v25.tar")
+
+	gotImg, err := ImageFromFS(mfs, nil)
+	if err != nil {
+		t.Fatalf("ImageFromFS(): %v", err)
+	}
+
+	if err := validate.Image(gotImg); err != nil {
+		t.Errorf("validate.Image(): %v", err)
+	}
+
+	wantImg, err := ImageFromPath("testdata/hello-world-v25.tar", nil)
+	if err != nil {
+		t.Fatalf("ImageFromPath(): %v", err)
+	}
+
+	wantDigest, err := wantImg.Digest()
+	if err != nil {
+		t.Fatalf("wantImg.Digest(): %v", err)
+	}
+	gotDigest, err := gotImg.Digest()
+	if err != nil {
+		t.Fatalf("gotImg.Digest(): %v", err)
+	}
+	if wantDigest != gotDigest {
+		t.Errorf("Digest mismatch: want %v, got %v", wantDigest, gotDigest)
+	}
+
+	// Loading a nonexistent tag should fail.
+	nonexistentTag, err := name.NewTag("gcr.io/test/nonexistent:latest")
+	if err != nil {
+		t.Fatalf("name.NewTag: %v", err)
+	}
+	if _, err := ImageFromFS(mfs, &nonexistentTag); err == nil {
+		t.Errorf("expected error for nonexistent tag, got nil")
+	}
+}
+
+func TestImageFromFS_SymlinkLayer(t *testing.T) {
+	// Test loading an image whose layers are symlinks via os.DirFS.
+	tmpDir := t.TempDir()
+	extractTarToDir(t, "testdata/test_link.tar", tmpDir)
+
+	tag, err := name.NewTag("bazel/v1/tarball:test_image_3", name.WeakValidation)
+	if err != nil {
+		t.Fatalf("name.NewTag: %v", err)
+	}
+
+	fsys := os.DirFS(tmpDir)
+	gotImg, err := ImageFromFS(fsys, &tag)
+	if err != nil {
+		t.Fatalf("ImageFromFS(): %v", err)
+	}
+
+	hash := v1.Hash{
+		Algorithm: "sha256",
+		Hex:       "8897395fd26dc44ad0e2a834335b33198cb41ac4d98dfddf58eced3853fa7b17",
+	}
+	layer, err := gotImg.LayerByDiffID(hash)
+	if err != nil {
+		t.Fatalf("LayerByDiffID: %v", err)
+	}
+	rc, err := layer.Uncompressed()
+	if err != nil {
+		t.Fatalf("layer.Uncompressed(): %v", err)
+	}
+	defer rc.Close()
+	bs, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatalf("io.ReadAll: %v", err)
+	}
+	if len(bs) == 0 {
+		t.Errorf("layer.Uncompressed() returned empty content")
 	}
 }

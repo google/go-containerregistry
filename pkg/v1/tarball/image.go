@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -35,7 +36,7 @@ import (
 )
 
 type image struct {
-	opener        Opener
+	fsys          fs.FS
 	manifest      *Manifest
 	config        []byte
 	imgDescriptor *Descriptor
@@ -86,11 +87,24 @@ func LoadManifest(opener Opener) (Manifest, error) {
 	return manifest, nil
 }
 
+type tarFS struct {
+	opener Opener
+}
+
+func (t *tarFS) Open(name string) (fs.File, error) {
+	return extractFileFromTar(t.opener, name)
+}
+
 // Image exposes an image from the tarball at the provided path.
 func Image(opener Opener, tag *name.Tag) (v1.Image, error) {
+	return ImageFromFS(&tarFS{opener: opener}, tag)
+}
+
+// ImageFromFS exposes an image from the unpacked tarball in the provided fs.FS.
+func ImageFromFS(fsys fs.FS, tag *name.Tag) (v1.Image, error) {
 	img := &image{
-		opener: opener,
-		tag:    tag,
+		fsys: fsys,
+		tag:  tag,
 	}
 	if err := img.loadTarDescriptorAndConfig(); err != nil {
 		return nil, err
@@ -161,7 +175,7 @@ func (i *image) areLayersCompressed() (bool, error) {
 		return false, errors.New("0 layers found in image")
 	}
 	layer := i.imgDescriptor.Layers[0]
-	blob, err := extractFileFromTar(i.opener, layer)
+	blob, err := i.fsys.Open(path.Clean(layer))
 	if err != nil {
 		return false, err
 	}
@@ -176,7 +190,7 @@ func (i *image) areLayersCompressed() (bool, error) {
 }
 
 func (i *image) loadTarDescriptorAndConfig() error {
-	m, err := extractFileFromTar(i.opener, "manifest.json")
+	m, err := i.fsys.Open("manifest.json")
 	if err != nil {
 		return err
 	}
@@ -195,7 +209,7 @@ func (i *image) loadTarDescriptorAndConfig() error {
 		return err
 	}
 
-	cfg, err := extractFileFromTar(i.opener, i.imgDescriptor.Config)
+	cfg, err := i.fsys.Open(path.Clean(i.imgDescriptor.Config))
 	if err != nil {
 		return err
 	}
@@ -216,13 +230,18 @@ func (i *image) RawConfigFile() ([]byte, error) {
 type tarFile struct {
 	io.Reader
 	io.Closer
+	hdr *tar.Header
 }
 
-func extractFileFromTar(opener Opener, filePath string) (io.ReadCloser, error) {
+func (tf tarFile) Stat() (fs.FileInfo, error) {
+	return tf.hdr.FileInfo(), nil
+}
+
+func extractFileFromTar(opener Opener, filePath string) (fs.File, error) {
 	return followLinks(opener, filePath, make(map[string]bool))
 }
 
-func followLinks(opener Opener, filePath string, visited map[string]bool) (io.ReadCloser, error) {
+func followLinks(opener Opener, filePath string, visited map[string]bool) (fs.File, error) {
 	if visited[filePath] {
 		return nil, fmt.Errorf("link cycle detected for %s", filePath)
 	}
@@ -257,6 +276,7 @@ func followLinks(opener Opener, filePath string, visited map[string]bool) (io.Re
 			return tarFile{
 				Reader: tf,
 				Closer: f,
+				hdr:    hdr,
 			}, nil
 		}
 	}
@@ -267,7 +287,7 @@ func followLinks(opener Opener, filePath string, visited map[string]bool) (io.Re
 type uncompressedLayerFromTarball struct {
 	diffID    v1.Hash
 	mediaType types.MediaType
-	opener    Opener
+	fsys      fs.FS
 	filePath  string
 }
 
@@ -290,7 +310,7 @@ func (ulft *uncompressedLayerFromTarball) DiffID() (v1.Hash, error) {
 
 // Uncompressed implements partial.UncompressedLayer
 func (ulft *uncompressedLayerFromTarball) Uncompressed() (io.ReadCloser, error) {
-	return extractFileFromTar(ulft.opener, ulft.filePath)
+	return ulft.fsys.Open(path.Clean(ulft.filePath))
 }
 
 func (ulft *uncompressedLayerFromTarball) MediaType() (types.MediaType, error) {
@@ -324,7 +344,7 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 						uncompressedLayerFromTarball: uncompressedLayerFromTarball{
 							diffID:    diffID,
 							mediaType: bd.MediaType,
-							opener:    i.opener,
+							fsys:      i.fsys,
 							filePath:  i.imgDescriptor.Layers[idx],
 						},
 						desc: bd,
@@ -337,7 +357,7 @@ func (i *uncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer,
 			return &uncompressedLayerFromTarball{
 				diffID:    diffID,
 				mediaType: mt,
-				opener:    i.opener,
+				fsys:      i.fsys,
 				filePath:  i.imgDescriptor.Layers[idx],
 			}, nil
 		}
@@ -386,7 +406,7 @@ func (c *compressedImage) Manifest() (*v1.Manifest, error) {
 			// reading the entire file.
 			c.manifest.Layers = append(c.manifest.Layers, d)
 		} else {
-			l, err := extractFileFromTar(c.opener, p)
+			l, err := c.fsys.Open(path.Clean(p))
 			if err != nil {
 				return nil, err
 			}
@@ -412,7 +432,7 @@ func (c *compressedImage) RawManifest() ([]byte, error) {
 // compressedLayerFromTarball implements partial.CompressedLayer
 type compressedLayerFromTarball struct {
 	desc     v1.Descriptor
-	opener   Opener
+	fsys     fs.FS
 	filePath string
 }
 
@@ -423,7 +443,7 @@ func (clft *compressedLayerFromTarball) Digest() (v1.Hash, error) {
 
 // Compressed implements partial.CompressedLayer
 func (clft *compressedLayerFromTarball) Compressed() (io.ReadCloser, error) {
-	return extractFileFromTar(clft.opener, clft.filePath)
+	return clft.fsys.Open(path.Clean(clft.filePath))
 }
 
 // MediaType implements partial.CompressedLayer
@@ -446,7 +466,7 @@ func (c *compressedImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, err
 			fp := c.imgDescriptor.Layers[i]
 			return &compressedLayerFromTarball{
 				desc:     l,
-				opener:   c.opener,
+				fsys:     c.fsys,
 				filePath: fp,
 			}, nil
 		}
