@@ -22,8 +22,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -705,5 +707,77 @@ func TestWriteDynamicExtensions(t *testing.T) {
 		if got := mEntry.Layers[i]; got != wantLayer {
 			t.Errorf("layer %d: got manifest layer name %q, want %q", i, got, wantLayer)
 		}
+	}
+}
+
+func TestImageFromFS_Roundtrip(t *testing.T) {
+	randImage, err := random.Image(256, 3)
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+	tag, err := name.NewTag("gcr.io/test/compressed:latest")
+	if err != nil {
+		t.Fatalf("name.NewTag: %v", err)
+	}
+
+	fp, err := os.CreateTemp("", "")
+	if err != nil {
+		t.Fatalf("CreateTemp: %v", err)
+	}
+	defer fp.Close()
+	defer os.Remove(fp.Name())
+
+	if err := tarball.WriteToFile(fp.Name(), tag, randImage); err != nil {
+		t.Fatalf("WriteToFile: %v", err)
+	}
+
+	f, err := os.Open(fp.Name())
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer f.Close()
+
+	mfs := fstest.MapFS{}
+	tr := tar.NewReader(f)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("tar.Next: %v", err)
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			data, err := io.ReadAll(tr)
+			if err != nil {
+				t.Fatalf("ReadAll(%q): %v", hdr.Name, err)
+			}
+			mfs[path.Clean(hdr.Name)] = &fstest.MapFile{
+				Data:    data,
+				Mode:    hdr.FileInfo().Mode(),
+				ModTime: hdr.ModTime,
+			}
+		}
+	}
+
+	gotImg, err := tarball.ImageFromFS(mfs, &tag)
+	if err != nil {
+		t.Fatalf("tarball.ImageFromFS: %v", err)
+	}
+
+	if err := validate.Image(gotImg); err != nil {
+		t.Errorf("validate.Image: %v", err)
+	}
+
+	if err := compare.Images(randImage, gotImg); err != nil {
+		t.Errorf("compare.Images: %v", err)
+	}
+
+	gotImgNilTag, err := tarball.ImageFromFS(mfs, nil)
+	if err != nil {
+		t.Fatalf("tarball.ImageFromFS(nil): %v", err)
+	}
+	if err := compare.Images(randImage, gotImgNilTag); err != nil {
+		t.Errorf("compare.Images(nil): %v", err)
 	}
 }
