@@ -331,7 +331,7 @@ func (bt *bearerTransport) handleCrossHostChallenge(in *http.Request, challenges
 // The basic token exchange is attempted first, falling back to the oauth flow.
 // If the IdentityToken is set, this indicates that we should start with the oauth flow.
 func (bt *bearerTransport) refresh(ctx context.Context) error {
-	auth, err := authn.Authorization(ctx, bt.basic)
+	auth, err := authn.Authorization(ctx, bt.basicAuth())
 	if err != nil {
 		return err
 	}
@@ -362,9 +362,11 @@ func (bt *bearerTransport) refresh(ctx context.Context) error {
 
 	// If we obtained a refresh token from the oauth flow, use that for refresh() now.
 	if response.RefreshToken != "" {
+		bt.mx.Lock()
 		bt.basic = authn.FromConfig(authn.AuthConfig{
 			IdentityToken: response.RefreshToken,
 		})
+		bt.mx.Unlock()
 	}
 
 	return nil
@@ -406,6 +408,14 @@ func (bt *bearerTransport) Refresh(ctx context.Context, auth *authn.AuthConfig) 
 	return &response, nil
 }
 
+// basicAuth returns the credentials used for token exchanges, which refresh
+// replaces when the token server returns a refresh token.
+func (bt *bearerTransport) basicAuth() authn.Authenticator {
+	bt.mx.RLock()
+	defer bt.mx.RUnlock()
+	return bt.basic
+}
+
 func matchesHost(host string, in *http.Request, scheme string) bool {
 	canonicalHeaderHost := canonicalAddress(in.Host, scheme)
 	canonicalURLHost := canonicalAddress(in.URL.Host, scheme)
@@ -440,7 +450,7 @@ func canonicalAddress(host, scheme string) (address string) {
 
 // https://docs.docker.com/registry/spec/auth/oauth/
 func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
-	auth, err := authn.Authorization(ctx, bt.basic)
+	auth, err := authn.Authorization(ctx, bt.basicAuth())
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +497,7 @@ func (bt *bearerTransport) refreshOauth(ctx context.Context) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if err := CheckError(resp, http.StatusOK); err != nil {
-		if bt.basic == authn.Anonymous {
+		if bt.basicAuth() == authn.Anonymous {
 			logs.Warn.Printf("No matching credentials were found for %q", bt.registry)
 		}
 		return nil, err
@@ -504,7 +514,7 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 	}
 	b := &basicTransport{
 		inner:  bt.inner,
-		auth:   bt.basic,
+		auth:   bt.basicAuth(),
 		target: u.Host,
 	}
 	allowInsecure := bt.scheme == "http"
@@ -532,7 +542,7 @@ func (bt *bearerTransport) refreshBasic(ctx context.Context) ([]byte, error) {
 	defer resp.Body.Close()
 
 	if err := CheckError(resp, http.StatusOK); err != nil {
-		if bt.basic == authn.Anonymous {
+		if bt.basicAuth() == authn.Anonymous {
 			logs.Warn.Printf("No matching credentials were found for %q", bt.registry)
 		}
 		return nil, err
