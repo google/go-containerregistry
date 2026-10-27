@@ -249,7 +249,7 @@ func login(opts loginOptions) error {
 		opts.password = strings.TrimSuffix(string(contents), "\n")
 		opts.password = strings.TrimSuffix(opts.password, "\r")
 	}
-	if opts.user == "" && opts.password == "" {
+	if opts.user == "" || opts.password == "" {
 		return errors.New("username and password required")
 	}
 	cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
