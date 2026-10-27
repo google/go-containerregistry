@@ -292,6 +292,64 @@ func TestRawConfigFileNotFound(t *testing.T) {
 	}
 }
 
+func TestRawConfigFileTooLarge(t *testing.T) {
+	img := randomImage(t)
+	expectedRepo := "foo/bar"
+	manifestPath := fmt.Sprintf("/v2/%s/manifests/latest", expectedRepo)
+	manifest := mustManifest(t, img)
+	manifest.Config.Size = configLimit + 2
+	manifestBytes, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatalf("json.Marshal(manifest) = %v", err)
+	}
+	configPath := fmt.Sprintf("/v2/%s/blobs/%s", expectedRepo, manifest.Config.Digest)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case manifestPath:
+			w.Write(manifestBytes)
+		case configPath:
+			// Stream a config blob larger than the safety limit without a
+			// Content-Length header, matching the response shape that caused
+			// the unbounded read.
+			buf := make([]byte, 32*1024)
+			for remaining := manifest.Config.Size; remaining > 0; {
+				n := int64(len(buf))
+				if n > remaining {
+					n = remaining
+				}
+				if _, err := w.Write(buf[:n]); err != nil {
+					return
+				}
+				remaining -= n
+			}
+		default:
+			t.Fatalf("Unexpected path: %v", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("url.Parse(%v) = %v", server.URL, err)
+	}
+	ref := mustNewTag(t, fmt.Sprintf("%s/%s:latest", u.Host, expectedRepo))
+	rmt := remoteImage{
+		ref: ref,
+		ctx: context.Background(),
+		fetcher: fetcher{
+			target: ref.Context(),
+			client: http.DefaultClient,
+		},
+	}
+
+	if _, err := rmt.RawConfigFile(); err == nil {
+		t.Fatal("RawConfigFile() = nil; wanted size-limit error")
+	} else if want := fmt.Sprintf("body exceeds %d byte limit", configLimit); !strings.Contains(err.Error(), want) {
+		t.Fatalf("RawConfigFile() error = %v, want %q", err, want)
+	}
+}
+
 func TestAcceptHeaders(t *testing.T) {
 	img := randomImage(t)
 	expectedRepo := "foo/bar"
