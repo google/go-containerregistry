@@ -182,14 +182,19 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 func NewCmdIndexAppend(options *[]crane.Option) *cobra.Command {
 	var baseRef, newTag string
 	var newManifests []string
-	var dockerEmptyBase, flatten bool
+	var dockerEmptyBase, flatten, allowLayoutSymlinks bool
 
 	cmd := &cobra.Command{
 		Use:   "append",
 		Short: "Append manifests to a remote index.",
 		Long: `This sub-command pushes an index based on an (optional) base index, with appended manifests.
 
-The platform for appended manifests is inferred from the config file or omitted if that is infeasible.`,
+The platform for appended manifests is inferred from the config file or omitted if that is infeasible.
+
+The --allow-layout-symlinks option applies only to local OCI layout manifest
+inputs, whether passed with --manifest or after the positional base. Use it
+only for layouts from a trusted local producer. It does not change the local
+append destination, remote references, or TLS behavior controlled by --insecure.`,
 		Example: ` # Append a windows hello-world image to ubuntu, push to example.com/hello-world:weird
   crane index append ubuntu -m hello-world@sha256:87b9ca29151260634b95efb84d43b05335dc3ed36cc132e2b920dd1955342d20 -t example.com/hello-world:weird
 
@@ -202,7 +207,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 			}
 			o := crane.GetOptions(*options...)
 
-			adds, err := collectAddendums(newManifests, o, flatten)
+			adds, err := collectAddendums(newManifests, o, flatten, allowLayoutSymlinks)
 			if err != nil {
 				return err
 			}
@@ -217,6 +222,7 @@ The platform for appended manifests is inferred from the config file or omitted 
 	cmd.Flags().StringSliceVarP(&newManifests, "manifest", "m", []string{}, "References to manifests to append to the base index")
 	cmd.Flags().BoolVar(&dockerEmptyBase, "docker-empty-base", false, "If true, empty base index will have Docker media types instead of OCI")
 	cmd.Flags().BoolVar(&flatten, "flatten", true, "If true, appending an index will append each of its children rather than the index itself")
+	cmd.Flags().BoolVar(&allowLayoutSymlinks, "allow-layout-symlinks", false, "allow final symlink entries in trusted local OCI layout blobs used as manifest inputs")
 
 	return cmd
 }
@@ -360,9 +366,9 @@ func not(in match.Matcher) match.Matcher {
 
 // resolveManifest resolves a reference to either a local OCI layout or a remote manifest.
 // It returns the manifest (Image or ImageIndex) and its descriptor.
-func resolveManifest(ref string, o crane.Options) (partial.WithRawManifest, v1.Descriptor, error) {
+func resolveManifest(ref string, o crane.Options, allowLayoutSymlinks bool) (partial.WithRawManifest, v1.Descriptor, error) {
 	// Try loading as local image first. If this fails, we fall back to remote.
-	img, err := loadImage(ref, true)
+	img, err := loadImage(ref, true, allowLayoutSymlinks)
 	if err == nil {
 		desc, err := partial.Descriptor(img.(partial.Describable))
 		if err != nil {
@@ -421,10 +427,10 @@ func resolveManifest(ref string, o crane.Options) (partial.WithRawManifest, v1.D
 // returns a slice of IndexAddendums that can be appended to an index.
 // If flatten is true, any referenced indices will have their individual child
 // manifests added to the result rather than the index itself.
-func collectAddendums(manifests []string, o crane.Options, flatten bool) ([]mutate.IndexAddendum, error) {
+func collectAddendums(manifests []string, o crane.Options, flatten, allowLayoutSymlinks bool) ([]mutate.IndexAddendum, error) {
 	var adds []mutate.IndexAddendum
 	for _, m := range manifests {
-		img, desc, err := resolveManifest(m, o)
+		img, desc, err := resolveManifest(m, o, allowLayoutSymlinks)
 		if err != nil {
 			return nil, err
 		}

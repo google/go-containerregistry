@@ -26,7 +26,7 @@ import (
 )
 
 type layoutImage struct {
-	path         Path
+	reader       Reader
 	desc         v1.Descriptor
 	manifestLock sync.Mutex // Protects rawManifest
 	rawManifest  []byte
@@ -34,9 +34,16 @@ type layoutImage struct {
 
 var _ partial.CompressedImageCore = (*layoutImage)(nil)
 
-// Image reads a v1.Image with digest h from the Path.
+// Image reads a v1.Image with digest h from the Path using the strict default
+// read policy.
 func (l Path) Image(h v1.Hash) (v1.Image, error) {
-	ii, err := l.ImageIndex()
+	return l.Reader().Image(h)
+}
+
+// Image reads a v1.Image with digest h using the Reader's policy for all blob
+// reads performed by the returned image.
+func (r Reader) Image(h v1.Hash) (v1.Image, error) {
+	ii, err := r.ImageIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +67,7 @@ func (li *layoutImage) RawManifest() ([]byte, error) {
 		return li.rawManifest, nil
 	}
 
-	b, err := li.path.Bytes(li.desc.Digest)
+	b, err := li.reader.Bytes(li.desc.Digest)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +82,7 @@ func (li *layoutImage) RawConfigFile() ([]byte, error) {
 		return nil, err
 	}
 
-	return li.path.Bytes(manifest.Config.Digest)
+	return li.reader.Bytes(manifest.Config.Digest)
 }
 
 func (li *layoutImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error) {
@@ -86,16 +93,16 @@ func (li *layoutImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error)
 
 	if h == manifest.Config.Digest {
 		return &compressedBlob{
-			path: li.path,
-			desc: manifest.Config,
+			reader: li.reader,
+			desc:   manifest.Config,
 		}, nil
 	}
 
 	for _, desc := range manifest.Layers {
 		if h == desc.Digest {
 			return &compressedBlob{
-				path: li.path,
-				desc: desc,
+				reader: li.reader,
+				desc:   desc,
 			}, nil
 		}
 	}
@@ -104,8 +111,8 @@ func (li *layoutImage) LayerByDigest(h v1.Hash) (partial.CompressedLayer, error)
 }
 
 type compressedBlob struct {
-	path Path
-	desc v1.Descriptor
+	reader Reader
+	desc   v1.Descriptor
 }
 
 func (b *compressedBlob) Digest() (v1.Hash, error) {
@@ -113,7 +120,7 @@ func (b *compressedBlob) Digest() (v1.Hash, error) {
 }
 
 func (b *compressedBlob) Compressed() (io.ReadCloser, error) {
-	return b.path.Blob(b.desc.Digest)
+	return b.reader.Blob(b.desc.Digest)
 }
 
 func (b *compressedBlob) Size() (int64, error) {
@@ -131,7 +138,7 @@ func (b *compressedBlob) Descriptor() (*v1.Descriptor, error) {
 
 // See partial.Exists.
 func (b *compressedBlob) Exists() (bool, error) {
-	_, err := os.Stat(b.path.blobPath(b.desc.Digest))
+	_, err := os.Stat(b.reader.path.blobPath(b.desc.Digest))
 	if os.IsNotExist(err) {
 		return false, nil
 	}

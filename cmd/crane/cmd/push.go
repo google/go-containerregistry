@@ -30,16 +30,21 @@ import (
 // NewCmdPush creates a new cobra.Command for the push subcommand.
 func NewCmdPush(options *[]crane.Option) *cobra.Command {
 	index := false
+	allowLayoutSymlinks := false
 	imageRefs := ""
 	cmd := &cobra.Command{
 		Use:   "push PATH IMAGE",
 		Short: "Push local image contents to a remote registry",
-		Long:  `If the PATH is a directory, it will be read as an OCI image layout. Otherwise, PATH is assumed to be a docker-style tarball.`,
-		Args:  cobra.ExactArgs(2),
+		Long: `If the PATH is a directory, it will be read as an OCI image layout. Otherwise, PATH is assumed to be a docker-style tarball.
+
+By default, final symlink entries in local OCI layout blobs are rejected. Use
+--allow-layout-symlinks only for a layout from a trusted local producer. This
+option affects local layout reads only and is independent of --insecure.`,
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			path, tag := args[0], args[1]
 
-			img, err := loadImage(path, index)
+			img, err := loadImage(path, index, allowLayoutSymlinks)
 			if err != nil {
 				return err
 			}
@@ -83,11 +88,12 @@ func NewCmdPush(options *[]crane.Option) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&index, "index", false, "push a collection of images as a single index, currently required if PATH contains multiple images")
+	cmd.Flags().BoolVar(&allowLayoutSymlinks, "allow-layout-symlinks", false, "allow final symlink entries in trusted local OCI layout blobs")
 	cmd.Flags().StringVar(&imageRefs, "image-refs", "", "path to file where a list of the published image references will be written")
 	return cmd
 }
 
-func loadImage(path string, index bool) (partial.WithRawManifest, error) {
+func loadImage(path string, index, allowLayoutSymlinks bool) (partial.WithRawManifest, error) {
 	stat, err := os.Stat(path)
 	if err != nil {
 		return nil, err
@@ -101,7 +107,16 @@ func loadImage(path string, index bool) (partial.WithRawManifest, error) {
 		return img, nil
 	}
 
-	l, err := layout.ImageIndexFromPath(path)
+	p, err := layout.FromPath(path)
+	if err != nil {
+		return nil, fmt.Errorf("loading %s as OCI layout: %w", path, err)
+	}
+
+	reader := p.Reader()
+	if allowLayoutSymlinks {
+		reader = p.Reader(layout.WithAllowFinalSymlinks())
+	}
+	l, err := reader.ImageIndex()
 	if err != nil {
 		return nil, fmt.Errorf("loading %s as OCI layout: %w", path, err)
 	}
