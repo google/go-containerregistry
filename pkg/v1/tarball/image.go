@@ -27,7 +27,10 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/google/go-containerregistry/internal/and"
 	comp "github.com/google/go-containerregistry/internal/compression"
+	"github.com/google/go-containerregistry/internal/gzip"
+	"github.com/google/go-containerregistry/internal/zstd"
 	"github.com/google/go-containerregistry/pkg/compression"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -310,7 +313,29 @@ func (ulft *uncompressedLayerFromTarball) DiffID() (v1.Hash, error) {
 
 // Uncompressed implements partial.UncompressedLayer
 func (ulft *uncompressedLayerFromTarball) Uncompressed() (io.ReadCloser, error) {
-	return ulft.fsys.Open(path.Clean(ulft.filePath))
+	rc, err := ulft.fsys.Open(path.Clean(ulft.filePath))
+	if err != nil {
+		return nil, err
+	}
+
+	cp, pr, err := comp.PeekCompression(rc)
+	if err != nil {
+		return nil, err
+	}
+
+	prc := &and.ReadCloser{
+		Reader:    pr,
+		CloseFunc: rc.Close,
+	}
+
+	switch cp {
+	case compression.GZip:
+		return gzip.UnzipReadCloser(prc)
+	case compression.ZStd:
+		return zstd.UnzipReadCloser(prc)
+	default:
+		return prc, nil
+	}
 }
 
 func (ulft *uncompressedLayerFromTarball) MediaType() (types.MediaType, error) {
