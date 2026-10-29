@@ -29,7 +29,7 @@ type emptyImage struct{}
 
 // MediaType implements partial.UncompressedImageCore.
 func (i emptyImage) MediaType() (types.MediaType, error) {
-	return types.DockerManifestSchema2, nil
+	return types.OCIManifestSchema1, nil
 }
 
 // RawConfigFile implements partial.UncompressedImageCore.
