@@ -7,7 +7,7 @@ module github.com/google/go-containerregistry
 // and releases, update the toolchain directive.
 go 1.26.0
 
-toolchain go1.26.6
+toolchain go1.26.10
 
 require (
 	github.com/docker/cli v29.8.2+incompatible

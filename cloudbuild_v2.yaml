@@ -4,7 +4,7 @@ substitutions:
   _IMAGE_NAME: 'us-docker.pkg.dev/go-containerregistry/gcr-dev/gcrane'
   _BASE_IMAGE: 'gcr.io/distroless/static:nonroot'
   _TAG: 'latest'
-  _GO_BUILDER_IMAGE: 'golang:1.26.9'
+  _GO_BUILDER_IMAGE: 'golang:1.26.10'
   _DOCKER_BUILDER_IMAGE: 'docker:26.1.1-cli'
   _REPO_URL: 'https://github.com/google/go-containerregistry'
   _REVISION: 'main'

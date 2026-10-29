@@ -7,7 +7,7 @@ module github.com/google/go-containerregistry/cmd/krane
 // and releases, update the toolchain directive.
 go 1.26.0
 
-toolchain go1.26.6
+toolchain go1.26.10
 
 replace github.com/google/go-containerregistry => ../../
 
