@@ -162,6 +162,9 @@ func (i *index) compute() error {
 }
 
 func (i *index) Image(h v1.Hash) (v1.Image, error) {
+	if err := i.computeForLookup(); err != nil {
+		return nil, err
+	}
 	if img, ok := i.imageMap[h]; ok {
 		return img, nil
 	}
@@ -169,10 +172,24 @@ func (i *index) Image(h v1.Hash) (v1.Image, error) {
 }
 
 func (i *index) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
+	if err := i.computeForLookup(); err != nil {
+		return nil, err
+	}
 	if idx, ok := i.indexMap[h]; ok {
 		return idx, nil
 	}
 	return i.base.ImageIndex(h)
+}
+
+// computeForLookup populates the lookup maps before one of the by-hash
+// accessors reads them. A streamable layer that has not been consumed yet is
+// tolerated, the same way Manifests does it, because the maps are filled before
+// computeDescriptor reports ErrNotComputed.
+func (i *index) computeForLookup() error {
+	if err := i.compute(); err != nil && !errors.Is(err, stream.ErrNotComputed) {
+		return err
+	}
+	return nil
 }
 
 type withLayer interface {
@@ -181,6 +198,9 @@ type withLayer interface {
 
 // Workaround for #819.
 func (i *index) Layer(h v1.Hash) (v1.Layer, error) {
+	if err := i.computeForLookup(); err != nil {
+		return nil, err
+	}
 	if layer, ok := i.layerMap[h]; ok {
 		return layer, nil
 	}
