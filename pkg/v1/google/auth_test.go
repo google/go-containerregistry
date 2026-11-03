@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/logs"
@@ -78,6 +79,12 @@ func TestMain(m *testing.M) {
 	case "success":
 		// Returns a seemingly valid token.
 		fmt.Println(success)
+
+	case "expiring":
+		// Returns a token that is already within oauth2's expiry delta, so
+		// every use of it asks gcloud for a fresh one.
+		fmt.Printf(`{"credential": {"access_token": "mytoken", "token_expiry": %q}}`+"\n",
+			time.Now().Add(time.Second).UTC().Format(time.RFC3339))
 	}
 }
 
@@ -221,6 +228,35 @@ func TestKeychainGCRandAR(t *testing.T) {
 				t.Errorf("expected anonymous auth for %v, got: %v", tc, auth)
 			}
 		})
+	}
+}
+
+// The keychain caches what it resolves for the life of the process, so a
+// refresh must not depend on the context of the first caller, which has
+// usually ended by then (an admission request, an HTTP handler's request).
+func TestKeychainRefreshOutlivesResolveContext(t *testing.T) {
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/dev/null")
+	getGcloudCmd = newGcloudCmdMock("expiring")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	gk := &googleKeychain{}
+	auth, err := gk.ResolveContext(ctx, mustRegistry("us-docker.pkg.dev"))
+	if err != nil {
+		t.Fatalf("ResolveContext: %v", err)
+	}
+	if auth == authn.Anonymous {
+		t.Fatalf("ResolveContext: got Anonymous, wanted the gcloud authenticator")
+	}
+	cancel()
+
+	// The first token is already expiring, so this refreshes, after the
+	// context it was resolved with has been cancelled.
+	cfg, err := auth.Authorization()
+	if err != nil {
+		t.Fatalf("Authorization after the resolving context was cancelled: %v", err)
+	}
+	if got, want := cfg.Password, "mytoken"; got != want {
+		t.Errorf("wanted token %q, got %q", want, got)
 	}
 }
 
