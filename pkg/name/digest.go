@@ -32,6 +32,7 @@ const digestDelim = "@"
 type Digest struct {
 	Repository
 	digest   string
+	tag      string
 	original string
 }
 
@@ -54,6 +55,12 @@ func (d Digest) Identifier() string {
 // DigestStr returns the digest component of the Digest.
 func (d Digest) DigestStr() string {
 	return d.digest
+}
+
+// TagStr returns the tag the Digest was specified with (e.g. "tag" for
+// "repo:tag@digest"), or "" if the input carried no explicit tag.
+func (d Digest) TagStr() string {
+	return d.tag
 }
 
 // Name returns the name from which the Digest was derived.
@@ -113,8 +120,13 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 		return Digest{}, newErrBadName("%s: %s", err, dig)
 	}
 
-	tag, err := NewTag(base, opts...)
-	if err == nil {
+	tagStr := ""
+	if tag, err := NewTag(base, opts...); err == nil {
+		// NewTag defaults a missing tag, so only retain one that was
+		// explicitly present, using the same hostname-port disambiguation.
+		if parts := strings.Split(base, tagDelim); len(parts) > 1 && !strings.Contains(parts[len(parts)-1], regRepoDelimiter) {
+			tagStr = parts[len(parts)-1]
+		}
 		base = tag.Repository.Name()
 	}
 
@@ -125,6 +137,7 @@ func NewDigest(name string, opts ...Option) (Digest, error) {
 	return Digest{
 		Repository: repo,
 		digest:     dig,
+		tag:        tagStr,
 		original:   name,
 	}, nil
 }
