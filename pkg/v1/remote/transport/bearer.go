@@ -220,6 +220,13 @@ func (bt *bearerTransport) RoundTrip(in *http.Request) (*http.Response, error) {
 		// close out old response, since we will not return it.
 		res.Body.Close()
 
+		// The first attempt consumed the request body (if any), so grab a
+		// fresh copy before we retry the request below; otherwise the retry
+		// fails with "http: ContentLength=N with Body length 0". See #1004.
+		if !rewindBody(in) {
+			logs.Warn.Printf("retrying %s %s after auth challenge, but the request body cannot be rewound; the retry may fail", in.Method, in.URL)
+		}
+
 		// For cross-host challenges (the request was redirected to another host),
 		// never mutate bt's shared state: accumulating this host's scope into
 		// bt.scopes or refreshing bt's token from bt.realm would pollute future

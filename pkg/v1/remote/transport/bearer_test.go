@@ -15,8 +15,10 @@
 package transport
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -891,5 +893,92 @@ func TestBearerTokenExchangedOnCrossHostChallenge(t *testing.T) {
 
 	if res.StatusCode != http.StatusOK {
 		t.Errorf("got status %d, want %d: per-host token was not applied on cross-host retry", res.StatusCode, http.StatusOK)
+	}
+}
+
+// TestBearerBodyRewoundOnSameHostChallenge is the regression test for
+// https://github.com/google/go-containerregistry/issues/1004: when a request
+// with a body (e.g. a manifest PUT) hits a 401 Bearer challenge and is
+// retried after the token refresh, the first attempt has already consumed
+// the request body. Without rewinding it via GetBody, the retry fails with
+// "http: ContentLength=N with Body length 0" (or sends an empty body).
+func TestBearerBodyRewoundOnSameHostChallenge(t *testing.T) {
+	const (
+		staleToken = "stale-token"
+		freshToken = "fresh-token"
+	)
+	// Mirror the ContentLength from the original issue report for fun.
+	payload := strings.Repeat("m", 1821)
+
+	attempts := 0
+	var bodies []string
+	registryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading request body: %v", err)
+		}
+		bodies = append(bodies, string(body))
+		if r.Header.Get("Authorization") == "Bearer "+freshToken {
+			w.WriteHeader(http.StatusCreated)
+			return
+		}
+		w.Header().Set("WWW-Authenticate", `Bearer realm="https://token.example.com/token",service="registry"`)
+		// The Docker Hub 401 in the original issue report carried
+		// "Connection: close", which forces the retry onto a fresh
+		// connection. That matters: on a reused connection net/http can
+		// sometimes rescue a consumed body by itself (nothingWrittenError +
+		// GetBody), but it refuses to do so on a fresh connection, which is
+		// exactly when the "ContentLength=N with Body length 0" error
+		// escaped to users.
+		w.Header().Set("Connection", "close")
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer registryServer.Close()
+
+	u, err := url.Parse(registryServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err := name.NewRegistry(u.Host, name.WeakValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bt := &bearerTransport{
+		inner:  &http.Transport{},
+		bearer: authn.AuthConfig{RegistryToken: staleToken},
+		// authn.Bearer causes refresh() to set bearer.RegistryToken directly from
+		// the credential without a network call.
+		basic:    &authn.Bearer{Token: freshToken},
+		registry: registry,
+		realm:    "https://token.example.com/token",
+		scopes:   []string{"repo:example/image:push"},
+		service:  "registry",
+		scheme:   "http",
+	}
+
+	// http.NewRequest sets GetBody automatically for *bytes.Buffer, just like
+	// the manifest PUT in pkg/v1/remote does.
+	req, err := http.NewRequest(http.MethodPut, registryServer.URL+"/v2/example/image/manifests/latest", bytes.NewBufferString(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := (&http.Client{Transport: bt}).Do(req)
+	if err != nil {
+		t.Fatalf("unexpected error (request body not rewound before retry?): %v", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusCreated {
+		t.Errorf("got status %d, want %d", res.StatusCode, http.StatusCreated)
+	}
+	if attempts != 2 {
+		t.Fatalf("registry received %d request(s), want 2 (401 then 201)", attempts)
+	}
+	for i, body := range bodies {
+		if body != payload {
+			t.Errorf("attempt %d: registry received body of length %d, want %d", i+1, len(body), len(payload))
+		}
 	}
 }
