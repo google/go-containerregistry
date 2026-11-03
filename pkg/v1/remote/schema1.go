@@ -71,7 +71,25 @@ func (s *schema1) ConfigName() (v1.Hash, error) {
 }
 
 func (s *schema1) ConfigFile() (*v1.ConfigFile, error) {
-	return nil, newErrSchema1(s.mediaType)
+	configFile := &v1.ConfigFile{
+		Architecture: s.descriptor.Platform.Architecture,
+		OS:           s.descriptor.Platform.OS,
+		RootFS: v1.RootFS{
+			Type: "layers",
+		},
+	}
+	layers, err := s.Layers()
+	if err != nil {
+		return nil, err
+	}
+	for _, layer := range layers {
+		d, err := layer.Digest()
+		if err != nil {
+			return nil, err
+		}
+		configFile.RootFS.DiffIDs = append(configFile.RootFS.DiffIDs, d)
+	}
+	return configFile, nil
 }
 
 func (s *schema1) RawConfigFile() ([]byte, error) {
