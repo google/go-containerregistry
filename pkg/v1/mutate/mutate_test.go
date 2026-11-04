@@ -1576,3 +1576,37 @@ func TestCanonicalLayerOptions(t *testing.T) {
 		t.Errorf("blob magic = %x, want zstd", magic)
 	}
 }
+
+func TestAppendLayers_EmptyConfigMediaType(t *testing.T) {
+	base, err := random.Image(128, 2)
+	if err != nil {
+		t.Fatalf("random.Image: %v", err)
+	}
+	base = mutate.ConfigMediaType(base, types.MediaType(""))
+
+	layer, err := random.Layer(100, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("random.Layer: %v", err)
+	}
+
+	appended, err := mutate.AppendLayers(base, layer)
+	if err != nil {
+		t.Fatalf("AppendLayers: %v", err)
+	}
+
+	cf, err := appended.ConfigFile()
+	if err != nil {
+		t.Fatalf("ConfigFile: %v", err)
+	}
+	ls, err := appended.Layers()
+	if err != nil {
+		t.Fatalf("Layers: %v", err)
+	}
+
+	if len(ls) != len(cf.RootFS.DiffIDs) {
+		t.Errorf("len(Layers()) = %d, want len(RootFS.DiffIDs) = %d", len(ls), len(cf.RootFS.DiffIDs))
+	}
+	if len(ls) != len(cf.History) {
+		t.Errorf("len(Layers()) = %d, want len(History) = %d", len(ls), len(cf.History))
+	}
+}

@@ -55,7 +55,7 @@ func (i *image) MediaType() (types.MediaType, error) {
 // isImageConfig reports whether the media type is a Docker or OCI image config.
 func isImageConfig(mt types.MediaType) bool {
 	switch mt {
-	case types.DockerConfigJSON, types.OCIConfigJSON:
+	case "", types.DockerConfigJSON, types.OCIConfigJSON:
 		return true
 	default:
 		return false
