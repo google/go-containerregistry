@@ -32,6 +32,7 @@ var goodStrictValidationRepositoryNames = []string{
 	// alpha-numeric  := /[a-z0-9]+/
 	"example.com/a",
 	"example.com/a/b",
+	"localhost/testimage",
 }
 
 var goodWeakValidationRepositoryNames = []string{
