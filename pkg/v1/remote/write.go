@@ -643,7 +643,17 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 		defer resp.Body.Close()
 
 		if err := transport.CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
-			return err
+			_, byDigest := ref.(name.Digest)
+			if !byDigest || (resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden) {
+				return err
+			}
+			// Another writer can publish the same digest between the existence check and PUT.
+			f := fetcher{target: ref.Context(), client: w.getClient()}
+			got, checkErr := f.headManifest(ctx, ref, allManifestMediaTypes)
+			if checkErr != nil || got.Digest != desc.Digest {
+				return err
+			}
+			logs.Debug.Printf("manifest %s already exists after PUT returned %d", ref, resp.StatusCode)
 		}
 
 		// If the manifest referred to a subject, we may need to update the fallback tag manifest.
