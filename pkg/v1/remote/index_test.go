@@ -355,7 +355,7 @@ func TestMatchesPlatform(t *testing.T) {
 			},
 			want: false,
 		},
-		{ // OS must exactly match, and is case sensative. matchesPlatform expected to return false.
+		{ // OS must exactly match, and is case-sensitive. matchesPlatform expected to return false.
 			given: v1.Platform{
 				Architecture: "arm",
 				OS:           "linux",

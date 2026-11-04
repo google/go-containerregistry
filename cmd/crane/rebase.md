@@ -5,7 +5,7 @@ is `FROM` with a new base image.
 
 ![rebase visualization](./rebase.png)
 
-([link](https://docs.google.com/drawings/d/1w8UxTZDRbDWVoqnbr17SJuU73pRxpOmOk_vzmC9WB2k/edit))
+([private Google drawing](https://docs.google.com/drawings/d/1w8UxTZDRbDWVoqnbr17SJuU73pRxpOmOk_vzmC9WB2k/edit))
 
 **This is not safe in general**, but it can be extremely useful for platform
 providers, e.g. when a vulnerability is discovered in a base layer and many
