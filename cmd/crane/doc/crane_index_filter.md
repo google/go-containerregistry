@@ -22,9 +22,10 @@ crane index filter [flags]
 ### Options
 
 ```
-  -h, --help                   help for filter
-      --platform platform(s)   Specifies the platform(s) to keep from base in the form os/arch[/variant][:osversion][,<platform>] (e.g. linux/amd64).
-  -t, --tag string             Tag to apply to resulting image
+  -a, --annotation stringToString   New annotations to add to the index (default [])
+  -h, --help                        help for filter
+      --platform platform(s)        Specifies the platform(s) to keep from base in the form os/arch[/variant][:osversion][,<platform>] (e.g. linux/amd64).
+  -t, --tag string                  Tag to apply to resulting image
 ```
 
 ### Options inherited from parent commands

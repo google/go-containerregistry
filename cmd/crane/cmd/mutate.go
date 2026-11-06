@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/spf13/cobra"
 )
 
@@ -44,26 +45,71 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 	mutateCmd := &cobra.Command{
 		Use:   "mutate",
 		Short: "Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(c *cobra.Command, args []string) error {
-			// Pull image and get config.
-			ref := args[0]
+		Long: `Modify image labels, config, layers, or manifest annotations.
 
-			if len(annotations) != 0 {
-				desc, err := crane.Head(ref, *options...)
-				if err != nil {
-					return err
-				}
-				if desc.MediaType.IsIndex() {
-					return errors.New("mutating annotations on an index is not yet supported")
-				}
-			}
+For an index without --platform, only top-level annotations can be changed;
+child manifests are preserved. Use --platform to mutate a specific platform's
+image instead. Writing an index with --output is not supported.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(c *cobra.Command, args []string) error {
+			ref := args[0]
 
 			if newRepo != "" && newRef != "" {
 				return errors.New("repository can't be set when a tag is specified")
 			}
 
-			img, err := crane.Pull(ref, *options...)
+			// If the new ref isn't provided, write over the original image.
+			// If that ref was provided by digest (e.g., output from
+			// another crane command), then strip that and push the
+			// mutated image by digest instead.
+			if newRepo != "" {
+				newRef = newRepo
+			} else if newRef == "" {
+				newRef = ref
+			}
+
+			o := crane.GetOptions(*options...)
+			desc, err := crane.Get(ref, *options...)
+			if err != nil {
+				return fmt.Errorf("pulling %s: %w", ref, err)
+			}
+
+			// Without --platform, an index is mutated as a whole: only its
+			// top-level annotations change, and its child manifests are kept.
+			if desc.MediaType.IsIndex() && o.Platform == nil {
+				if len(labels) != 0 || envVars.changed || len(entrypoint) != 0 || len(cmd) != 0 ||
+					len(newLayers) != 0 || user != "" || workdir != "" || len(ports) != 0 || newPlatform != "" {
+					return errors.New("mutating labels, config, or layers on an index is not supported")
+				}
+				if outFile != "" {
+					return errors.New("writing an index to a tarball is not supported")
+				}
+				idx, err := desc.ImageIndex()
+				if err != nil {
+					return fmt.Errorf("pulling %s: %w", ref, err)
+				}
+				if len(annotations) != 0 {
+					idx = mutate.Annotations(idx, annotations).(v1.ImageIndex)
+				}
+				digest, err := idx.Digest()
+				if err != nil {
+					return fmt.Errorf("digesting new index: %w", err)
+				}
+				r, err := name.ParseReference(newRef, o.Name...)
+				if err != nil {
+					return fmt.Errorf("parsing %s: %w", newRef, err)
+				}
+				if _, ok := r.(name.Digest); ok || newRepo != "" {
+					r = r.Context().Digest(digest.String())
+				}
+				if err := remote.WriteIndex(r, idx, o.Remote...); err != nil {
+					return fmt.Errorf("pushing %s: %w", r, err)
+				}
+				fmt.Fprintln(c.OutOrStdout(), r.Context().Digest(digest.String()))
+				return nil
+			}
+
+			img, err := desc.Image()
 			if err != nil {
 				return fmt.Errorf("pulling %s: %w", ref, err)
 			}
@@ -143,15 +189,6 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 
 			img = mutate.Annotations(img, annotations).(v1.Image)
 
-			// If the new ref isn't provided, write over the original image.
-			// If that ref was provided by digest (e.g., output from
-			// another crane command), then strip that and push the
-			// mutated image by digest instead.
-			if newRepo != "" {
-				newRef = newRepo
-			} else if newRef == "" {
-				newRef = ref
-			}
 			digest, err := img.Digest()
 			if err != nil {
 				return fmt.Errorf("digesting new image: %w", err)
@@ -161,7 +198,7 @@ func NewCmdMutate(options *[]crane.Option) *cobra.Command {
 					return fmt.Errorf("writing output %q: %w", outFile, err)
 				}
 			} else {
-				r, err := name.ParseReference(newRef)
+				r, err := name.ParseReference(newRef, o.Name...)
 				if err != nil {
 					return fmt.Errorf("parsing %s: %w", newRef, err)
 				}
