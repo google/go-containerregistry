@@ -17,8 +17,10 @@ package tarball
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"os"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/compression"
@@ -287,5 +289,31 @@ func teardownFixtures(t *testing.T) {
 	}
 	if err := os.Remove("zstd_content.tar.zst"); err != nil {
 		t.Errorf("Error tearing down fixtures: %v", err)
+	}
+}
+
+type trackedCleanupReader struct {
+	io.Reader
+	closes *atomic.Int32
+}
+
+func (r *trackedCleanupReader) Close() error {
+	r.closes.Add(1)
+	return errors.New("synthetic close failure")
+}
+
+func TestLayerFromOpenerClosesSourceOnDecompressionError(t *testing.T) {
+	var opens, closes atomic.Int32
+	for i := int32(1); i <= 3; i++ {
+		_, err := LayerFromOpener(func() (io.ReadCloser, error) {
+			opens.Add(1)
+			return &trackedCleanupReader{Reader: bytes.NewReader([]byte{0x1f, 0x8b, 0x08}), closes: &closes}, nil
+		})
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
+			t.Fatalf("error=%v, want original unexpected EOF", err)
+		}
+		if a, b := opens.Load(), closes.Load(); a != b {
+			t.Errorf("attempt %d: opened=%d closed=%d; source leaked", i, a, b)
+		}
 	}
 }
