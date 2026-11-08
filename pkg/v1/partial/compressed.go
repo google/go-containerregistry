@@ -59,6 +59,7 @@ func (cle *compressedLayerExtender) Uncompressed() (io.ReadCloser, error) {
 	// wrap this with gzip.UnzipReadCloser or zstd.UnzipReadCloser.
 	cp, pr, err := compression.PeekCompression(rc)
 	if err != nil {
+		rc.Close()
 		return nil, err
 	}
 
