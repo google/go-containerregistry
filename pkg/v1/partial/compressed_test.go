@@ -15,6 +15,8 @@
 package partial_test
 
 import (
+	"bytes"
+	"errors"
 	"io"
 	"net/http/httptest"
 	"net/url"
@@ -144,6 +146,75 @@ func TestCompressedLayerExtender(t *testing.T) {
 	}
 	if _, err := partial.UncompressedSize(l); err != nil {
 		t.Fatalf("partial.UncompressedSize: %v", err)
+	}
+}
+
+// errorReader fails every Read with err.
+type errorReader struct {
+	err error
+}
+
+func (r *errorReader) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
+// trackedReadCloser counts how many times Close is called.
+type trackedReadCloser struct {
+	io.Reader
+	closed *int
+}
+
+func (t *trackedReadCloser) Close() error {
+	*t.closed++
+	return nil
+}
+
+// fakeCompressedLayer serves a fixed reader from Compressed.
+type fakeCompressedLayer struct {
+	rc io.ReadCloser
+}
+
+func (f *fakeCompressedLayer) Digest() (v1.Hash, error)            { return v1.Hash{}, nil }
+func (f *fakeCompressedLayer) Compressed() (io.ReadCloser, error)  { return f.rc, nil }
+func (f *fakeCompressedLayer) Size() (int64, error)                { return 0, nil }
+func (f *fakeCompressedLayer) MediaType() (types.MediaType, error) { return types.OCILayer, nil }
+
+// TestUncompressedClosesSourceOnError ensures Uncompressed closes the source
+// reader when decompression setup fails, so callers can retry against the
+// same failing input without accumulating unclosed resources.
+// https://github.com/google/go-containerregistry/issues/2496
+func TestUncompressedClosesSourceOnError(t *testing.T) {
+	testCases := []struct {
+		name    string
+		content io.Reader
+	}{{
+		name:    "read error during compression detection",
+		content: &errorReader{err: errors.New("boom")},
+	}, {
+		name:    "truncated gzip header",
+		content: bytes.NewReader([]byte{'\x1f', '\x8b', 0x00, 0x00}),
+	}}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			var closed int
+			rc := &trackedReadCloser{Reader: tc.content, closed: &closed}
+			l, err := partial.CompressedToLayer(&fakeCompressedLayer{rc: rc})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Act
+			if _, err := l.Uncompressed(); err == nil {
+				t.Fatal("Uncompressed() = nil error, want error")
+			}
+
+			// Assert
+			if closed != 1 {
+				t.Errorf("source reader closed %d times, want 1", closed)
+			}
+		})
 	}
 }
 
