@@ -199,7 +199,7 @@ func (a arbitraryRawManifest) RawManifest() ([]byte, error) {
 		return nil, err
 	}
 	if ann, ok := m["annotations"]; ok {
-		if annm, ok := ann.(map[string]string); ok {
+		if annm, ok := ann.(map[string]any); ok {
 			for k, v := range a.anns {
 				annm[k] = v
 			}
