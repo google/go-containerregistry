@@ -142,6 +142,8 @@ func stringSliceEqual(a, b []string) bool {
 // stringSliceEqualIgnoreOrder compares 2 string slices and returns if their contents are identical, ignoring order
 func stringSliceEqualIgnoreOrder(a, b []string) bool {
 	if a != nil && b != nil {
+		a = append([]string(nil), a...)
+		b = append([]string(nil), b...)
 		sort.Strings(a)
 		sort.Strings(b)
 	}
