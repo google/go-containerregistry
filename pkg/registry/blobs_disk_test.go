@@ -125,6 +125,30 @@ func TestDiskCorruptBlobReturnsBlobUnknown(t *testing.T) {
 	}
 }
 
+func TestDiskDeleteMissingBlobReturnsBlobUnknown(t *testing.T) {
+	reg := registry.New(registry.WithBlobHandler(registry.NewDiskBlobHandler(t.TempDir())))
+	srv := httptest.NewServer(reg)
+	defer srv.Close()
+
+	h, _, err := v1.SHA256(strings.NewReader("blob contents"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := http.NewRequest(http.MethodDelete, srv.URL+"/v2/foo/bar/blobs/"+h.String(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("DELETE missing blob status: got %d, want %d", resp.StatusCode, http.StatusNotFound)
+	}
+}
+
 func writeEmptyBlobAtDigest(t *testing.T, dir string) v1.Hash {
 	t.Helper()
 
