@@ -524,7 +524,9 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				Message: "invalid digest",
 			}
 		}
-		if err := bdh.Delete(req.Context(), repo, h); err != nil {
+		if err := bdh.Delete(req.Context(), repo, h); errors.Is(err, ErrNotFound) {
+			return regErrBlobUnknown
+		} else if err != nil {
 			return regErrInternal(err)
 		}
 		resp.WriteHeader(http.StatusAccepted)

@@ -80,5 +80,10 @@ func (m *diskHandler) Put(_ context.Context, _ string, h v1.Hash, rc io.ReadClos
 }
 
 func (m *diskHandler) Delete(_ context.Context, _ string, h v1.Hash) error {
-	return os.Remove(m.blobHashPath(h))
+	if err := os.Remove(m.blobHashPath(h)); errors.Is(err, os.ErrNotExist) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	return nil
 }

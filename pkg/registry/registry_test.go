@@ -192,6 +192,12 @@ func TestCalls(t *testing.T) {
 			Code:        http.StatusAccepted,
 		},
 		{
+			Description: "DELETE non existent blob",
+			Method:      "DELETE",
+			URL:         "/v2/foo/blobs/sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+			Code:        http.StatusNotFound,
+		},
+		{
 			Description: "blob url with no container",
 			Method:      "GET",
 			URL:         "/v2/blobs/sha256:asd",
