@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -42,46 +43,72 @@ func TestPutPreservesReferrersError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manifestPath := "/v2/repo/manifests/" + digest.String()
 	referrersPath := "/v2/repo/referrers/" + subject.String()
-	var puts atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/v2/":
-			w.WriteHeader(http.StatusOK)
-		case r.Method == http.MethodPut && r.URL.Path == manifestPath:
-			puts.Add(1)
-			w.WriteHeader(http.StatusCreated)
-		case r.Method == http.MethodGet && r.URL.Path == referrersPath:
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusForbidden)
-			if _, err := fmt.Fprint(w, `{"errors":[{"code":"DENIED","message":"referrers read denied"}]}`); err != nil {
-				t.Errorf("write response: %v", err)
+	for _, test := range []struct {
+		name      string
+		byTag     bool
+		putStatus int
+	}{
+		{name: "digest", putStatus: http.StatusCreated},
+		{name: "tag", byTag: true, putStatus: http.StatusCreated},
+		{name: "recovered tag", byTag: true, putStatus: http.StatusForbidden},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			identifier := digest.String()
+			if test.byTag {
+				identifier = "latest"
 			}
-		case r.Method == http.MethodHead && r.URL.Path == manifestPath:
-			w.Header().Set("Content-Type", string(types.DockerManifestSchema2))
-			w.Header().Set("Content-Length", fmt.Sprint(len(raw)))
-			w.Header().Set("Docker-Content-Digest", digest.String())
-			w.WriteHeader(http.StatusOK)
-		default:
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL)
-			w.WriteHeader(http.StatusBadRequest)
-		}
-	}))
-	defer server.Close()
-	tag := mustNewTag(t, strings.TrimPrefix(server.URL, "http://")+"/repo:latest")
-	err = remote.Put(tag.Context().Digest(digest.String()), img)
-	var got *transport.Error
-	if !errors.As(err, &got) {
-		t.Fatalf("Put() = %v, want the original referrers error", err)
-	}
-	if got.StatusCode != http.StatusForbidden || got.Request == nil || got.Request.Method != http.MethodGet || got.Request.URL.Path != referrersPath {
-		t.Errorf("Put() = %v, want the original referrers GET status 403", got)
-	}
-	if len(got.Errors) != 1 || got.Errors[0].Message != "referrers read denied" {
-		t.Errorf("Put() diagnostics = %v, want the original referrers denial", got.Errors)
-	}
-	if got := puts.Load(); got != 1 {
-		t.Errorf("primary manifest PUT count = %d, want 1", got)
+			manifestPath := "/v2/repo/manifests/" + identifier
+			var puts atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.URL.Path == "/v2/":
+					w.WriteHeader(http.StatusOK)
+				case r.Method == http.MethodPut && r.URL.Path == manifestPath:
+					puts.Add(1)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(test.putStatus)
+					if test.putStatus == http.StatusForbidden {
+						if _, err := fmt.Fprint(w, `{"errors":[{"code":"UNAUTHORIZED","message":"No permission to overwrite manifest"}]}`); err != nil {
+							t.Errorf("write response: %v", err)
+						}
+					}
+				case r.Method == http.MethodGet && r.URL.Path == referrersPath:
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusForbidden)
+					if _, err := fmt.Fprint(w, `{"errors":[{"code":"DENIED","message":"referrers read denied"}]}`); err != nil {
+						t.Errorf("write response: %v", err)
+					}
+				case r.Method == http.MethodHead && r.URL.Path == manifestPath:
+					w.Header().Set("Content-Type", string(types.DockerManifestSchema2))
+					w.Header().Set("Content-Length", fmt.Sprint(len(raw)))
+					w.Header().Set("Docker-Content-Digest", digest.String())
+					w.WriteHeader(http.StatusOK)
+				default:
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+					w.WriteHeader(http.StatusBadRequest)
+				}
+			}))
+			defer server.Close()
+			tag := mustNewTag(t, strings.TrimPrefix(server.URL, "http://")+"/repo:latest")
+			var ref name.Reference = tag.Context().Digest(digest.String())
+			if test.byTag {
+				ref = tag
+			}
+			err := remote.Put(ref, img)
+			var got *transport.Error
+			if !errors.As(err, &got) {
+				t.Fatalf("Put() = %v, want the original referrers error", err)
+			}
+			if got.StatusCode != http.StatusForbidden || got.Request == nil || got.Request.Method != http.MethodGet || got.Request.URL.Path != referrersPath {
+				t.Errorf("Put() = %v, want the original referrers GET status 403", got)
+			}
+			if len(got.Errors) != 1 || got.Errors[0].Message != "referrers read denied" {
+				t.Errorf("Put() diagnostics = %v, want the original referrers denial", got.Errors)
+			}
+			if got := puts.Load(); got != 1 {
+				t.Errorf("primary manifest PUT count = %d, want 1", got)
+			}
+		})
 	}
 }

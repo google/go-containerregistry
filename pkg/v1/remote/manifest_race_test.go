@@ -41,8 +41,17 @@ func mustNewTag(t *testing.T, s string) name.Tag {
 }
 
 func TestPushIndexAfterConcurrentManifestUpload(t *testing.T) {
-	for _, status := range []int{http.StatusUnauthorized, http.StatusForbidden} {
-		t.Run(http.StatusText(status), func(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		status int
+		byTag  bool
+	}{
+		{name: "digest unauthorized", status: http.StatusUnauthorized},
+		{name: "digest forbidden", status: http.StatusForbidden},
+		{name: "tag unauthorized", status: http.StatusUnauthorized, byTag: true},
+		{name: "tag forbidden", status: http.StatusForbidden, byTag: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			child := empty.Image
 			childDigest, err := child.Digest()
 			if err != nil {
@@ -55,10 +64,13 @@ func TestPushIndexAfterConcurrentManifestUpload(t *testing.T) {
 			}
 
 			backend := registry.New()
-			childPath := "/v2/repo/manifests/" + childDigest.String()
+			manifestPath := "/v2/repo/manifests/" + childDigest.String()
+			if test.byTag {
+				manifestPath = "/v2/repo/manifests/latest"
+			}
 			var initialChecks, rejectedPuts atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Path == childPath {
+				if r.URL.Path == manifestPath {
 					if r.Method == http.MethodHead && rejectedPuts.Load() == 0 {
 						initialChecks.Add(1)
 					}
@@ -73,7 +85,7 @@ func TestPushIndexAfterConcurrentManifestUpload(t *testing.T) {
 						}
 						rejectedPuts.Add(1)
 						w.Header().Set("Content-Type", "application/json")
-						w.WriteHeader(status)
+						w.WriteHeader(test.status)
 						if _, err := fmt.Fprint(w, `{"errors":[{"code":"UNAUTHORIZED","message":"No permission to overwrite manifest"}]}`); err != nil {
 							t.Errorf("write response: %v", err)
 						}
@@ -89,10 +101,10 @@ func TestPushIndexAfterConcurrentManifestUpload(t *testing.T) {
 				t.Fatalf("Push() = %v, want success after the concurrent upload", err)
 			}
 			if got := initialChecks.Load(); got != 1 {
-				t.Errorf("initial child HEAD count = %d, want 1", got)
+				t.Errorf("initial manifest HEAD count = %d, want 1", got)
 			}
 			if got := rejectedPuts.Load(); got != 1 {
-				t.Errorf("rejected child PUT count = %d, want 1", got)
+				t.Errorf("rejected manifest PUT count = %d, want 1", got)
 			}
 			for _, ref := range []name.Reference{tag, tag.Context().Digest(indexDigest.String())} {
 				desc, err := remote.Head(ref)
@@ -107,7 +119,7 @@ func TestPushIndexAfterConcurrentManifestUpload(t *testing.T) {
 	}
 }
 
-func TestPutPreservesUploadError(t *testing.T) {
+func TestPutAfterDeniedUpload(t *testing.T) {
 	img := empty.Image
 	digest, err := img.Digest()
 	if err != nil {
@@ -122,42 +134,68 @@ func TestPutPreservesUploadError(t *testing.T) {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		name       string
-		putStatus  int
-		headStatus int
-		byTag      bool
-		mismatch   bool
+		name        string
+		putStatus   int
+		headStatus  int
+		byTag       bool
+		mismatch    bool
+		omitDigest  bool
+		wantSuccess bool
 	}{
 		{name: "absent", putStatus: http.StatusUnauthorized, headStatus: http.StatusNotFound},
 		{name: "mismatched digest", putStatus: http.StatusForbidden, headStatus: http.StatusOK, mismatch: true},
 		{name: "unreadable", putStatus: http.StatusUnauthorized, headStatus: http.StatusForbidden},
 		{name: "HEAD fails", putStatus: http.StatusForbidden, headStatus: http.StatusInternalServerError},
-		{name: "tag unauthorized", putStatus: http.StatusUnauthorized, headStatus: http.StatusOK, byTag: true},
-		{name: "tag forbidden", putStatus: http.StatusForbidden, headStatus: http.StatusOK, byTag: true},
+		{name: "tag unauthorized", putStatus: http.StatusUnauthorized, headStatus: http.StatusOK, byTag: true, wantSuccess: true},
+		{name: "tag forbidden", putStatus: http.StatusForbidden, headStatus: http.StatusOK, byTag: true, wantSuccess: true},
+		{name: "tag absent", putStatus: http.StatusUnauthorized, headStatus: http.StatusNotFound, byTag: true},
+		{name: "tag mismatched digest", putStatus: http.StatusForbidden, headStatus: http.StatusOK, byTag: true, mismatch: true},
+		{name: "tag unreadable", putStatus: http.StatusUnauthorized, headStatus: http.StatusForbidden, byTag: true},
+		{name: "tag HEAD fails", putStatus: http.StatusForbidden, headStatus: http.StatusInternalServerError, byTag: true},
+		{name: "tag HEAD missing digest", putStatus: http.StatusForbidden, headStatus: http.StatusOK, byTag: true, omitDigest: true},
+		{name: "tag other PUT error", putStatus: http.StatusBadRequest, headStatus: http.StatusOK, byTag: true},
 		{name: "other PUT error", putStatus: http.StatusBadRequest, headStatus: http.StatusOK},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			manifestPath := "/v2/repo/manifests/" + digest.String()
+			if test.byTag {
+				manifestPath = "/v2/repo/manifests/latest"
+			}
+			var denied atomic.Bool
+			var heads atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/v2/" {
 					w.WriteHeader(http.StatusOK)
 					return
 				}
+				if r.URL.Path != manifestPath {
+					t.Errorf("unexpected target: %s %s", r.Method, r.URL)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
 				switch r.Method {
 				case http.MethodPut:
+					denied.Store(true)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(test.putStatus)
 					if _, err := fmt.Fprint(w, `{"errors":[{"code":"UNAUTHORIZED","message":"original upload denied"}]}`); err != nil {
 						t.Errorf("write response: %v", err)
 					}
 				case http.MethodHead:
+					if !denied.Load() {
+						t.Error("HEAD preceded the denied PUT")
+					}
+					heads.Add(1)
 					w.Header().Set("Content-Type", string(mediaType))
 					w.Header().Set("Content-Length", fmt.Sprint(len(raw)))
 					gotDigest := digest.String()
 					if test.mismatch {
 						gotDigest = "sha256:" + strings.Repeat("0", 64)
 					}
-					w.Header().Set("Docker-Content-Digest", gotDigest)
+					if !test.omitDigest {
+						w.Header().Set("Docker-Content-Digest", gotDigest)
+					}
 					w.WriteHeader(test.headStatus)
 				default:
 					t.Errorf("unexpected request: %s %s", r.Method, r.URL)
@@ -174,6 +212,15 @@ func TestPutPreservesUploadError(t *testing.T) {
 				remote.WithRetryPredicate(func(error) bool { return false }),
 				remote.WithRetryStatusCodes(),
 			)
+			if test.wantSuccess {
+				if err != nil {
+					t.Fatalf("Put() = %v, want success after matching tag HEAD", err)
+				}
+				if !denied.Load() || heads.Load() == 0 {
+					t.Fatal("test did not exercise PUT denial followed by HEAD verification")
+				}
+				return
+			}
 			var got *transport.Error
 			if !errors.As(err, &got) {
 				t.Fatalf("Put() = %v, want the original upload error", err)
@@ -181,11 +228,14 @@ func TestPutPreservesUploadError(t *testing.T) {
 			if got.Request == nil {
 				t.Fatal("upload error has no request")
 			}
-			if got.StatusCode != test.putStatus || got.Request.Method != http.MethodPut {
+			if got.StatusCode != test.putStatus || got.Request.Method != http.MethodPut || got.Request.URL.Path != manifestPath {
 				t.Errorf("Put() = %v, want the original PUT status %d", got, test.putStatus)
 			}
 			if len(got.Errors) != 1 || got.Errors[0].Message != "original upload denied" {
 				t.Errorf("Put() diagnostics = %v, want the original upload denial", got.Errors)
+			}
+			if test.putStatus == http.StatusBadRequest && heads.Load() != 0 {
+				t.Errorf("HEAD count after unrelated PUT error = %d, want 0", heads.Load())
 			}
 		})
 	}

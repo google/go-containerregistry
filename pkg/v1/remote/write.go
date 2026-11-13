@@ -643,11 +643,10 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 		defer resp.Body.Close()
 
 		if err := transport.CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
-			_, byDigest := ref.(name.Digest)
-			if !byDigest || (resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden) {
+			if resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden {
 				return err
 			}
-			// Another writer can publish the same digest between the existence check and PUT.
+			// Another writer can publish the same manifest between the existence check and PUT.
 			f := fetcher{target: ref.Context(), client: w.getClient()}
 			got, checkErr := f.headManifest(ctx, ref, allManifestMediaTypes)
 			if checkErr != nil || got.Digest != desc.Digest {
