@@ -230,7 +230,7 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 			}
 		}
 
-		_, ok := m.manifests[repo][target]
+		mf, ok := m.manifests[repo][target]
 		if !ok {
 			return &regError{
 				Status:  http.StatusNotFound,
@@ -240,6 +240,13 @@ func (m *manifests) handle(resp http.ResponseWriter, req *http.Request) *regErro
 		}
 
 		delete(m.manifests[repo], target)
+		if _, err := v1.NewHash(target); err == nil {
+			for ref, candidate := range m.manifests[repo] {
+				if bytes.Equal(candidate.blob, mf.blob) {
+					delete(m.manifests[repo], ref)
+				}
+			}
+		}
 		resp.WriteHeader(http.StatusAccepted)
 		return nil
 
