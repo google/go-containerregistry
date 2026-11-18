@@ -42,7 +42,7 @@ func (cli *Client) DialHijack(ctx context.Context, url, proto string, meta map[s
 	return conn, err
 }
 
-func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn, _ string, retErr error) {
+func (cli *Client) setupHijackConn(req *http.Request, proto string) (retConn net.Conn, mediaType string, retErr error) {
 	ctx := req.Context()
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
@@ -70,6 +70,20 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 
 	hc := &hijackedConn{conn, bufio.NewReader(conn)}
 
+	// Cancel the handshake without tying the returned connection to ctx.
+	cancelled := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		_ = hc.Conn.Close()
+		close(cancelled)
+	})
+	defer func() {
+		if !stop() {
+			// Cancellation won the race; don't return a connection being closed.
+			<-cancelled
+			retConn, mediaType, retErr = nil, "", ctx.Err()
+		}
+	}()
+
 	cfg := &cli.clientConfig
 
 	var rt http.RoundTripper = otelhttp.NewTransport(hc, cli.traceOpts...)
@@ -86,8 +100,10 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (_ net.Conn,
 	if err != nil {
 		return nil, "", err
 	}
+	// Closing the body ends the otelhttp span. A 101 response has no body,
+	// so this does not close the connection.
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusSwitchingProtocols {
-		_ = resp.Body.Close()
 		return nil, "", fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
 	}
 
