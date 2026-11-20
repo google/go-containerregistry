@@ -442,12 +442,12 @@ func TestComputeManifest(t *testing.T) {
 	// so mutated "gcr.io/baz/bat:latest" is before random "gcr.io/foo/bar:latest"
 	expected := []tarball.Descriptor{
 		{
-			Config:   mutatedConfig.String(),
+			Config:   mutatedConfig.Hex + ".json",
 			RepoTags: []string{mutatedTag},
 			Layers:   mutatedLayersFilenames,
 		},
 		{
-			Config:   randConfig.String(),
+			Config:   randConfig.Hex + ".json",
 			RepoTags: []string{randomTagWritten},
 			Layers:   randomLayersFilenames,
 		},
@@ -779,5 +779,64 @@ func TestImageFromFS_Roundtrip(t *testing.T) {
 	}
 	if err := compare.Images(randImage, gotImgNilTag); err != nil {
 		t.Errorf("compare.Images(nil): %v", err)
+	}
+}
+
+// Windows and tar both mishandle colons in entry names, so no entry may contain
+// one, and manifest.json must point at the config entry that was written.
+func TestWriteEntryNamesHaveNoColons(t *testing.T) {
+	img, err := random.Image(256, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tag, err := name.NewTag("gcr.io/foo/bar:latest", name.StrictValidation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := tarball.Write(tag, img, &buf); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := map[string][]byte{}
+	tr := tar.NewReader(&buf)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(hdr.Name, ":") {
+			t.Errorf("tar entry %q contains a colon", hdr.Name)
+		}
+		b, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		entries[hdr.Name] = b
+	}
+
+	var m tarball.Manifest
+	if err := json.Unmarshal(entries["manifest.json"], &m); err != nil {
+		t.Fatal(err)
+	}
+	if len(m) != 1 {
+		t.Fatalf("manifest has %d entries, want 1", len(m))
+	}
+	cfgName, err := img.ConfigName()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := cfgName.Hex + ".json"; m[0].Config != want {
+		t.Errorf("manifest Config = %q, want %q", m[0].Config, want)
+	}
+	rawCfg, err := img.RawConfigFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := entries[m[0].Config]; !ok || !bytes.Equal(got, rawCfg) {
+		t.Errorf("config entry %q missing or does not match the image config", m[0].Config)
 	}
 }
