@@ -219,13 +219,16 @@ func setEnvVars(cfg *v1.ConfigFile, envVars keyToValue) error {
 
 	// Append the new values.
 	for _, e := range envVars.values {
-		k, v := e.key, e.value
+		k := e.key
 
-		if _, ok := eMap[k]; !ok {
-			// If we come across a value not in eMap, it means we replaced the
-			// old env in-place and deleted it from eMap, so we can skip adding.
+		// eMap holds the last value given for each key. A key missing from it
+		// was already written, either in place of an old env or earlier in
+		// this loop when the flag was repeated, so skip it.
+		v, ok := eMap[k]
+		if !ok {
 			continue
 		}
+		delete(eMap, k)
 
 		if isWindows {
 			k = strings.ToUpper(k)
