@@ -25,10 +25,13 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
+	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
 func mustNewTag(t *testing.T, s string) name.Tag {
@@ -262,6 +265,185 @@ func TestManifestUploadAfterDeniedPut(t *testing.T) {
 			}
 			if len(got.Errors) != 1 || got.Errors[0].Message != "original upload denied" {
 				t.Errorf("%s() diagnostics = %v, want the original upload denial", operation, got.Errors)
+			}
+		})
+	}
+}
+
+func TestPushRecoversConcurrentUploadAndUpdatesReferrers(t *testing.T) {
+	subject, err := partial.Descriptor(empty.Image)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact := mutate.Subject(mutate.MediaType(empty.Image, types.OCIManifestSchema1), *subject).(v1.Image)
+	digest, err := artifact.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range []struct {
+		name  string
+		byTag bool
+	}{
+		{name: "digest"},
+		{name: "tag", byTag: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			identifier := digest.String()
+			if test.byTag {
+				identifier = "artifact"
+			}
+			backend := registry.New(registry.WithReferrersSupport(false))
+			artifactPath := "/v2/repo/manifests/" + identifier
+			var rejectedPuts atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPut && r.URL.Path == artifactPath {
+					// The competing writer publishes the manifest without updating the fallback tag.
+					result := httptest.NewRecorder()
+					backend.ServeHTTP(result, r)
+					if result.Code != http.StatusCreated {
+						t.Errorf("competing upload status = %d, want %d: %s", result.Code, http.StatusCreated, result.Body)
+						w.WriteHeader(http.StatusInternalServerError)
+						return
+					}
+					rejectedPuts.Add(1)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusUnauthorized)
+					if _, err := fmt.Fprint(w, `{"errors":[{"code":"UNAUTHORIZED","message":"No permission to overwrite manifest"}]}`); err != nil {
+						t.Errorf("write response: %v", err)
+					}
+					return
+				}
+				backend.ServeHTTP(w, r)
+			}))
+			defer server.Close()
+			root := mustNewTag(t, strings.TrimPrefix(server.URL, "http://")+"/repo:root")
+			if err := remote.Write(root, empty.Image); err != nil {
+				t.Fatal(err)
+			}
+			var ref name.Reference = root.Context().Digest(digest.String())
+			if test.byTag {
+				ref = root.Context().Tag(identifier)
+			}
+			if err := remote.Push(ref, artifact); err != nil {
+				t.Fatalf("Push() = %v, want recovery followed by the referrers update", err)
+			}
+			if got := rejectedPuts.Load(); got != 1 {
+				t.Errorf("rejected PUT count = %d, want 1", got)
+			}
+
+			fallback := root.Context().Tag("sha256-" + subject.Digest.Hex)
+			idx, err := remote.Index(fallback)
+			if err != nil {
+				t.Fatalf("Index(%s) = %v, want the referrers fallback index", fallback, err)
+			}
+			manifest, err := idx.IndexManifest()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(manifest.Manifests) != 1 || manifest.Manifests[0].Digest != digest {
+				t.Errorf("referrers = %v, want one descriptor for %s", manifest.Manifests, digest)
+			}
+		})
+	}
+}
+
+func TestPushPreservesReferrersError(t *testing.T) {
+	subject := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("0", 64)}
+	img := mutate.Subject(empty.Image, v1.Descriptor{Digest: subject}).(v1.Image)
+	digest, err := img.Digest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := img.RawManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, err := img.ConfigName()
+	if err != nil {
+		t.Fatal(err)
+	}
+	configPath := "/v2/repo/blobs/" + config.String()
+	referrersPath := "/v2/repo/referrers/" + subject.String()
+	for _, test := range []struct {
+		name      string
+		byTag     bool
+		putStatus int
+	}{
+		{name: "digest", putStatus: http.StatusCreated},
+		{name: "tag", byTag: true, putStatus: http.StatusCreated},
+		{name: "recovered digest", putStatus: http.StatusForbidden},
+		{name: "recovered tag", byTag: true, putStatus: http.StatusForbidden},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			identifier := digest.String()
+			if test.byTag {
+				identifier = "latest"
+			}
+			manifestPath := "/v2/repo/manifests/" + identifier
+			var puts, recoveryHeads atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.URL.Path == "/v2/":
+					w.WriteHeader(http.StatusOK)
+				case r.Method == http.MethodHead && r.URL.Path == configPath:
+					w.WriteHeader(http.StatusOK)
+				case r.Method == http.MethodPut && r.URL.Path == manifestPath:
+					puts.Add(1)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(test.putStatus)
+					if test.putStatus == http.StatusForbidden {
+						if _, err := fmt.Fprint(w, `{"errors":[{"code":"UNAUTHORIZED","message":"No permission to overwrite manifest"}]}`); err != nil {
+							t.Errorf("write response: %v", err)
+						}
+					}
+				case r.Method == http.MethodGet && r.URL.Path == referrersPath:
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusForbidden)
+					if _, err := fmt.Fprint(w, `{"errors":[{"code":"DENIED","message":"referrers read denied"}]}`); err != nil {
+						t.Errorf("write response: %v", err)
+					}
+				case r.Method == http.MethodHead && r.URL.Path == manifestPath:
+					if puts.Load() == 0 {
+						w.WriteHeader(http.StatusNotFound)
+						return
+					}
+					recoveryHeads.Add(1)
+					w.Header().Set("Content-Type", string(types.DockerManifestSchema2))
+					w.Header().Set("Content-Length", fmt.Sprint(len(raw)))
+					w.Header().Set("Docker-Content-Digest", digest.String())
+					w.WriteHeader(http.StatusOK)
+				default:
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+					w.WriteHeader(http.StatusBadRequest)
+				}
+			}))
+			defer server.Close()
+			tag := mustNewTag(t, strings.TrimPrefix(server.URL, "http://")+"/repo:latest")
+			var ref name.Reference = tag.Context().Digest(digest.String())
+			if test.byTag {
+				ref = tag
+			}
+			err := remote.Push(ref, img)
+			var got *transport.Error
+			if !errors.As(err, &got) {
+				t.Fatalf("Push() = %v, want the original referrers error", err)
+			}
+			if got.StatusCode != http.StatusForbidden || got.Request == nil || got.Request.Method != http.MethodGet || got.Request.URL.Path != referrersPath {
+				t.Errorf("Push() = %v, want the original referrers GET status 403", got)
+			}
+			if len(got.Errors) != 1 || got.Errors[0].Message != "referrers read denied" {
+				t.Errorf("Push() diagnostics = %v, want the original referrers denial", got.Errors)
+			}
+			if got := puts.Load(); got != 1 {
+				t.Errorf("primary manifest PUT count = %d, want 1", got)
+			}
+			wantRecoveryHeads := int32(0)
+			if test.putStatus == http.StatusForbidden {
+				wantRecoveryHeads = 1
+			}
+			if got := recoveryHeads.Load(); got != wantRecoveryHeads {
+				t.Errorf("manifest HEAD count after PUT = %d, want %d", got, wantRecoveryHeads)
 			}
 		})
 	}
