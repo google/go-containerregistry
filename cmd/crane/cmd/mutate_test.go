@@ -21,8 +21,10 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/registry"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 )
 
@@ -80,5 +82,25 @@ func TestMutateEmptyLabelAndAnnotationValues(t *testing.T) {
 		t.Errorf("annotation %q was not set at all", "empty.annotation")
 	} else if got != "" {
 		t.Errorf("annotation %q = %q, want empty string", "empty.annotation", got)
+	}
+}
+
+func TestSetEnvVarsWindowsCaseInsensitive(t *testing.T) {
+	var envVars keyToValue
+	for _, kv := range []string{`path=C:\new`, `temp=C:\tmp`, "foo=bar"} {
+		if err := envVars.Set(kv); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg := &v1.ConfigFile{OS: "windows", Config: v1.Config{Env: []string{`Path=C:\Windows`, `TEMP=C:\t`}}}
+	if err := setEnvVars(cfg, envVars); err != nil {
+		t.Fatalf("setEnvVars: %v", err)
+	}
+
+	// Existing entries are overridden in place, keeping their original case;
+	// new keys are upper-cased.
+	want := []string{`Path=C:\new`, `TEMP=C:\tmp`, "FOO=bar"}
+	if diff := cmp.Diff(want, cfg.Config.Env); diff != "" {
+		t.Errorf("Env (-want +got):\n%s", diff)
 	}
 }
