@@ -32,7 +32,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-func TestPutPreservesReferrersError(t *testing.T) {
+func TestPushPreservesReferrersError(t *testing.T) {
 	subject := v1.Hash{Algorithm: "sha256", Hex: strings.Repeat("0", 64)}
 	img := mutate.Subject(empty.Image, v1.Descriptor{Digest: subject}).(v1.Image)
 	digest, err := img.Digest()
@@ -43,6 +43,11 @@ func TestPutPreservesReferrersError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	config, err := img.ConfigName()
+	if err != nil {
+		t.Fatal(err)
+	}
+	configPath := "/v2/repo/blobs/" + config.String()
 	referrersPath := "/v2/repo/referrers/" + subject.String()
 	for _, test := range []struct {
 		name      string
@@ -51,6 +56,7 @@ func TestPutPreservesReferrersError(t *testing.T) {
 	}{
 		{name: "digest", putStatus: http.StatusCreated},
 		{name: "tag", byTag: true, putStatus: http.StatusCreated},
+		{name: "recovered digest", putStatus: http.StatusForbidden},
 		{name: "recovered tag", byTag: true, putStatus: http.StatusForbidden},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -59,10 +65,12 @@ func TestPutPreservesReferrersError(t *testing.T) {
 				identifier = "latest"
 			}
 			manifestPath := "/v2/repo/manifests/" + identifier
-			var puts atomic.Int32
+			var puts, recoveryHeads atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch {
 				case r.URL.Path == "/v2/":
+					w.WriteHeader(http.StatusOK)
+				case r.Method == http.MethodHead && r.URL.Path == configPath:
 					w.WriteHeader(http.StatusOK)
 				case r.Method == http.MethodPut && r.URL.Path == manifestPath:
 					puts.Add(1)
@@ -80,6 +88,11 @@ func TestPutPreservesReferrersError(t *testing.T) {
 						t.Errorf("write response: %v", err)
 					}
 				case r.Method == http.MethodHead && r.URL.Path == manifestPath:
+					if puts.Load() == 0 {
+						w.WriteHeader(http.StatusNotFound)
+						return
+					}
+					recoveryHeads.Add(1)
 					w.Header().Set("Content-Type", string(types.DockerManifestSchema2))
 					w.Header().Set("Content-Length", fmt.Sprint(len(raw)))
 					w.Header().Set("Docker-Content-Digest", digest.String())
@@ -95,19 +108,26 @@ func TestPutPreservesReferrersError(t *testing.T) {
 			if test.byTag {
 				ref = tag
 			}
-			err := remote.Put(ref, img)
+			err := remote.Push(ref, img)
 			var got *transport.Error
 			if !errors.As(err, &got) {
-				t.Fatalf("Put() = %v, want the original referrers error", err)
+				t.Fatalf("Push() = %v, want the original referrers error", err)
 			}
 			if got.StatusCode != http.StatusForbidden || got.Request == nil || got.Request.Method != http.MethodGet || got.Request.URL.Path != referrersPath {
-				t.Errorf("Put() = %v, want the original referrers GET status 403", got)
+				t.Errorf("Push() = %v, want the original referrers GET status 403", got)
 			}
 			if len(got.Errors) != 1 || got.Errors[0].Message != "referrers read denied" {
-				t.Errorf("Put() diagnostics = %v, want the original referrers denial", got.Errors)
+				t.Errorf("Push() diagnostics = %v, want the original referrers denial", got.Errors)
 			}
 			if got := puts.Load(); got != 1 {
 				t.Errorf("primary manifest PUT count = %d, want 1", got)
+			}
+			wantRecoveryHeads := int32(0)
+			if test.putStatus == http.StatusForbidden {
+				wantRecoveryHeads = 1
+			}
+			if got := recoveryHeads.Load(); got != wantRecoveryHeads {
+				t.Errorf("manifest HEAD count after PUT = %d, want %d", got, wantRecoveryHeads)
 			}
 		})
 	}

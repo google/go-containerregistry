@@ -32,7 +32,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/types"
 )
 
-func TestPutRecoversConcurrentUploadAndUpdatesReferrers(t *testing.T) {
+func TestPushRecoversConcurrentUploadAndUpdatesReferrers(t *testing.T) {
 	subject, err := partial.Descriptor(empty.Image)
 	if err != nil {
 		t.Fatal(err)
@@ -87,8 +87,8 @@ func TestPutRecoversConcurrentUploadAndUpdatesReferrers(t *testing.T) {
 			if test.byTag {
 				ref = root.Context().Tag(identifier)
 			}
-			if err := remote.Put(ref, artifact); err != nil {
-				t.Fatalf("Put() = %v, want recovery followed by the referrers update", err)
+			if err := remote.Push(ref, artifact); err != nil {
+				t.Fatalf("Push() = %v, want recovery followed by the referrers update", err)
 			}
 			if got := rejectedPuts.Load(); got != 1 {
 				t.Errorf("rejected PUT count = %d, want 1", got)

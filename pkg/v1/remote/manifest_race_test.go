@@ -119,7 +119,7 @@ func TestPushIndexAfterConcurrentManifestUpload(t *testing.T) {
 	}
 }
 
-func TestPutAfterDeniedUpload(t *testing.T) {
+func TestManifestUploadAfterDeniedPut(t *testing.T) {
 	img := empty.Image
 	digest, err := img.Digest()
 	if err != nil {
@@ -133,8 +133,11 @@ func TestPutAfterDeniedUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Exercise manifest writes without uploading blobs.
+	taggable := struct{ remote.Taggable }{img}
 	tests := []struct {
 		name        string
+		operation   string
 		putStatus   int
 		headStatus  int
 		byTag       bool
@@ -155,6 +158,9 @@ func TestPutAfterDeniedUpload(t *testing.T) {
 		{name: "tag HEAD missing digest", putStatus: http.StatusForbidden, headStatus: http.StatusOK, byTag: true, omitDigest: true},
 		{name: "tag other PUT error", putStatus: http.StatusBadRequest, headStatus: http.StatusOK, byTag: true},
 		{name: "other PUT error", putStatus: http.StatusBadRequest, headStatus: http.StatusOK},
+		{name: "direct Put by digest", operation: "Put", putStatus: http.StatusForbidden, headStatus: http.StatusOK},
+		{name: "direct Put by tag", operation: "Put", putStatus: http.StatusUnauthorized, headStatus: http.StatusOK, byTag: true},
+		{name: "direct Tag", operation: "Tag", putStatus: http.StatusForbidden, headStatus: http.StatusOK, byTag: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -162,8 +168,7 @@ func TestPutAfterDeniedUpload(t *testing.T) {
 			if test.byTag {
 				manifestPath = "/v2/repo/manifests/latest"
 			}
-			var denied atomic.Bool
-			var heads atomic.Int32
+			var initialHeads, rejectedPuts, recoveryHeads atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/v2/" {
 					w.WriteHeader(http.StatusOK)
@@ -176,17 +181,19 @@ func TestPutAfterDeniedUpload(t *testing.T) {
 				}
 				switch r.Method {
 				case http.MethodPut:
-					denied.Store(true)
+					rejectedPuts.Add(1)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(test.putStatus)
 					if _, err := fmt.Fprint(w, `{"errors":[{"code":"UNAUTHORIZED","message":"original upload denied"}]}`); err != nil {
 						t.Errorf("write response: %v", err)
 					}
 				case http.MethodHead:
-					if !denied.Load() {
-						t.Error("HEAD preceded the denied PUT")
+					if rejectedPuts.Load() == 0 {
+						initialHeads.Add(1)
+						w.WriteHeader(http.StatusNotFound)
+						return
 					}
-					heads.Add(1)
+					recoveryHeads.Add(1)
 					w.Header().Set("Content-Type", string(mediaType))
 					w.Header().Set("Content-Length", fmt.Sprint(len(raw)))
 					gotDigest := digest.String()
@@ -208,34 +215,53 @@ func TestPutAfterDeniedUpload(t *testing.T) {
 			if test.byTag {
 				ref = tag
 			}
-			err := remote.Put(ref, img,
+			options := []remote.Option{
 				remote.WithRetryPredicate(func(error) bool { return false }),
 				remote.WithRetryStatusCodes(),
-			)
+			}
+			var err error
+			var wantInitialHeads, wantRecoveryHeads int32
+			operation := test.operation
+			switch operation {
+			case "Put":
+				err = remote.Put(ref, taggable, options...)
+			case "Tag":
+				err = remote.Tag(tag, taggable, options...)
+			default:
+				operation = "Push"
+				wantInitialHeads = 1
+				if test.putStatus == http.StatusUnauthorized || test.putStatus == http.StatusForbidden {
+					wantRecoveryHeads = 1
+				}
+				err = remote.Push(ref, taggable, options...)
+			}
+			if got := initialHeads.Load(); got != wantInitialHeads {
+				t.Errorf("initial manifest HEAD count = %d, want %d", got, wantInitialHeads)
+			}
+			if got := rejectedPuts.Load(); got != 1 {
+				t.Errorf("rejected manifest PUT count = %d, want 1", got)
+			}
+			if got := recoveryHeads.Load(); got != wantRecoveryHeads {
+				t.Errorf("manifest HEAD count after denied PUT = %d, want %d", got, wantRecoveryHeads)
+			}
 			if test.wantSuccess {
 				if err != nil {
-					t.Fatalf("Put() = %v, want success after matching tag HEAD", err)
-				}
-				if !denied.Load() || heads.Load() == 0 {
-					t.Fatal("test did not exercise PUT denial followed by HEAD verification")
+					t.Fatalf("%s() = %v, want success after matching tag HEAD", operation, err)
 				}
 				return
 			}
 			var got *transport.Error
 			if !errors.As(err, &got) {
-				t.Fatalf("Put() = %v, want the original upload error", err)
+				t.Fatalf("%s() = %v, want the original upload error", operation, err)
 			}
 			if got.Request == nil {
 				t.Fatal("upload error has no request")
 			}
 			if got.StatusCode != test.putStatus || got.Request.Method != http.MethodPut || got.Request.URL.Path != manifestPath {
-				t.Errorf("Put() = %v, want the original PUT status %d", got, test.putStatus)
+				t.Errorf("%s() = %v, want the original PUT status %d", operation, got, test.putStatus)
 			}
 			if len(got.Errors) != 1 || got.Errors[0].Message != "original upload denied" {
-				t.Errorf("Put() diagnostics = %v, want the original upload denial", got.Errors)
-			}
-			if test.putStatus == http.StatusBadRequest && heads.Load() != 0 {
-				t.Errorf("HEAD count after unrelated PUT error = %d, want 0", heads.Load())
+				t.Errorf("%s() diagnostics = %v, want the original upload denial", operation, got.Errors)
 			}
 		})
 	}

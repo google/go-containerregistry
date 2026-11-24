@@ -140,7 +140,7 @@ func (p *Pusher) Put(ctx context.Context, ref name.Reference, t Taggable) error 
 		return err
 	}
 
-	return w.commitManifest(ctx, ref, m)
+	return w.commitManifest(ctx, ref, m, false)
 }
 
 func (p *Pusher) Push(ctx context.Context, ref name.Reference, t Taggable) error {
@@ -353,7 +353,7 @@ func (rw *repoWriter) writeManifest(ctx context.Context, ref name.Reference, t T
 		}
 
 		needPut = false
-		return rw.commitManifest(ctx, ref, m)
+		return rw.commitManifest(ctx, ref, m, true)
 	}); err != nil {
 		return err
 	}
@@ -363,7 +363,7 @@ func (rw *repoWriter) writeManifest(ctx context.Context, ref name.Reference, t T
 	}
 
 	// Only runs for tags that got deduped by digest.
-	return rw.commitManifest(ctx, ref, m)
+	return rw.commitManifest(ctx, ref, m, true)
 }
 
 func (rw *repoWriter) writeChildren(ctx context.Context, idx v1.ImageIndex) error {
@@ -463,7 +463,7 @@ func (rw *repoWriter) manifestExists(ctx context.Context, ref name.Reference, t 
 	return true, nil
 }
 
-func (rw *repoWriter) commitManifest(ctx context.Context, ref name.Reference, m manifest) error {
+func (rw *repoWriter) commitManifest(ctx context.Context, ref name.Reference, m manifest, recoverDeniedUpload bool) error {
 	if rw.o.progress != nil {
 		size, err := m.Size()
 		if err != nil {
@@ -472,7 +472,7 @@ func (rw *repoWriter) commitManifest(ctx context.Context, ref name.Reference, m 
 		rw.o.progress.total(size)
 	}
 
-	return rw.w.commitManifest(ctx, m, ref)
+	return rw.w.commitManifest(ctx, m, ref, recoverDeniedUpload)
 }
 
 func (rw *repoWriter) writeLayers(pctx context.Context, img v1.Image) error {

@@ -590,7 +590,7 @@ func (w *writer) commitSubjectReferrers(ctx context.Context, sub name.Digest, ad
 		return im.Manifests[i].Digest.String() < im.Manifests[j].Digest.String()
 	})
 	logs.Progress.Printf("updating fallback tag %s with new referrer", t.Identifier())
-	return w.commitManifest(ctx, fallbackTaggable{im}, t)
+	return w.commitManifest(ctx, fallbackTaggable{im}, t, false)
 }
 
 type fallbackTaggable struct {
@@ -601,7 +601,8 @@ func (f fallbackTaggable) RawManifest() ([]byte, error)        { return json.Mar
 func (f fallbackTaggable) MediaType() (types.MediaType, error) { return types.OCIImageIndex, nil }
 
 // commitManifest does a PUT of the image's manifest.
-func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Reference) error {
+// Only Push enables recovery because it already checks for an identical manifest before writing.
+func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Reference, recoverDeniedUpload bool) error {
 	// If the manifest refers to a subject, we need to check whether we need to update the fallback tag manifest.
 	raw, err := t.RawManifest()
 	if err != nil {
@@ -643,7 +644,7 @@ func (w *writer) commitManifest(ctx context.Context, t Taggable, ref name.Refere
 		defer resp.Body.Close()
 
 		if err := transport.CheckError(resp, http.StatusOK, http.StatusCreated, http.StatusAccepted); err != nil {
-			if resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden {
+			if !recoverDeniedUpload || (resp.StatusCode != http.StatusUnauthorized && resp.StatusCode != http.StatusForbidden) {
 				return err
 			}
 			// Another writer can publish the same manifest between the existence check and PUT.
