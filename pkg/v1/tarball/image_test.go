@@ -20,6 +20,7 @@ import (
 	"compress/gzip"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -522,5 +523,59 @@ func TestImageFromFS_SymlinkLayer(t *testing.T) {
 	}
 	if len(bs) == 0 {
 		t.Errorf("layer.Uncompressed() returned empty content")
+	}
+}
+
+type closeTrackingFS struct {
+	fs.FS
+	opened int
+	closed int
+}
+
+func (f *closeTrackingFS) Open(name string) (fs.File, error) {
+	rc, err := f.FS.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	f.opened++
+	return &closeTrackingFile{File: rc, owner: f}, nil
+}
+
+type closeTrackingFile struct {
+	fs.File
+	owner *closeTrackingFS
+}
+
+func (f *closeTrackingFile) Close() error {
+	f.owner.closed++
+	return f.File.Close()
+}
+
+func TestArchiveLayerErrorCleanup(t *testing.T) {
+	fsys := &closeTrackingFS{FS: fstest.MapFS{
+		"manifest.json": &fstest.MapFile{Data: []byte(`[{"Config":"config.json","Layers":["layer.tar.gz"]}]`)},
+		"config.json":   &fstest.MapFile{Data: []byte(`{"architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":["sha256:0000000000000000000000000000000000000000000000000000000000000000"]}}`)},
+		"layer.tar.gz":  &fstest.MapFile{Data: []byte{0x1f, 0x8b}},
+	}}
+	img, err := ImageFromFS(fsys, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 3; i++ {
+		rc, err := layers[0].Uncompressed()
+		if !errors.Is(err, io.ErrUnexpectedEOF) {
+			t.Fatalf("Uncompressed() error = %v, want %v", err, io.ErrUnexpectedEOF)
+		}
+		if rc != nil {
+			rc.Close()
+			t.Fatal("Uncompressed() returned a reader on error")
+		}
+		if fsys.opened != fsys.closed {
+			t.Errorf("attempt %d: %d archive readers opened, %d closed", i, fsys.opened, fsys.closed)
+		}
 	}
 }

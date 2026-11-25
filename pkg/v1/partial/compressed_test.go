@@ -15,11 +15,15 @@
 package partial_test
 
 import (
+	"bytes"
+	"compress/gzip"
+	"errors"
 	"io"
 	"net/http/httptest"
 	"net/url"
 	"path"
 	"testing"
+	"testing/iotest"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -31,6 +35,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
+	"github.com/klauspost/compress/zstd"
 )
 
 // Remote leverages a lot of compressed partials.
@@ -189,5 +194,108 @@ func TestCompressed(t *testing.T) {
 	}
 	if _, err := partial.Descriptor(img); err != nil {
 		t.Fatalf("partial.Descriptor: %v", err)
+	}
+}
+
+type compressedReaderLayer struct {
+	v1.Layer
+	reader io.ReadCloser
+}
+
+func (l compressedReaderLayer) Compressed() (io.ReadCloser, error) {
+	return l.reader, nil
+}
+
+type closeCountingReader struct {
+	io.Reader
+	closes   int
+	closeErr error
+}
+
+func (r *closeCountingReader) Close() error {
+	r.closes++
+	return r.closeErr
+}
+
+func TestCompressedLayerErrorCleanup(t *testing.T) {
+	readErr := errors.New("source read failed")
+	for _, tc := range []struct {
+		name    string
+		reader  io.Reader
+		wantErr error
+	}{
+		{"sniff", iotest.ErrReader(readErr), readErr},
+		{"gzip-header", bytes.NewReader([]byte{0x1f, 0x8b}), io.ErrUnexpectedEOF},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &closeCountingReader{Reader: tc.reader, closeErr: errors.New("close failed")}
+			layer, err := partial.CompressedToLayer(compressedReaderLayer{reader: r})
+			if err != nil {
+				t.Fatal(err)
+			}
+			rc, err := layer.Uncompressed()
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("Uncompressed() error = %v, want %v", err, tc.wantErr)
+			}
+			if rc != nil {
+				rc.Close()
+				t.Fatal("Uncompressed() returned a reader on error")
+			}
+			if r.closes != 1 {
+				t.Errorf("source Close() calls = %d, want 1", r.closes)
+			}
+		})
+	}
+}
+
+func TestCompressedLayerCallerClosesReader(t *testing.T) {
+	data := []byte("layer contents")
+	var zipped bytes.Buffer
+	zw := gzip.NewWriter(&zipped)
+	if _, err := zw.Write(data); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	zstdEncoder, err := zstd.NewWriter(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zstdEncoder.Close()
+	for _, tc := range []struct {
+		name string
+		data []byte
+	}{
+		{"plain", data}, {"gzip", zipped.Bytes()}, {"zstd", zstdEncoder.EncodeAll(data, nil)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := &closeCountingReader{Reader: bytes.NewReader(tc.data)}
+			layer, err := partial.CompressedToLayer(compressedReaderLayer{reader: r})
+			if err != nil {
+				t.Fatal(err)
+			}
+			rc, err := layer.Uncompressed()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := io.ReadAll(rc)
+			if err != nil {
+				rc.Close()
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, data) {
+				t.Errorf("content = %q, want %q", got, data)
+			}
+			if r.closes != 0 {
+				t.Errorf("source closed before caller Close(): %d", r.closes)
+			}
+			if err := rc.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if r.closes != 1 {
+				t.Errorf("source Close() calls = %d, want 1", r.closes)
+			}
+		})
 	}
 }

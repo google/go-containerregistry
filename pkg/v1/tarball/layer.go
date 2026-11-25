@@ -207,7 +207,11 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			if err != nil {
 				return nil, err
 			}
-			return ggzip.UnzipReadCloser(urc)
+			rc, err := ggzip.UnzipReadCloser(urc)
+			if err != nil {
+				urc.Close()
+			}
+			return rc, err
 		}
 	case compression.ZStd:
 		layer.compressedopener = opener
@@ -216,7 +220,11 @@ func LayerFromOpener(opener Opener, opts ...LayerOption) (v1.Layer, error) {
 			if err != nil {
 				return nil, err
 			}
-			return zstd.UnzipReadCloser(urc)
+			rc, err := zstd.UnzipReadCloser(urc)
+			if err != nil {
+				urc.Close()
+			}
+			return rc, err
 		}
 	default:
 		layer.uncompressedopener = opener

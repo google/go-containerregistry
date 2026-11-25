@@ -48,11 +48,17 @@ type compressedLayerExtender struct {
 }
 
 // Uncompressed implements v1.Layer
-func (cle *compressedLayerExtender) Uncompressed() (io.ReadCloser, error) {
+func (cle *compressedLayerExtender) Uncompressed() (_ io.ReadCloser, err error) {
 	rc, err := cle.Compressed()
 	if err != nil {
 		return nil, err
 	}
+	// On failure there is no returned reader for the caller to close.
+	defer func() {
+		if err != nil {
+			rc.Close()
+		}
+	}()
 
 	// Often, the "compressed" bytes are not actually-compressed.
 	// Peek at the first two bytes to determine whether it's correct to
