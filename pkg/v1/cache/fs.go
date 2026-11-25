@@ -58,62 +58,75 @@ type layer struct {
 	digest, diffID v1.Hash
 }
 
-func (l *layer) create(h v1.Hash) (io.WriteCloser, error) {
+func (l *layer) create(h v1.Hash) (*os.File, error) {
 	if err := os.MkdirAll(l.path, 0700); err != nil {
 		return nil, err
 	}
-	return os.Create(cachepath(l.path, h))
+	return os.CreateTemp(l.path, filepath.Base(cachepath(l.path, h))+".tmp-*")
 }
 
 func (l *layer) Compressed() (io.ReadCloser, error) {
-	f, err := l.create(l.digest)
-	if err != nil {
-		return nil, err
-	}
-	rc, err := l.Layer.Compressed()
-	if err != nil {
-		return nil, err
-	}
-	return &readcloser{
-		t:      io.TeeReader(rc, f),
-		closes: []func() error{rc.Close, f.Close},
-	}, nil
+	return l.tee(l.digest, l.Layer.Compressed)
 }
 
 func (l *layer) Uncompressed() (io.ReadCloser, error) {
-	f, err := l.create(l.diffID)
-	if err != nil {
-		return nil, err
-	}
-	rc, err := l.Layer.Uncompressed()
-	if err != nil {
-		return nil, err
-	}
-	return &readcloser{
-		t:      io.TeeReader(rc, f),
-		closes: []func() error{rc.Close, f.Close},
-	}, nil
+	return l.tee(l.diffID, l.Layer.Uncompressed)
 }
 
+func (l *layer) tee(h v1.Hash, open func() (io.ReadCloser, error)) (io.ReadCloser, error) {
+	f, err := l.create(h)
+	if err != nil {
+		return nil, err
+	}
+	rc, err := open()
+	if err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return nil, err
+	}
+	return &readcloser{rc: rc, f: f, path: cachepath(l.path, h)}, nil
+}
+
+// readcloser tees into a temporary file that Close moves to path only after
+// EOF, so Get never sees a partly written layer.
 type readcloser struct {
-	t      io.Reader
-	closes []func() error
+	rc   io.ReadCloser
+	f    *os.File
+	path string
+	eof  bool
+	werr error
 }
 
 func (rc *readcloser) Read(b []byte) (int, error) {
-	return rc.t.Read(b)
+	n, err := rc.rc.Read(b)
+	if n > 0 {
+		if _, werr := rc.f.Write(b[:n]); werr != nil {
+			rc.werr = werr
+			return n, werr
+		}
+	}
+	if errors.Is(err, io.EOF) {
+		rc.eof = true
+	}
+	return n, err
 }
 
 func (rc *readcloser) Close() error {
-	// Call all Close methods, even if any returned an error. Return the
-	// first returned error.
-	var err error
-	for _, c := range rc.closes {
-		lastErr := c()
-		if err == nil {
-			err = lastErr
+	err := rc.rc.Close()
+	if ferr := rc.f.Close(); err == nil {
+		err = ferr
+	}
+	if err == nil && rc.eof && rc.werr == nil {
+		if err = os.Rename(rc.f.Name(), rc.path); err == nil {
+			return nil
+		}
+		// On Windows the rename fails while another reader has path open;
+		// that copy is complete, so keep it.
+		if _, serr := os.Stat(rc.path); serr == nil {
+			err = nil
 		}
 	}
+	os.Remove(rc.f.Name())
 	return err
 }
 

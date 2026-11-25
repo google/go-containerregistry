@@ -211,3 +211,90 @@ func TestErrUnexpectedEOF(t *testing.T) {
 		t.Errorf("os.Stat(%q): %v", p, err)
 	}
 }
+
+func TestGetWhileReading(t *testing.T) {
+	dir := t.TempDir()
+
+	l, err := random.Layer(1024, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("random.Layer: %v", err)
+	}
+	h, err := l.Digest()
+	if err != nil {
+		t.Fatalf("layer.Digest: %v", err)
+	}
+	size, err := l.Size()
+	if err != nil {
+		t.Fatalf("layer.Size: %v", err)
+	}
+
+	c := NewFilesystemCache(dir)
+	cl, err := c.Put(l)
+	if err != nil {
+		t.Fatalf("cache.Put: %v", err)
+	}
+	rc, err := cl.Compressed()
+	if err != nil {
+		t.Fatalf("layer.Compressed: %v", err)
+	}
+	if _, err := io.CopyN(io.Discard, rc, size/2); err != nil {
+		t.Fatalf("CopyN: %v", err)
+	}
+
+	if _, err := c.Get(h); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Get(%q) during read: got %v, want ErrNotFound", h, err)
+	}
+
+	if _, err := io.Copy(io.Discard, rc); err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	if err := rc.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	got, err := c.Get(h)
+	if err != nil {
+		t.Fatalf("Get(%q) after read: %v", h, err)
+	}
+	gotSize, err := got.Size()
+	if err != nil {
+		t.Fatalf("Size: %v", err)
+	}
+	if gotSize != size {
+		t.Errorf("cached layer size: got %d, want %d", gotSize, size)
+	}
+}
+
+func TestCloseBeforeEOF(t *testing.T) {
+	dir := t.TempDir()
+
+	l, err := random.Layer(1024, types.DockerLayer)
+	if err != nil {
+		t.Fatalf("random.Layer: %v", err)
+	}
+	cl, err := NewFilesystemCache(dir).Put(l)
+	if err != nil {
+		t.Fatalf("cache.Put: %v", err)
+	}
+
+	for _, open := range []func() (io.ReadCloser, error){cl.Compressed, cl.Uncompressed} {
+		rc, err := open()
+		if err != nil {
+			t.Fatalf("open: %v", err)
+		}
+		if _, err := io.CopyN(io.Discard, rc, 100); err != nil {
+			t.Fatalf("CopyN: %v", err)
+		}
+		if err := rc.Close(); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	}
+
+	dirEntries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if len(dirEntries) != 0 {
+		t.Errorf("got %d files after closing partly read layers, want 0", len(dirEntries))
+	}
+}
