@@ -58,11 +58,36 @@ type layer struct {
 	digest, diffID v1.Hash
 }
 
-func (l *layer) create(h v1.Hash) (io.WriteCloser, error) {
+func (l *layer) create(h v1.Hash) (*cacheFile, error) {
 	if err := os.MkdirAll(l.path, 0700); err != nil {
 		return nil, err
 	}
-	return os.Create(cachepath(l.path, h))
+	// Write to a temporary file in the same directory, so the layer only
+	// appears under its final name once it has been written completely.
+	// Writing straight to the final path would let a concurrent Get
+	// observe (or delete) a partially written layer.
+	f, err := os.CreateTemp(l.path, "tmp-*")
+	if err != nil {
+		return nil, err
+	}
+	return &cacheFile{File: f, final: cachepath(l.path, h)}, nil
+}
+
+// cacheFile is a layer being written to the cache. Its contents are not
+// visible to Get until commit is called.
+type cacheFile struct {
+	*os.File
+	final string
+}
+
+// commit publishes the fully written file under its final cache path.
+func (f *cacheFile) commit() error {
+	return os.Rename(f.Name(), f.final)
+}
+
+// abort discards the partially written file.
+func (f *cacheFile) abort() error {
+	return os.Remove(f.Name())
 }
 
 func (l *layer) Compressed() (io.ReadCloser, error) {
@@ -72,10 +97,13 @@ func (l *layer) Compressed() (io.ReadCloser, error) {
 	}
 	rc, err := l.Layer.Compressed()
 	if err != nil {
+		f.Close()
+		f.abort()
 		return nil, err
 	}
 	return &readcloser{
 		t:      io.TeeReader(rc, f),
+		f:      f,
 		closes: []func() error{rc.Close, f.Close},
 	}, nil
 }
@@ -87,21 +115,30 @@ func (l *layer) Uncompressed() (io.ReadCloser, error) {
 	}
 	rc, err := l.Layer.Uncompressed()
 	if err != nil {
+		f.Close()
+		f.abort()
 		return nil, err
 	}
 	return &readcloser{
 		t:      io.TeeReader(rc, f),
+		f:      f,
 		closes: []func() error{rc.Close, f.Close},
 	}, nil
 }
 
 type readcloser struct {
 	t      io.Reader
+	f      *cacheFile
 	closes []func() error
+	eof    bool
 }
 
 func (rc *readcloser) Read(b []byte) (int, error) {
-	return rc.t.Read(b)
+	n, err := rc.t.Read(b)
+	if errors.Is(err, io.EOF) {
+		rc.eof = true
+	}
+	return n, err
 }
 
 func (rc *readcloser) Close() error {
@@ -113,6 +150,14 @@ func (rc *readcloser) Close() error {
 		if err == nil {
 			err = lastErr
 		}
+	}
+	if err == nil && rc.eof {
+		// The layer was consumed in full; publish it atomically.
+		err = rc.f.commit()
+	} else if rerr := rc.f.abort(); err == nil {
+		// The layer was only partially consumed, or closing it failed;
+		// discard the partial copy instead of publishing it.
+		err = rerr
 	}
 	return err
 }
