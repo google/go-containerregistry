@@ -5,11 +5,13 @@
 package zstd
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
 	"io"
 	"maps"
+	"math"
 	"sync"
 	"sync/atomic"
 
@@ -206,6 +208,10 @@ func (d *Decoder) Reset(r io.Reader) error {
 
 		dst, err := d.DecodeAll(b, dst)
 		if !errors.Is(err, ErrDecoderSizeExceeded) {
+			// Consume the input, as streaming from the buffer would.
+			if buf, ok := r.(*bytes.Buffer); ok {
+				buf.Next(len(b))
+			}
 			if err == nil {
 				err = io.EOF
 			}
@@ -365,8 +371,12 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) {
 		if debugDecoder {
 			printf("re-adding decoder: %p", block)
 		}
+		block.data = nil
 		frame.rawInput = nil
 		frame.bBuf = nil
+		frame.history.b = nil
+		frame.history.decoders.literals = nil
+		frame.history.decoders.out = nil
 		if frame.history.decoders.br != nil {
 			frame.history.decoders.br.in = nil
 			frame.history.decoders.br.cursor = 0
@@ -410,8 +420,12 @@ func (d *Decoder) DecodeAll(input, dst []byte) ([]byte, error) {
 				}
 				return dst, ErrDecoderSizeExceeded
 			}
-			if cap(dst)-len(dst) < int(frame.FrameContentSize) {
-				dst2 := make([]byte, len(dst), len(dst)+int(frame.FrameContentSize)+compressedBlockOverAlloc)
+			// The content size is only checked once the frame is decoded, so
+			// allocate no more than the rest of the input can decode to (each
+			// block is at least 4 bytes) and only what fits in an int.
+			size := min(frame.FrameContentSize, uint64(len(frame.bBuf))*(maxCompressedBlockSize/4))
+			if size <= math.MaxInt-compressedBlockOverAlloc-uint64(len(dst)) && cap(dst)-len(dst) < int(size) {
+				dst2 := make([]byte, len(dst), len(dst)+int(size)+compressedBlockOverAlloc)
 				copy(dst2, dst)
 				dst = dst2
 			}
@@ -546,7 +560,7 @@ func (d *Decoder) nextBlockSync() (ok bool) {
 		if d.current.err != nil {
 			return false
 		}
-		d.frame.history.ensureBlock()
+		d.frame.history.ensureBlockRing()
 		if debugDecoder {
 			println("History trimmed:", len(d.frame.history.b), "decoded already:", d.syncStream.decodedFrame)
 		}
@@ -751,7 +765,8 @@ func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output ch
 	wg.Add(1)
 
 	// Async 3: Execute sequences...
-	frameHistCache := d.frame.history.b
+	// Reuse the history ring across streams.
+	frameRing := d.frame.history.ring
 	go func() {
 		var hist history
 		var decodedFrame uint64
@@ -770,20 +785,12 @@ func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output ch
 				}
 				hist.reset()
 				hist.windowSize = block.async.newHist.windowSize
-				hist.allocFrameBuffer = block.async.newHist.allocFrameBuffer
 				if block.async.newHist.dict != nil {
 					hist.setDict(block.async.newHist.dict)
 				}
-
-				if cap(hist.b) < hist.allocFrameBuffer {
-					if cap(frameHistCache) >= hist.allocFrameBuffer {
-						hist.b = frameHistCache
-					} else {
-						hist.b = make([]byte, 0, hist.allocFrameBuffer)
-						println("Alloc history sized", hist.allocFrameBuffer)
-					}
+				if hist.ring == nil {
+					hist.ring = frameRing
 				}
-				hist.b = hist.b[:0]
 				fcs = block.async.fcs
 				decodedFrame = 0
 			}
@@ -806,13 +813,15 @@ func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output ch
 				for i := range block.dst {
 					block.dst[i] = v
 				}
-				hist.append(block.dst)
+				hist.ensureBlockRing()
+				hist.appendKeep(block.dst)
 				do.b = block.dst
 			case blockTypeRaw:
 				if debugDecoder {
 					println("add raw block length:", len(block.data))
 				}
-				hist.append(block.data)
+				hist.ensureBlockRing()
+				hist.appendKeep(block.data)
 				do.b = block.data
 			case blockTypeCompressed:
 				if debugDecoder {
@@ -825,7 +834,10 @@ func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output ch
 				if debugDecoder && hasErr {
 					println("executeSequences returned:", do.err)
 				}
-				do.b = block.dst
+				// On error, block.dst still holds this block decoder's previous output.
+				if !hasErr {
+					do.b = block.dst
+				}
 			}
 			if !hasErr {
 				decodedFrame += uint64(len(do.b))
@@ -845,7 +857,7 @@ func (d *Decoder) startStreamDecoder(ctx context.Context, r io.Reader, output ch
 			output <- do
 		}
 		close(output)
-		frameHistCache = hist.b
+		frameRing = hist.ring
 		wg.Done()
 		if debugDecoder {
 			println("decoder goroutines finished")
@@ -924,9 +936,6 @@ decodeStream:
 			err := frame.next(dec)
 			if !historySent {
 				h := frame.history
-				if debugDecoder {
-					println("Alloc History:", h.allocFrameBuffer)
-				}
 				hist.reset()
 				if h.dict != nil {
 					hist.setDict(h.dict)
@@ -973,7 +982,7 @@ decodeStream:
 	close(seqDecode)
 	wg.Wait()
 	hist.reset()
-	d.frame.history.b = frameHistCache
+	d.frame.history.ring = frameRing
 }
 
 func (d *Decoder) setDict(frame *frameDec) (err error) {
