@@ -15,6 +15,7 @@
 package registry_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -650,5 +651,93 @@ func TestCalls(t *testing.T) {
 		t.Run(tc.Description, testf)
 		logger = log.New(io.Discard, "", log.Ldate)
 		t.Run(tc.Description+" - custom log", testf)
+	}
+}
+
+func TestDeleteManifestReferences(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		target   string
+		deleted  []string
+		wantTags string
+	}{
+		{
+			name:     "digest removes all tags",
+			target:   "sha256:" + sha256String("foo"),
+			deleted:  []string{"latest", "typed", "v1", "sha256:" + sha256String("foo")},
+			wantTags: `{"name":"foo","tags":["keep","moving"]}`,
+		},
+		{
+			name:     "tag preserves other references",
+			target:   "latest",
+			deleted:  []string{"latest"},
+			wantTags: `{"name":"foo","tags":["keep","moving","typed","v1"]}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := httptest.NewServer(registry.New(registry.Logger(log.New(io.Discard, "", 0))))
+			defer s.Close()
+
+			request := func(method, path, body string, want int, contentType ...string) []byte {
+				t.Helper()
+				req, err := http.NewRequest(method, s.URL+path, strings.NewReader(body))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(contentType) != 0 {
+					req.Header.Set("Content-Type", contentType[0])
+				}
+				resp, err := s.Client().Do(req)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer resp.Body.Close()
+				got, err := io.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if resp.StatusCode != want {
+					t.Errorf("%s %s: status = %d, want %d; body: %s", method, path, resp.StatusCode, want, got)
+				}
+				return got
+			}
+
+			for _, ref := range []string{"foo/manifests/latest", "foo/manifests/v1", "foo/manifests/moving", "other/manifests/latest"} {
+				request(http.MethodPut, "/v2/"+ref, "foo", http.StatusCreated)
+			}
+			request(http.MethodPut, "/v2/foo/manifests/typed", "foo", http.StatusCreated, "application/vnd.oci.image.manifest.v1+json")
+			for _, tag := range []string{"keep", "moving"} {
+				request(http.MethodPut, "/v2/foo/manifests/"+tag, "bar", http.StatusCreated)
+			}
+
+			request(http.MethodDelete, "/v2/foo/manifests/"+tc.target, "", http.StatusAccepted)
+			for _, method := range []string{http.MethodGet, http.MethodHead} {
+				for _, ref := range tc.deleted {
+					request(method, "/v2/foo/manifests/"+ref, "", http.StatusNotFound)
+				}
+				for _, ref := range []string{"foo/manifests/keep", "foo/manifests/moving", "foo/manifests/sha256:" + sha256String("bar"), "other/manifests/latest", "other/manifests/sha256:" + sha256String("foo")} {
+					request(method, "/v2/"+ref, "", http.StatusOK)
+				}
+				if tc.target == "latest" {
+					for _, ref := range []string{"typed", "v1", "sha256:" + sha256String("foo")} {
+						request(method, "/v2/foo/manifests/"+ref, "", http.StatusOK)
+					}
+				}
+			}
+			got := request(http.MethodGet, "/v2/foo/tags/list", "", http.StatusOK)
+			if string(got) != tc.wantTags {
+				t.Errorf("tags = %s, want %s", got, tc.wantTags)
+			}
+			got = request(http.MethodDelete, "/v2/foo/manifests/"+tc.target, "", http.StatusNotFound)
+			var failure struct {
+				Errors []struct{ Code string }
+			}
+			if err := json.Unmarshal(got, &failure); err != nil {
+				t.Fatal(err)
+			}
+			if len(failure.Errors) != 1 || failure.Errors[0].Code != "MANIFEST_UNKNOWN" {
+				t.Errorf("repeated deletion error = %s, want MANIFEST_UNKNOWN", got)
+			}
+		})
 	}
 }
