@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -30,6 +31,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/validate"
+	"github.com/klauspost/compress/zstd"
 )
 
 func TestManifestAndConfig(t *testing.T) {
@@ -522,5 +524,168 @@ func TestImageFromFS_SymlinkLayer(t *testing.T) {
 	}
 	if len(bs) == 0 {
 		t.Errorf("layer.Uncompressed() returned empty content")
+	}
+}
+
+func TestImage_MixedCompression(t *testing.T) {
+	// Create layer 0: uncompressed tar containing "file0.txt".
+	var layer0Buf bytes.Buffer
+	tw0 := tar.NewWriter(&layer0Buf)
+	body0 := []byte("hello from layer 0\n")
+	if err := tw0.WriteHeader(&tar.Header{
+		Name: "file0.txt",
+		Mode: 0644,
+		Size: int64(len(body0)),
+	}); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if _, err := tw0.Write(body0); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := tw0.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	layer0Bytes := layer0Buf.Bytes()
+	diffID0, _, err := v1.SHA256(bytes.NewReader(layer0Bytes))
+	if err != nil {
+		t.Fatalf("SHA256: %v", err)
+	}
+
+	// Create layer 1: gzip-compressed tar containing "file1.txt".
+	var uncompressedLayer1Buf bytes.Buffer
+	tw1 := tar.NewWriter(&uncompressedLayer1Buf)
+	body1 := []byte("hello from layer 1\n")
+	if err := tw1.WriteHeader(&tar.Header{
+		Name: "file1.txt",
+		Mode: 0644,
+		Size: int64(len(body1)),
+	}); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if _, err := tw1.Write(body1); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := tw1.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	diffID1, _, err := v1.SHA256(bytes.NewReader(uncompressedLayer1Buf.Bytes()))
+	if err != nil {
+		t.Fatalf("SHA256: %v", err)
+	}
+
+	var layer1GzBuf bytes.Buffer
+	gw := gzip.NewWriter(&layer1GzBuf)
+	if _, err := gw.Write(uncompressedLayer1Buf.Bytes()); err != nil {
+		t.Fatalf("gzip Write: %v", err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatalf("gzip Close: %v", err)
+	}
+	layer1GzBytes := layer1GzBuf.Bytes()
+
+	// Create layer 2: zstd-compressed tar containing "file2.txt".
+	var uncompressedLayer2Buf bytes.Buffer
+	tw2 := tar.NewWriter(&uncompressedLayer2Buf)
+	body2 := []byte("hello from layer 2\n")
+	if err := tw2.WriteHeader(&tar.Header{
+		Name: "file2.txt",
+		Mode: 0644,
+		Size: int64(len(body2)),
+	}); err != nil {
+		t.Fatalf("WriteHeader: %v", err)
+	}
+	if _, err := tw2.Write(body2); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := tw2.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	diffID2, _, err := v1.SHA256(bytes.NewReader(uncompressedLayer2Buf.Bytes()))
+	if err != nil {
+		t.Fatalf("SHA256: %v", err)
+	}
+
+	var layer2ZstdBuf bytes.Buffer
+	zw, err := zstd.NewWriter(&layer2ZstdBuf)
+	if err != nil {
+		t.Fatalf("zstd NewWriter: %v", err)
+	}
+	if _, err := zw.Write(uncompressedLayer2Buf.Bytes()); err != nil {
+		t.Fatalf("zstd Write: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("zstd Close: %v", err)
+	}
+	layer2ZstdBytes := layer2ZstdBuf.Bytes()
+
+	configJSON := []byte(fmt.Sprintf(`{"architecture":"amd64","os":"linux","rootfs":{"type":"layers","diff_ids":[%q,%q,%q]}}`, diffID0.String(), diffID1.String(), diffID2.String()))
+	manifestJSON := []byte(`[{"Config":"config.json","RepoTags":["mixed:latest"],"Layers":["layer0.tar","layer1.tar.gz","layer2.tar.zst"]}]`)
+
+	var outerBuf bytes.Buffer
+	outTw := tar.NewWriter(&outerBuf)
+	for _, e := range []struct {
+		name string
+		data []byte
+	}{
+		{"manifest.json", manifestJSON},
+		{"config.json", configJSON},
+		{"layer0.tar", layer0Bytes},
+		{"layer1.tar.gz", layer1GzBytes},
+		{"layer2.tar.zst", layer2ZstdBytes},
+	} {
+		if err := outTw.WriteHeader(&tar.Header{
+			Name: e.name,
+			Mode: 0644,
+			Size: int64(len(e.data)),
+		}); err != nil {
+			t.Fatalf("WriteHeader(%q): %v", e.name, err)
+		}
+		if _, err := outTw.Write(e.data); err != nil {
+			t.Fatalf("Write(%q): %v", e.name, err)
+		}
+	}
+	if err := outTw.Close(); err != nil {
+		t.Fatalf("tar Close: %v", err)
+	}
+
+	tarBytes := outerBuf.Bytes()
+	img, err := Image(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(tarBytes)), nil
+	}, nil)
+	if err != nil {
+		t.Fatalf("Image: %v", err)
+	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("img.Layers: %v", err)
+	}
+	if len(layers) != 3 {
+		t.Fatalf("expected 3 layers, got %d", len(layers))
+	}
+
+	// Verify all layers can be read as uncompressed tar archives.
+	expectedFiles := []string{"file0.txt", "file1.txt", "file2.txt"}
+	for i, l := range layers {
+		t.Run(fmt.Sprintf("layer_%d", i), func(t *testing.T) {
+			rc, err := l.Uncompressed()
+			if err != nil {
+				t.Fatalf("layer[%d].Uncompressed: %v", i, err)
+			}
+			defer rc.Close()
+
+			tr := tar.NewReader(rc)
+			hdr, err := tr.Next()
+			if err != nil {
+				t.Fatalf("layer[%d] tar.Next: %v", i, err)
+			}
+			if hdr.Name != expectedFiles[i] {
+				t.Errorf("layer[%d] file name: want %s, got %s", i, expectedFiles[i], hdr.Name)
+			}
+		})
+	}
+
+	if err := validate.Image(img); err != nil {
+		t.Errorf("validate.Image: %v", err)
 	}
 }
