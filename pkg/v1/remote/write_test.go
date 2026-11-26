@@ -969,7 +969,7 @@ func TestCommitImage(t *testing.T) {
 	}
 	defer closer.Close()
 
-	if err := w.commitManifest(ctx, img, w.repo.Tag("latest")); err != nil {
+	if err := w.commitManifest(ctx, img, w.repo.Tag("latest"), false); err != nil {
 		t.Error("commitManifest() = ", err)
 	}
 }
