@@ -828,6 +828,11 @@ func TestExtractSymlinkFiltering(t *testing.T) {
 		{name: "etc/foo", typeflag: tar.TypeSymlink, linkname: "../../../tmp/evil"},
 		// Unsafe with Windows separators: resolves outside rootfs.
 		{name: "etc/win-escape", typeflag: tar.TypeSymlink, linkname: `..\..\tmp\evil`},
+		// Safe hardlink: targets are relative to the archive root.
+		{name: "usr/bin/hard-ok", typeflag: tar.TypeLink, linkname: "usr/lib/tool"},
+		// Unsafe hardlink: escapes the rootfs even though it would stay inside
+		// if resolved against the link's own directory.
+		{name: "a/b/c/hard-escape", typeflag: tar.TypeLink, linkname: "../../etc/passwd"},
 	}
 	for _, e := range entries {
 		if err := tw.WriteHeader(&tar.Header{
@@ -867,13 +872,13 @@ func TestExtractSymlinkFiltering(t *testing.T) {
 	}
 
 	// These symlinks must be preserved: safe relative ones and absolute ones.
-	for _, name := range []string{"usr/local/bin/ld.so", "usr/local/lib/containers/app/var/lock", "app/bin/win-rel", "usr/local/bin/abs-link"} {
+	for _, name := range []string{"usr/local/bin/ld.so", "usr/local/lib/containers/app/var/lock", "app/bin/win-rel", "usr/local/bin/abs-link", "usr/bin/hard-ok"} {
 		if _, ok := extracted[name]; !ok {
 			t.Errorf("symlink %q was incorrectly dropped", name)
 		}
 	}
 	// Relative targets that escape the rootfs must be filtered out.
-	for _, name := range []string{"etc/foo", "etc/win-escape"} {
+	for _, name := range []string{"etc/foo", "etc/win-escape", "a/b/c/hard-escape"} {
 		if target, ok := extracted[name]; ok {
 			t.Errorf("unsafe symlink %q -> %q was not dropped", name, target)
 		}
