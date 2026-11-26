@@ -25,7 +25,7 @@ import (
 )
 
 // Backoff is an alias of our own wait.Backoff to avoid name conflicts with
-// the kubernetes wait package. Typing retry.Backoff is aesier than fixing
+// the kubernetes wait package. Typing retry.Backoff is easier than fixing
 // the wrong import every time you use wait.Backoff.
 type Backoff = wait.Backoff
 

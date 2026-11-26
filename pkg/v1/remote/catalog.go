@@ -134,7 +134,7 @@ func (f *fetcher) catalogPage(ctx context.Context, reg name.Registry, next strin
 	return &parsed, nil
 }
 
-type Catalogger struct {
+type Cataloger struct {
 	f        *fetcher
 	reg      name.Registry
 	pageSize int
@@ -145,7 +145,7 @@ type Catalogger struct {
 	needMore bool
 }
 
-func (l *Catalogger) Next(ctx context.Context) (*Catalogs, error) {
+func (l *Cataloger) Next(ctx context.Context) (*Catalogs, error) {
 	if l.needMore {
 		l.page, l.err = l.f.catalogPage(ctx, l.reg, l.page.Next, l.pageSize)
 	} else {
@@ -154,6 +154,6 @@ func (l *Catalogger) Next(ctx context.Context) (*Catalogs, error) {
 	return l.page, l.err
 }
 
-func (l *Catalogger) HasNext() bool {
+func (l *Cataloger) HasNext() bool {
 	return l.page != nil && (!l.needMore || l.page.Next != "")
 }

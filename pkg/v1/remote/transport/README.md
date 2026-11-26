@@ -40,7 +40,7 @@ Similar reasons! That ends up pulling in grpc, protobuf, and logrus.
 
 > Well... what about [`containers/image`](https://godoc.org/github.com/containers/image/docker)?
 
-That just uses the the `docker/distribution` client... and more!
+That just uses the `docker/distribution` client... and more!
 
 ![containers/image](../../../../images/containers.dot.svg)
 
