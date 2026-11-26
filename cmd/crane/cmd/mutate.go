@@ -199,6 +199,21 @@ func setEnvVars(cfg *v1.ConfigFile, envVars keyToValue) error {
 	newEnv := make([]string, 0, len(cfg.Config.Env))
 	isWindows := cfg.OS == "windows"
 
+	// Environment variable names are case-insensitive on Windows, so match
+	// them by their upper-cased form there.
+	if isWindows {
+		eMap = make(map[string]string, len(envVars.values))
+		for _, e := range envVars.values {
+			eMap[strings.ToUpper(e.key)] = e.value
+		}
+	}
+	lookupKey := func(k string) string {
+		if isWindows {
+			return strings.ToUpper(k)
+		}
+		return k
+	}
+
 	// Keep the old values.
 	for _, old := range cfg.Config.Env {
 		oldKey, _, ok := strings.Cut(old, "=")
@@ -206,12 +221,12 @@ func setEnvVars(cfg *v1.ConfigFile, envVars keyToValue) error {
 			return fmt.Errorf("invalid key value pair in config: %s", old)
 		}
 
-		if v, ok := eMap[oldKey]; ok {
+		if v, ok := eMap[lookupKey(oldKey)]; ok {
 			// Override in place to keep ordering of original env.
 			newEnv = append(newEnv, oldKey+"="+v)
 
 			// Remove this from eMap so we don't add it twice.
-			delete(eMap, oldKey)
+			delete(eMap, lookupKey(oldKey))
 		} else {
 			newEnv = append(newEnv, old)
 		}
@@ -219,16 +234,12 @@ func setEnvVars(cfg *v1.ConfigFile, envVars keyToValue) error {
 
 	// Append the new values.
 	for _, e := range envVars.values {
-		k, v := e.key, e.value
+		k, v := lookupKey(e.key), e.value
 
 		if _, ok := eMap[k]; !ok {
 			// If we come across a value not in eMap, it means we replaced the
 			// old env in-place and deleted it from eMap, so we can skip adding.
 			continue
-		}
-
-		if isWindows {
-			k = strings.ToUpper(k)
 		}
 
 		newEnv = append(newEnv, fmt.Sprintf("%s=%s", k, v))
