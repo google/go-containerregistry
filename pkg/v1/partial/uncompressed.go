@@ -110,6 +110,7 @@ type uncompressedImageExtender struct {
 
 	lock     sync.Mutex
 	manifest *v1.Manifest
+	layers   sync.Map // map[v1.Hash]v1.Layer, keyed by diff ID
 }
 
 // Assert that our extender type completes the v1.Image interface
@@ -206,11 +207,20 @@ func (i *uncompressedImageExtender) Layers() ([]v1.Layer, error) {
 
 // LayerByDiffID implements v1.Image
 func (i *uncompressedImageExtender) LayerByDiffID(diffID v1.Hash) (v1.Layer, error) {
+	// Reuse the wrapped layer so its memoized digest and size are computed once.
+	if l, ok := i.layers.Load(diffID); ok {
+		return l.(v1.Layer), nil
+	}
 	ul, err := i.UncompressedImageCore.LayerByDiffID(diffID)
 	if err != nil {
 		return nil, err
 	}
-	return UncompressedToLayer(ul)
+	l, err := UncompressedToLayer(ul)
+	if err != nil {
+		return nil, err
+	}
+	cached, _ := i.layers.LoadOrStore(diffID, l)
+	return cached.(v1.Layer), nil
 }
 
 // LayerByDigest implements v1.Image

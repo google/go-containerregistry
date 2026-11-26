@@ -231,3 +231,70 @@ func TestUncompressed(t *testing.T) {
 		t.Errorf("Exists() = %t != %t", got, want)
 	}
 }
+
+// countingLayer counts how many times the wrapped layer is read.
+type countingLayer struct {
+	partial.UncompressedLayer
+	reads *int
+}
+
+func (l *countingLayer) Uncompressed() (io.ReadCloser, error) {
+	*l.reads++
+	return l.UncompressedLayer.Uncompressed()
+}
+
+// countingImage is an uncompressedImage that counts reads of its layers.
+type countingImage struct {
+	uncompressedImage
+	reads int
+}
+
+func (i *countingImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer, error) {
+	l, err := i.uncompressedImage.LayerByDiffID(h)
+	if err != nil {
+		return nil, err
+	}
+	return &countingLayer{l, &i.reads}, nil
+}
+
+func TestUncompressedImageCachesLayers(t *testing.T) {
+	rnd, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	core := &countingImage{uncompressedImage: uncompressedImage{rnd}}
+	img, err := partial.UncompressedToImage(core)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Manifest() reads each layer once to compute its digest and size. Later
+	// lookups must reuse those layers instead of re-reading and re-gzipping.
+	m, err := img.Manifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, l := range layers {
+		want := m.Layers[i]
+		if got, err := l.Digest(); err != nil || got != want.Digest {
+			t.Errorf("Layers()[%d].Digest() = %v, %v; want %v", i, got, err, want.Digest)
+		}
+		if got, err := l.Size(); err != nil || got != want.Size {
+			t.Errorf("Layers()[%d].Size() = %d, %v; want %d", i, got, err, want.Size)
+		}
+		byDigest, err := img.LayerByDigest(want.Digest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := byDigest.Digest(); err != nil {
+			t.Errorf("LayerByDigest(%v).Digest(): %v", want.Digest, err)
+		}
+	}
+	if got, want := core.reads, len(layers); got != want {
+		t.Errorf("layers were read %d times, want %d", got, want)
+	}
+}
