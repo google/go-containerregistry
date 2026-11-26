@@ -17,7 +17,6 @@ package partial_test
 import (
 	"io"
 	"os"
-	"sync/atomic"
 	"testing"
 
 	legacy "github.com/google/go-containerregistry/pkg/legacy/tarball"
@@ -233,27 +232,29 @@ func TestUncompressed(t *testing.T) {
 	}
 }
 
-type countingUncompressedLayer struct {
+// countingLayer counts how many times the wrapped layer is read.
+type countingLayer struct {
 	partial.UncompressedLayer
-	reads *atomic.Int64
+	reads *int
 }
 
-func (l *countingUncompressedLayer) Uncompressed() (io.ReadCloser, error) {
-	l.reads.Add(1)
+func (l *countingLayer) Uncompressed() (io.ReadCloser, error) {
+	*l.reads++
 	return l.UncompressedLayer.Uncompressed()
 }
 
-type countingUncompressedImage struct {
-	*uncompressedImage
-	reads *atomic.Int64
+// countingImage is an uncompressedImage that counts reads of its layers.
+type countingImage struct {
+	uncompressedImage
+	reads int
 }
 
-func (i *countingUncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer, error) {
+func (i *countingImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer, error) {
 	l, err := i.uncompressedImage.LayerByDiffID(h)
 	if err != nil {
 		return nil, err
 	}
-	return &countingUncompressedLayer{UncompressedLayer: l, reads: i.reads}, nil
+	return &countingLayer{l, &i.reads}, nil
 }
 
 func TestUncompressedImageCachesLayers(t *testing.T) {
@@ -261,54 +262,39 @@ func TestUncompressedImageCachesLayers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var reads atomic.Int64
-	core := &countingUncompressedImage{
-		uncompressedImage: &uncompressedImage{rnd},
-		reads:             &reads,
-	}
+	core := &countingImage{uncompressedImage: uncompressedImage{rnd}}
 	img, err := partial.UncompressedToImage(core)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// Manifest() reads each layer once to compute its digest and size. Later
+	// lookups must reuse those layers instead of re-reading and re-gzipping.
 	m, err := img.Manifest()
 	if err != nil {
-		t.Fatalf("Manifest(): %v", err)
+		t.Fatal(err)
 	}
-	if got, want := reads.Load(), int64(2); got != want {
-		t.Fatalf("reads after Manifest() = %d, want %d", got, want)
-	}
-
-	// Subsequent Layers(), LayerByDigest(), and LayerByDiffID() metadata calls
-	// must reuse memoized layers instead of re-reading and re-gzipping.
 	layers, err := img.Layers()
 	if err != nil {
-		t.Fatalf("Layers(): %v", err)
+		t.Fatal(err)
 	}
 	for i, l := range layers {
-		d, err := l.Digest()
+		want := m.Layers[i]
+		if got, err := l.Digest(); err != nil || got != want.Digest {
+			t.Errorf("Layers()[%d].Digest() = %v, %v; want %v", i, got, err, want.Digest)
+		}
+		if got, err := l.Size(); err != nil || got != want.Size {
+			t.Errorf("Layers()[%d].Size() = %d, %v; want %d", i, got, err, want.Size)
+		}
+		byDigest, err := img.LayerByDigest(want.Digest)
 		if err != nil {
-			t.Fatalf("Layers()[%d].Digest(): %v", i, err)
-		}
-		if d != m.Layers[i].Digest {
-			t.Errorf("Layers()[%d].Digest() = %v, want %v", i, d, m.Layers[i].Digest)
-		}
-		sz, err := l.Size()
-		if err != nil {
-			t.Fatalf("Layers()[%d].Size(): %v", i, err)
-		}
-		if sz != m.Layers[i].Size {
-			t.Errorf("Layers()[%d].Size() = %d, want %d", i, sz, m.Layers[i].Size)
-		}
-		byDigest, err := img.LayerByDigest(d)
-		if err != nil {
-			t.Fatalf("LayerByDigest(%v): %v", d, err)
+			t.Fatal(err)
 		}
 		if _, err := byDigest.Digest(); err != nil {
-			t.Fatalf("byDigest.Digest(): %v", err)
+			t.Errorf("LayerByDigest(%v).Digest(): %v", want.Digest, err)
 		}
 	}
-	if got, want := reads.Load(), int64(2); got != want {
-		t.Errorf("reads after cached Layers()/LayerByDigest() = %d, want %d", got, want)
+	if got, want := core.reads, len(layers); got != want {
+		t.Errorf("layers were read %d times, want %d", got, want)
 	}
 }

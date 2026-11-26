@@ -108,10 +108,9 @@ func UncompressedToImage(uic UncompressedImageCore) (v1.Image, error) {
 type uncompressedImageExtender struct {
 	UncompressedImageCore
 
-	lock       sync.Mutex
-	manifest   *v1.Manifest
-	layersLock sync.Mutex
-	layers     map[v1.Hash]v1.Layer
+	lock     sync.Mutex
+	manifest *v1.Manifest
+	layers   sync.Map // map[v1.Hash]v1.Layer, keyed by diff ID
 }
 
 // Assert that our extender type completes the v1.Image interface
@@ -208,13 +207,10 @@ func (i *uncompressedImageExtender) Layers() ([]v1.Layer, error) {
 
 // LayerByDiffID implements v1.Image
 func (i *uncompressedImageExtender) LayerByDiffID(diffID v1.Hash) (v1.Layer, error) {
-	i.layersLock.Lock()
-	if l, ok := i.layers[diffID]; ok {
-		i.layersLock.Unlock()
-		return l, nil
+	// Reuse the wrapped layer so its memoized digest and size are computed once.
+	if l, ok := i.layers.Load(diffID); ok {
+		return l.(v1.Layer), nil
 	}
-	i.layersLock.Unlock()
-
 	ul, err := i.UncompressedImageCore.LayerByDiffID(diffID)
 	if err != nil {
 		return nil, err
@@ -223,17 +219,8 @@ func (i *uncompressedImageExtender) LayerByDiffID(diffID v1.Hash) (v1.Layer, err
 	if err != nil {
 		return nil, err
 	}
-
-	i.layersLock.Lock()
-	defer i.layersLock.Unlock()
-	if i.layers == nil {
-		i.layers = make(map[v1.Hash]v1.Layer)
-	}
-	if existing, ok := i.layers[diffID]; ok {
-		return existing, nil
-	}
-	i.layers[diffID] = l
-	return l, nil
+	cached, _ := i.layers.LoadOrStore(diffID, l)
+	return cached.(v1.Layer), nil
 }
 
 // LayerByDigest implements v1.Image
