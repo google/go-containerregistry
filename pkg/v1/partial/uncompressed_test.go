@@ -17,6 +17,7 @@ package partial_test
 import (
 	"io"
 	"os"
+	"sync/atomic"
 	"testing"
 
 	legacy "github.com/google/go-containerregistry/pkg/legacy/tarball"
@@ -229,5 +230,85 @@ func TestUncompressed(t *testing.T) {
 	}
 	if got, want := ok, true; got != want {
 		t.Errorf("Exists() = %t != %t", got, want)
+	}
+}
+
+type countingUncompressedLayer struct {
+	partial.UncompressedLayer
+	reads *atomic.Int64
+}
+
+func (l *countingUncompressedLayer) Uncompressed() (io.ReadCloser, error) {
+	l.reads.Add(1)
+	return l.UncompressedLayer.Uncompressed()
+}
+
+type countingUncompressedImage struct {
+	*uncompressedImage
+	reads *atomic.Int64
+}
+
+func (i *countingUncompressedImage) LayerByDiffID(h v1.Hash) (partial.UncompressedLayer, error) {
+	l, err := i.uncompressedImage.LayerByDiffID(h)
+	if err != nil {
+		return nil, err
+	}
+	return &countingUncompressedLayer{UncompressedLayer: l, reads: i.reads}, nil
+}
+
+func TestUncompressedImageCachesLayers(t *testing.T) {
+	rnd, err := random.Image(1024, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reads atomic.Int64
+	core := &countingUncompressedImage{
+		uncompressedImage: &uncompressedImage{rnd},
+		reads:             &reads,
+	}
+	img, err := partial.UncompressedToImage(core)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	m, err := img.Manifest()
+	if err != nil {
+		t.Fatalf("Manifest(): %v", err)
+	}
+	if got, want := reads.Load(), int64(2); got != want {
+		t.Fatalf("reads after Manifest() = %d, want %d", got, want)
+	}
+
+	// Subsequent Layers(), LayerByDigest(), and LayerByDiffID() metadata calls
+	// must reuse memoized layers instead of re-reading and re-gzipping.
+	layers, err := img.Layers()
+	if err != nil {
+		t.Fatalf("Layers(): %v", err)
+	}
+	for i, l := range layers {
+		d, err := l.Digest()
+		if err != nil {
+			t.Fatalf("Layers()[%d].Digest(): %v", i, err)
+		}
+		if d != m.Layers[i].Digest {
+			t.Errorf("Layers()[%d].Digest() = %v, want %v", i, d, m.Layers[i].Digest)
+		}
+		sz, err := l.Size()
+		if err != nil {
+			t.Fatalf("Layers()[%d].Size(): %v", i, err)
+		}
+		if sz != m.Layers[i].Size {
+			t.Errorf("Layers()[%d].Size() = %d, want %d", i, sz, m.Layers[i].Size)
+		}
+		byDigest, err := img.LayerByDigest(d)
+		if err != nil {
+			t.Fatalf("LayerByDigest(%v): %v", d, err)
+		}
+		if _, err := byDigest.Digest(); err != nil {
+			t.Fatalf("byDigest.Digest(): %v", err)
+		}
+	}
+	if got, want := reads.Load(), int64(2); got != want {
+		t.Errorf("reads after cached Layers()/LayerByDigest() = %d, want %d", got, want)
 	}
 }

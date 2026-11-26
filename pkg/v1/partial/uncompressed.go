@@ -108,8 +108,10 @@ func UncompressedToImage(uic UncompressedImageCore) (v1.Image, error) {
 type uncompressedImageExtender struct {
 	UncompressedImageCore
 
-	lock     sync.Mutex
-	manifest *v1.Manifest
+	lock       sync.Mutex
+	manifest   *v1.Manifest
+	layersLock sync.Mutex
+	layers     map[v1.Hash]v1.Layer
 }
 
 // Assert that our extender type completes the v1.Image interface
@@ -206,11 +208,32 @@ func (i *uncompressedImageExtender) Layers() ([]v1.Layer, error) {
 
 // LayerByDiffID implements v1.Image
 func (i *uncompressedImageExtender) LayerByDiffID(diffID v1.Hash) (v1.Layer, error) {
+	i.layersLock.Lock()
+	if l, ok := i.layers[diffID]; ok {
+		i.layersLock.Unlock()
+		return l, nil
+	}
+	i.layersLock.Unlock()
+
 	ul, err := i.UncompressedImageCore.LayerByDiffID(diffID)
 	if err != nil {
 		return nil, err
 	}
-	return UncompressedToLayer(ul)
+	l, err := UncompressedToLayer(ul)
+	if err != nil {
+		return nil, err
+	}
+
+	i.layersLock.Lock()
+	defer i.layersLock.Unlock()
+	if i.layers == nil {
+		i.layers = make(map[v1.Hash]v1.Layer)
+	}
+	if existing, ok := i.layers[diffID]; ok {
+		return existing, nil
+	}
+	i.layers[diffID] = l
+	return l, nil
 }
 
 // LayerByDigest implements v1.Image
