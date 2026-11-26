@@ -2,6 +2,14 @@
 
 Modify image labels and annotations. The container must be pushed to a registry, and the manifest is updated there.
 
+### Synopsis
+
+Modify image labels, config, layers, or manifest annotations.
+
+For an index without --platform, only top-level annotations can be changed;
+child manifests are preserved. Use --platform to mutate a specific platform's
+image instead. Writing an index with --output is not supported.
+
 ```
 crane mutate [flags]
 ```

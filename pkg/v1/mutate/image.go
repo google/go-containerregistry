@@ -181,7 +181,11 @@ func (i *image) compute() error {
 			manifest.Annotations[k] = v
 		}
 	}
-	manifest.Subject = i.subject
+	// Keep the base manifest's subject unless one was set explicitly, so that
+	// chained mutations such as Annotations don't clear it.
+	if i.subject != nil {
+		manifest.Subject = i.subject
+	}
 
 	i.configFile = configFile
 	i.manifest = manifest

@@ -98,6 +98,23 @@ on that image.
 `crane append` also supports the `--set-base-image-annotations` flag, which, if
 true, will set these annotations on the resulting image.
 
+### Rebasing multi-platform indexes
+
+If the original reference is a multi-platform index, `crane rebase` rebases each
+child image separately. Each child is rebased onto the base image for its own
+platform, so `--old_base` and `--new_base` should be multi-platform indexes too.
+The rebased index keeps the original's platforms and annotations, and records
+the base image annotations described above. Entries sharing a child digest keep
+their own descriptor metadata. Existing base image annotations on descriptors
+are updated for both image children and nested indexes.
+
+Attestation manifests (platform `unknown/unknown`) are not carried into the
+rebased index, because they refer to the original image digests.
+
+Passing `--platform` rebases only that platform's image. The result is a single
+image, pushed to `--tag` or, if that is unset, to the original reference, which
+replaces the index there.
+
 ## Caveats
 
 The tool has no visibility into what the specific contents of the resulting

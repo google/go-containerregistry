@@ -536,6 +536,48 @@ func TestAnnotations(t *testing.T) {
 	}
 }
 
+func TestAnnotationsPreservesSubject(t *testing.T) {
+	subject := v1.Descriptor{
+		MediaType: types.OCIManifestSchema1,
+		Size:      1,
+		Digest: v1.Hash{
+			Algorithm: "sha256",
+			Hex:       strings.Repeat("a", 64),
+		},
+	}
+	anns := map[string]string{"foo": "bar"}
+
+	t.Run("image", func(t *testing.T) {
+		img := mutate.Subject(empty.Image, subject).(v1.Image)
+		annotated := mutate.Annotations(img, anns).(v1.Image)
+		m, err := annotated.Manifest()
+		if err != nil {
+			t.Fatalf("Manifest: %v", err)
+		}
+		if d := cmp.Diff(&subject, m.Subject); d != "" {
+			t.Errorf("Subject Diff(-want,+got): %s", d)
+		}
+		if m.Annotations["foo"] != "bar" {
+			t.Errorf("Annotations[foo] = %q, want %q", m.Annotations["foo"], "bar")
+		}
+	})
+
+	t.Run("index", func(t *testing.T) {
+		idx := mutate.Subject(empty.Index, subject).(v1.ImageIndex)
+		annotated := mutate.Annotations(idx, anns).(v1.ImageIndex)
+		m, err := annotated.IndexManifest()
+		if err != nil {
+			t.Fatalf("IndexManifest: %v", err)
+		}
+		if d := cmp.Diff(&subject, m.Subject); d != "" {
+			t.Errorf("Subject Diff(-want,+got): %s", d)
+		}
+		if m.Annotations["foo"] != "bar" {
+			t.Errorf("Annotations[foo] = %q, want %q", m.Annotations["foo"], "bar")
+		}
+	})
+}
+
 func TestMutateCreatedAt(t *testing.T) {
 	source := sourceImage(t)
 	want := time.Now().Add(-2 * time.Minute)

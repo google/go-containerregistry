@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -111,6 +112,7 @@ func NewCmdIndexList(options *[]crane.Option) *cobra.Command {
 func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 	var newTag string
 	platforms := &platformsValue{}
+	var annotations map[string]string
 
 	cmd := &cobra.Command{
 		Use:   "filter",
@@ -146,6 +148,9 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 			}
 
 			idx := filterIndex(base, platforms.platforms)
+			if len(annotations) != 0 {
+				idx = mutate.Annotations(idx, annotations).(v1.ImageIndex)
+			}
 
 			digest, err := idx.Digest()
 			if err != nil {
@@ -171,6 +176,7 @@ func NewCmdIndexFilter(options *[]crane.Option) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&newTag, "tag", "t", "", "Tag to apply to resulting image")
+	cmd.Flags().StringToStringVarP(&annotations, "annotation", "a", nil, "New annotations to add to the index")
 
 	// Consider reusing the persistent flag for this, it's separate so we can have multiple values.
 	cmd.Flags().Var(platforms, "platform", "Specifies the platform(s) to keep from base in the form os/arch[/variant][:osversion][,<platform>] (e.g. linux/amd64).")
@@ -183,6 +189,7 @@ func NewCmdIndexAppend(options *[]crane.Option) *cobra.Command {
 	var baseRef, newTag string
 	var newManifests []string
 	var dockerEmptyBase, flatten bool
+	var annotations map[string]string
 
 	cmd := &cobra.Command{
 		Use:   "append",
@@ -208,20 +215,21 @@ The platform for appended manifests is inferred from the config file or omitted 
 			}
 
 			if isLocalReference(baseRef) {
-				return appendLocal(baseRef, adds)
+				return appendLocal(baseRef, adds, annotations)
 			}
-			return appendRemote(cmd, baseRef, newTag, adds, o, dockerEmptyBase)
+			return appendRemote(cmd, baseRef, newTag, adds, annotations, o, dockerEmptyBase)
 		},
 	}
 	cmd.Flags().StringVarP(&newTag, "tag", "t", "", "Tag to apply to resulting image")
 	cmd.Flags().StringSliceVarP(&newManifests, "manifest", "m", []string{}, "References to manifests to append to the base index")
 	cmd.Flags().BoolVar(&dockerEmptyBase, "docker-empty-base", false, "If true, empty base index will have Docker media types instead of OCI")
 	cmd.Flags().BoolVar(&flatten, "flatten", true, "If true, appending an index will append each of its children rather than the index itself")
+	cmd.Flags().StringToStringVarP(&annotations, "annotation", "a", nil, "New annotations to add to the index")
 
 	return cmd
 }
 
-func appendLocal(baseRef string, adds []mutate.IndexAddendum) error {
+func appendLocal(baseRef string, adds []mutate.IndexAddendum, annotations map[string]string) error {
 	var p layout.Path
 	if _, err := os.Stat(baseRef); err == nil {
 		// If the path exists, try to open it as an OCI layout.
@@ -265,10 +273,26 @@ func appendLocal(baseRef string, adds []mutate.IndexAddendum) error {
 			return fmt.Errorf("unexpected media type for local append: %s", add.MediaType)
 		}
 	}
+	if len(annotations) != 0 {
+		ii, err := p.ImageIndex()
+		if err != nil {
+			return err
+		}
+		ii = mutate.Annotations(ii, annotations).(v1.ImageIndex)
+		index, err := ii.IndexManifest()
+		if err != nil {
+			return err
+		}
+		rawIndex, err := json.MarshalIndent(index, "", "   ")
+		if err != nil {
+			return err
+		}
+		return p.WriteFile("index.json", rawIndex, os.ModePerm)
+	}
 	return nil
 }
 
-func appendRemote(cmd *cobra.Command, baseRef, newTag string, adds []mutate.IndexAddendum, o crane.Options, dockerEmptyBase bool) error {
+func appendRemote(cmd *cobra.Command, baseRef, newTag string, adds []mutate.IndexAddendum, annotations map[string]string, o crane.Options, dockerEmptyBase bool) error {
 	var base v1.ImageIndex
 	if baseRef == "" {
 		if newTag == "" {
@@ -298,6 +322,9 @@ func appendRemote(cmd *cobra.Command, baseRef, newTag string, adds []mutate.Inde
 	}
 
 	idx := mutate.AppendManifests(base, adds...)
+	if len(annotations) != 0 {
+		idx = mutate.Annotations(idx, annotations).(v1.ImageIndex)
+	}
 	digest, err := idx.Digest()
 	if err != nil {
 		return err

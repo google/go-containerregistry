@@ -25,11 +25,12 @@ crane index append [flags]
 ### Options
 
 ```
-      --docker-empty-base   If true, empty base index will have Docker media types instead of OCI
-      --flatten             If true, appending an index will append each of its children rather than the index itself (default true)
-  -h, --help                help for append
-  -m, --manifest strings    References to manifests to append to the base index
-  -t, --tag string          Tag to apply to resulting image
+  -a, --annotation stringToString   New annotations to add to the index (default [])
+      --docker-empty-base           If true, empty base index will have Docker media types instead of OCI
+      --flatten                     If true, appending an index will append each of its children rather than the index itself (default true)
+  -h, --help                        help for append
+  -m, --manifest strings            References to manifests to append to the base index
+  -t, --tag string                  Tag to apply to resulting image
 ```
 
 ### Options inherited from parent commands
