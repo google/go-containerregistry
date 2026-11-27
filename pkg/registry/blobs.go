@@ -311,15 +311,20 @@ func (b *blobs) handle(resp http.ResponseWriter, req *http.Request) *regError {
 				}
 			}
 
+			// A crafted Range can be negative, reversed (end < start), or past the
+			// end of the blob. Left unchecked these serve a 206 with a bogus or
+			// negative Content-Length (e.g. "bytes=5-2" sets Content-Length to -3)
+			// instead of the 416 required by RFC 7233 section 4.4.
+			if start < 0 || end < start || end >= size {
+				return &regError{
+					Status:  http.StatusRequestedRangeNotSatisfiable,
+					Code:    "BLOB_UNKNOWN",
+					Message: fmt.Sprintf("range %d-%d not satisfiable for blob of size %d", start, end, size),
+				}
+			}
+
 			n := (end + 1) - start
 			if ra, ok := r.(io.ReaderAt); ok {
-				if end+1 > size {
-					return &regError{
-						Status:  http.StatusRequestedRangeNotSatisfiable,
-						Code:    "BLOB_UNKNOWN",
-						Message: fmt.Sprintf("range end %d > %d size", end+1, size),
-					}
-				}
 				r = io.NewSectionReader(ra, start, n)
 			} else {
 				if _, err := io.CopyN(io.Discard, r, start); err != nil {
