@@ -502,6 +502,14 @@ type arbitrary struct {
 func (arbitrary) RawManifest() ([]byte, error) {
 	return []byte(`{"hello":"world"}`), nil
 }
+
+type arbitraryAnnotated struct {
+}
+
+func (arbitraryAnnotated) RawManifest() ([]byte, error) {
+	return []byte(`{"hello":"world","annotations":{"a":"b"}}`), nil
+}
+
 func TestAnnotations(t *testing.T) {
 	anns := map[string]string{
 		"foo": "bar",
@@ -523,6 +531,10 @@ func TestAnnotations(t *testing.T) {
 		desc: "arbitrary",
 		in:   arbitrary{},
 		want: `{"annotations":{"foo":"bar"},"hello":"world"}`,
+	}, {
+		desc: "arbitrary with annotations",
+		in:   arbitraryAnnotated{},
+		want: `{"annotations":{"a":"b","foo":"bar"},"hello":"world"}`,
 	}} {
 		t.Run(c.desc, func(t *testing.T) {
 			got, err := mutate.Annotations(c.in, anns).RawManifest()
