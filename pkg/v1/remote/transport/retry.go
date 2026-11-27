@@ -92,7 +92,21 @@ func NewRetry(inner http.RoundTripper, opts ...Option) http.RoundTripper {
 }
 
 func (t *retryTransport) RoundTrip(in *http.Request) (out *http.Response, err error) {
+	first := true
 	roundtrip := func() error {
+		if !first {
+			// A previous attempt may have (partially) consumed the request
+			// body, so grab a fresh copy before resending; otherwise the
+			// retry fails with "http: ContentLength=N with Body length 0"
+			// or sends a truncated body. See #1004.
+			//
+			// If the body cannot be rewound (rare: only requests without
+			// GetBody, e.g. streaming layers), we still attempt the retry
+			// to preserve previous behavior: the prior attempt may have
+			// failed before consuming the body (e.g. a dial error).
+			rewindBody(in)
+		}
+		first = false
 		out, err = t.inner.RoundTrip(in)
 		if !retry.Ever(in.Context()) {
 			return nil
