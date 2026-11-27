@@ -29,5 +29,12 @@ func Delete(src string, opt ...Option) error {
 		return fmt.Errorf("parsing reference %q: %w", src, err)
 	}
 
+	if tag, ok := ref.(name.Tag); ok {
+		digest, err := Digest(tag.Name(), opt...)
+		if err != nil {
+			return fmt.Errorf("getting digest for tag %q: %w", tag.Name(), err)
+		}
+		ref = ref.Context().Digest(digest)
+	}
 	return remote.Delete(ref, o.Remote...)
 }
