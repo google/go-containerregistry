@@ -16,10 +16,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'go.mod'
-      - uses: chainguard-dev/actions/goimports@84b1be4c638f12d4256ddddef17af98853b6d0d9 # v1.6.40
+      - uses: chainguard-dev/actions/goimports@d496b2ab65497cac13d77ccd5038b8aae7e8c43b # v1.8.2
 
   lint:
     name: Lint
@@ -29,20 +29,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: 'go.mod'
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           version: v2.11
 
-      - uses: chainguard-dev/actions/trailing-space@84b1be4c638f12d4256ddddef17af98853b6d0d9 # v1.6.40
+      - uses: chainguard-dev/actions/trailing-space@d496b2ab65497cac13d77ccd5038b8aae7e8c43b # v1.8.2
         if: ${{ always() }}
 
-      - uses: chainguard-dev/actions/eof-newline@84b1be4c638f12d4256ddddef17af98853b6d0d9 # v1.6.40
+      - uses: chainguard-dev/actions/eof-newline@d496b2ab65497cac13d77ccd5038b8aae7e8c43b # v1.8.2
         if: ${{ always() }}
 
-      - uses: reviewdog/action-misspell@7cea3d501cb3834c688e08c89ed77b71764d1784 # v1
+      - uses: reviewdog/action-misspell@c846b6b0996029d2d39540c8ffebebbd957072db # v1
         if: ${{ always() }}
         with:
           github_token: ${{ secrets.github_token }}
