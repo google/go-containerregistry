@@ -1,6 +1,6 @@
 # `k8schain`
 
-This is an implementation of the [`authn.Keychain`](https://godoc.org/github.com/google/go-containerregistry/authn#Keychain) interface loosely based on the authentication semantics used by the Kubelet when performing the pull of a Pod's images.
+This is an implementation of the [`authn.Keychain`](https://pkg.go.dev/github.com/google/go-containerregistry/pkg/authn#Keychain) interface loosely based on the authentication semantics used by the Kubelet when performing the pull of a Pod's images.
 
 This keychain supports passing a Kubernetes Service Account and some ImagePullSecrets which may represent registry credentials.
 
