@@ -39,6 +39,7 @@ const (
 	kib           = 1024
 	mib           = 1024 * kib
 	manifestLimit = 100 * mib
+	configLimit   = 100 * mib
 )
 
 // fetcher implements methods for reading from a registry.
