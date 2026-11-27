@@ -16,9 +16,12 @@ package zstd
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestReader(t *testing.T) {
@@ -94,3 +97,80 @@ func TestReadErrors(t *testing.T) {
 		t.Error("ReadCloser: expected errRead, got", err)
 	}
 }
+
+type closeTrackingReader struct {
+	io.Reader
+	done  chan struct{}
+	count atomic.Int32
+}
+
+func (r *closeTrackingReader) Close() error {
+	if r.count.Add(1) == 1 {
+		close(r.done)
+	}
+	return nil
+}
+
+func waitForSourceClose(t *testing.T, r *closeTrackingReader) {
+	t.Helper()
+	select {
+	case <-r.done:
+	case <-time.After(time.Second):
+		t.Fatal("source not closed after output consumer exited")
+	}
+	if n := r.count.Load(); n != 1 {
+		t.Fatalf("source closed %d times, want 1", n)
+	}
+}
+
+func TestReadCloserClosesSourceOnConsumerClose(t *testing.T) {
+	r := &closeTrackingReader{Reader: bytes.NewReader(bytes.Repeat([]byte("synthetic layer"), 100)), done: make(chan struct{})}
+	out := ReadCloser(r)
+	t.Cleanup(func() { out.Close() })
+	if _, err := io.ReadFull(out, make([]byte, 1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := out.Close(); err != nil {
+		t.Fatal(err)
+	}
+	waitForSourceClose(t, r)
+}
+
+func TestReadCloserClosesSourceOnEOF(t *testing.T) {
+	input := bytes.Repeat([]byte("synthetic layer"), 100)
+	r := &closeTrackingReader{Reader: bytes.NewReader(input), done: make(chan struct{})}
+	out := ReadCloser(r)
+	t.Cleanup(func() { out.Close() })
+	zipped, err := io.ReadAll(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+	waitForSourceClose(t, r)
+	decoded, err := UnzipReadCloser(io.NopCloser(bytes.NewReader(zipped)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer decoded.Close()
+	got, err := io.ReadAll(decoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, input) {
+		t.Fatal("roundtrip data changed")
+	}
+}
+
+func TestReadCloserClosesSourceOnReadError(t *testing.T) {
+	r := &closeTrackingReader{Reader: cleanupErrorReader{}, done: make(chan struct{})}
+	out := ReadCloser(r)
+	t.Cleanup(func() { out.Close() })
+	if _, err := io.ReadAll(out); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("read error=%v, want original error", err)
+	}
+	waitForSourceClose(t, r)
+}
+
+type cleanupErrorReader struct{}
+
+func (cleanupErrorReader) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }
