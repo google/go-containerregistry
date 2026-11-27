@@ -96,3 +96,37 @@ func TestReadErrors(t *testing.T) {
 		t.Error("Expected invalid level error, got:", err)
 	}
 }
+
+// trackedReadCloser counts how many times Close is called.
+type trackedReadCloser struct {
+	io.Reader
+	closed *int
+}
+
+func (t *trackedReadCloser) Close() error {
+	*t.closed++
+	return nil
+}
+
+// TestUnzipReadCloserClosesInputOnError ensures UnzipReadCloser closes the
+// input reader when the gzip header cannot be read, so callers do not leak
+// the source.
+// https://github.com/google/go-containerregistry/issues/2496
+func TestUnzipReadCloserClosesInputOnError(t *testing.T) {
+	// Arrange
+	var closed int
+	rc := &trackedReadCloser{
+		Reader: bytes.NewReader([]byte{'\x1f', '\x8b', 0x00, 0x00}),
+		closed: &closed,
+	}
+
+	// Act
+	if _, err := UnzipReadCloser(rc); err == nil {
+		t.Fatal("UnzipReadCloser() = nil error, want error")
+	}
+
+	// Assert
+	if closed != 1 {
+		t.Errorf("input reader closed %d times, want 1", closed)
+	}
+}
