@@ -90,7 +90,12 @@ func makeFetcher(ctx context.Context, target resource, o *options) (*fetcher, er
 // that may resolve to private addresses) are allowed. The first redirect in
 // the chain uses the original request URL as the "origin host" via
 // req.Response.Request, falling back to req.URL when no prior response exists.
+//
+// It also applies checkRedirectLimit.
 func checkRedirectSSRF(req *http.Request, via []*http.Request) error {
+	if err := checkRedirectLimit(via); err != nil {
+		return err
+	}
 	if len(via) == 0 || req.Response == nil {
 		return nil
 	}
@@ -101,6 +106,15 @@ func checkRedirectSSRF(req *http.Request, via []*http.Request) error {
 	}
 	if ipaddr.IsPrivateOrLinkLocal(destHost) {
 		return fmt.Errorf("SSRF protection: redirect from %q to private/link-local host %q denied", origHost, destHost)
+	}
+	return nil
+}
+
+// checkRedirectLimit is net/http's default redirect policy, which a client
+// loses when it sets CheckRedirect: stop after 10 consecutive requests.
+func checkRedirectLimit(via []*http.Request) error {
+	if len(via) >= 10 {
+		return fmt.Errorf("stopped after 10 redirects")
 	}
 	return nil
 }
@@ -406,7 +420,10 @@ func validateForeignURL(rawURL string, insecure bool) error {
 func (f *fetcher) fetchForeignBlobURL(ctx context.Context, u url.URL, size int64, h v1.Hash, insecure bool) (io.ReadCloser, error) {
 	safeClient := &http.Client{
 		Transport: f.client.Transport,
-		CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if err := checkRedirectLimit(via); err != nil {
+				return err
+			}
 			return validateForeignURL(req.URL.String(), insecure)
 		},
 	}

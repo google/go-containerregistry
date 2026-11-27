@@ -15,12 +15,15 @@
 package remote
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
@@ -194,6 +197,62 @@ func TestPullingForeignLayerSSRF(t *testing.T) {
 	_, err = layers[1].Compressed()
 	if err == nil {
 		t.Error("Compressed() should have been rejected for a foreign layer URL pointing to a private address")
+	}
+}
+
+// TestCheckRedirectStopsAfterTenRedirects verifies checkRedirectSSRF keeps
+// net/http's default limit, which setting CheckRedirect otherwise replaces.
+func TestCheckRedirectStopsAfterTenRedirects(t *testing.T) {
+	hop := func() *http.Request { return &http.Request{URL: &url.URL{Host: "registry.example.com"}} }
+	req := hop()
+	req.Response = &http.Response{}
+
+	via := make([]*http.Request, 9)
+	for i := range via {
+		via[i] = hop()
+	}
+	if err := checkRedirectSSRF(req, via); err != nil {
+		t.Errorf("checkRedirectSSRF after 9 requests: unexpected error: %v", err)
+	}
+	via = append(via, hop())
+	if err := checkRedirectSSRF(req, via); err == nil {
+		t.Error("checkRedirectSSRF after 10 requests: expected an error, got nil")
+	}
+}
+
+// TestRedirectLoopIsNotFollowedForever verifies a registry that redirects a
+// manifest GET to itself is given up on, as net/http's default policy does.
+func TestRedirectLoopIsNotFollowedForever(t *testing.T) {
+	var gets atomic.Int64
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		gets.Add(1)
+		http.Redirect(w, r, r.URL.RequestURI(), http.StatusFound)
+	}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ref, err := name.ParseReference(u.Host + "/foo/bar:latest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Bounds the test if the loop is followed.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = Get(ref, WithContext(ctx))
+	if err == nil || !strings.Contains(err.Error(), "stopped after 10 redirects") {
+		t.Errorf("Get() = %v, want an error that it stopped after 10 redirects", err)
+	}
+	// net/http's default policy stops once 10 requests have been made.
+	if got := gets.Load(); got != 10 {
+		t.Errorf("the manifest was requested %d times, want 10", got)
 	}
 }
 
