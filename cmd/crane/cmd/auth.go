@@ -249,8 +249,8 @@ func login(opts loginOptions) error {
 		opts.password = strings.TrimSuffix(string(contents), "\n")
 		opts.password = strings.TrimSuffix(opts.password, "\r")
 	}
-	if opts.user == "" && opts.password == "" {
-		return errors.New("username and password required")
+	if opts.user == "" || opts.password == "" {
+		return errors.New("username and password are both required (use --password-stdin to pass the password on stdin)")
 	}
 	cf, err := config.Load(os.Getenv("DOCKER_CONFIG"))
 	if err != nil {
