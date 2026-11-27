@@ -397,6 +397,31 @@ func TestCraneSaveLegacy(t *testing.T) {
 	if err := crane.SaveLegacy(img, "test/crane", tmp.Name()); err != nil {
 		t.Errorf("SaveLegacy: %v", err)
 	}
+
+	// A legacy tarball has a repositories file.
+	f, err := os.Open(tmp.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	found := false
+	tr := tar.NewReader(f)
+	for {
+		hdr, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if hdr.Name == "repositories" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("SaveLegacy: tarball has no repositories file")
+	}
 }
 
 func TestCraneSaveOCI(t *testing.T) {

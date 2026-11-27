@@ -92,7 +92,7 @@ func PullLayer(ref string, opt ...Option) (v1.Layer, error) {
 // SaveLegacy writes the v1.Image img as a legacy tarball at path with tag src.
 func SaveLegacy(img v1.Image, src, path string) error {
 	imgMap := map[string]v1.Image{src: img}
-	return MultiSave(imgMap, path)
+	return MultiSaveLegacy(imgMap, path)
 }
 
 // MultiSaveLegacy writes collection of v1.Image img with tag as a legacy tarball.
