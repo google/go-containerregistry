@@ -161,7 +161,7 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 		if err != nil {
 			return sendProgressWriterReturn(pw, err)
 		}
-		if err := writeTarEntry(tf, cfgName.String(), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
+		if err := writeTarEntry(tf, configFileName(cfgName), bytes.NewReader(cfgBlob), int64(len(cfgBlob))); err != nil {
 			return sendProgressWriterReturn(pw, err)
 		}
 
@@ -208,6 +208,15 @@ func writeImagesToTar(imageToTags map[v1.Image][]string, m []byte, size int64, w
 	// send an EOF to indicate finished on the channel, but nil as our return error
 	_ = sendProgressWriterReturn(pw, io.EOF)
 	return nil
+}
+
+// configFileName returns the tar entry name for an image config blob.
+//
+// Like layer files, it drops the algorithm prefix: tar treats a name with a
+// colon as a remote tape drive, and Windows rejects colons in file names.
+// The "<hex>.json" form matches what `docker save` writes.
+func configFileName(h v1.Hash) string {
+	return h.Hex + ".json"
 }
 
 // calculateManifest calculates the manifest and optionally the size of the tar file
@@ -263,7 +272,7 @@ func calculateManifest(imageToTags map[v1.Image][]string) (m Manifest, err error
 
 		// Generate the tar descriptor and write it.
 		m = append(m, Descriptor{
-			Config:       cfgName.String(),
+			Config:       configFileName(cfgName),
 			RepoTags:     tags,
 			Layers:       layerFiles,
 			LayerSources: layerSources,
