@@ -150,6 +150,21 @@ func TestPlatformEquals(t *testing.T) {
 	}
 }
 
+func TestPlatformEqualsPreservesFeatures(t *testing.T) {
+	a := v1.Platform{OSFeatures: []string{"c", "a", "b"}, Features: []string{"z", "x", "y"}}
+	b := v1.Platform{OSFeatures: []string{"b", "a", "c"}, Features: []string{"y", "x", "z"}}
+	wantA, wantB := a.DeepCopy(), b.DeepCopy()
+	if !a.Equals(b) {
+		t.Fatal("Equals() = false, want true")
+	}
+	if diff := cmp.Diff(wantA, &a); diff != "" {
+		t.Errorf("Equals() changed receiver (-want +got): %s", diff)
+	}
+	if diff := cmp.Diff(wantB, &b); diff != "" {
+		t.Errorf("Equals() changed argument (-want +got): %s", diff)
+	}
+}
+
 func TestPlatformSatisfies(t *testing.T) {
 	tests := []struct {
 		have, spec v1.Platform
