@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -51,6 +52,11 @@ func sha256String(s string) string {
 }
 
 func TestCalls(t *testing.T) {
+	subject := `"subject":{"digest":"sha256:` + sha256String("foo") + `"}`
+	artifactManifest := `{"artifactType":"application/vnd.example.sbom.v1",` +
+		`"config":{"mediaType":"application/vnd.oci.empty.v1+json"},` + subject + `}`
+	configManifest := `{"config":{"mediaType":"application/vnd.example.config.v1+json"},` + subject + `}`
+
 	tcs := []struct {
 		Description string
 
@@ -485,6 +491,32 @@ func TestCalls(t *testing.T) {
 			Header: map[string]string{
 				"Content-Type": "application/vnd.oci.image.index.v1+json",
 			},
+		},
+		{
+			Description: "fetch references, artifactType from the manifest",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusOK,
+			Manifests: map[string]string{
+				"foo/manifests/image":           "foo",
+				"foo/manifests/points-to-image": artifactManifest,
+			},
+			Want: `{"schemaVersion":2,"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[` +
+				`{"mediaType":"","size":` + strconv.Itoa(len(artifactManifest)) + `,"digest":"sha256:` + sha256String(artifactManifest) + `",` +
+				`"artifactType":"application/vnd.example.sbom.v1"}]}`,
+		},
+		{
+			Description: "fetch references, artifactType from the config media type",
+			Method:      "GET",
+			URL:         "/v2/foo/referrers/sha256:" + sha256String("foo"),
+			Code:        http.StatusOK,
+			Manifests: map[string]string{
+				"foo/manifests/image":           "foo",
+				"foo/manifests/points-to-image": configManifest,
+			},
+			Want: `{"schemaVersion":2,"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[` +
+				`{"mediaType":"","size":` + strconv.Itoa(len(configManifest)) + `,"digest":"sha256:` + sha256String(configManifest) + `",` +
+				`"artifactType":"application/vnd.example.config.v1+json"}]}`,
 		},
 		{
 			Description: "fetch references, subject pointing elsewhere",

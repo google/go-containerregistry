@@ -423,17 +423,24 @@ func (m *manifests) handleReferrers(resp http.ResponseWriter, req *http.Request)
 		}
 		// At this point, we know the current digest references the target
 		var imageAsArtifact struct {
-			Config struct {
+			ArtifactType string `json:"artifactType"`
+			Config       struct {
 				MediaType string `json:"mediaType"`
 			} `json:"config"`
 			Annotations map[string]string `json:"annotations"`
 		}
 		json.Unmarshal(manifest.blob, &imageAsArtifact)
+		// Use the artifactType of the manifest or index. An image manifest without one falls back
+		// to its config media type; an index has no config, so its artifactType stays empty.
+		artifactType := imageAsArtifact.ArtifactType
+		if artifactType == "" {
+			artifactType = imageAsArtifact.Config.MediaType
+		}
 		im.Manifests = append(im.Manifests, v1.Descriptor{
 			MediaType:    types.MediaType(manifest.contentType),
 			Size:         int64(len(manifest.blob)),
 			Digest:       h,
-			ArtifactType: imageAsArtifact.Config.MediaType,
+			ArtifactType: artifactType,
 			Annotations:  imageAsArtifact.Annotations,
 		})
 	}
