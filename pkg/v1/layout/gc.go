@@ -24,21 +24,28 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 )
 
-// GarbageCollect removes unreferenced blobs from the oci-layout
+// GarbageCollect identifies unreferenced blobs in the OCI layout using the
+// strict default read policy.
 //
 //	This is an experimental api, and not subject to any stability guarantees
 //	We may abandon it at any time, without prior notice.
 //	Deprecated: Use it at your own risk!
 func (l Path) GarbageCollect() ([]v1.Hash, error) {
-	idx, err := l.ImageIndex()
+	return l.Reader().GarbageCollect()
+}
+
+// GarbageCollect identifies unreferenced blobs using the Reader's policy. It
+// does not remove any blobs; callers may remove the returned paths separately.
+func (r Reader) GarbageCollect() ([]v1.Hash, error) {
+	idx, err := r.ImageIndex()
 	if err != nil {
 		return nil, err
 	}
 	blobsToKeep := map[string]bool{}
-	if err := l.garbageCollectImageIndex(idx, blobsToKeep); err != nil {
+	if err := r.path.garbageCollectImageIndex(idx, blobsToKeep); err != nil {
 		return nil, err
 	}
-	blobsDir := l.path("blobs")
+	blobsDir := r.path.path("blobs")
 	removedBlobs := []v1.Hash{}
 
 	err = filepath.WalkDir(blobsDir, func(path string, d fs.DirEntry, err error) error {

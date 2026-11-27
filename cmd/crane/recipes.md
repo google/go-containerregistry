@@ -103,3 +103,26 @@ crane index append -t ${IMAGE} \
 ```
 
 Note that this is less flexible than [`manifest-tool`](https://github.com/estesp/manifest-tool) because it derives the platform from each image's config file, but it should work in most cases.
+
+### Read a trusted OCI layout with symlinked blobs
+
+Local OCI layouts reject final symlink entries in `blobs/` by default. Trusted
+build-generated layouts may intentionally use symlinks for shared layers; opt
+in only when you trust the layout producer:
+
+```sh
+crane push --allow-layout-symlinks ./layout ${IMAGE}
+crane push --index --allow-layout-symlinks ./layout ${INDEX}
+crane index append --allow-layout-symlinks --manifest ./layout --tag ${INDEX}
+```
+
+For `crane push`, the option applies only when `PATH` is a local OCI layout,
+not when it is a tarball. For `crane index append`, it applies only to local OCI
+layout manifest inputs, whether supplied with `--manifest` or after the
+positional base; remote references and the local append destination are unchanged. The option is independent of `--insecure`, which
+controls registry TLS behavior.
+
+A final symlink can redirect a blob read to another regular file accessible to
+the `crane` process. Use the option only across a trusted-producer boundary; it
+does not turn the layout into a complete directory sandbox or establish that an
+untrusted layout is safe.

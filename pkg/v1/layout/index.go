@@ -30,7 +30,7 @@ var _ v1.ImageIndex = (*layoutIndex)(nil)
 
 type layoutIndex struct {
 	mediaType types.MediaType
-	path      Path
+	reader    Reader
 	rawIndex  []byte
 }
 
@@ -43,16 +43,23 @@ func ImageIndexFromPath(path string) (v1.ImageIndex, error) {
 	return lp.ImageIndex()
 }
 
-// ImageIndex returns a v1.ImageIndex for the Path.
+// ImageIndex returns a v1.ImageIndex for the Path using the strict default read
+// policy.
 func (l Path) ImageIndex() (v1.ImageIndex, error) {
-	rawIndex, err := os.ReadFile(l.path("index.json"))
+	return l.Reader().ImageIndex()
+}
+
+// ImageIndex returns a v1.ImageIndex using the Reader's policy for all nested
+// blob reads.
+func (r Reader) ImageIndex() (v1.ImageIndex, error) {
+	rawIndex, err := os.ReadFile(r.path.path("index.json"))
 	if err != nil {
 		return nil, err
 	}
 
 	idx := &layoutIndex{
 		mediaType: types.OCIImageIndex,
-		path:      l,
+		reader:    r,
 		rawIndex:  rawIndex,
 	}
 
@@ -93,8 +100,8 @@ func (i *layoutIndex) Image(h v1.Hash) (v1.Image, error) {
 	}
 
 	img := &layoutImage{
-		path: i.path,
-		desc: *desc,
+		reader: i.reader,
+		desc:   *desc,
 	}
 	return partial.CompressedToImage(img)
 }
@@ -110,20 +117,20 @@ func (i *layoutIndex) ImageIndex(h v1.Hash) (v1.ImageIndex, error) {
 		return nil, fmt.Errorf("unexpected media type for %v: %s", h, desc.MediaType)
 	}
 
-	rawIndex, err := i.path.Bytes(h)
+	rawIndex, err := i.reader.Bytes(h)
 	if err != nil {
 		return nil, err
 	}
 
 	return &layoutIndex{
 		mediaType: desc.MediaType,
-		path:      i.path,
+		reader:    i.reader,
 		rawIndex:  rawIndex,
 	}, nil
 }
 
 func (i *layoutIndex) Blob(h v1.Hash) (io.ReadCloser, error) {
-	return i.path.Blob(h)
+	return i.reader.Blob(h)
 }
 
 func (i *layoutIndex) findDescriptor(h v1.Hash) (*v1.Descriptor, error) {

@@ -8,6 +8,11 @@ This sub-command pushes an index based on an (optional) base index, with appende
 
 The platform for appended manifests is inferred from the config file or omitted if that is infeasible.
 
+The --allow-layout-symlinks option applies only to local OCI layout manifest
+inputs, whether passed with --manifest or after the positional base. Use it
+only for layouts from a trusted local producer. It does not change the local
+append destination, remote references, or TLS behavior controlled by --insecure.
+
 ```
 crane index append [flags]
 ```
@@ -25,11 +30,12 @@ crane index append [flags]
 ### Options
 
 ```
-      --docker-empty-base   If true, empty base index will have Docker media types instead of OCI
-      --flatten             If true, appending an index will append each of its children rather than the index itself (default true)
-  -h, --help                help for append
-  -m, --manifest strings    References to manifests to append to the base index
-  -t, --tag string          Tag to apply to resulting image
+      --allow-layout-symlinks   allow final symlink entries in trusted local OCI layout blobs used as manifest inputs
+      --docker-empty-base       If true, empty base index will have Docker media types instead of OCI
+      --flatten                 If true, appending an index will append each of its children rather than the index itself (default true)
+  -h, --help                    help for append
+  -m, --manifest strings        References to manifests to append to the base index
+  -t, --tag string              Tag to apply to resulting image
 ```
 
 ### Options inherited from parent commands

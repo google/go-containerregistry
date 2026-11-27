@@ -32,9 +32,14 @@ func NewCmdLayout() *cobra.Command {
 
 // NewCmdGc creates a new cobra.Command for the pull subcommand.
 func newCmdGc() *cobra.Command {
+	var allowLayoutSymlinks bool
 	cmd := &cobra.Command{
-		Use:    "gc OCI-LAYOUT",
-		Short:  "Garbage collect unreferenced blobs in a local oci-layout",
+		Use:   "gc OCI-LAYOUT",
+		Short: "Garbage collect unreferenced blobs in a local oci-layout",
+		Long: `Garbage collect unreferenced blobs in a local OCI layout.
+
+By default, final symlink entries in layout blobs are rejected. Use
+--allow-layout-symlinks only for a layout from a trusted local producer.`,
 		Args:   cobra.ExactArgs(1),
 		Hidden: true, // TODO: promote to public once theres some milage
 		RunE: func(_ *cobra.Command, args []string) error {
@@ -46,7 +51,11 @@ func newCmdGc() *cobra.Command {
 				return err
 			}
 
-			blobs, err := p.GarbageCollect()
+			reader := p.Reader()
+			if allowLayoutSymlinks {
+				reader = p.Reader(layout.WithAllowFinalSymlinks())
+			}
+			blobs, err := reader.GarbageCollect()
 			if err != nil {
 				return err
 			}
@@ -62,5 +71,6 @@ func newCmdGc() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().BoolVar(&allowLayoutSymlinks, "allow-layout-symlinks", false, "allow final symlink entries in trusted local OCI layout blobs")
 	return cmd
 }
