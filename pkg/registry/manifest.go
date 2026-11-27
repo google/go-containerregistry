@@ -281,23 +281,19 @@ func (m *manifests) handleTags(resp http.ResponseWriter, req *http.Request) *reg
 		// https://github.com/opencontainers/distribution-spec/blob/b505e9cc53ec499edbd9c1be32298388921bb705/detail.md#tags-paginated
 		// Offset using last query parameter.
 		if last := req.URL.Query().Get("last"); last != "" {
-			for i, t := range tags {
-				if t > last {
-					tags = tags[i:]
-					break
-				}
-			}
+			// Skip every tag up to and including last; this leaves tags
+			// empty when last is the final tag or sorts after it.
+			i := sort.Search(len(tags), func(i int) bool { return tags[i] > last })
+			tags = tags[i:]
 		}
 
 		// Limit using n query parameter.
 		if ns := req.URL.Query().Get("n"); ns != "" {
-			if n, err := strconv.Atoi(ns); err != nil {
-				return &regError{
-					Status:  http.StatusBadRequest,
-					Code:    "BAD_REQUEST",
-					Message: fmt.Sprintf("parsing n: %v", err),
-				}
-			} else if n < len(tags) {
+			n, rerr := parseN(ns)
+			if rerr != nil {
+				return rerr
+			}
+			if n < len(tags) {
 				tags = tags[:n]
 			}
 		}
@@ -326,7 +322,10 @@ func (m *manifests) handleCatalog(resp http.ResponseWriter, req *http.Request) *
 	nStr := query.Get("n")
 	n := 10000
 	if nStr != "" {
-		n, _ = strconv.Atoi(nStr)
+		var rerr *regError
+		if n, rerr = parseN(nStr); rerr != nil {
+			return rerr
+		}
 	}
 
 	if req.Method == "GET" {
@@ -361,6 +360,26 @@ func (m *manifests) handleCatalog(resp http.ResponseWriter, req *http.Request) *
 		Code:    "METHOD_UNKNOWN",
 		Message: "We don't understand your method + url",
 	}
+}
+
+// parseN parses the n query parameter, which must be a non-negative integer.
+func parseN(ns string) (int, *regError) {
+	n, err := strconv.Atoi(ns)
+	if err != nil {
+		return 0, &regError{
+			Status:  http.StatusBadRequest,
+			Code:    "BAD_REQUEST",
+			Message: fmt.Sprintf("parsing n: %v", err),
+		}
+	}
+	if n < 0 {
+		return 0, &regError{
+			Status:  http.StatusBadRequest,
+			Code:    "BAD_REQUEST",
+			Message: fmt.Sprintf("parsing n: %d is negative", n),
+		}
+	}
+	return n, nil
 }
 
 // TODO: implement handling of artifactType querystring
