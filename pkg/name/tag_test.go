@@ -27,6 +27,7 @@ var goodStrictValidationTagNames = []string{
 	"us.gcr.io/project-id/image:with.period.in.tag",
 	"gcr.io/project-id/image:w1th-alpha_num3ric.PLUScaps",
 	"domain.with.port:9001/image:latest",
+	"localhost/testimage:mytag",
 }
 
 var goodWeakValidationTagNames = []string{
@@ -110,6 +111,28 @@ func TestTagComponents(t *testing.T) {
 	}
 	if got, want := tag.String(), tagNameStr; got != want {
 		t.Errorf("String() was incorrect for %v. Wanted: `%s` Got: `%s`", tag, want, got)
+	}
+}
+
+func TestLocalhostTagComponents(t *testing.T) {
+	t.Parallel()
+
+	tag, err := NewTag("localhost/testimage:mytag", StrictValidation)
+	if err != nil {
+		t.Fatalf("NewTag() = %v", err)
+	}
+
+	if got, want := tag.RegistryStr(), "localhost"; got != want {
+		t.Errorf("RegistryStr() = %q, want %q", got, want)
+	}
+	if got, want := tag.RepositoryStr(), "testimage"; got != want {
+		t.Errorf("RepositoryStr() = %q, want %q", got, want)
+	}
+	if got, want := tag.TagStr(), "mytag"; got != want {
+		t.Errorf("TagStr() = %q, want %q", got, want)
+	}
+	if got, want := tag.Scheme(), "http"; got != want {
+		t.Errorf("Scheme() = %q, want %q", got, want)
 	}
 }
 
