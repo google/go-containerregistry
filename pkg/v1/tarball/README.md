@@ -63,11 +63,11 @@ $ crane pull ubuntu ubuntu.tar && mkdir ubuntu && tar xf ubuntu.tar -C ubuntu &&
 $ tree ubuntu/
 ubuntu/
 ├── 423ae2b273f4c17ceee9e8482fa8d071d90c7d052ae208e1fe4963fceb3d6954.tar.gz
+├── 72300a873c2ca11c70d0c8642177ce76ff69ae04d61a5813ef58d40ff66e3e7c
 ├── b6b53be908de2c0c78070fff0a9f04835211b3156c4e73785747af365e71a0d7.tar.gz
 ├── de83a2304fa1f7c4a13708a0d15b9704f5945c2be5cbb2b3ed9b2ccb718d0b3d.tar.gz
 ├── f9a83bce3af0648efaa60b9bb28225b09136d2d35d0bed25ac764297076dec1b.tar.gz
-├── manifest.json
-└── sha256:72300a873c2ca11c70d0c8642177ce76ff69ae04d61a5813ef58d40ff66e3e7c
+└── manifest.json
 
 0 directories, 6 files
 ```
@@ -85,7 +85,7 @@ that points to the image's config file, a list of `Layers`, and (optionally)
 $ jq < ubuntu/manifest.json
 [
   {
-    "Config": "sha256:72300a873c2ca11c70d0c8642177ce76ff69ae04d61a5813ef58d40ff66e3e7c",
+    "Config": "72300a873c2ca11c70d0c8642177ce76ff69ae04d61a5813ef58d40ff66e3e7c",
     "RepoTags": [
       "ubuntu"
     ],
@@ -100,9 +100,11 @@ $ jq < ubuntu/manifest.json
 ```
 
 The config file and layers are exactly what you would expect, and match the
-registry representations of the same artifacts. You'll notice that the
-`manifest.json` contains similar information as the registry manifest, but isn't
-quite the same:
+registry representations of the same artifacts. The config file is named with
+the hex digest only.
+
+You'll notice that the `manifest.json` contains similar information as the
+registry manifest, but isn't quite the same:
 
 ```
 $ crane manifest ubuntu@sha256:0925d086715714114c1988f7c947db94064fd385e171a63c07730f1fa014e6f9
@@ -155,16 +157,16 @@ $ tree nanoserver/
 nanoserver/
 ├── 10d1439be4eb8819987ec2e9c140d44d74d6b42a823d57fe1953bd99948e1bc0.tar.gz
 ├── a35da61c356213336e646756218539950461ff2bf096badf307a23add6e70053.tar.gz
+├── bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6
 ├── be21f08f670160cbae227e3053205b91d6bfa3de750b90c7e00bd2c511ccb63a.tar.gz
-├── manifest.json
-└── sha256:bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6
+└── manifest.json
 
 0 directories, 5 files
 
 $ jq < nanoserver/manifest.json
 [
   {
-    "Config": "sha256:bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6",
+    "Config": "bc5d255ea81f83c8c38a982a6d29a6f2198427d258aea5f166e49856896b2da6",
     "RepoTags": [
       "index.docker.io/library/hello-world:i-was-a-digest"
     ],
