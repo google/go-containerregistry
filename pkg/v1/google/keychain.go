@@ -64,7 +64,16 @@ func (gk *googleKeychain) ResolveContext(ctx context.Context, target authn.Resou
 	}
 
 	gk.once.Do(func() {
-		gk.auth = resolve(ctx)
+		// The authenticator is cached for the life of the process, long after
+		// the first caller's request has ended, so it must not be bound to
+		// that caller's cancellation. Its token sources keep the context they
+		// are built with for every later refresh: golang.org/x/oauth2 uses it
+		// for each STS exchange of an external_account (workload identity
+		// federation) credential, and gcloudSource for each gcloud run. Bound
+		// to a request context, every refresh after that request fails with
+		// "context canceled", and a request cancelled while resolving caches
+		// Anonymous for good.
+		gk.auth = resolve(context.WithoutCancel(ctx))
 	})
 
 	return gk.auth, nil
